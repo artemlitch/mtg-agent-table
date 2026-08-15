@@ -1,7 +1,7 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
 import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } from "./game";
-import { loadPlayerDeck, scryfallNamed } from "./decks";
+import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave } from "./persist";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory } from "./history";
@@ -67,10 +67,10 @@ const server = Bun.serve({
       const actor = body.actor as PlayerId;
       if (actor !== "you" && actor !== "agent") return json({ ok: false, error: "bad actor" }, 400);
       try {
-        // enrich tokens with scryfall art when available
+        // enrich tokens with scryfall art when available (exact token match only)
         if (body.type === "create_token" && !body.params?.image) {
-          const info = await scryfallNamed(body.params.name);
-          if (info && /token|treasure|clue|food|blood|map|powerstone/i.test(info.typeLine ?? "")) {
+          const info = await scryfallToken(body.params.name).catch(() => null);
+          if (info) {
             body.params = { ...body.params, image: info.image, oracle: info.oracle, typeLine: info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }

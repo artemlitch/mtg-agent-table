@@ -20,3 +20,19 @@ describe.if(!!process.env.RUN_NET)("scryfall hydration (network)", () => {
     expect(c!.image).toContain("scryfall");
   }, 20000);
 });
+
+describe.if(!!process.env.RUN_NET)("token lookup (network)", () => {
+  test("Treasure resolves to an actual Treasure token, not a fuzzy mismatch", async () => {
+    const { scryfallToken } = await import("../server/decks");
+    const t = await scryfallToken("Treasure");
+    expect(t).toBeDefined();
+    expect(t!.typeLine).toContain("Treasure");
+    expect(t!.image).toContain("scryfall");
+  }, 20000);
+
+  test("unknown token names return null instead of a wrong card", async () => {
+    const { scryfallToken } = await import("../server/decks");
+    const t = await scryfallToken("Definitely Not A Real Token Name XYZ");
+    expect(t).toBeNull();
+  }, 20000);
+});

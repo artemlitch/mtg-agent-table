@@ -133,6 +133,28 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
   return deck;
 }
 
+/** Exact-name token lookup (Treasure, Clue, Food, …). Returns null when no token matches. */
+export async function scryfallToken(name: string): Promise<ScryCard | null> {
+  const q = encodeURIComponent(`!"${name}" t:token`);
+  const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&unique=cards`, {
+    headers: { "User-Agent": SCRYFALL_HEADERS["User-Agent"], Accept: "application/json" },
+  });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  const c = data.data?.[0];
+  if (!c) return null;
+  const face = c.card_faces?.[0];
+  return {
+    name: c.name,
+    image: c.image_uris?.normal ?? face?.image_uris?.normal,
+    oracle: c.oracle_text ?? face?.oracle_text,
+    mana: c.mana_cost ?? face?.mana_cost,
+    typeLine: c.type_line,
+    power: c.power ?? face?.power,
+    toughness: c.toughness ?? face?.toughness,
+  };
+}
+
 /** Resolve a token/card image by fuzzy name, for create_token. */
 export async function scryfallNamed(name: string): Promise<ScryCard | null> {
   const res = await fetch(
