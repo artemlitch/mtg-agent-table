@@ -37,10 +37,11 @@ const TOOLS: Record<string, ToolDef> = {
   },
   move: {
     description:
-      "The universal card mover: play a card from hand (toZone battlefield), discard (hand→graveyard), exile, bounce, mill, put on top/bottom of a library, cast your commander (command→battlefield), etc. card accepts a card id or 'top:you'/'top:agent' for the top of a library. Use faceDown+revealTo for face-down exile theft effects (revealTo 'agent' keeps it visible to you only). position: 'top'|'bottom'|number for library placement.",
+      "The universal card mover — moves ONE OR MANY cards in a single call (always batch with `cards` when moving several: mulligans, mass discard, board wipes, mill N). Uses: discard, exile, bounce, mill, return a whole hand to the library, etc. Card refs: card id, or 'top:you'/'top:agent' for the top of a library. Use faceDown+revealTo for face-down exile theft effects (revealTo 'agent' keeps it visible to you only). position: 'top'|'bottom'|number for library placement (batch order preserved). Remember: spells and land drops normally go through cast, not move.",
     schema: obj(
       {
-        card: str("card id, or top:you / top:agent"),
+        cards: arr(str("card id, or top:you / top:agent"), "cards to move together (preferred)"),
+        card: str("single card id (alternative to cards)"),
         toZone: ZONE,
         toPlayer: PLAYER,
         position: str("top | bottom | index (library placement)"),
@@ -48,7 +49,7 @@ const TOOLS: Record<string, ToolDef> = {
         revealTo: str("who may see a face-down card", ["you", "agent", "all"]),
         note: str("short reason shown in the log, e.g. 'Gonti trigger'"),
       },
-      ["card", "toZone"]
+      ["toZone"]
     ),
   },
   cast: {
@@ -79,8 +80,8 @@ const TOOLS: Record<string, ToolDef> = {
   },
   untap_all: { description: "Untap all of a player's permanents (start of turn).", schema: obj({ player: PLAYER }) },
   counters: {
-    description: "Add/remove counters on a card. kind e.g. '+1/+1', 'loyalty', 'charge'. delta may be negative.",
-    schema: obj({ card: str("card id"), kind: str("counter kind"), delta: num("change") }, ["card"]),
+    description: "Add/remove counters on one or many cards at once. kind e.g. '+1/+1', 'loyalty', 'charge'. delta may be negative.",
+    schema: obj({ cards: arr(str("card id"), "cards to change together"), card: str("single card id"), kind: str("counter kind"), delta: num("change") }),
   },
   create_token: {
     description: "Create N token permanents under a player's control. Provide name; power/toughness/typeLine optional.",

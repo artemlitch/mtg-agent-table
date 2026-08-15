@@ -385,3 +385,48 @@ describe("agent-friendly param aliases", () => {
     expect(c.tapped).toBe(true);
   });
 });
+
+describe("batch actions", () => {
+  test("move accepts many cards at once and logs ONE entry", () => {
+    const cards = Array.from({ length: 7 }, (_, i) => seedCard(`H${i}`, "agent", "hand"));
+    const before = game.log.length;
+    applyAction("agent", "move", { cards: cards.map((c) => c.id), toZone: "library", toPlayer: "agent" });
+    expect(game.players.agent.zones.library.length).toBe(7);
+    expect(game.players.agent.zones.hand.length).toBe(0);
+    expect(game.log.length).toBe(before + 1);
+  });
+
+  test("batch move to library top preserves the given order", () => {
+    seedLibrary("you", ["Old"]);
+    const a = seedCard("A", "you", "hand");
+    const b = seedCard("B", "you", "hand");
+    applyAction("you", "move", { cards: [a.id, b.id], toZone: "library", position: "top" });
+    expect(game.players.you.zones.library.map((id) => game.cards[id].name)).toEqual(["A", "B", "Old"]);
+  });
+
+  test("batch move log hides names from the opponent but shows them to the actor", () => {
+    const a = seedCard("Secret A", "agent", "hand");
+    const b = seedCard("Secret B", "agent", "hand");
+    applyAction("agent", "move", { cards: [a.id, b.id], toZone: "library", toPlayer: "agent" });
+    const entry = game.log.at(-1)!;
+    expect(renderLogFor(entry, "you").text).not.toContain("Secret A");
+    expect(renderLogFor(entry, "agent").text).toContain("Secret A");
+  });
+
+  test("counters accepts many cards at once", () => {
+    const a = seedCard("A", "you", "battlefield");
+    const b = seedCard("B", "you", "battlefield");
+    applyAction("you", "counters", { cards: [a.id, b.id], kind: "+1/+1", delta: 2 });
+    expect(a.counters["+1/+1"]).toBe(2);
+    expect(b.counters["+1/+1"]).toBe(2);
+  });
+
+  test("batch move with a token in the batch removes the token cleanly", () => {
+    applyAction("you", "create_token", { name: "Treasure", n: 1 });
+    const token = game.players.you.zones.battlefield[0];
+    const real = seedCard("Real", "you", "battlefield");
+    applyAction("you", "move", { cards: [token, real.id], toZone: "graveyard" });
+    expect(game.cards[token]).toBeUndefined();
+    expect(real.zone).toBe("graveyard");
+  });
+});

@@ -299,63 +299,88 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   /**
-   * The universal move. p: { card: id|"top:you"|"top:agent", toZone, toPlayer?,
-   * position?: "top"|"bottom"|number, faceDown?, revealTo?: "you"|"agent"|"all"|null, note? }
+   * The universal move — takes one card or many. p: { card | cards: [...],
+   * toZone, toPlayer?, position?: "top"|"bottom"|number, faceDown?,
+   * revealTo?: "you"|"agent"|"all"|null, note? }
+   * Card refs: id, or "top:you"/"top:agent" for the top of a library.
    */
   move(ctx, p) {
-    const card = resolveCardRef(p.card ?? p.cardId);
-    const fromZone = card.zone;
-    const fromDesc = publicDesc(card);
+    const refs: string[] =
+      Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
     const toZone: Zone = p.toZone;
     if (!ZONES.includes(toZone)) throw new Error(`bad zone ${toZone}`);
-    const toPlayer: PlayerId = p.toPlayer ?? card.controller;
+    // resolve everything up front so a bad ref fails atomically before mutation
+    const cards = refs.map((r) => resolveCardRef(r));
 
-    removeFromZone(card);
-    if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
-    card.zone = toZone;
-    card.controller = toPlayer;
-    card.attachedTo = null;
-    card.attacking = null;
-    card.blocking = null;
-    if (toZone !== "battlefield") card.tapped = false;
-    // visibility resets on zone change, then explicit grants apply
-    card.faceDown = !!p.faceDown;
-    card.visibleTo = [];
-    if (p.revealTo === "all") card.visibleTo = [...PLAYERS];
-    else if (p.revealTo === "you" || p.revealTo === "agent") card.visibleTo = [p.revealTo];
-    // mover always gets to see a card it placed face-down (it chose the card)
-    if (card.faceDown && toZone !== "library" && !card.visibleTo.includes(ctx.actor)) {
-      card.visibleTo.push(ctx.actor);
+    const movedIds: string[] = [];
+    const removedTokens: string[] = [];
+    // per-viewer name lists: a viewer sees the name if the card was or is visible to them
+    const names: Record<PlayerId | "public", string[]> = { you: [], agent: [], public: [] };
+    const fromZones = new Set<string>();
+    let insertAt: number | null = null;
+    let toPlayerForLog: PlayerId = p.toPlayer ?? cards[0].controller;
+
+    for (const card of cards) {
+      const fromZone = card.zone;
+      fromZones.add(fromZone);
+      const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
+      const toPlayer: PlayerId = p.toPlayer ?? card.controller;
+      toPlayerForLog = toPlayer;
+
+      removeFromZone(card);
+      if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
+      card.zone = toZone;
+      card.controller = toPlayer;
+      card.attachedTo = null;
+      card.attacking = null;
+      card.blocking = null;
+      if (toZone !== "battlefield") card.tapped = false;
+      // visibility resets on zone change, then explicit grants apply
+      card.faceDown = !!p.faceDown;
+      card.visibleTo = [];
+      if (p.revealTo === "all") card.visibleTo = [...PLAYERS];
+      else if (p.revealTo === "you" || p.revealTo === "agent") card.visibleTo = [p.revealTo];
+      // mover always gets to see a card it placed face-down (it chose the card)
+      if (card.faceDown && toZone !== "library" && !card.visibleTo.includes(ctx.actor)) {
+        card.visibleTo.push(ctx.actor);
+      }
+
+      // tokens cease to exist outside the battlefield
+      if (card.isToken && toZone !== "battlefield") {
+        delete game.cards[card.id];
+        removedTokens.push(card.name);
+        continue;
+      }
+
+      const list = game.players[toPlayer].zones[toZone];
+      if (p.position === "bottom") list.push(card.id);
+      else if (typeof p.position === "number") {
+        list.splice(Math.max(0, Math.min(list.length, p.position + movedIds.length)), 0, card.id);
+      } else if (toZone === "library") {
+        // default library placement: top, preserving the given order
+        insertAt = insertAt === null ? 0 : insertAt;
+        list.splice(insertAt++, 0, card.id);
+      } else list.push(card.id);
+      movedIds.push(card.id);
+
+      const postVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
+      for (const v of PLAYERS) names[v].push(preVis[v] || postVis[v] ? card.name : "a hidden card");
+      names.public.push(postVis.you && postVis.agent ? card.name : "a hidden card");
     }
 
-    // tokens cease to exist outside the battlefield
-    if (card.isToken && toZone !== "battlefield") {
-      delete game.cards[card.id];
-      addLog(ctx.actor, `${who(ctx.actor)} removed token ${card.name}`);
-      return { ok: true, token_removed: card.name };
-    }
-
-    const list = game.players[toPlayer].zones[toZone];
-    if (p.position === "bottom") list.push(card.id);
-    else if (typeof p.position === "number") list.splice(Math.max(0, Math.min(list.length, p.position)), 0, card.id);
-    else if (toZone === "library") list.unshift(card.id); // default library placement: top
-    else list.push(card.id);
-
-    const nowDesc = publicDesc(card);
-    const desc = nowDesc !== "a hidden card" ? nowDesc : fromDesc;
+    const n = cards.length;
+    const fromDesc = fromZones.size === 1 ? ` from ${[...fromZones][0]}` : "";
     const suffix = p.note ? ` (${p.note})` : "";
-    const fd = card.faceDown ? " face-down" : "";
-    addLog(
-      ctx.actor,
-      `${who(ctx.actor)} moved ${desc} from ${who(card.owner)}'s ${fromZone} to ${who(toPlayer)}'s ${toZone}${fd}${suffix}`,
-      cardVisibleTo(card, "you") !== cardVisibleTo(card, "agent")
-        ? {
-            [cardVisibleTo(card, "you") ? "you" : "agent"]:
-              `${who(ctx.actor)} moved ${card.name} from ${who(card.owner)}'s ${fromZone} to ${who(toPlayer)}'s ${toZone}${fd}${suffix}`,
-          }
-        : undefined
-    );
-    return { ok: true, card: card.id, name: cardVisibleTo(card, ctx.actor) ? card.name : undefined };
+    const fd = p.faceDown ? " face-down" : "";
+    const tokenNote = removedTokens.length ? ` (${removedTokens.length} token${removedTokens.length === 1 ? "" : "s"} ceased to exist)` : "";
+    const line = (list: string[]) =>
+      `${who(ctx.actor)} moved ${n === 1 ? list[0] : `${n} cards (${list.join(", ")})`}${fromDesc} to ${who(toPlayerForLog)}'s ${toZone}${fd}${suffix}${tokenNote}`;
+    const publicText = line(names.public);
+    const priv: any = {};
+    for (const v of PLAYERS) if (line(names[v]) !== publicText) priv[v] = line(names[v]);
+    addLog(ctx.actor, publicText, Object.keys(priv).length ? priv : undefined);
+
+    return { ok: true, cards: movedIds, removedTokens };
   },
 
   tap(ctx, p) {
@@ -380,13 +405,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   counters(ctx, p) {
-    const c = getCard(p.card);
+    const ids: string[] = Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
     const kind: string = p.kind || "+1/+1";
     const delta: number = p.delta ?? 1;
-    c.counters[kind] = (c.counters[kind] || 0) + delta;
-    if (c.counters[kind] <= 0) delete c.counters[kind];
-    addLog(ctx.actor, `${who(ctx.actor)} set ${publicDesc(c)} ${kind} counters to ${c.counters[kind] || 0}`);
-    return { ok: true, counters: c.counters };
+    const parts: string[] = [];
+    for (const id of ids) {
+      const c = getCard(id);
+      c.counters[kind] = (c.counters[kind] || 0) + delta;
+      if (c.counters[kind] <= 0) delete c.counters[kind];
+      parts.push(`${publicDesc(c)} → ${c.counters[kind] || 0}`);
+    }
+    addLog(ctx.actor, `${who(ctx.actor)} set ${kind} counters: ${parts.join(", ")}`);
+    return { ok: true };
   },
 
   create_token(ctx, p) {
