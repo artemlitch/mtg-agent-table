@@ -355,3 +355,29 @@ describe("chat robustness", () => {
     expect(game.pendingQuestion).toBe("which card?");
   });
 });
+
+describe("agent-friendly param aliases", () => {
+  test("draw accepts count alias", () => {
+    seedLibrary("agent", ["A", "B"]);
+    applyAction("agent", "draw", { player: "agent", count: 2 });
+    expect(game.players.agent.zones.hand.length).toBe(2);
+  });
+
+  test("draw coerces string n", () => {
+    seedLibrary("you", ["A", "B"]);
+    applyAction("you", "draw", { n: "2" });
+    expect(game.players.you.zones.hand.length).toBe(2);
+  });
+
+  test("move accepts cardId alias", () => {
+    const c = seedCard("Bear", "you", "hand");
+    applyAction("you", "move", { cardId: c.id, toZone: "battlefield" });
+    expect(c.zone).toBe("battlefield");
+  });
+
+  test("tap accepts cardIds alias", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "tap", { cardIds: [c.id] });
+    expect(c.tapped).toBe(true);
+  });
+});

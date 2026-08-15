@@ -249,7 +249,8 @@ function cardMenu(c, e) {
 
   if (c.zone === "hand" && c.controller === "you") {
     items.push(moveItem("▶ Play to battlefield", c, { toZone: "battlefield", toPlayer: "you" }));
-    items.push(moveItem("Discard", c, { toZone: "graveyard", toPlayer: owner }));
+    items.push(moveItem("✨ Cast (to graveyard)", c, { toZone: "graveyard", toPlayer: owner, note: "cast" }));
+    items.push(moveItem("Discard", c, { toZone: "graveyard", toPlayer: owner, note: "discard" }));
     items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
     items.push({ label: "Reveal to agent", fn: () => act("reveal", { cards: [c.id], to: "agent" }) });
     items.push({ label: "Reveal to all", fn: () => act("reveal", { cards: [c.id], to: "all" }) });
@@ -581,7 +582,10 @@ $("#btn-newgame").onclick = async () => {
 };
 
 document.querySelectorAll(".phasebtns button[data-phase]").forEach((b) => {
-  b.onclick = () => act("set_phase", { phase: b.dataset.phase });
+  b.onclick = async () => {
+    if (b.dataset.phase === "untap/upkeep") await act("untap_all", { player: "you" });
+    act("set_phase", { phase: b.dataset.phase });
+  };
 });
 
 $("#btn-endturn").onclick = async () => {

@@ -254,7 +254,7 @@ export type ActionResult = { ok: true; [k: string]: any };
 export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> = {
   draw(ctx, p) {
     const player: PlayerId = p.player ?? ctx.actor;
-    const n = Math.max(1, Math.min(20, p.n ?? 1));
+    const n = Math.max(1, Math.min(20, Number(p.n ?? p.count ?? 1)));
     const drawn: string[] = [];
     for (let i = 0; i < n; i++) {
       const lib = game.players[player].zones.library;
@@ -279,7 +279,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    * position?: "top"|"bottom"|number, faceDown?, revealTo?: "you"|"agent"|"all"|null, note? }
    */
   move(ctx, p) {
-    const card = resolveCardRef(p.card);
+    const card = resolveCardRef(p.card ?? p.cardId);
     const fromZone = card.zone;
     const fromDesc = publicDesc(card);
     const toZone: Zone = p.toZone;
@@ -334,7 +334,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   tap(ctx, p) {
-    const ids: string[] = p.cards;
+    const ids: string[] = p.cards ?? p.cardIds;
     const tapped = p.tapped !== false;
     const names: string[] = [];
     for (const id of ids) {
