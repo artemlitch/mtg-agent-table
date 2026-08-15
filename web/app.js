@@ -151,7 +151,19 @@ function renderRail(p) {
   }));
   rail.appendChild(lb);
 
-  rail.appendChild(pile("Library", ps.counts.library, (e) => libraryMenu(p, e)));
+  const lib = pile("Library", ps.counts.library, (e) => libraryMenu(p, e));
+  if (p === "you") {
+    const drawBtn = document.createElement("button");
+    drawBtn.textContent = "🂠 Draw 1";
+    drawBtn.style.cssText = "width:100%;margin-top:4px;font-size:11px";
+    drawBtn.title = "Draw a card (more options: click the Library count)";
+    drawBtn.onclick = (e) => {
+      e.stopPropagation();
+      act("draw", { n: 1 });
+    };
+    lib.appendChild(drawBtn);
+  }
+  rail.appendChild(lib);
   rail.appendChild(pile("Graveyard", ps.counts.graveyard, () => showZoneModal(p, "graveyard")));
   rail.appendChild(pile("Exile", ps.counts.exile, () => showZoneModal(p, "exile")));
 
