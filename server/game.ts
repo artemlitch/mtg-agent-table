@@ -570,14 +570,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   chat(ctx, p) {
-    addLog(ctx.actor, `💬 ${who(ctx.actor)}: ${p.text}`);
+    const text = p.text ?? p.message ?? p.msg;
+    if (!text || !String(text).trim()) throw new Error("chat requires text");
+    addLog(ctx.actor, `💬 ${who(ctx.actor)}: ${text}`);
     if (ctx.actor === "you" && game.pendingQuestion) game.pendingQuestion = null;
     return { ok: true };
   },
 
   ask_user(ctx, p) {
-    game.pendingQuestion = p.question;
-    addLog(ctx.actor, `❓ ${who(ctx.actor)} asks: ${p.question}`);
+    const question = p.question ?? p.text ?? p.message;
+    if (!question || !String(question).trim()) throw new Error("ask_user requires question");
+    game.pendingQuestion = question;
+    addLog(ctx.actor, `❓ ${who(ctx.actor)} asks: ${question}`);
     return { ok: true };
   },
 

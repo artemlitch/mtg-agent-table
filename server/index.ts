@@ -4,8 +4,12 @@ import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } fro
 import { loadPlayerDeck, scryfallNamed } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 
-const PORT = 4780;
+const PORT = Number(process.env.PORT ?? 4780);
+const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+const wakeAgent = () => {
+  if (!AGENT_DISABLED) agent.wake();
+};
 
 let lastDecks: { you: number; agent: number } | null = null;
 
@@ -59,7 +63,7 @@ const server = Bun.serve({
         broadcast({ type: "update", seq: game.seq });
         // wake the agent when the human passes to it or talks to it
         if (actor === "you" && (body.type === "done" || body.type === "chat")) {
-          queueMicrotask(() => agent.wake());
+          queueMicrotask(wakeAgent);
         }
         return json(result);
       } catch (e: any) {
@@ -96,7 +100,7 @@ const server = Bun.serve({
         if (body.model) agent.model = body.model;
         broadcast({ type: "update", seq: game.seq });
         // let the agent look at its hand and decide keep/mull
-        queueMicrotask(() => agent.wake());
+        queueMicrotask(wakeAgent);
         return json({ ok: true, you: yours.name, agent: theirs.name });
       } catch (e: any) {
         return json({ ok: false, error: e.message }, 500);

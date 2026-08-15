@@ -115,3 +115,14 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 #cardpreview { position: fixed; z-index: 40; pointer-events: none; width: 260px; }
 #cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.8); }
 #cardpreview .pv-text { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 12px; white-space: pre-wrap; }
+
+/* dark scrollbars everywhere */
+* { scrollbar-width: thin; scrollbar-color: #39434e #14181c; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #14181c; }
+::-webkit-scrollbar-thumb { background: #39434e; border-radius: 5px; border: 2px solid #14181c; }
+::-webkit-scrollbar-thumb:hover { background: #4d5a67; }
+::-webkit-scrollbar-corner { background: #14181c; }
+
+#turnbanner { white-space: nowrap; }
+#topbar { flex-wrap: wrap; }
