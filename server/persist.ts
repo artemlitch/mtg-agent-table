@@ -27,14 +27,23 @@ export function restoreState(snap: any): PersistedExtra {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Immediate full snapshot write. */
+export function saveNow(file: string, collect: () => PersistedExtra) {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  return Bun.write(file, JSON.stringify(serializeState(collect()))).catch((e) =>
+    console.error("state save failed:", e)
+  );
+}
+
 /** Debounced save; collect() is called at write time so it sees latest state. */
 export function scheduleSave(file: string, collect: () => PersistedExtra) {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    Bun.write(file, JSON.stringify(serializeState(collect()))).catch((e) =>
-      console.error("state save failed:", e)
-    );
+    saveNow(file, collect);
   }, 200);
 }
 

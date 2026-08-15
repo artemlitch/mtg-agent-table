@@ -3,7 +3,7 @@
 import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
-import { loadStateFile, scheduleSave } from "./persist";
+import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory } from "./history";
 
 const PORT = Number(process.env.PORT ?? 4780);
@@ -116,6 +116,12 @@ const server = Bun.serve({
       const agentDeck = Number(body.agentDeck ?? lastDecks?.agent);
       if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required" }, 400);
       try {
+        // never lose a game to a reset: back up the old one first
+        if (game.started) {
+          const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
+          await Bun.write(backup, JSON.stringify(serializeState({ agent: agent.serialize(), lastDecks })));
+          addLog("system", `(previous game backed up)`);
+        }
         resetGameState();
         clearHistory();
         agent.kill();
@@ -170,5 +176,13 @@ agent.onBrain((entry) => {
   saveSoon();
   broadcast({ type: "brain", entry, busy: agent.busy });
 });
+
+// flush state on shutdown so kills never lose the debounce window
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, async () => {
+    await saveNow(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks }));
+    process.exit(0);
+  });
+}
 
 console.log(`mtg-agent-table listening on http://localhost:${PORT}`);

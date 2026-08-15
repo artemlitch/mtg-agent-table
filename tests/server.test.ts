@@ -18,7 +18,8 @@ const act = (actor: string, type: string, params: any = {}) =>
 
 beforeAll(async () => {
   proc = Bun.spawn(["bun", "run", new URL("../server/index.ts", import.meta.url).pathname], {
-    env: { ...process.env, PORT: String(PORT), AGENT_DISABLED: "1" },
+    // STATE_FILE must be isolated or the test server clobbers the real game
+    env: { ...process.env, PORT: String(PORT), AGENT_DISABLED: "1", STATE_FILE: "/tmp/mtg-table-servertest-state.json" },
     stdout: "pipe",
     stderr: "pipe",
   });

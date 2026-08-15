@@ -115,3 +115,15 @@ describe("server restart integration", () => {
     expect(JSON.stringify(s.log)).toContain("persist me");
   }, 20000);
 });
+
+describe("saveNow", () => {
+  test("writes the full snapshot synchronously", async () => {
+    const { saveNow } = await import("../server/persist");
+    resetGameState();
+    applyAction("you", "life", { player: "you", delta: -4 });
+    const path = "/tmp/mtg-table-savenow-test.json";
+    await saveNow(path, () => ({ agent: null, lastDecks: null }));
+    const snap = await Bun.file(path).json();
+    expect(snap.game.players.you.life).toBe(36);
+  });
+});
