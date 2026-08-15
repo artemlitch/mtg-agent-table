@@ -123,6 +123,8 @@ function renderStack() {
   });
 }
 
+let lastBrainEntry = null;
+
 function renderAgentStatus() {
   const pane = $("#pane-chat");
   const existing = pane.querySelector(".typing-bubble");
@@ -135,7 +137,10 @@ function renderAgentStatus() {
   } else if (!agentBusy && existing) {
     existing.remove();
     pane.querySelector(".brain-peek")?.remove();
+    lastBrainEntry = null;
   }
+  // chat re-renders wipe the pane — restore the latest-thought line
+  if (agentBusy && lastBrainEntry && !pane.querySelector(".brain-peek")) updateBrainPeek(lastBrainEntry);
 }
 
 /* live preview of the agent's latest thought under the typing bubble;
@@ -143,6 +148,7 @@ function renderAgentStatus() {
 function updateBrainPeek(entry) {
   if (!agentBusy) return;
   if (!["text", "thinking", "tool"].includes(entry.kind)) return;
+  lastBrainEntry = entry;
   const pane = $("#pane-chat");
   if (!pane.querySelector(".typing-bubble")) renderAgentStatus();
   let peek = pane.querySelector(".brain-peek");
