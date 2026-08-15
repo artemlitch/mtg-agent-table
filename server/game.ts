@@ -69,7 +69,7 @@ export interface StackItem {
   cardId: string | null;
   text: string;
   // structured combat declarations apply their effects when resolved
-  apply?: { type: "attack" | "block"; pairs: any[] };
+  apply?: { type: "attack" | "block"; pairs: any[] } | { type: "turn"; player: PlayerId } | { type: "phase"; phase: string };
   // destination declared at cast time (MDFC faces, exile-on-resolve effects)
   resolveTo?: Zone;
 }
@@ -606,12 +606,21 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true };
   },
 
+  /** Declare a phase/step change — goes ON THE STACK so the opponent can act at that step (end step, beginning of combat, …). */
   set_phase(ctx, p) {
-    game.phase = String(p.phase).slice(0, 40);
-    addLog(ctx.actor, `Phase: ${game.phase}`);
-    return { ok: true };
+    const phase = String(p.phase).slice(0, 40);
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: null,
+      text: `STEP: ${phase}`,
+      apply: { type: "phase", phase },
+    });
+    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase} (on the stack — respond or resolve)`);
+    return { ok: true, stackSize: game.stack.length };
   },
 
+  /** Declare the turn pass — goes ON THE STACK; resolving it is the opponent's end-of-turn sign-off. */
   set_turn(ctx, p) {
     if (game.stack.length) {
       throw new Error(
@@ -619,18 +628,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       );
     }
     const player: PlayerId = asPlayer(p.player);
-    // a "round" completes when the turn comes back to the starting player (you)
-    if (player === "you" && game.turn !== "you" && p.increment !== false) game.turnNumber++;
-    game.turn = player;
-    game.waitingOn = player;
-    game.phase = "untap/upkeep";
-    // clear combat state
-    for (const c of Object.values(game.cards)) {
-      c.attacking = null;
-      c.blocking = null;
-    }
-    addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
-    return { ok: true };
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: null,
+      text: `TURN PASS: ${who(player)}'s turn begins when this resolves`,
+      apply: { type: "turn", player },
+    });
+    addLog(ctx.actor, `${who(ctx.actor)} declares the turn pass to ${who(player)} (on the stack)`);
+    return { ok: true, stackSize: game.stack.length };
   },
 
   /** Declare attackers — goes ON THE STACK; the defender resolves to lock it in (or responds first). */
@@ -679,7 +685,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true };
   },
 
-  /** Cast a spell: the card goes onto the shared stack, publicly visible. */
+  /**
+   * Cast a spell: the card goes onto the shared stack, publicly visible.
+   * EXCEPTION (CR 115.2a): playing a land is a special action — it never uses
+   * the stack and can't be responded to; it goes straight to the battlefield.
+   */
   cast(ctx, p) {
     const card = resolveCardRef(p.card ?? p.cardId);
     if (p.face !== undefined) {
@@ -688,6 +698,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         throw new Error(`${card.name} has no face ${face}`);
       }
       card.face = face;
+    }
+    // the effective type is the chosen face's for DFCs, else the whole card's
+    const effType = (p.face !== undefined ? card.faces?.[Number(p.face)]?.typeLine : card.typeLine) ?? "";
+    const isLandPlay = /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
+    if (isLandPlay) {
+      removeFromZone(card);
+      card.zone = "battlefield";
+      card.controller = ctx.actor;
+      card.faceDown = false;
+      card.visibleTo = [];
+      game.players[ctx.actor].zones.battlefield.push(card.id);
+      const shown = card.faces?.[card.face ?? 0]?.name ?? card.name;
+      addLog(ctx.actor, `${who(ctx.actor)} played ${shown}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
+      return { ok: true, card: card.id, landPlay: true };
     }
     removeFromZone(card);
     if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
@@ -732,6 +756,24 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       }
       game.phase = "combat";
       addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`);
+      return { ok: true, resolved: item.text };
+    }
+    if (item.apply?.type === "phase") {
+      game.phase = item.apply.phase;
+      addLog(ctx.actor, `Phase: ${game.phase}`);
+      return { ok: true, resolved: item.text };
+    }
+    if (item.apply?.type === "turn") {
+      const player = item.apply.player;
+      if (player === "you" && game.turn !== "you") game.turnNumber++;
+      game.turn = player;
+      game.waitingOn = player;
+      game.phase = "untap/upkeep";
+      for (const c of Object.values(game.cards)) {
+        c.attacking = null;
+        c.blocking = null;
+      }
+      addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
       return { ok: true, resolved: item.text };
     }
     if (item.apply?.type === "block") {

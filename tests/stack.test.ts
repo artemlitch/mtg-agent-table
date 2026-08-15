@@ -118,13 +118,26 @@ describe("stack_remove (illegal interaction take-back)", () => {
 });
 
 describe("everything goes through the stack", () => {
-  test("land plays go on the stack and resolve to the battlefield", () => {
+  test("land plays are special actions: straight to the battlefield, no stack (CR 115.2a)", () => {
     const land = seedCard("Swamp", "you", "hand", { typeLine: "Basic Land — Swamp" });
     applyAction("you", "cast", { card: land.id });
-    expect(land.zone).toBe("stack");
-    expect(game.log.at(-1)!.text).toContain("played Swamp");
-    applyAction("agent", "stack_resolve", {});
     expect(land.zone).toBe("battlefield");
+    expect(game.stack.length).toBe(0);
+    expect(game.log.at(-1)!.text).toContain("played Swamp");
+  });
+
+  test("an MDFC played by its land face is also a special action", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", {
+      typeLine: "Instant // Land",
+      faces: [
+        { name: "Valakut Awakening", typeLine: "Instant", mana: "{3}{R}" },
+        { name: "Valakut Stoneforge", typeLine: "Land" },
+      ],
+    } as any);
+    applyAction("you", "cast", { card: c.id, face: 1 });
+    expect(c.zone).toBe("battlefield");
+    expect(c.face).toBe(1);
+    expect(game.stack.length).toBe(0);
   });
 
   test("the opponent resolving the caster's item keeps the caster as controller", () => {
@@ -211,11 +224,11 @@ describe("MDFC face display", () => {
     { name: "Valakut Stoneforge", image: "back.jpg", typeLine: "Land" },
   ];
 
-  test("cast can declare which face is being played", () => {
+  test("cast can declare which face is being played (spell faces go on the stack)", () => {
     const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
-    applyAction("you", "cast", { card: c.id, face: 1 });
-    expect(game.cards[c.id].face).toBe(1);
-    expect(viewFor("you").players.you.zones.stack[0].name).toBe("Valakut Stoneforge");
+    applyAction("you", "cast", { card: c.id, face: 0 });
+    expect(game.cards[c.id].face).toBe(0);
+    expect(viewFor("you").players.you.zones.stack[0].name).toBe("Valakut Awakening // Valakut Stoneforge");
   });
 
   test("an MDFC resolving to the battlefield auto-shows its permanent face", () => {
@@ -246,5 +259,64 @@ describe("turn hygiene", () => {
     expect(game.turn).toBe("you");
     applyAction("you", "stack_resolve", {});
     applyAction("agent", "set_turn", { player: "you" }); // fine once empty
+  });
+});
+
+describe("turn passes go through the stack", () => {
+  test("set_turn declares on the stack; the turn changes only when the opponent resolves", () => {
+    game.started = true;
+    applyAction("you", "set_turn", { player: "agent" });
+    expect(game.turn).toBe("you");            // not yet
+    expect(game.stack.length).toBe(1);
+    applyAction("agent", "stack_resolve", {});
+    expect(game.turn).toBe("agent");
+    expect(game.waitingOn).toBe("agent");
+    expect(game.stack.length).toBe(0);
+  });
+
+  test("cannot declare a turn pass while other items are pending", () => {
+    const c = seedCard("Spell", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: c.id });
+    expect(() => applyAction("you", "set_turn", { player: "agent" })).toThrow(/stack/i);
+  });
+
+  test("the opponent can respond before the turn ends (flash at end of turn)", () => {
+    applyAction("you", "set_turn", { player: "agent" });
+    const flash = seedCard("Ambusher", "agent", "hand", { typeLine: "Creature — Ninja" });
+    applyAction("agent", "cast", { card: flash.id, note: "flash, in your end step" });
+    applyAction("you", "stack_resolve", {});    // creature resolves first
+    expect(flash.zone).toBe("battlefield");
+    expect(game.turn).toBe("you");              // still my turn
+    applyAction("agent", "stack_resolve", {});  // then the turn passes
+    expect(game.turn).toBe("agent");
+  });
+
+  test("round counting still works through stacked turn passes", () => {
+    const before = game.turnNumber;
+    applyAction("you", "set_turn", { player: "agent" });
+    applyAction("agent", "stack_resolve", {});
+    applyAction("agent", "set_turn", { player: "you" });
+    applyAction("you", "stack_resolve", {});
+    expect(game.turnNumber).toBe(before + 1);
+  });
+});
+
+describe("phase steps go through the stack", () => {
+  test("set_phase declares on the stack; the phase changes on resolve", () => {
+    applyAction("you", "set_phase", { phase: "combat" });
+    expect(game.phase).not.toBe("combat");
+    expect(game.stack.length).toBe(1);
+    applyAction("agent", "stack_resolve", {});
+    expect(game.phase).toBe("combat");
+  });
+
+  test("the opponent can act at a declared end step before it resolves", () => {
+    applyAction("you", "set_phase", { phase: "end" });
+    const flash = seedCard("End-step Trick", "agent", "hand", { typeLine: "Instant" });
+    applyAction("agent", "cast", { card: flash.id, note: "in your end step" });
+    applyAction("you", "stack_resolve", {});    // trick first
+    expect(flash.zone).toBe("graveyard");
+    applyAction("agent", "stack_resolve", {});  // then the phase
+    expect(game.phase).toBe("end");
   });
 });

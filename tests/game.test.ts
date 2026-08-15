@@ -290,15 +290,17 @@ describe("combat annotations", () => {
     expect(blk.blocking).toBe(null);
   });
 
-  test("set_turn clears combat, tracks rounds, and hands priority to the turn player", () => {
+  test("a resolved turn pass clears combat, tracks rounds, and hands priority over", () => {
     const c = seedCard("Guy", "you", "battlefield", { attacking: "agent" });
     const before = game.turnNumber;
     applyAction("you", "set_turn", { player: "agent" });
+    applyAction("agent", "stack_resolve", {});
     expect(game.turn).toBe("agent");
     expect(game.turnNumber).toBe(before); // same round until it comes back around
     expect(game.waitingOn).toBe("agent");
     expect(c.attacking).toBe(null);
     applyAction("agent", "set_turn", { player: "you" });
+    applyAction("you", "stack_resolve", {});
     expect(game.turnNumber).toBe(before + 1); // full round completed
     expect(game.waitingOn).toBe("you");
   });
