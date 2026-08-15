@@ -55,7 +55,11 @@ const TOOLS: Record<string, ToolDef> = {
   cast: {
     description:
       "Cast a spell: the card leaves your hand (or wherever it is) and sits on the shared STACK, visible to both players. Announce targets with say, then call done — Artem gets a chance to respond before it resolves. Never resolve your own cast in the same window.",
-    schema: obj({ card: str("card id"), note: str("short cast note, e.g. 'targeting Kotis'") }, ["card"]),
+    schema: obj({
+      card: str("card id"),
+      note: str("short cast note, e.g. 'targeting Kotis'"),
+      resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
+    }, ["card"]),
   },
   stack_push: {
     description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses.",

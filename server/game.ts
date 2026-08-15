@@ -57,6 +57,8 @@ export interface StackItem {
   text: string;
   // structured combat declarations apply their effects when resolved
   apply?: { type: "attack" | "block"; pairs: any[] };
+  // destination declared at cast time (MDFC faces, exile-on-resolve effects)
+  resolveTo?: Zone;
 }
 
 export interface GameState {
@@ -669,6 +671,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       player: ctx.actor,
       cardId: card.id,
       text: p.note ? `${card.name} — ${p.note}` : card.name,
+      ...(p.resolveTo ? { resolveTo: p.resolveTo as Zone } : {}),
     });
     const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
     addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""} → on the stack`);
@@ -716,8 +719,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     }
     const card = getCard(item.cardId);
     removeFromZone(card);
-    const isSpell = /\b(instant|sorcery)\b/i.test(card.typeLine ?? "");
-    const toZone: Zone = (p.to as Zone) ?? (isSpell ? "graveyard" : "battlefield");
+    // a card with ANY land face is a permanent when played; MDFCs like
+    // "Instant // Land" must not be inferred into the graveyard
+    const tl = card.typeLine ?? "";
+    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+    const toZone: Zone = (p.to as Zone) ?? item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
     const toPlayer: PlayerId = p.toPlayer === undefined ? (toZone === "battlefield" ? card.controller : card.owner) : asPlayer(p.toPlayer, "toPlayer");
     card.zone = toZone;
     card.controller = toPlayer;

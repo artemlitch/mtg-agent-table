@@ -181,3 +181,26 @@ describe("combat goes through the stack", () => {
     expect(k.attacking).toBe("agent");
   });
 });
+
+describe("MDFC / split card resolution", () => {
+  test("a card whose type line contains Land resolves to the battlefield, not the graveyard", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land" });
+    applyAction("you", "cast", { card: c.id, note: "playing the land face" });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("battlefield");
+  });
+
+  test("cast can declare its resolution destination explicitly", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land" });
+    applyAction("you", "cast", { card: c.id, resolveTo: "graveyard", note: "casting the instant face" });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("graveyard");
+  });
+
+  test("an explicit stack_resolve destination still wins over the declared one", () => {
+    const c = seedCard("Weird Spell", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", { to: "exile" });
+    expect(c.zone).toBe("exile");
+  });
+});
