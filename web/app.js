@@ -123,7 +123,17 @@ function renderStack() {
 }
 
 function renderAgentStatus() {
-  $("#agent-status").textContent = agentBusy ? "🧠 Agent is thinking…" : "";
+  const pane = $("#pane-chat");
+  const existing = pane.querySelector(".typing-bubble");
+  if (agentBusy && !existing) {
+    const d = document.createElement("div");
+    d.className = "msg agent typing-bubble";
+    d.innerHTML = `<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>`;
+    pane.appendChild(d);
+    pane.scrollTop = pane.scrollHeight;
+  } else if (!agentBusy && existing) {
+    existing.remove();
+  }
 }
 
 function pile(label, count, onClick) {
@@ -740,6 +750,7 @@ function renderChat() {
     }
   }
   if (stick) pane.scrollTop = pane.scrollHeight;
+  renderAgentStatus();
 }
 
 function renderLog() {
