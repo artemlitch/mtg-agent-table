@@ -54,7 +54,7 @@ const TOOLS: Record<string, ToolDef> = {
   },
   cast: {
     description:
-      "Cast a spell: the card leaves your hand (or wherever it is) and sits on the shared STACK, visible to both players. Announce targets with say, then call done — Artem gets a chance to respond before it resolves. Never resolve your own cast in the same window.",
+      "Cast a spell (goes on the stack; announce targets with say, then call done — Artem resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
     schema: obj({
       card: str("card id"),
       note: str("short cast note, e.g. 'targeting Kotis'"),
@@ -125,8 +125,8 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ player: PLAYER, zone: ZONE }, ["player", "zone"]),
   },
   shuffle: { description: "Shuffle a library (after searching).", schema: obj({ player: PLAYER }) },
-  set_phase: { description: "Set the phase label (untap/upkeep, main 1, combat, main 2, end).", schema: obj({ phase: str("phase label") }, ["phase"]) },
-  set_turn: { description: "Pass the turn: sets whose turn it is and bumps the turn number.", schema: obj({ player: PLAYER }, ["player"]) },
+  set_phase: { description: "Declare a phase/step change (untap/upkeep, main 1, combat, main 2, end) — it goes ON THE STACK as a priority window: Artem responds at that step or resolves it. Then call done.", schema: obj({ phase: str("phase label") }, ["phase"]) },
+  set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Artem resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
   attack: {
     description:
       "Declare attackers — goes ON THE STACK like everything else: pairs of {attacker: cardId, target: 'you'|'agent'|planeswalker cardId}. The defender resolves the item to lock attacks in (attackers tap then), or responds on top first. After declaring, call done.",

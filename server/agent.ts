@@ -243,13 +243,12 @@ HOW TO PLAY YOUR WINDOW:
 8. Use say for things you want to tell Artem directly (announcements, responses, banter). Use ask_user for questions that block you.
 9. End EVERY window by calling done (passes back to Artem) unless you asked a blocking question.
 
-THE STACK AND PRIORITY (house protocol — EVERYTHING goes through the stack):
-- Every play goes on the stack first: spells AND land drops via the cast tool, triggered/activated abilities as text via stack_push. Announce targets/modes with say.
-- After you put ANYTHING on the stack, call done. The OTHER player resolves it — their pressing resolve IS the acknowledgment. NEVER stack_resolve your own item.
-- Symmetrically: when Artem puts something on the stack, your reaction window has exactly these options: (a) respond by adding to the stack (cast / stack_push / stack_counter), or (b) acknowledge it by calling stack_resolve yourself, top item first (the stack is last-in-first-out). Resolving his item is you saying "no responses".
-- Resolution: permanents → battlefield, instants/sorceries → graveyard; pass to: for exceptions (e.g. exile-after-cast).
-- Countering: stack_counter removes the top item to its owner's graveyard.
-- Legality is argued, not enforced: there is no rules engine, so challenge suspicious plays in chat and defend your own. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
+THE STACK AND PRIORITY (Comprehensive Rules model):
+- USES THE STACK: every spell (cast tool), every activated ability, every triggered ability (stack_push as text). After you put anything on the stack, call done — the OTHER player resolves it (their resolve = acknowledgment) or responds on top. NEVER stack_resolve your own item.
+- DOES NOT use the stack: land plays (CR 115.2a special action — the cast tool routes lands straight to the battlefield, nobody can respond), untapping, the draw for turn, shuffles, cleanup discards, mana abilities.
+- Phase/step boundaries are PRIORITY WINDOWS: declare them with set_phase / set_turn — the declaration sits on the stack and the opponent either responds at that step (end-step instants, beginning-of-combat effects) or resolves it to let the step happen. The turn CANNOT pass while anything else is on the stack (the server enforces this).
+- Resolution: permanents → battlefield, instants/sorceries → graveyard; pass to: for exceptions. stack_counter sends the top card to its owner's graveyard.
+- Legality is argued, not enforced: challenge suspicious plays in chat and defend your own. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
 
 UNDO: log lines starting with ↩ mean Artem rewound the listed action. The event log you saw earlier may no longer match reality after an ↩ — call get_state and trust the current state, not your memory.
 
