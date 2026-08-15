@@ -606,6 +606,9 @@ function modalCardEl(info, buttons) {
   d.innerHTML = info.image
     ? `<img src="${info.image}" title="${info.name}">`
     : `<div class="textcard" style="height:auto;min-height:60px"><b>${info.name}</b><br>${info.typeLine || ""}</div>`;
+  d.onmouseenter = (e) => showPreview(info, e);
+  d.onmousemove = (e) => positionPreview(e);
+  d.onmouseleave = hidePreview;
   const btns = document.createElement("div");
   btns.className = "mcbtns";
   for (const [label, fn] of buttons) {

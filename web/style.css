@@ -112,7 +112,7 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 .modalcard .mcbtns button { font-size: 10px; padding: 2px 5px; }
 .modalclose { margin-top: 12px; }
 
-#cardpreview { position: fixed; z-index: 40; pointer-events: none; width: 260px; }
+#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; }
 #cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.8); }
 #cardpreview .pv-text { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 12px; white-space: pre-wrap; }
 
