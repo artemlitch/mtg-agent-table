@@ -210,27 +210,33 @@ function renderBattlefield(p) {
       ? { creature: 0.12, land: 0.72, other: 0.05 }
       : { creature: 0.6, land: 0.02, other: 0.05 };
 
-  // pass 1: free cards at explicit or auto positions
-  const posMap = {}; // id -> {x, y} in % units
+  // pixel-based layout: cards never overlap unless attached or dragged there
+  const W = Math.max(bf.clientWidth, 400);
+  const H = Math.max(bf.clientHeight, 200);
+  const CW = 92, CH = 128, GAP = 14;
+  const perRow = Math.max(1, Math.floor((W * 0.8) / (CW + GAP)));
+
+  const posMap = {}; // id -> {left, top} px
   for (const c of free) {
-    let x, y;
+    let left, top;
     if (c.pos) {
-      x = c.pos.x;
-      y = c.pos.y;
+      left = c.pos.x * (W - CW);
+      top = c.pos.y * (H - CH);
     } else {
       const cat = typeCat(c);
       const i = autos[cat].indexOf(c);
       if (cat === "other") {
-        x = 0.93 - Math.floor(i / 3) * 0.09;
-        y = regions.other + (i % 3) * 0.33;
+        const col = Math.floor(i / 3);
+        left = W - CW - 10 - col * (CW + 10);
+        top = regions.other * (H - CH) + (i % 3) * (CH * 0.45);
       } else {
-        x = 0.02 + i * 0.08;
-        y = regions[cat];
+        left = 8 + (i % perRow) * (CW + GAP) + (c.tapped ? 14 : 0);
+        top = regions[cat] * (H - CH) + Math.floor(i / perRow) * (CH * 0.55);
       }
     }
-    posMap[c.id] = { left: x * 90, top: y * 72 };
+    posMap[c.id] = { left, top };
   }
-  // pass 2: attached cards tuck under their target (chase chains one hop at a time)
+  // attached cards tuck under their target (chains collapse onto the root)
   const byId = Object.fromEntries(cards.map((c) => [c.id, c]));
   for (const c of attached) {
     let target = byId[c.attachedTo];
@@ -243,8 +249,8 @@ function renderBattlefield(p) {
     const siblings = attached.filter((a) => a.attachedTo === c.attachedTo);
     const idx = siblings.indexOf(c);
     posMap[c.id] = base
-      ? { left: base.left + 2.2 * (idx + 1), top: base.top + 5.5 * (idx + 1), under: true }
-      : { left: 45, top: 40 };
+      ? { left: base.left + 16 * (idx + 1), top: base.top + 24 * (idx + 1), under: true }
+      : { left: W / 2, top: H / 2 };
   }
 
   for (const c of cards) {
@@ -252,13 +258,14 @@ function renderBattlefield(p) {
     el.classList.add("placed");
     el.dataset.cardId = c.id;
     const pos = posMap[c.id];
-    el.style.left = pos.left.toFixed(2) + "%";
-    el.style.top = pos.top.toFixed(2) + "%";
+    el.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
+    el.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
     if (pos.under) el.classList.add("tucked");
     if (c.controller === "you") makeDraggable(el, c, bf);
     bf.appendChild(el);
   }
 }
+window.addEventListener("resize", () => render());
 
 let draggingNow = false;
 let pendingRender = false;
