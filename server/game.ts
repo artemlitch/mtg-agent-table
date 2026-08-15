@@ -30,6 +30,8 @@ export interface Card {
   visibleTo: PlayerId[];
   attacking: string | null; // defender description ("you", "agent", or a card id)
   blocking: string | null;  // attacker card id
+  // cosmetic drag position on the battlefield, fractional 0..1; null = auto-layout
+  pos?: { x: number; y: number } | null;
 }
 
 export interface PlayerState {
@@ -156,6 +158,7 @@ function redactCard(card: Card, viewer: PlayerId) {
     isCommander: card.isCommander,
     attacking: card.attacking,
     blocking: card.blocking,
+    pos: card.pos ?? null,
   };
   if (!visible) return { ...base, hidden: true as const };
   return {
@@ -335,6 +338,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.attacking = null;
       card.blocking = null;
       if (toZone !== "battlefield") card.tapped = false;
+      card.pos = null;
       // visibility resets on zone change, then explicit grants apply
       card.faceDown = !!p.faceDown;
       card.visibleTo = [];
@@ -699,6 +703,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} took ${card.name} back off the stack → ${who(card.owner)}'s hand`);
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
+    }
+    return { ok: true };
+  },
+
+  /** Cosmetic drag placement — no log entry, callers must not snapshot/wake for this. */
+  place(ctx, p) {
+    const positions: { card: string; x: number; y: number }[] = p.positions ?? [];
+    for (const pos of positions) {
+      const c = getCard(pos.card);
+      c.pos = { x: Math.max(0, Math.min(1, Number(pos.x))), y: Math.max(0, Math.min(1, Number(pos.y))) };
     }
     return { ok: true };
   },

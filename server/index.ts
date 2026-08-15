@@ -74,19 +74,20 @@ const server = Bun.serve({
             body.params = { ...body.params, image: info.image, oracle: info.oracle, typeLine: info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
-        recordSnapshot();
+        const cosmetic = body.type === "place";
+        if (!cosmetic) recordSnapshot();
         let result;
         try {
           result = applyAction(actor, body.type, body.params);
         } catch (e) {
-          dropLastSnapshot();
+          if (!cosmetic) dropLastSnapshot();
           throw e;
         }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
         // every user action passes priority to the agent: full window on
-        // done/chat, reaction window on everything else
-        if (actor === "you" && game.started) {
+        // done/chat, reaction window on everything else. Drags are cosmetic.
+        if (actor === "you" && game.started && !cosmetic) {
           const reason = body.type === "done" || body.type === "chat" ? "window" : "react";
           queueMicrotask(() => wakeAgent(reason));
         }

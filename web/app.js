@@ -57,6 +57,10 @@ function connectWS() {
 
 function render() {
   if (!state) return;
+  if (draggingNow) {
+    pendingRender = true;
+    return;
+  }
   const turnWho = state.turn === "you" ? "Your turn" : "Agent's turn";
   const prio = state.waitingOn === "agent" ? "⏳ agent has priority" : "● you have priority";
   $("#turnbanner").textContent = state.started
@@ -182,19 +186,134 @@ function renderHand(p) {
   for (const c of state.players[p].zones.hand) row.appendChild(cardEl(c));
 }
 
-function bfSortKey(c) {
+function typeCat(c) {
   const t = (c.typeLine || "").toLowerCase();
-  if (t.includes("creature")) return 0;
-  if (t.includes("land")) return 3;
-  if (t.includes("equipment") || t.includes("aura")) return 1;
-  return 2;
+  if (t.includes("creature")) return "creature";
+  if (t.includes("land")) return "land";
+  return "other"; // artifacts, enchantments, planeswalkers → side column
 }
 
+// Free-placement board. Cards without an explicit pos auto-arrange by
+// convention: your lands bottom, creatures mid-field (near the midline),
+// artifacts/enchantments in a right-side column. Agent's half mirrors that.
 function renderBattlefield(p) {
   const bf = $(`#bf-${p}`);
   bf.innerHTML = "";
-  const cards = [...state.players[p].zones.battlefield].sort((a, b) => bfSortKey(a) - bfSortKey(b));
-  for (const c of cards) bf.appendChild(cardEl(c));
+  bf.classList.add("freeboard");
+  const cards = state.players[p].zones.battlefield;
+  const attached = cards.filter((c) => c.attachedTo);
+  const free = cards.filter((c) => !c.attachedTo);
+  const autos = { creature: [], land: [], other: [] };
+  for (const c of free) if (!c.pos) autos[typeCat(c)].push(c);
+  const regions =
+    p === "you"
+      ? { creature: 0.12, land: 0.72, other: 0.05 }
+      : { creature: 0.6, land: 0.02, other: 0.05 };
+
+  // pass 1: free cards at explicit or auto positions
+  const posMap = {}; // id -> {x, y} in % units
+  for (const c of free) {
+    let x, y;
+    if (c.pos) {
+      x = c.pos.x;
+      y = c.pos.y;
+    } else {
+      const cat = typeCat(c);
+      const i = autos[cat].indexOf(c);
+      if (cat === "other") {
+        x = 0.93 - Math.floor(i / 3) * 0.09;
+        y = regions.other + (i % 3) * 0.33;
+      } else {
+        x = 0.02 + i * 0.08;
+        y = regions[cat];
+      }
+    }
+    posMap[c.id] = { left: x * 90, top: y * 72 };
+  }
+  // pass 2: attached cards tuck under their target (chase chains one hop at a time)
+  const byId = Object.fromEntries(cards.map((c) => [c.id, c]));
+  for (const c of attached) {
+    let target = byId[c.attachedTo];
+    let depth = 1;
+    while (target && target.attachedTo && byId[target.attachedTo] && depth < 5) {
+      target = byId[target.attachedTo];
+      depth++;
+    }
+    const base = target && posMap[target.id];
+    const siblings = attached.filter((a) => a.attachedTo === c.attachedTo);
+    const idx = siblings.indexOf(c);
+    posMap[c.id] = base
+      ? { left: base.left + 2.2 * (idx + 1), top: base.top + 5.5 * (idx + 1), under: true }
+      : { left: 45, top: 40 };
+  }
+
+  for (const c of cards) {
+    const el = cardEl(c);
+    el.classList.add("placed");
+    el.dataset.cardId = c.id;
+    const pos = posMap[c.id];
+    el.style.left = pos.left.toFixed(2) + "%";
+    el.style.top = pos.top.toFixed(2) + "%";
+    if (pos.under) el.classList.add("tucked");
+    if (c.controller === "you") makeDraggable(el, c, bf);
+    bf.appendChild(el);
+  }
+}
+
+let draggingNow = false;
+let pendingRender = false;
+
+function makeDraggable(el, c, bf) {
+  el.addEventListener("pointerdown", (down) => {
+    if (down.button !== 0) return;
+    const rect = el.getBoundingClientRect();
+    const bfRect = bf.getBoundingClientRect();
+    const offX = down.clientX - rect.left;
+    const offY = down.clientY - rect.top;
+    let moved = false;
+    const onMove = (mv) => {
+      if (!moved && Math.hypot(mv.clientX - down.clientX, mv.clientY - down.clientY) < 6) return;
+      if (!moved) {
+        moved = true;
+        draggingNow = true;
+        el.classList.add("dragging");
+        el.setPointerCapture?.(down.pointerId);
+      }
+      el.style.left = Math.max(0, Math.min(bfRect.width - rect.width, mv.clientX - bfRect.left - offX)) + "px";
+      el.style.top = Math.max(0, Math.min(bfRect.height - rect.height, mv.clientY - bfRect.top - offY)) + "px";
+    };
+    const onUp = async () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      if (moved) {
+        el.classList.remove("dragging");
+        el.dataset.dragged = "1";
+        draggingNow = false;
+        // drop onto another card = attach (that's how equip works)
+        const myRect = el.getBoundingClientRect();
+        const center = { x: myRect.left + myRect.width / 2, y: myRect.top + myRect.height / 2 };
+        const targetEl = [...bf.querySelectorAll(".card.placed")].find((o) => {
+          if (o === el || !o.dataset.cardId) return false;
+          const r = o.getBoundingClientRect();
+          return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
+        });
+        if (targetEl) {
+          await act("attach", { card: c.id, target: targetEl.dataset.cardId });
+        } else {
+          if (c.attachedTo) await act("attach", { card: c.id, target: "" });
+          const x = Math.max(0, Math.min(1, parseFloat(el.style.left) / Math.max(1, bfRect.width - rect.width)));
+          const y = Math.max(0, Math.min(1, parseFloat(el.style.top) / Math.max(1, bfRect.height - rect.height)));
+          await act("place", { positions: [{ card: c.id, x, y }] });
+        }
+        if (pendingRender) {
+          pendingRender = false;
+          render();
+        }
+      }
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+  });
 }
 
 function cardById(id) {
