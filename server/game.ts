@@ -97,6 +97,14 @@ export function resetGameState() {
   nextCardId = 1;
 }
 
+export function getNextCardId() {
+  return nextCardId;
+}
+
+export function setNextCardId(n: number) {
+  nextCardId = n;
+}
+
 export function addLog(actor: LogEntry["actor"], text: string, priv?: LogEntry["private"]): LogEntry {
   const entry: LogEntry = { seq: ++game.seq, ts: Date.now(), actor, text, ...(priv ? { private: priv } : {}) };
   game.log.push(entry);

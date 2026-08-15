@@ -3,15 +3,29 @@
 import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallNamed } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
+import { loadStateFile, scheduleSave } from "./persist";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+const STATE_FILE = process.env.STATE_FILE ?? new URL("../state.json", import.meta.url).pathname;
 const wakeAgent = () => {
   if (!AGENT_DISABLED) agent.wake();
 };
 
 let lastDecks: { you: number; agent: number } | null = null;
+
+const saveSoon = () =>
+  scheduleSave(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks }));
+
+{
+  const restored = await loadStateFile(STATE_FILE);
+  if (restored) {
+    if (restored.agent) agent.restore(restored.agent);
+    lastDecks = restored.lastDecks;
+    console.log(`restored game from ${STATE_FILE} (turn ${game.turnNumber}, seq ${game.seq})`);
+  }
+}
 
 function json(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -60,6 +74,7 @@ const server = Bun.serve({
           }
         }
         const result = applyAction(actor, body.type, body.params);
+        saveSoon();
         broadcast({ type: "update", seq: game.seq });
         // wake the agent when the human passes to it or talks to it
         if (actor === "you" && (body.type === "done" || body.type === "chat")) {
@@ -98,6 +113,7 @@ const server = Bun.serve({
         const decklist = theirs.cards.flatMap((c) => Array(1).fill(c.isCommander ? `${c.name} (COMMANDER)` : c.name));
         agent.reset(buildSystemPrompt(theirs.name, decklist, yours.name));
         if (body.model) agent.model = body.model;
+        saveSoon();
         broadcast({ type: "update", seq: game.seq });
         // let the agent look at its hand and decide keep/mull
         queueMicrotask(wakeAgent);
@@ -128,6 +144,9 @@ function broadcast(msg: any) {
   server.publish("table", JSON.stringify(msg));
 }
 
-agent.onBrain((entry) => broadcast({ type: "brain", entry, busy: agent.busy }));
+agent.onBrain((entry) => {
+  saveSoon();
+  broadcast({ type: "brain", entry, busy: agent.busy });
+});
 
 console.log(`mtg-agent-table listening on http://localhost:${PORT}`);

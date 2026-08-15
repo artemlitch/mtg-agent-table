@@ -12,6 +12,15 @@ export interface BrainEntry {
 
 type BrainListener = (e: BrainEntry) => void;
 
+export interface AgentSnapshot {
+  sessionId: string | null;
+  systemPrompt: string;
+  model: string;
+  lastSeenSeq: number;
+  brain: BrainEntry[];
+  brainSeq: number;
+}
+
 const PROJECT_DIR = new URL("..", import.meta.url).pathname;
 
 export class AgentRunner {
@@ -34,6 +43,26 @@ export class AgentRunner {
     const e: BrainEntry = { seq: ++this.brainSeq, ts: Date.now(), kind, text };
     this.brain.push(e);
     for (const fn of this.listeners) fn(e);
+  }
+
+  serialize(): AgentSnapshot {
+    return {
+      sessionId: this.sessionId,
+      systemPrompt: this.systemPrompt,
+      model: this.model,
+      lastSeenSeq: this.lastSeenSeq,
+      brain: this.brain,
+      brainSeq: this.brainSeq,
+    };
+  }
+
+  restore(snap: AgentSnapshot) {
+    this.sessionId = snap.sessionId ?? null;
+    this.systemPrompt = snap.systemPrompt ?? "";
+    this.model = snap.model ?? "opus";
+    this.lastSeenSeq = snap.lastSeenSeq ?? 0;
+    this.brain = snap.brain ?? [];
+    this.brainSeq = snap.brainSeq ?? (this.brain.at(-1)?.seq ?? 0);
   }
 
   reset(systemPrompt: string) {
@@ -198,7 +227,7 @@ HOW TO PLAY YOUR WINDOW:
 9. End EVERY window by calling done (passes back to Artem) unless you asked a blocking question.
 10. Instant-speed windows: when Artem passes to you mid-turn (after casting something), you may respond with instants/abilities or just call done to let it resolve.
 
-MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan: move your hand cards back with move (toZone library), shuffle, draw 7, then put N cards on the bottom (London mulligan).
+MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan: move your hand cards back with move (toZone library), shuffle, draw 7. HOUSE RULE (friendly mulligans): your FIRST mulligan is free — keep all 7. From the second mulligan on, it's London: bottom 1 card per mulligan beyond the first.
 
 Keep the game moving. Be a good opponent: play to win, explain your plays, and be graceful about rules mistakes in either direction.`;
 }
