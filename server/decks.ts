@@ -60,7 +60,8 @@ export async function hydrateScryfall(names: string[]): Promise<Map<string, Scry
     const res = await fetch("https://api.scryfall.com/cards/collection", {
       method: "POST",
       headers: SCRYFALL_HEADERS,
-      body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
+      // collection matches front-face names, not "A // B" composites
+      body: JSON.stringify({ identifiers: batch.map((name) => ({ name: name.split(" // ")[0] })) }),
     });
     if (!res.ok) throw new Error(`scryfall collection: HTTP ${res.status} ${await res.text()}`);
     const data: any = await res.json();
