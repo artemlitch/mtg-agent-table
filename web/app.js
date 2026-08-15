@@ -82,9 +82,9 @@ function renderStack() {
     return;
   }
   bar.classList.remove("hidden");
-  bar.innerHTML = `<span class="stacklabel">STACK →</span>`;
-  state.stack.forEach((item, i) => {
-    const top = i === state.stack.length - 1;
+  bar.innerHTML = `<span class="stacklabel">THE STACK — top resolves first</span>`;
+  [...state.stack].reverse().forEach((item, ri) => {
+    const top = ri === 0;
     const d = document.createElement("div");
     d.className = "stackitem" + (top ? " top" : "");
     const who = item.player === "you" ? "you" : "agent";

@@ -131,17 +131,17 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 #midline { position: relative; overflow: visible; z-index: 10; }
 #stackbar {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
   background: #1a1408; border: 1px solid var(--accent); border-radius: 12px;
-  padding: 8px 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.7);
-  max-width: 80%; overflow-x: auto;
+  padding: 8px 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+  min-width: 280px; max-width: 400px; max-height: 60vh; overflow-y: auto;
 }
-#stackbar .stacklabel { color: var(--accent); font-weight: 700; font-size: 11px; white-space: nowrap; }
-.stackitem { display: flex; align-items: center; gap: 6px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; flex: none; }
-.stackitem.top { border-color: var(--accent); }
+#stackbar .stacklabel { color: var(--accent); font-weight: 700; font-size: 11px; white-space: nowrap; text-align: center; }
+.stackitem { display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; flex: none; }
+.stackitem.top { border-color: var(--accent); box-shadow: 0 0 8px rgba(216,160,61,0.25); }
 .stackitem img { width: 42px; border-radius: 4px; }
-.stackitem .sitext { font-size: 11px; max-width: 180px; }
+.stackitem .sitext { font-size: 11px; flex: 1; }
 .stackitem .siwho { font-size: 9px; color: var(--dim); }
-.stackitem .sibtns { display: flex; flex-direction: column; gap: 3px; }
+.stackitem .sibtns { display: flex; flex-direction: row; gap: 3px; }
 .stackitem .sibtns button { font-size: 10px; padding: 1px 6px; }
 #stack-noresp { background: #14301c; border-color: var(--green); color: #8fd8a0; font-size: 11px; white-space: nowrap; }
