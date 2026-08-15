@@ -55,6 +55,8 @@ export interface StackItem {
   player: PlayerId;
   cardId: string | null;
   text: string;
+  // structured combat declarations apply their effects when resolved
+  apply?: { type: "attack" | "block"; pairs: any[] };
 }
 
 export interface GameState {
@@ -597,30 +599,41 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true };
   },
 
+  /** Declare attackers — goes ON THE STACK; the defender resolves to lock it in (or responds first). */
   attack(ctx, p) {
-    // p.pairs: [{ attacker: cardId, target: "you"|"agent"|cardId }]
     const parts: string[] = [];
     for (const pair of p.pairs) {
       const c = getCard(pair.attacker);
-      c.attacking = pair.target;
-      c.tapped = p.tapped !== false ? true : c.tapped;
       const tgt = pair.target === "you" || pair.target === "agent" ? who(pair.target) : publicDesc(getCard(pair.target));
       parts.push(`${publicDesc(c)} → ${tgt}`);
     }
-    game.phase = "combat";
-    addLog(ctx.actor, `${who(ctx.actor)} attacks: ${parts.join("; ")}`);
-    return { ok: true };
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: null,
+      text: `ATTACKS: ${parts.join("; ")}`,
+      apply: { type: "attack", pairs: p.pairs },
+    });
+    addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${parts.join("; ")}`);
+    return { ok: true, stackSize: game.stack.length };
   },
 
+  /** Declare blockers — goes ON THE STACK; the attacker resolves to lock it in. */
   block(ctx, p) {
     const parts: string[] = [];
     for (const pair of p.pairs) {
       const b = getCard(pair.blocker);
-      b.blocking = pair.attacker;
       parts.push(`${publicDesc(b)} blocks ${publicDesc(getCard(pair.attacker))}`);
     }
-    addLog(ctx.actor, `${who(ctx.actor)} blocks: ${parts.join("; ")}`);
-    return { ok: true };
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: null,
+      text: `BLOCKS: ${parts.join("; ")}`,
+      apply: { type: "block", pairs: p.pairs },
+    });
+    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${parts.join("; ")}`);
+    return { ok: true, stackSize: game.stack.length };
   },
 
   clear_combat(ctx, _p) {
@@ -667,6 +680,28 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   stack_resolve(ctx, p) {
     const item = game.stack.pop();
     if (!item) throw new Error("the stack is empty");
+    if (item.apply?.type === "attack") {
+      const parts: string[] = [];
+      for (const pair of item.apply.pairs) {
+        const c = getCard(pair.attacker);
+        c.attacking = pair.target;
+        c.tapped = true;
+        parts.push(publicDesc(c));
+      }
+      game.phase = "combat";
+      addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`);
+      return { ok: true, resolved: item.text };
+    }
+    if (item.apply?.type === "block") {
+      const parts: string[] = [];
+      for (const pair of item.apply.pairs) {
+        const b = getCard(pair.blocker);
+        b.blocking = pair.attacker;
+        parts.push(`${publicDesc(b)} ⇦ ${publicDesc(getCard(pair.attacker))}`);
+      }
+      addLog(ctx.actor, `Blocks locked in: ${parts.join("; ")}`);
+      return { ok: true, resolved: item.text };
+    }
     if (!item.cardId) {
       addLog(ctx.actor, `Resolved: ${item.text}`);
       return { ok: true, resolved: item.text };

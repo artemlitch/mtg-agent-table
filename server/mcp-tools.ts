@@ -114,11 +114,13 @@ const TOOLS: Record<string, ToolDef> = {
   set_phase: { description: "Set the phase label (untap/upkeep, main 1, combat, main 2, end).", schema: obj({ phase: str("phase label") }, ["phase"]) },
   set_turn: { description: "Pass the turn: sets whose turn it is and bumps the turn number.", schema: obj({ player: PLAYER }, ["player"]) },
   attack: {
-    description: "Declare attackers: pairs of {attacker: cardId, target: 'you'|'agent'|planeswalker cardId}. Auto-taps attackers.",
+    description:
+      "Declare attackers — goes ON THE STACK like everything else: pairs of {attacker: cardId, target: 'you'|'agent'|planeswalker cardId}. The defender resolves the item to lock attacks in (attackers tap then), or responds on top first. After declaring, call done.",
     schema: obj({ pairs: arr(obj({ attacker: str("card id"), target: str("defending player or card id") }, ["attacker", "target"]), "attacks") }, ["pairs"]),
   },
   block: {
-    description: "Declare blockers: pairs of {blocker: cardId, attacker: cardId}.",
+    description:
+      "Declare blockers — goes ON THE STACK: pairs of {blocker: cardId, attacker: cardId}. The attacker resolves the item to lock blocks in. After declaring, call done.",
     schema: obj({ pairs: arr(obj({ blocker: str("card id"), attacker: str("card id") }, ["blocker", "attacker"]), "blocks") }, ["pairs"]),
   },
   clear_combat: { description: "Clear all attack/block annotations after damage.", schema: obj({}) },

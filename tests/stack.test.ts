@@ -135,3 +135,49 @@ describe("everything goes through the stack", () => {
     expect(game.players.agent.zones.battlefield).toContain(cr.id);
   });
 });
+
+describe("combat goes through the stack", () => {
+  test("attack declaration is a stack item; flags apply only on resolve", () => {
+    const k = seedCard("Kotis", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: k.id, target: "agent" }] });
+    expect(game.stack.length).toBe(1);
+    expect(k.attacking).toBeNull();
+    expect(k.tapped).toBe(false);
+    applyAction("agent", "stack_resolve", {});
+    expect(k.attacking).toBe("agent");
+    expect(k.tapped).toBe(true);
+    expect(game.phase).toBe("combat");
+    expect(game.stack.length).toBe(0);
+  });
+
+  test("block declaration is a stack item; flags apply on resolve", () => {
+    const att = seedCard("Attacker", "agent", "battlefield", { attacking: "you" });
+    const blk = seedCard("Blocker", "you", "battlefield");
+    applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: att.id }] });
+    expect(blk.blocking).toBeNull();
+    applyAction("agent", "stack_resolve", {});
+    expect(blk.blocking).toBe(att.id);
+  });
+
+  test("an unresolved attack declaration can be taken back cleanly", () => {
+    const k = seedCard("Kotis", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: k.id, target: "agent" }] });
+    applyAction("you", "stack_remove", {});
+    expect(game.stack.length).toBe(0);
+    expect(k.attacking).toBeNull();
+    expect(k.tapped).toBe(false);
+  });
+
+  test("responses can go on top of an attack declaration and resolve first", () => {
+    const k = seedCard("Kotis", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: k.id, target: "agent" }] });
+    const spell = seedCard("Removal", "agent", "hand", { typeLine: "Instant" });
+    applyAction("agent", "cast", { card: spell.id });
+    expect(game.stack.length).toBe(2);
+    applyAction("you", "stack_resolve", {}); // instant resolves first
+    expect(spell.zone).toBe("graveyard");
+    expect(k.attacking).toBeNull(); // attack still pending
+    applyAction("agent", "stack_resolve", {});
+    expect(k.attacking).toBe("agent");
+  });
+});

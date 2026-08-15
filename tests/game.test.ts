@@ -268,19 +268,22 @@ describe("scry: peek and reorder", () => {
 });
 
 describe("combat annotations", () => {
-  test("attack marks and taps attackers", () => {
+  test("attack declaration marks and taps attackers once the opponent resolves it", () => {
     const c = seedCard("Kotis", "you", "battlefield");
     applyAction("you", "attack", { pairs: [{ attacker: c.id, target: "agent" }] });
+    applyAction("agent", "stack_resolve", {});
     expect(c.attacking).toBe("agent");
     expect(c.tapped).toBe(true);
     expect(game.phase).toBe("combat");
   });
 
-  test("block marks blockers; clear_combat wipes both", () => {
+  test("resolved blocks mark blockers; clear_combat wipes both", () => {
     const att = seedCard("Attacker", "agent", "battlefield");
     const blk = seedCard("Blocker", "you", "battlefield");
     applyAction("agent", "attack", { pairs: [{ attacker: att.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
     applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: att.id }] });
+    applyAction("agent", "stack_resolve", {});
     expect(blk.blocking).toBe(att.id);
     applyAction("you", "clear_combat", {});
     expect(att.attacking).toBe(null);
