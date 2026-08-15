@@ -222,6 +222,25 @@ describe("tap, counters, attach", () => {
     expect(c.counters["+1/+1"]).toBeUndefined();
   });
 
+  test("counters set overrides instead of adding", () => {
+    const c = seedCard("Kotis", "you", "battlefield");
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: 5 });
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", set: 1 });
+    expect(c.counters["+1/+1"]).toBe(1);
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", set: 0 });
+    expect(c.counters["+1/+1"]).toBeUndefined();
+  });
+
+  test("tap with tapped:false untaps, and untap is an alias", () => {
+    const c = seedCard("A", "you", "battlefield");
+    applyAction("you", "tap", { cards: [c.id] });
+    applyAction("you", "tap", { cards: [c.id], tapped: false });
+    expect(c.tapped).toBe(false);
+    applyAction("you", "tap", { cards: [c.id] });
+    applyAction("you", "untap", { cards: [c.id] });
+    expect(c.tapped).toBe(false);
+  });
+
   test("attach and unattach", () => {
     const eq = seedCard("Fireshrieker", "you", "battlefield");
     const cr = seedCard("Kotis", "you", "battlefield");

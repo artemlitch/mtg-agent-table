@@ -433,6 +433,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, cards: movedIds, removedTokens };
   },
 
+  untap(ctx, p) {
+    return actions.tap(ctx, { ...p, tapped: false });
+  },
+
   tap(ctx, p) {
     const ids: string[] = p.cards ?? p.cardIds;
     const tapped = p.tapped !== false;
@@ -457,11 +461,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   counters(ctx, p) {
     const ids: string[] = Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
     const kind: string = p.kind || "+1/+1";
-    const delta: number = p.delta ?? 1;
     const parts: string[] = [];
     for (const id of ids) {
       const c = getCard(id);
-      c.counters[kind] = (c.counters[kind] || 0) + delta;
+      c.counters[kind] = p.set !== undefined ? p.set : (c.counters[kind] || 0) + (p.delta ?? 1);
       if (c.counters[kind] <= 0) delete c.counters[kind];
       parts.push(`${publicDesc(c)} → ${c.counters[kind] || 0}`);
     }
