@@ -237,3 +237,14 @@ describe("MDFC face display", () => {
     expect(game.cards[c.id].face ?? 0).toBe(0);
   });
 });
+
+describe("turn hygiene", () => {
+  test("set_turn is rejected while the stack is non-empty", () => {
+    const c = seedCard("Pending Spell", "agent", "hand", { typeLine: "Sorcery" });
+    applyAction("agent", "cast", { card: c.id });
+    expect(() => applyAction("agent", "set_turn", { player: "you" })).toThrow(/stack/i);
+    expect(game.turn).toBe("you");
+    applyAction("you", "stack_resolve", {});
+    applyAction("agent", "set_turn", { player: "you" }); // fine once empty
+  });
+});

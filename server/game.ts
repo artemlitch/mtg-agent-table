@@ -613,6 +613,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   set_turn(ctx, p) {
+    if (game.stack.length) {
+      throw new Error(
+        `cannot pass the turn with ${game.stack.length} item(s) on the stack — resolve, counter, or take them back first: ${game.stack.map((i) => i.text.slice(0, 40)).join(" · ")}`
+      );
+    }
     const player: PlayerId = asPlayer(p.player);
     // a "round" completes when the turn comes back to the starting player (you)
     if (player === "you" && game.turn !== "you" && p.increment !== false) game.turnNumber++;
