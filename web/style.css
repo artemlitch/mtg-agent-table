@@ -175,3 +175,13 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 .brain-peek.flash { animation: peekfade 0.5s ease-out; }
 @keyframes peekfade { from { opacity: 0.15; } to { opacity: 0.65; } }
 .brain.highlight { background: #33290f; border-radius: 4px; transition: background 0.4s; }
+
+/* peek feed rows */
+.brain-peek { display: flex; flex-direction: column; gap: 3px; }
+.peek-row { cursor: pointer; font-size: 11px; padding: 1px 4px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
+.peek-row.text, .peek-row.thinking { font-style: italic; color: var(--text); opacity: 0.75; }
+.peek-row.tool { font-family: ui-monospace, monospace; font-size: 10px; color: var(--green); opacity: 0.6; }
+.peek-row:hover { background: #232c35; opacity: 1; }
+.peek-row:nth-last-child(3) { opacity: 0.4; }
+.peek-row:nth-last-child(4) { opacity: 0.28; }
+.peek-row.flash { animation: peekfade 0.5s ease-out; }

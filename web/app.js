@@ -123,7 +123,8 @@ function renderStack() {
   });
 }
 
-let lastBrainEntry = null;
+let peekEntries = [];
+const PEEK_ROWS = 4;
 
 function renderAgentStatus() {
   const pane = $("#pane-chat");
@@ -137,45 +138,54 @@ function renderAgentStatus() {
   } else if (!agentBusy && existing) {
     existing.remove();
     pane.querySelector(".brain-peek")?.remove();
-    lastBrainEntry = null;
+    peekEntries = [];
   }
-  // chat re-renders wipe the pane — restore the latest-thought line
-  if (agentBusy && lastBrainEntry && !pane.querySelector(".brain-peek")) updateBrainPeek(lastBrainEntry);
+  // chat re-renders wipe the pane — restore the thought feed
+  if (agentBusy && peekEntries.length && !pane.querySelector(".brain-peek")) rebuildPeek();
 }
 
-/* live preview of the agent's latest thought under the typing bubble;
-   click jumps to that entry in the brain tab */
-function updateBrainPeek(entry) {
-  if (!agentBusy) return;
-  if (!["text", "thinking", "tool"].includes(entry.kind)) return;
-  lastBrainEntry = entry;
+function openBrainAt(seq) {
+  switchTab("brain");
+  const target = document.getElementById("brain-" + seq);
+  if (target) {
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    target.classList.add("highlight");
+    setTimeout(() => target.classList.remove("highlight"), 2000);
+  }
+}
+
+/* mini-feed of the agent's recent thoughts under the typing bubble;
+   each row click-jumps to that entry in the brain tab */
+function rebuildPeek() {
   const pane = $("#pane-chat");
   if (!pane.querySelector(".typing-bubble")) renderAgentStatus();
   let peek = pane.querySelector(".brain-peek");
   if (!peek) {
     peek = document.createElement("div");
     peek.className = "brain-peek";
-    peek.title = "Open in Agent brain";
-    peek.onclick = () => {
-      const seq = peek.dataset.seq;
-      switchTab("brain");
-      const target = document.getElementById("brain-" + seq);
-      if (target) {
-        target.scrollIntoView({ block: "center", behavior: "smooth" });
-        target.classList.add("highlight");
-        setTimeout(() => target.classList.remove("highlight"), 2000);
-      }
-    };
     pane.appendChild(peek);
   }
-  const text = entry.kind === "tool" ? `🔧 ${entry.text}` : entry.text;
-  peek.textContent = text.length > 140 ? text.slice(0, 140) + "…" : text;
-  peek.dataset.seq = entry.seq;
-  peek.classList.remove("flash");
-  void peek.offsetWidth; // restart the fade animation
-  peek.classList.add("flash");
-  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 80;
+  peek.innerHTML = "";
+  for (const e of peekEntries) {
+    const row = document.createElement("div");
+    row.className = "peek-row " + e.kind;
+    const text = e.kind === "tool" ? `🔧 ${e.text}` : e.text;
+    row.textContent = text.length > 160 ? text.slice(0, 160) + "…" : text;
+    row.title = "Open in Agent brain";
+    row.onclick = () => openBrainAt(e.seq);
+    peek.appendChild(row);
+  }
+  peek.lastChild?.classList.add("flash");
+  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 120;
   if (stick) pane.scrollTop = pane.scrollHeight;
+}
+
+function updateBrainPeek(entry) {
+  if (!agentBusy) return;
+  if (!["text", "thinking", "tool"].includes(entry.kind)) return;
+  peekEntries.push(entry);
+  if (peekEntries.length > PEEK_ROWS) peekEntries = peekEntries.slice(-PEEK_ROWS);
+  rebuildPeek();
 }
 
 function pile(label, count, onClick) {
