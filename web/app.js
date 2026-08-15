@@ -126,7 +126,10 @@ function pile(label, count, onClick) {
   const d = document.createElement("div");
   d.className = "pile";
   d.innerHTML = `<div class="pname">${label}</div><div class="pcount">${count}</div>`;
-  d.onclick = onClick;
+  d.onclick = (e) => {
+    e.stopPropagation();
+    onClick(e);
+  };
   return d;
 }
 
@@ -433,7 +436,18 @@ function libraryMenu(p, e) {
       },
     });
   }
-  items.push({ label: "Mill 1", fn: () => act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" }) });
+  items.push({ label: "Reveal top card to all", fn: async () => {
+    const r = await act("peek", { player: p, n: 1 });
+    if (r.ok && r.cards[0]) act("reveal", { cards: [r.cards[0].id], to: "all" });
+  }});
+  items.push({ label: "Mill / discard top", fn: () => act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" }) });
+  items.push({
+    label: "Mill N…",
+    fn: async () => {
+      const n = Number(prompt("Mill how many?", "3") || 0);
+      for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" });
+    },
+  });
   items.push({ label: "Shuffle", fn: () => act("shuffle", { player: p }) });
   openMenu(items, e);
 }
