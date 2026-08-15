@@ -457,3 +457,13 @@ describe("board placement (drag positions)", () => {
     expect(v.players.you.zones.battlefield[0].pos).toEqual({ x: 0.3, y: 0.6 });
   });
 });
+
+describe("batch move with top: refs", () => {
+  test("repeated top:player refs take successive cards, not the same one twice", () => {
+    seedLibrary("agent", ["First", "Second", "Third"]);
+    applyAction("you", "move", { cards: ["top:agent", "top:agent"], toZone: "exile", toPlayer: "agent", faceDown: true, revealTo: "you" });
+    const names = game.players.agent.zones.exile.map((id) => game.cards[id].name).sort();
+    expect(names).toEqual(["First", "Second"]);
+    expect(game.players.agent.zones.library.length).toBe(1);
+  });
+});

@@ -312,8 +312,23 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
     const toZone: Zone = p.toZone;
     if (!ZONES.includes(toZone)) throw new Error(`bad zone ${toZone}`);
-    // resolve everything up front so a bad ref fails atomically before mutation
-    const cards = refs.map((r) => resolveCardRef(r));
+    // resolve plain ids up front so a bad ref fails atomically before mutation;
+    // "top:player" refs resolve lazily so repeated tops take successive cards
+    for (const r of refs) if (!/^top:(you|agent)$/.test(r)) resolveCardRef(r);
+    const seen = new Set<string>();
+    const cards = refs.map((r) => {
+      if (/^top:(you|agent)$/.test(r)) {
+        const player = r.slice(4) as PlayerId;
+        const lib = game.players[player].zones.library;
+        const id = lib.find((x) => !seen.has(x));
+        if (!id) throw new Error(`${player}'s library ran out of cards`);
+        seen.add(id);
+        return game.cards[id];
+      }
+      const c = resolveCardRef(r);
+      seen.add(c.id);
+      return c;
+    });
 
     const movedIds: string[] = [];
     const removedTokens: string[] = [];
