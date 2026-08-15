@@ -595,6 +595,7 @@ function openModal(title, bodyEl) {
 }
 function closeModal() {
   $("#modal").classList.add("hidden");
+  hidePreview();
 }
 $("#modal").addEventListener("click", (e) => {
   if (e.target.id === "modal") closeModal();
