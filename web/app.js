@@ -46,6 +46,7 @@ function connectWS() {
       agentBusy = msg.busy;
       appendBrainEntry(msg.entry);
       renderAgentStatus();
+      updateBrainPeek(msg.entry);
     }
   };
   ws.onclose = () => setTimeout(connectWS, 1500);
@@ -133,7 +134,42 @@ function renderAgentStatus() {
     pane.scrollTop = pane.scrollHeight;
   } else if (!agentBusy && existing) {
     existing.remove();
+    pane.querySelector(".brain-peek")?.remove();
   }
+}
+
+/* live preview of the agent's latest thought under the typing bubble;
+   click jumps to that entry in the brain tab */
+function updateBrainPeek(entry) {
+  if (!agentBusy) return;
+  if (!["text", "thinking", "tool"].includes(entry.kind)) return;
+  const pane = $("#pane-chat");
+  if (!pane.querySelector(".typing-bubble")) renderAgentStatus();
+  let peek = pane.querySelector(".brain-peek");
+  if (!peek) {
+    peek = document.createElement("div");
+    peek.className = "brain-peek";
+    peek.title = "Open in Agent brain";
+    peek.onclick = () => {
+      const seq = peek.dataset.seq;
+      switchTab("brain");
+      const target = document.getElementById("brain-" + seq);
+      if (target) {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        target.classList.add("highlight");
+        setTimeout(() => target.classList.remove("highlight"), 2000);
+      }
+    };
+    pane.appendChild(peek);
+  }
+  const text = entry.kind === "tool" ? `🔧 ${entry.text}` : entry.text;
+  peek.textContent = text.length > 140 ? text.slice(0, 140) + "…" : text;
+  peek.dataset.seq = entry.seq;
+  peek.classList.remove("flash");
+  void peek.offsetWidth; // restart the fade animation
+  peek.classList.add("flash");
+  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 80;
+  if (stick) pane.scrollTop = pane.scrollHeight;
 }
 
 function pile(label, count, onClick) {
@@ -771,6 +807,7 @@ function appendBrainEntry(e) {
   const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 40;
   const d = document.createElement("div");
   d.className = "brain " + e.kind;
+  d.id = "brain-" + e.seq;
   d.textContent = e.kind === "tool" ? `🔧 ${e.text}` : e.text;
   pane.appendChild(d);
   if (stick) pane.scrollTop = pane.scrollHeight;
@@ -836,13 +873,13 @@ $("#chat-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();
 });
 
+function switchTab(name) {
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll(".tabpane").forEach((x) => x.classList.add("hidden"));
+  $(`#pane-${name}`).classList.remove("hidden");
+}
 document.querySelectorAll("#tabs button").forEach((b) => {
-  b.onclick = () => {
-    document.querySelectorAll("#tabs button").forEach((x) => x.classList.remove("active"));
-    b.classList.add("active");
-    document.querySelectorAll(".tabpane").forEach((x) => x.classList.add("hidden"));
-    $(`#pane-${b.dataset.tab}`).classList.remove("hidden");
-  };
+  b.onclick = () => switchTab(b.dataset.tab);
 });
 
 document.addEventListener("keydown", (e) => {
