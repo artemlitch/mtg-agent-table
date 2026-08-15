@@ -58,9 +58,11 @@ function connectWS() {
 function render() {
   if (!state) return;
   const turnWho = state.turn === "you" ? "Your turn" : "Agent's turn";
+  const prio = state.waitingOn === "agent" ? "⏳ agent has priority" : "● you have priority";
   $("#turnbanner").textContent = state.started
-    ? `Turn ${state.turnNumber} — ${turnWho} — ${state.phase}${state.waitingOn === "agent" ? "  ·  agent's window" : ""}`
+    ? `Round ${state.turnNumber} — ${turnWho} — ${state.phase} — ${prio}`
     : "No game — load decks and hit New game";
+  renderStack();
   renderRail("agent");
   renderRail("you");
   renderHand("agent");
@@ -70,6 +72,50 @@ function render() {
   renderChat();
   renderLog();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
+}
+
+function renderStack() {
+  const bar = $("#stackbar");
+  if (!state.stack || !state.stack.length) {
+    bar.classList.add("hidden");
+    bar.innerHTML = "";
+    return;
+  }
+  bar.classList.remove("hidden");
+  bar.innerHTML = `<span class="stacklabel">STACK →</span>`;
+  state.stack.forEach((item, i) => {
+    const top = i === state.stack.length - 1;
+    const d = document.createElement("div");
+    d.className = "stackitem" + (top ? " top" : "");
+    const who = item.player === "you" ? "you" : "agent";
+    const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
+    d.innerHTML = `${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}</div><div class="sitext">${item.text}</div></div>`;
+    if (item.card && !item.card.hidden) {
+      d.onmouseenter = (e) => showPreview(item.card, e);
+      d.onmousemove = (e) => positionPreview(e);
+      d.onmouseleave = hidePreview;
+    }
+    if (top) {
+      const btns = document.createElement("div");
+      btns.className = "sibtns";
+      const mk = (label, fn, title) => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        if (title) b.title = title;
+        b.onclick = (e) => {
+          e.stopPropagation();
+          hidePreview();
+          fn();
+        };
+        btns.appendChild(b);
+      };
+      mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
+      mk("Counter", () => act("stack_counter", {}));
+      mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
+      d.appendChild(btns);
+    }
+    bar.appendChild(d);
+  });
 }
 
 function renderAgentStatus() {
@@ -248,8 +294,7 @@ function cardMenu(c, e) {
   const owner = c.owner;
 
   if (c.zone === "hand" && c.controller === "you") {
-    items.push(moveItem("▶ Play to battlefield", c, { toZone: "battlefield", toPlayer: "you" }));
-    items.push(moveItem("✨ Cast (to graveyard)", c, { toZone: "graveyard", toPlayer: owner, note: "cast" }));
+    items.push({ label: "🌀 Play → stack", fn: () => act("cast", { card: c.id }) });
     items.push(moveItem("Discard", c, { toZone: "graveyard", toPlayer: owner, note: "discard" }));
     items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
     items.push({ label: "Reveal to agent", fn: () => act("reveal", { cards: [c.id], to: "agent" }) });
@@ -299,7 +344,18 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "command") {
-    items.push(moveItem("▶ Cast (to battlefield)", c, { toZone: "battlefield", toPlayer: c.controller }));
+    items.push({ label: "🌀 Cast → stack", fn: () => act("cast", { card: c.id, note: "from command zone" }) });
+    items.push(moveItem("▶ Straight to battlefield", c, { toZone: "battlefield", toPlayer: c.controller }));
+  }
+
+  if (c.zone === "battlefield") {
+    items.push({
+      label: "⚡ Ability → stack…",
+      fn: () => {
+        const text = prompt(`Ability of ${c.hidden ? "this card" : c.name}:`);
+        if (text) act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${text}` });
+      },
+    });
   }
 
   if (c.zone === "exile" && !c.hidden) {
@@ -594,6 +650,12 @@ $("#btn-endturn").onclick = async () => {
 };
 
 $("#btn-done").onclick = () => act("done", {});
+
+$("#btn-undo").onclick = async () => {
+  const res = await fetch("/api/undo", { method: "POST" });
+  const data = await res.json();
+  if (!data.ok) alert(data.error);
+};
 
 function sendChat() {
   const input = $("#chat-input");

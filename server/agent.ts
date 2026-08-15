@@ -29,6 +29,7 @@ export class AgentRunner {
   model = "opus";
   busy = false;
   pendingWake = false;
+  pendingReason: "window" | null = null;
   lastSeenSeq = 0;
   brain: BrainEntry[] = [];
   private brainSeq = 0;
@@ -91,31 +92,47 @@ export class AgentRunner {
     return events.map((e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`).join("\n");
   }
 
-  composeWakePrompt(): string {
+  composeWakePrompt(reason: "window" | "react" = "window"): string {
     const events = this.newEventsText();
     this.lastSeenSeq = game.seq;
     const header = this.sessionId
       ? "New events at the table since your last window:"
       : "The game has started. Events so far:";
-    return (
-      `${header}\n${events || "(nothing new)"}\n\n` +
+    const stackText = game.stack.length
+      ? `\nTHE STACK (bottom → top): ${game.stack.map((i) => `[${i.player}] ${i.text}`).join(" · ")}\n`
+      : "";
+    const situation =
       `It is ${game.turn === "agent" ? "YOUR turn" : "Artem's turn"} ` +
-      `(turn ${game.turnNumber}, phase: ${game.phase}). This is your window to act.\n` +
-      `Use your table tools. Call get_state first if you need to re-inspect anything. ` +
+      `(round ${game.turnNumber}, phase: ${game.phase}).`;
+    const directive =
+      reason === "react"
+        ? `You have PRIORITY in reaction to the events above. This is a reaction window, not your turn. ` +
+          `If Artem's item is on top of the stack: either respond (cast/stack_push/stack_counter at instant speed) ` +
+          `or acknowledge it by calling stack_resolve yourself — that is the "no responses" signal. ` +
+          `Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. ` +
+          `Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.`
+        : `This is your window to act. Use your table tools. Call get_state first if you need to re-inspect anything. ` +
+          `When you cast a spell, use cast (it goes on the stack) and then call done so Artem can respond — ` +
+          `NEVER resolve your own spell in the same window you cast it. ` +
+          `When you are finished, call done to pass back to Artem, or ask_user if you need something from him.`;
+    return (
+      `${header}\n${events || "(nothing new)"}\n${stackText}\n${situation} ${directive}\n` +
       `Narrate your reasoning in plain text BEFORE each action. ` +
-      `When you are finished, call done to pass back to Artem, or ask_user if you need something from him. ` +
       `Speak to Artem with the say tool — plain response text is your visible thought process, not chat.`
     );
   }
 
-  async wake() {
+  async wake(reason: "window" | "react" = "window") {
     if (this.busy) {
       this.pendingWake = true;
+      if (reason === "window") this.pendingReason = "window";
       return;
     }
     this.busy = true;
     this.pendingWake = false;
-    const prompt = this.composeWakePrompt();
+    reason = this.pendingReason ?? reason;
+    this.pendingReason = null;
+    const prompt = this.composeWakePrompt(reason);
     this.push("status", this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
 
     const args = [
@@ -167,9 +184,9 @@ export class AgentRunner {
       this.proc = null;
       this.busy = false;
       this.push("status", "Agent window closed.");
-      if (this.pendingWake || game.seq > this.lastSeenSeq) {
-        // more happened while it was thinking — only re-wake if user acted
-        if (this.pendingWake) setTimeout(() => this.wake(), 500);
+      if (this.pendingWake) {
+        // more happened while it was thinking — follow up once
+        setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
       }
     }
   }
@@ -218,14 +235,23 @@ THE TABLE has no rules engine. You and Artem enforce the rules yourselves, like 
 HOW TO PLAY YOUR WINDOW:
 1. Call get_state to see the table when your window opens.
 2. Narrate your reasoning as plain text BEFORE acting: what you observed, what your options are, why you chose your line. Artem watches this narration live in a "brain" panel — it is your table talk to yourself, always visible. Be thorough but not padded.
-3. Take your actions with tools. Track your own mana: tap your lands with the tap tool when you cast things, and say what you cast. Move a card from hand to battlefield to play it. Use set_phase/set_turn to advance the game structure on your turn.
+3. Take your actions with tools. Track your own mana: tap your lands with the tap tool when you cast things. Lands are PLAYED with move (hand → battlefield); spells are CAST with the cast tool. Use set_phase/set_turn to advance the game structure on your turn.
 4. Play honestly: respect mana costs, one land drop per turn, summoning sickness, casting your commander from the command zone with commander tax (+2 per prior cast).
 5. On combat: use attack with your attacker card ids. Wait for Artem's blocks (call done and say you're waiting on blocks). Apply damage with life / commander_damage / move (to graveyard) once blocks are known.
 6. You may interact with Artem's cards and zones when a game effect allows it (e.g. your theft effects exiling from his library, tapping his creatures). Every such action is logged for him — never touch his cards without a game reason, and say which card/effect authorizes it.
 7. If Artem does something you don't understand, or state seems wrong, use ask_user to ask him — then call done and wait for his answer.
 8. Use say for things you want to tell Artem directly (announcements, responses, banter). Use ask_user for questions that block you.
 9. End EVERY window by calling done (passes back to Artem) unless you asked a blocking question.
-10. Instant-speed windows: when Artem passes to you mid-turn (after casting something), you may respond with instants/abilities or just call done to let it resolve.
+
+THE STACK AND PRIORITY (house protocol — EVERYTHING goes through the stack):
+- Every play goes on the stack first: spells AND land drops via the cast tool, triggered/activated abilities as text via stack_push. Announce targets/modes with say.
+- After you put ANYTHING on the stack, call done. The OTHER player resolves it — their pressing resolve IS the acknowledgment. NEVER stack_resolve your own item.
+- Symmetrically: when Artem puts something on the stack, your reaction window has exactly these options: (a) respond by adding to the stack (cast / stack_push / stack_counter), or (b) acknowledge it by calling stack_resolve yourself, top item first (the stack is last-in-first-out). Resolving his item is you saying "no responses".
+- Resolution: permanents → battlefield, instants/sorceries → graveyard; pass to: for exceptions (e.g. exile-after-cast).
+- Countering: stack_counter removes the top item to its owner's graveyard.
+- Legality is argued, not enforced: there is no rules engine, so challenge suspicious plays in chat and defend your own. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
+
+UNDO: log lines starting with ↩ mean Artem rewound the listed action. The event log you saw earlier may no longer match reality after an ↩ — call get_state and trust the current state, not your memory.
 
 MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan: move your hand cards back with move (toZone library), shuffle, draw 7. HOUSE RULE (friendly mulligans): your FIRST mulligan is free — keep all 7. From the second mulligan on, it's London: bottom 1 card per mulligan beyond the first.
 

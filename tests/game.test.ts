@@ -287,13 +287,17 @@ describe("combat annotations", () => {
     expect(blk.blocking).toBe(null);
   });
 
-  test("set_turn clears combat and bumps turn number", () => {
+  test("set_turn clears combat, tracks rounds, and hands priority to the turn player", () => {
     const c = seedCard("Guy", "you", "battlefield", { attacking: "agent" });
     const before = game.turnNumber;
     applyAction("you", "set_turn", { player: "agent" });
     expect(game.turn).toBe("agent");
-    expect(game.turnNumber).toBe(before + 1);
+    expect(game.turnNumber).toBe(before); // same round until it comes back around
+    expect(game.waitingOn).toBe("agent");
     expect(c.attacking).toBe(null);
+    applyAction("agent", "set_turn", { player: "you" });
+    expect(game.turnNumber).toBe(before + 1); // full round completed
+    expect(game.waitingOn).toBe("you");
   });
 });
 

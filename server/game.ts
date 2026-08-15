@@ -2,10 +2,10 @@
 // shared tabletop with enforced information hiding.
 
 export type PlayerId = "you" | "agent";
-export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "exile" | "command";
+export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "exile" | "command" | "stack";
 
 export const PLAYERS: PlayerId[] = ["you", "agent"];
-export const ZONES: Zone[] = ["library", "hand", "battlefield", "graveyard", "exile", "command"];
+export const ZONES: Zone[] = ["library", "hand", "battlefield", "graveyard", "exile", "command", "stack"];
 
 export interface Card {
   id: string;
@@ -48,6 +48,13 @@ export interface LogEntry {
   private?: Partial<Record<PlayerId, string>>; // richer rendering for viewers allowed to know
 }
 
+export interface StackItem {
+  id: string;
+  player: PlayerId;
+  cardId: string | null;
+  text: string;
+}
+
 export interface GameState {
   started: boolean;
   turn: PlayerId;
@@ -55,6 +62,7 @@ export interface GameState {
   phase: string;
   players: Record<PlayerId, PlayerState>;
   cards: Record<string, Card>;
+  stack: StackItem[];
   log: LogEntry[];
   seq: number;
   waitingOn: PlayerId; // whose window it is
@@ -70,7 +78,7 @@ export function emptyPlayer(): PlayerState {
   return {
     life: 40,
     commanderDamage: {},
-    zones: { library: [], hand: [], battlefield: [], graveyard: [], exile: [], command: [] },
+    zones: { library: [], hand: [], battlefield: [], graveyard: [], exile: [], command: [], stack: [] },
   };
 }
 
@@ -82,6 +90,7 @@ export function newGameState(): GameState {
     phase: "main 1",
     players: { you: emptyPlayer(), agent: emptyPlayer() },
     cards: {},
+    stack: [],
     log: [],
     seq: 0,
     waitingOn: "you",
@@ -121,6 +130,7 @@ export function cardVisibleTo(card: Card, viewer: PlayerId): boolean {
     case "battlefield":
     case "graveyard":
     case "command":
+    case "stack":
       return !card.faceDown;
     case "exile":
       return !card.faceDown;
@@ -186,6 +196,12 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
     waitingOn: game.waitingOn,
     pendingQuestion: game.pendingQuestion,
     players,
+    stack: game.stack.map((item) => ({
+      id: item.id,
+      player: item.player,
+      text: item.text,
+      card: item.cardId ? redactCard(game.cards[item.cardId], viewer) : null,
+    })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
     seq: game.seq,
   };
@@ -295,6 +311,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const toPlayer: PlayerId = p.toPlayer ?? card.controller;
 
     removeFromZone(card);
+    if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
     card.zone = toZone;
     card.controller = toPlayer;
     card.attachedTo = null;
@@ -517,15 +534,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   set_turn(ctx, p) {
     const player: PlayerId = p.player;
+    // a "round" completes when the turn comes back to the starting player (you)
+    if (player === "you" && game.turn !== "you" && p.increment !== false) game.turnNumber++;
     game.turn = player;
-    if (p.increment !== false) game.turnNumber++;
+    game.waitingOn = player;
     game.phase = "untap/upkeep";
     // clear combat state
     for (const c of Object.values(game.cards)) {
       c.attacking = null;
       c.blocking = null;
     }
-    addLog(ctx.actor, `— Turn ${game.turnNumber}: ${who(player)} —`);
+    addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
     return { ok: true };
   },
 
@@ -561,6 +580,96 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       c.blocking = null;
     }
     addLog(ctx.actor, `Combat cleared`);
+    return { ok: true };
+  },
+
+  /** Cast a spell: the card goes onto the shared stack, publicly visible. */
+  cast(ctx, p) {
+    const card = resolveCardRef(p.card ?? p.cardId);
+    removeFromZone(card);
+    if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
+    card.zone = "stack";
+    card.controller = ctx.actor;
+    card.faceDown = false;
+    card.tapped = false;
+    card.visibleTo = [];
+    game.players[ctx.actor].zones.stack.push(card.id);
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: card.id,
+      text: p.note ? `${card.name} — ${p.note}` : card.name,
+    });
+    const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
+    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""} → on the stack`);
+    return { ok: true, card: card.id, stackSize: game.stack.length };
+  },
+
+  /** Announce a trigger or activated ability as a text-only stack item. */
+  stack_push(ctx, p) {
+    const text = p.text ?? p.note;
+    if (!text || !String(text).trim()) throw new Error("stack_push requires text");
+    game.stack.push({ id: "s" + (game.seq + 1), player: ctx.actor, cardId: null, text: String(text) });
+    addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}`);
+    return { ok: true, stackSize: game.stack.length };
+  },
+
+  /** Resolve the TOP of the stack. Cards: battlefield for permanents, graveyard for instants/sorceries (or explicit p.to). */
+  stack_resolve(ctx, p) {
+    const item = game.stack.pop();
+    if (!item) throw new Error("the stack is empty");
+    if (!item.cardId) {
+      addLog(ctx.actor, `Resolved: ${item.text}`);
+      return { ok: true, resolved: item.text };
+    }
+    const card = getCard(item.cardId);
+    removeFromZone(card);
+    const isSpell = /\b(instant|sorcery)\b/i.test(card.typeLine ?? "");
+    const toZone: Zone = (p.to as Zone) ?? (isSpell ? "graveyard" : "battlefield");
+    const toPlayer: PlayerId = p.toPlayer ?? (toZone === "battlefield" ? card.controller : card.owner);
+    card.zone = toZone;
+    card.controller = toPlayer;
+    card.visibleTo = [];
+    game.players[toPlayer].zones[toZone].push(card.id);
+    addLog(ctx.actor, `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`);
+    return { ok: true, card: card.id, toZone };
+  },
+
+  /** Counter the TOP of the stack: card goes to its owner's graveyard. */
+  stack_counter(ctx, p) {
+    const item = game.stack.pop();
+    if (!item) throw new Error("the stack is empty");
+    if (item.cardId) {
+      const card = getCard(item.cardId);
+      removeFromZone(card);
+      card.zone = "graveyard";
+      card.controller = card.owner;
+      card.visibleTo = [];
+      game.players[card.owner].zones.graveyard.push(card.id);
+      addLog(ctx.actor, `${who(ctx.actor)} countered ${card.name} → ${who(card.owner)}'s graveyard`);
+    } else {
+      addLog(ctx.actor, `${who(ctx.actor)} countered/removed: ${item.text}`);
+    }
+    return { ok: true };
+  },
+
+  /** Take back an illegal/mistaken stack item: card returns to its owner's hand. p.index targets a specific item (0 = bottom); default top. */
+  stack_remove(ctx, p) {
+    if (!game.stack.length) throw new Error("the stack is empty");
+    const index = typeof p.index === "number" ? p.index : game.stack.length - 1;
+    const [item] = game.stack.splice(index, 1);
+    if (!item) throw new Error(`no stack item at index ${index}`);
+    if (item.cardId) {
+      const card = getCard(item.cardId);
+      removeFromZone(card);
+      card.zone = "hand";
+      card.controller = card.owner;
+      card.visibleTo = [];
+      game.players[card.owner].zones.hand.push(card.id);
+      addLog(ctx.actor, `${who(ctx.actor)} took ${card.name} back off the stack → ${who(card.owner)}'s hand`);
+    } else {
+      addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
+    }
     return { ok: true };
   },
 

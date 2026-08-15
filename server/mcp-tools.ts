@@ -51,6 +51,28 @@ const TOOLS: Record<string, ToolDef> = {
       ["card", "toZone"]
     ),
   },
+  cast: {
+    description:
+      "Cast a spell: the card leaves your hand (or wherever it is) and sits on the shared STACK, visible to both players. Announce targets with say, then call done — Artem gets a chance to respond before it resolves. Never resolve your own cast in the same window.",
+    schema: obj({ card: str("card id"), note: str("short cast note, e.g. 'targeting Kotis'") }, ["card"]),
+  },
+  stack_push: {
+    description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses.",
+    schema: obj({ text: str("what the ability does") }, ["text"]),
+  },
+  stack_resolve: {
+    description:
+      "Resolve the TOP item of the stack (last in, first out) after the opponent had a chance to respond. Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). Text items just resolve.",
+    schema: obj({ to: str("override destination zone", ["battlefield", "graveyard", "exile", "hand", "library"]) }),
+  },
+  stack_counter: {
+    description: "Counter the TOP item of the stack: the card goes to its owner's graveyard.",
+    schema: obj({}),
+  },
+  stack_remove: {
+    description: "Take back an illegal/mistaken stack item (discuss in chat first). The card returns to its owner's hand. index targets a specific item (0 = bottom); default = top.",
+    schema: obj({ index: num("stack index to remove") }),
+  },
   tap: {
     description: "Tap or untap battlefield cards (yours, or Artem's when an effect says so). tapped=false to untap.",
     schema: obj({ cards: arr(str("card id"), "card ids"), tapped: { type: "boolean" } }, ["cards"]),
@@ -106,7 +128,11 @@ const TOOLS: Record<string, ToolDef> = {
     description: "Ask Artem a blocking question (rules confusion, 'any responses?', clarify his action). His answer arrives in your next window.",
     schema: obj({ question: str("the question") }, ["question"]),
   },
-  done: { description: "End your window and pass back to Artem. Call this to finish EVERY window unless you asked a blocking question.", schema: obj({}) },
+  done: {
+    description:
+      "End your window and pass priority back to Artem. Call this to finish EVERY window (full turns AND reaction windows) unless you asked a blocking question. Also how you pass after putting something on the stack.",
+    schema: obj({}),
+  },
 };
 
 async function callTable(tool: string, args: any): Promise<string> {

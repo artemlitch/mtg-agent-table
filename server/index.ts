@@ -4,13 +4,14 @@ import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } fro
 import { loadPlayerDeck, scryfallNamed } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave } from "./persist";
+import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory } from "./history";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
 const STATE_FILE = process.env.STATE_FILE ?? new URL("../state.json", import.meta.url).pathname;
-const wakeAgent = () => {
-  if (!AGENT_DISABLED) agent.wake();
+const wakeAgent = (reason: "window" | "react" = "window") => {
+  if (!AGENT_DISABLED) agent.wake(reason);
 };
 
 let lastDecks: { you: number; agent: number } | null = null;
@@ -73,17 +74,36 @@ const server = Bun.serve({
             body.params = { ...body.params, image: info.image, oracle: info.oracle, typeLine: info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
-        const result = applyAction(actor, body.type, body.params);
+        recordSnapshot();
+        let result;
+        try {
+          result = applyAction(actor, body.type, body.params);
+        } catch (e) {
+          dropLastSnapshot();
+          throw e;
+        }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
-        // wake the agent when the human passes to it or talks to it
-        if (actor === "you" && (body.type === "done" || body.type === "chat")) {
-          queueMicrotask(wakeAgent);
+        // every user action passes priority to the agent: full window on
+        // done/chat, reaction window on everything else
+        if (actor === "you" && game.started) {
+          const reason = body.type === "done" || body.type === "chat" ? "window" : "react";
+          queueMicrotask(() => wakeAgent(reason));
         }
         return json(result);
       } catch (e: any) {
         return json({ ok: false, error: e.message }, 400);
       }
+    }
+
+    if (path === "/api/undo" && req.method === "POST") {
+      const undone = undoLast();
+      if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);
+      addLog("system", `↩ Artem undid: ${undone}`);
+      saveSoon();
+      broadcast({ type: "update", seq: game.seq });
+      if (game.started) queueMicrotask(() => wakeAgent("react"));
+      return json({ ok: true, undone });
     }
 
     if (path === "/api/new_game" && req.method === "POST") {
@@ -96,6 +116,7 @@ const server = Bun.serve({
       if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required" }, 400);
       try {
         resetGameState();
+        clearHistory();
         agent.kill();
         addLog("system", "— New game — both players at 40 life —");
         const [yours, theirs] = await Promise.all([
