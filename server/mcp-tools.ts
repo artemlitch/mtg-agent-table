@@ -78,6 +78,16 @@ const TOOLS: Record<string, ToolDef> = {
     description: "Take back an illegal/mistaken stack item (discuss in chat first). The card returns to its owner's hand. index targets a specific item (0 = bottom); default = top.",
     schema: obj({ index: num("stack index to remove") }),
   },
+  flip_card: {
+    description:
+      "Turn a card face-down in place (morph, cloak, 'keep this secret'), or pass faceDown:false to turn it face-up. Either player may flip ANY card, including the opponent's. While face-down the server hides it from everyone but you; every flip is logged.",
+    schema: obj({ cards: arr(str("card id"), "cards to flip together"), card: str("single card id"), faceDown: { type: "boolean", description: "true (default) = face-down, false = face-up" } }),
+  },
+  set_face: {
+    description:
+      "Show a different face of a DOUBLE-FACED card (MDFC land side, transformed creature). face 0 = front, 1 = back. Different from flip_card, which hides a card entirely.",
+    schema: obj({ card: str("card id"), face: num("0 = front, 1 = back") }, ["card", "face"]),
+  },
   tap: {
     description: "Tap or untap battlefield cards (yours, or Artem's when an effect says so). tapped=false to untap.",
     schema: obj({ cards: arr(str("card id"), "card ids"), tapped: { type: "boolean" } }, ["cards"]),

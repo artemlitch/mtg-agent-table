@@ -204,3 +204,36 @@ describe("MDFC / split card resolution", () => {
     expect(c.zone).toBe("exile");
   });
 });
+
+describe("MDFC face display", () => {
+  const FACES = [
+    { name: "Valakut Awakening", image: "front.jpg", typeLine: "Instant", mana: "{3}{R}" },
+    { name: "Valakut Stoneforge", image: "back.jpg", typeLine: "Land" },
+  ];
+
+  test("cast can declare which face is being played", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
+    applyAction("you", "cast", { card: c.id, face: 1 });
+    expect(game.cards[c.id].face).toBe(1);
+    expect(viewFor("you").players.you.zones.stack[0].name).toBe("Valakut Stoneforge");
+  });
+
+  test("an MDFC resolving to the battlefield auto-shows its permanent face", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
+    applyAction("you", "cast", { card: c.id });          // no face declared
+    applyAction("agent", "stack_resolve", {});            // lands on the battlefield
+    expect(game.cards[c.id].zone).toBe("battlefield");
+    expect(game.cards[c.id].face).toBe(1);                // shows the land side
+    expect(viewFor("agent").players.you.zones.battlefield[0].name).toBe("Valakut Stoneforge");
+  });
+
+  test("a normal transforming DFC is NOT auto-flipped when it resolves", () => {
+    const c = seedCard("Delver of Secrets // Insectile Aberration", "you", "hand", {
+      typeLine: "Creature — Human Wizard // Creature — Human Insect",
+      faces: [{ name: "Delver of Secrets", typeLine: "Creature — Human Wizard" }, { name: "Insectile Aberration", typeLine: "Creature — Human Insect" }],
+    } as any);
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.cards[c.id].face ?? 0).toBe(0);
+  });
+});

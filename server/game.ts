@@ -677,6 +677,13 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   /** Cast a spell: the card goes onto the shared stack, publicly visible. */
   cast(ctx, p) {
     const card = resolveCardRef(p.card ?? p.cardId);
+    if (p.face !== undefined) {
+      const face = Number(p.face);
+      if (!card.faces || face < 0 || face >= card.faces.length) {
+        throw new Error(`${card.name} has no face ${face}`);
+      }
+      card.face = face;
+    }
     removeFromZone(card);
     if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
     card.zone = "stack";
@@ -748,7 +755,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     card.controller = toPlayer;
     card.visibleTo = [];
     game.players[toPlayer].zones[toZone].push(card.id);
-    addLog(ctx.actor, `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`);
+    // an MDFC whose front face can't exist on the battlefield (Instant // Land)
+    // must display the permanent face it actually resolved as
+    if (toZone === "battlefield" && card.faces && !card.face) {
+      const isPermanent = (t?: string) => !!t && !/\b(instant|sorcery)\b/i.test(t);
+      if (!isPermanent(card.faces[0]?.typeLine)) {
+        const idx = card.faces.findIndex((f) => isPermanent(f.typeLine));
+        if (idx > 0) card.face = idx;
+      }
+    }
+    const shownName = card.faces?.[card.face ?? 0]?.name ?? card.name;
+    addLog(ctx.actor, `${shownName} resolved → ${who(toPlayer)}'s ${toZone}`);
     return { ok: true, card: card.id, toZone };
   },
 
@@ -788,6 +805,40 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
     }
     return { ok: true };
+  },
+
+  /**
+   * Turn a card face-down (or back up) in place — morphs, cloaked cards, any
+   * "keep this secret" moment. Either player may flip any card; while face-down
+   * the server hides it from everyone except the players who already know it.
+   */
+  flip_card(ctx, p) {
+    const ids: string[] = Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
+    const faceDown = p.faceDown !== false;
+    const names: string[] = [];
+    for (const id of ids) {
+      const c = getCard(id);
+      names.push(c.name);
+      c.faceDown = faceDown;
+      if (faceDown) {
+        // the flipper knows what it is; everyone else loses sight of it
+        c.visibleTo = c.visibleTo.filter((v) => v === ctx.actor);
+        if (!c.visibleTo.includes(ctx.actor)) c.visibleTo.push(ctx.actor);
+      } else {
+        c.visibleTo = [...PLAYERS];
+      }
+    }
+    const n = ids.length;
+    if (faceDown) {
+      addLog(
+        ctx.actor,
+        `${who(ctx.actor)} turned ${n === 1 ? "a card" : `${n} cards`} face-down`,
+        { [ctx.actor]: `You turned ${names.join(", ")} face-down` } as any
+      );
+    } else {
+      addLog(ctx.actor, `${who(ctx.actor)} turned ${names.join(", ")} face-up`);
+    }
+    return { ok: true, faceDown, cards: ids };
   },
 
   /** Show a different face of a double-faced card (MDFC land side, transformed creature, …). */

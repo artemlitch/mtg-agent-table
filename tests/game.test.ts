@@ -522,3 +522,39 @@ describe("two-faced cards", () => {
     expect((v as any).name).toBeUndefined();
   });
 });
+
+describe("flipping cards face-down (anyone, anywhere)", () => {
+  test("flip_card hides a battlefield card from the opponent and logs it", () => {
+    const c = seedCard("Secret Weapon", "you", "battlefield");
+    const before = game.log.length;
+    applyAction("you", "flip_card", { card: c.id });
+    expect(c.faceDown).toBe(true);
+    expect(cardVisibleTo(c, "you")).toBe(true);      // flipper still knows it
+    expect(cardVisibleTo(c, "agent")).toBe(false);   // opponent does not
+    expect(viewFor("agent").players.you.zones.battlefield[0].hidden).toBe(true);
+    expect(game.log.length).toBe(before + 1);
+    expect(game.log.at(-1)!.text.toLowerCase()).toContain("face-down");
+  });
+
+  test("either player may flip any card, including the opponent's", () => {
+    const c = seedCard("Their Guy", "agent", "battlefield");
+    applyAction("you", "flip_card", { card: c.id });
+    expect(c.faceDown).toBe(true);
+    expect(cardVisibleTo(c, "you")).toBe(true);
+  });
+
+  test("flipping face-up reveals it to everyone", () => {
+    const c = seedCard("Morph", "you", "battlefield", { faceDown: true, visibleTo: ["you"] });
+    applyAction("agent", "flip_card", { card: c.id, faceDown: false });
+    expect(c.faceDown).toBe(false);
+    expect(cardVisibleTo(c, "agent")).toBe(true);
+    expect(viewFor("agent").players.you.zones.battlefield[0].name).toBe("Morph");
+  });
+
+  test("flip_card works on many cards at once", () => {
+    const a = seedCard("A", "you", "battlefield");
+    const b = seedCard("B", "you", "battlefield");
+    applyAction("you", "flip_card", { cards: [a.id, b.id] });
+    expect(a.faceDown && b.faceDown).toBe(true);
+  });
+});
