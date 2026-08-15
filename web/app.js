@@ -579,6 +579,18 @@ function cardMenu(c, e) {
     items.push(moveItem("▶ Straight to battlefield", c, { toZone: "battlefield", toPlayer: c.controller }));
   }
 
+  items.push({
+    label: c.faceDown ? "🔍 Turn face-up" : "🙈 Turn face-down",
+    fn: () => act("flip_card", { card: c.id, faceDown: !c.faceDown }),
+  });
+
+  if ((c.faceCount ?? 1) > 1) {
+    items.push({
+      label: `⟳ Show ${c.faces[((c.face ?? 0) + 1) % c.faceCount].name}`,
+      fn: () => act("set_face", { card: c.id, face: ((c.face ?? 0) + 1) % c.faceCount }),
+    });
+  }
+
   if (c.zone === "battlefield") {
     items.push({
       label: "⚡ Ability → stack…",
