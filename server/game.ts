@@ -7,6 +7,16 @@ export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "exile" | 
 export const PLAYERS: PlayerId[] = ["you", "agent"];
 export const ZONES: Zone[] = ["library", "hand", "battlefield", "graveyard", "exile", "command", "stack"];
 
+export interface CardFace {
+  name: string;
+  image?: string;
+  oracle?: string;
+  mana?: string;
+  typeLine?: string;
+  power?: string;
+  toughness?: string;
+}
+
 export interface Card {
   id: string;
   name: string;
@@ -16,6 +26,9 @@ export interface Card {
   typeLine?: string;
   power?: string;
   toughness?: string;
+  // modal/transforming double-faced cards: both faces, and which one is showing
+  faces?: CardFace[];
+  face?: number;
   owner: PlayerId;
   controller: PlayerId;
   zone: Zone;
@@ -165,16 +178,22 @@ function redactCard(card: Card, viewer: PlayerId) {
     pos: card.pos ?? null,
   };
   if (!visible) return { ...base, hidden: true as const };
+  // show the active face for double-faced cards; face 0 keeps the composite name
+  const idx = card.face ?? 0;
+  const f = idx > 0 ? card.faces?.[idx] : undefined;
   return {
     ...base,
     hidden: false as const,
-    name: card.name,
-    image: card.image,
-    oracle: card.oracle,
-    mana: card.mana,
-    typeLine: card.typeLine,
-    power: card.power,
-    toughness: card.toughness,
+    name: f?.name ?? card.name,
+    image: f?.image ?? card.image,
+    oracle: f?.oracle ?? card.oracle,
+    mana: f?.mana ?? card.mana,
+    typeLine: f?.typeLine ?? card.typeLine,
+    power: f?.power ?? card.power,
+    toughness: f?.toughness ?? card.toughness,
+    faceCount: card.faces?.length ?? 1,
+    face: idx,
+    faces: card.faces,
     revealedTo: card.visibleTo,
   };
 }
@@ -769,6 +788,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
     }
     return { ok: true };
+  },
+
+  /** Show a different face of a double-faced card (MDFC land side, transformed creature, …). */
+  set_face(ctx, p) {
+    const c = getCard(p.card ?? p.cardId);
+    const face = Number(p.face ?? 0);
+    if (!c.faces || face < 0 || face >= c.faces.length) {
+      throw new Error(`${c.name} has no face ${face}`);
+    }
+    c.face = face;
+    addLog(ctx.actor, `${who(ctx.actor)} turned ${c.name} to its ${face === 0 ? "front" : "back"} face (${c.faces[face].name})`);
+    return { ok: true, face, name: c.faces[face].name };
   },
 
   /** Cosmetic drag placement — no log entry, callers must not snapshot/wake for this. */

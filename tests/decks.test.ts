@@ -36,3 +36,24 @@ describe.if(!!process.env.RUN_NET)("token lookup (network)", () => {
     expect(t).toBeNull();
   }, 20000);
 });
+
+describe.if(!!process.env.RUN_NET)("two-faced cards (network)", () => {
+  test("MDFC hydration stores BOTH faces with their own art and text", async () => {
+    const map = await hydrateScryfall(["Valakut Awakening // Valakut Stoneforge"]);
+    const c = map.get("valakut awakening // valakut stoneforge")!;
+    expect(c.faces).toBeDefined();
+    expect(c.faces!.length).toBe(2);
+    expect(c.faces![0].name).toBe("Valakut Awakening");
+    expect(c.faces![1].name).toBe("Valakut Stoneforge");
+    expect(c.faces![0].image).toContain("scryfall");
+    expect(c.faces![1].image).toContain("scryfall");
+    expect(c.faces![1].typeLine).toContain("Land");
+  }, 20000);
+
+  test("transforming DFCs also store both faces", async () => {
+    const map = await hydrateScryfall(["Delver of Secrets // Insectile Aberration"]);
+    const c = [...map.values()][0];
+    expect(c.faces!.length).toBe(2);
+    expect(c.faces![1].power).toBe("3");
+  }, 20000);
+});

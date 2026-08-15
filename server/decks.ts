@@ -42,7 +42,7 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
   return { deckId, name: d.name, cards };
 }
 
-interface ScryCard {
+interface ScryFace {
   name: string;
   image?: string;
   oracle?: string;
@@ -50,6 +50,10 @@ interface ScryCard {
   typeLine?: string;
   power?: string;
   toughness?: string;
+}
+
+interface ScryCard extends ScryFace {
+  faces?: ScryFace[];
 }
 
 export async function hydrateScryfall(names: string[]): Promise<Map<string, ScryCard>> {
@@ -67,6 +71,19 @@ export async function hydrateScryfall(names: string[]): Promise<Map<string, Scry
     const data: any = await res.json();
     for (const c of data.data) {
       const face = c.card_faces?.[0];
+      // two-faced cards: keep every face with its own art and text
+      const faces: ScryFace[] | undefined = c.card_faces?.length
+        ? c.card_faces.map((f: any) => ({
+            name: f.name,
+            // transforming DFCs have per-face art; split/adventure cards share one image
+            image: f.image_uris?.normal ?? c.image_uris?.normal,
+            oracle: f.oracle_text,
+            mana: f.mana_cost,
+            typeLine: f.type_line,
+            power: f.power,
+            toughness: f.toughness,
+          }))
+        : undefined;
       out.set((c.name as string).toLowerCase(), {
         name: c.name,
         image: c.image_uris?.normal ?? face?.image_uris?.normal,
@@ -75,6 +92,7 @@ export async function hydrateScryfall(names: string[]): Promise<Map<string, Scry
         typeLine: c.type_line,
         power: c.power ?? face?.power,
         toughness: c.toughness ?? face?.toughness,
+        ...(faces ? { faces } : {}),
       });
     }
     for (const nf of data.not_found ?? []) console.error("scryfall not found:", nf);
@@ -110,6 +128,7 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
         typeLine: info.typeLine,
         power: info.power,
         toughness: info.toughness,
+        ...(info.faces ? { faces: info.faces, face: 0 } : {}),
         owner: player,
         controller: player,
         zone: spec.isCommander ? "command" : "library",

@@ -488,3 +488,37 @@ describe("action input validation", () => {
     expect(() => applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "artem" })).toThrow();
   });
 });
+
+describe("two-faced cards", () => {
+  test("set_face switches the displayed face and the view follows it", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "battlefield", {
+      typeLine: "Instant // Land",
+      faces: [
+        { name: "Valakut Awakening", image: "front.jpg", typeLine: "Instant", mana: "{3}{R}", oracle: "draw" },
+        { name: "Valakut Stoneforge", image: "back.jpg", typeLine: "Land", oracle: "taps for R" },
+      ],
+    } as any);
+    expect(viewFor("you").players.you.zones.battlefield[0].name).toBe("Valakut Awakening // Valakut Stoneforge");
+    applyAction("you", "set_face", { card: c.id, face: 1 });
+    const v = viewFor("you").players.you.zones.battlefield[0];
+    expect(v.name).toBe("Valakut Stoneforge");
+    expect(v.image).toBe("back.jpg");
+    expect(v.typeLine).toBe("Land");
+    expect(v.faceCount).toBe(2);
+  });
+
+  test("set_face rejects an out-of-range face and single-faced cards", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    expect(() => applyAction("you", "set_face", { card: c.id, face: 1 })).toThrow();
+  });
+
+  test("hidden cards never leak their faces", () => {
+    const c = seedCard("Secret // Back", "you", "hand", {
+      faces: [{ name: "Secret", image: "a.jpg" }, { name: "Back", image: "b.jpg" }],
+    } as any);
+    const v = viewFor("agent").players.you.zones.hand[0];
+    expect(v.hidden).toBe(true);
+    expect((v as any).faces).toBeUndefined();
+    expect((v as any).name).toBeUndefined();
+  });
+});

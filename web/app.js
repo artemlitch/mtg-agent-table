@@ -402,7 +402,7 @@ function cardEl(c, opts = {}) {
   if (opts.small) d.style.cssText = "width:100%;height:auto;aspect-ratio:0.72;";
 
   if (c.hidden) {
-    d.innerHTML = `<div class="cardback">🂠</div>`;
+    d.innerHTML = `<img class="cardback" src="assets/card-back.jpg" alt="face-down card" draggable="false">`;
   } else {
     const img = c.image
       ? `<img src="${c.image}" alt="${c.name}" draggable="false">`
@@ -418,6 +418,18 @@ function cardEl(c, opts = {}) {
     }
     if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
     if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
+    if ((c.faceCount ?? 1) > 1) {
+      const flip = document.createElement("button");
+      flip.className = "flipbtn";
+      flip.textContent = "⟳";
+      flip.title = `Flip to ${c.faces[((c.face ?? 0) + 1) % c.faceCount].name}`;
+      flip.onclick = (e) => {
+        e.stopPropagation();
+        hidePreview();
+        act("set_face", { card: c.id, face: ((c.face ?? 0) + 1) % c.faceCount });
+      };
+      d.appendChild(flip);
+    }
     d.onmouseenter = (e) => showPreview(c, e);
     d.onmousemove = (e) => positionPreview(e);
     d.onmouseleave = hidePreview;
@@ -442,15 +454,31 @@ function cardEl(c, opts = {}) {
 
 function showPreview(c, e) {
   const pv = $("#cardpreview");
-  pv.innerHTML = c.image
-    ? `<img src="${c.image}">`
-    : `<div class="pv-text"><b>${c.name}</b> ${c.mana || ""}\n${c.typeLine || ""}\n\n${c.oracle || ""}</div>`;
+  if ((c.faceCount ?? 1) > 1 && c.faces) {
+    // show every face side by side, active one highlighted
+    pv.innerHTML =
+      `<div class="pv-faces">` +
+      c.faces
+        .map((f, i) =>
+          f.image
+            ? `<img src="${f.image}" style="${i === (c.face ?? 0) ? "" : "opacity:0.55"}">`
+            : `<div class="pv-text"><b>${f.name}</b>\n${f.typeLine || ""}\n\n${f.oracle || ""}</div>`
+        )
+        .join("") +
+      `</div>`;
+  } else {
+    pv.innerHTML = c.image
+      ? `<img src="${c.image}">`
+      : `<div class="pv-text"><b>${c.name}</b> ${c.mana || ""}\n${c.typeLine || ""}\n\n${c.oracle || ""}</div>`;
+  }
   pv.classList.remove("hidden");
   positionPreview(e);
 }
 function positionPreview(e) {
   const pv = $("#cardpreview");
-  const x = Math.min(e.clientX + 18, window.innerWidth - 280);
+  const wide = pv.querySelector(".pv-faces");
+  pv.style.width = wide ? "440px" : "260px";
+  const x = Math.min(e.clientX + 18, window.innerWidth - (wide ? 460 : 280));
   const y = Math.min(e.clientY + 12, window.innerHeight - 380);
   pv.style.left = x + "px";
   pv.style.top = Math.max(6, y) + "px";
@@ -693,7 +721,7 @@ function showZoneModal(p, zone) {
     if (c.hidden) {
       const d = document.createElement("div");
       d.className = "modalcard";
-      d.innerHTML = `<div class="cardback" style="height:120px">🂠</div>`;
+      d.innerHTML = `<img class="cardback" src="assets/card-back.jpg" alt="face-down card">`;
       wrap.appendChild(d);
       continue;
     }

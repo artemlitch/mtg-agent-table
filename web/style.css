@@ -47,7 +47,7 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 .badge.att { color: #ff9c9c; }
 .badge.blk { color: #9cc4ff; }
 .badge.eq { color: #a8e6b0; }
-.cardback { width: 100%; height: 100%; border-radius: 6px; background: repeating-linear-gradient(135deg, #26303c, #26303c 6px, #202a34 6px, #202a34 12px); border: 1px solid #38434e; display: flex; align-items: center; justify-content: center; color: #55687a; font-size: 20px; }
+.cardback { width: 100%; height: 100%; border-radius: 6px; display: block; object-fit: cover; }
 .facedown-known { position: absolute; inset: 0; border-radius: 6px; }
 .facedown-known img { opacity: 0.75; }
 .facedown-known::after { content: "face-down"; position: absolute; top: 2px; left: 2px; background: rgba(0,0,0,0.8); font-size: 9px; padding: 0 3px; border-radius: 3px; color: var(--dim); }
@@ -185,3 +185,14 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 .peek-row:nth-last-child(3) { opacity: 0.4; }
 .peek-row:nth-last-child(4) { opacity: 0.28; }
 .peek-row.flash { animation: peekfade 0.5s ease-out; }
+
+/* two-faced cards */
+.card .flipbtn {
+  position: absolute; top: 3px; right: 3px; z-index: 5;
+  background: rgba(0,0,0,0.75); color: #ffd97a; border: 1px solid rgba(255,217,122,0.5);
+  border-radius: 50%; width: 20px; height: 20px; font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+}
+.card .flipbtn:hover { background: rgba(216,160,61,0.9); color: #14181c; }
+#cardpreview .pv-faces { display: flex; gap: 6px; }
+#cardpreview .pv-faces img { width: 50%; }
