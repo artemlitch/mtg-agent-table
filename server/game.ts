@@ -224,6 +224,14 @@ export function who(p: PlayerId) {
   return p === "you" ? "Artem" : "Agent";
 }
 
+/** Player ids are exactly "you" | "agent" — reject anything else loudly. */
+function asPlayer(v: any, field = "player"): PlayerId {
+  if (v !== "you" && v !== "agent") {
+    throw new Error(`${field} must be "you" (Artem) or "agent", got ${JSON.stringify(v)}`);
+  }
+  return v;
+}
+
 function zoneList(card: Card): string[] {
   return game.players[card.controller].zones[card.zone];
 }
@@ -282,7 +290,7 @@ export type ActionResult = { ok: true; [k: string]: any };
 
 export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> = {
   draw(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, Number(p.n ?? p.count ?? 1)));
     const drawn: string[] = [];
     for (let i = 0; i < n; i++) {
@@ -344,7 +352,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const fromZone = card.zone;
       fromZones.add(fromZone);
       const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
-      const toPlayer: PlayerId = p.toPlayer ?? card.controller;
+      const toPlayer: PlayerId = p.toPlayer === undefined ? card.controller : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
 
       removeFromZone(card);
@@ -419,7 +427,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   untap_all(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     for (const id of game.players[player].zones.battlefield) game.cards[id].tapped = false;
     addLog(ctx.actor, `${who(player)} untapped all permanents`);
     return { ok: true };
@@ -442,7 +450,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   create_token(ctx, p) {
     const n = Math.max(1, Math.min(20, p.n ?? 1));
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const ids: string[] = [];
     for (let i = 0; i < n; i++) {
       const id = newCardId();
@@ -488,7 +496,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   life(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const ps = game.players[player];
     if (typeof p.set === "number") ps.life = p.set;
     else ps.life += p.delta ?? 0;
@@ -498,7 +506,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   commander_damage(ctx, p) {
     // p: { to: PlayerId, commander: card name, delta }
-    const ps = game.players[p.to as PlayerId];
+    const ps = game.players[asPlayer(p.to, "to")];
     ps.commanderDamage[p.commander] = (ps.commanderDamage[p.commander] || 0) + (p.delta ?? 0);
     addLog(ctx.actor, `${who(p.to)} has taken ${ps.commanderDamage[p.commander]} commander damage from ${p.commander}`);
     return { ok: true };
@@ -525,7 +533,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** Look at top N of a library (scry/surveil/impulse start). Private to the actor. */
   peek(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const lib = game.players[player].zones.library;
     const cards = lib.slice(0, n).map((id) => {
@@ -538,7 +546,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** Reorder the top of a library: p.top = ids (new order, first = top), p.toBottom = ids. */
   reorder_top(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const lib = game.players[player].zones.library;
     const moving: string[] = [...(p.top ?? []), ...(p.toBottom ?? [])];
     for (const id of moving) {
@@ -557,7 +565,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** View a whole zone (search a library, look at a hand via an effect, read a graveyard). */
   view_zone(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const zone: Zone = p.zone;
     const list = game.players[player].zones[zone];
     const cards = list.map((id) => {
@@ -571,7 +579,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   shuffle(ctx, p) {
-    const player: PlayerId = p.player ?? ctx.actor;
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     shuffleZone(player);
     addLog(ctx.actor, `${who(player)}'s library was shuffled`);
     return { ok: true };
@@ -584,7 +592,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   set_turn(ctx, p) {
-    const player: PlayerId = p.player;
+    const player: PlayerId = asPlayer(p.player);
     // a "round" completes when the turn comes back to the starting player (you)
     if (player === "you" && game.turn !== "you" && p.increment !== false) game.turnNumber++;
     game.turn = player;
@@ -710,7 +718,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     removeFromZone(card);
     const isSpell = /\b(instant|sorcery)\b/i.test(card.typeLine ?? "");
     const toZone: Zone = (p.to as Zone) ?? (isSpell ? "graveyard" : "battlefield");
-    const toPlayer: PlayerId = p.toPlayer ?? (toZone === "battlefield" ? card.controller : card.owner);
+    const toPlayer: PlayerId = p.toPlayer === undefined ? (toZone === "battlefield" ? card.controller : card.owner) : asPlayer(p.toPlayer, "toPlayer");
     card.zone = toZone;
     card.controller = toPlayer;
     card.visibleTo = [];

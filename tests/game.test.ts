@@ -470,3 +470,21 @@ describe("batch move with top: refs", () => {
     expect(game.players.agent.zones.library.length).toBe(1);
   });
 });
+
+describe("action input validation", () => {
+  test("set_turn rejects invalid player ids", () => {
+    expect(() => applyAction("agent", "set_turn", { player: "artem" })).toThrow();
+    expect(game.turn).toBe("you");
+  });
+
+  test("life/untap_all/draw reject invalid player ids", () => {
+    expect(() => applyAction("you", "life", { player: "nobody", delta: -1 })).toThrow();
+    expect(() => applyAction("you", "untap_all", { player: "nobody" })).toThrow();
+    expect(() => applyAction("you", "draw", { player: "nobody" })).toThrow();
+  });
+
+  test("move rejects an invalid toPlayer", () => {
+    const c = seedCard("Bear", "you", "hand");
+    expect(() => applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "artem" })).toThrow();
+  });
+});
