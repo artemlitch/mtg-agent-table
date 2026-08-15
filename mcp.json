@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "table": {
+      "command": "bun",
+      "args": ["run", "server/mcp-tools.ts"],
+      "env": { "TABLE_URL": "http://localhost:4780" }
+    }
+  }
+}

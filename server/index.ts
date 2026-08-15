@@ -1,0 +1,129 @@
+// Game server: REST + WebSocket + static frontend. Single source of truth.
+
+import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } from "./game";
+import { loadPlayerDeck, scryfallNamed } from "./decks";
+import { agent, buildSystemPrompt } from "./agent";
+
+const PORT = 4780;
+const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+
+let lastDecks: { you: number; agent: number } | null = null;
+
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+const server = Bun.serve({
+  port: PORT,
+  idleTimeout: 120,
+  async fetch(req, srv) {
+    const url = new URL(req.url);
+    const path = url.pathname;
+
+    if (path === "/ws") {
+      if (srv.upgrade(req)) return undefined as any;
+      return new Response("ws upgrade failed", { status: 400 });
+    }
+
+    if (path === "/api/state") {
+      const viewer = (url.searchParams.get("viewer") ?? "you") as PlayerId;
+      if (viewer !== "you" && viewer !== "agent") return json({ error: "bad viewer" }, 400);
+      return json(viewFor(viewer, viewer === "agent" ? 60 : 200));
+    }
+
+    if (path === "/api/brain") {
+      return json({ entries: agent.brain, busy: agent.busy });
+    }
+
+    if (path === "/api/action" && req.method === "POST") {
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, error: "bad json" }, 400);
+      }
+      const actor = body.actor as PlayerId;
+      if (actor !== "you" && actor !== "agent") return json({ ok: false, error: "bad actor" }, 400);
+      try {
+        // enrich tokens with scryfall art when available
+        if (body.type === "create_token" && !body.params?.image) {
+          const info = await scryfallNamed(body.params.name);
+          if (info && /token|treasure|clue|food|blood|map|powerstone/i.test(info.typeLine ?? "")) {
+            body.params = { ...body.params, image: info.image, oracle: info.oracle, typeLine: info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
+          }
+        }
+        const result = applyAction(actor, body.type, body.params);
+        broadcast({ type: "update", seq: game.seq });
+        // wake the agent when the human passes to it or talks to it
+        if (actor === "you" && (body.type === "done" || body.type === "chat")) {
+          queueMicrotask(() => agent.wake());
+        }
+        return json(result);
+      } catch (e: any) {
+        return json({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (path === "/api/new_game" && req.method === "POST") {
+      let body: any = {};
+      try {
+        body = await req.json();
+      } catch {}
+      const youDeck = Number(body.youDeck ?? lastDecks?.you);
+      const agentDeck = Number(body.agentDeck ?? lastDecks?.agent);
+      if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required" }, 400);
+      try {
+        resetGameState();
+        agent.kill();
+        addLog("system", "— New game — both players at 40 life —");
+        const [yours, theirs] = await Promise.all([
+          loadPlayerDeck("you", youDeck),
+          loadPlayerDeck("agent", agentDeck),
+        ]);
+        lastDecks = { you: youDeck, agent: agentDeck };
+        // opening hands
+        applyAction("you", "draw", { n: 7 });
+        applyAction("agent", "draw", { player: "agent", n: 7 });
+        game.started = true;
+        game.waitingOn = "you";
+        addLog("system", "Opening hands drawn. Artem goes first (no draw on turn 1).");
+
+        const decklist = theirs.cards.flatMap((c) => Array(1).fill(c.isCommander ? `${c.name} (COMMANDER)` : c.name));
+        agent.reset(buildSystemPrompt(theirs.name, decklist, yours.name));
+        if (body.model) agent.model = body.model;
+        broadcast({ type: "update", seq: game.seq });
+        // let the agent look at its hand and decide keep/mull
+        queueMicrotask(() => agent.wake());
+        return json({ ok: true, you: yours.name, agent: theirs.name });
+      } catch (e: any) {
+        return json({ ok: false, error: e.message }, 500);
+      }
+    }
+
+    // static frontend
+    const file = path === "/" ? "index.html" : path.slice(1);
+    if (/^[\w.-]+$/.test(file)) {
+      const f = Bun.file(WEB_DIR + file);
+      if (await f.exists()) return new Response(f);
+    }
+    return new Response("not found", { status: 404 });
+  },
+  websocket: {
+    open(ws) {
+      ws.subscribe("table");
+    },
+    message() {},
+    close() {},
+  },
+});
+
+function broadcast(msg: any) {
+  server.publish("table", JSON.stringify(msg));
+}
+
+agent.onBrain((entry) => broadcast({ type: "brain", entry, busy: agent.busy }));
+
+console.log(`mtg-agent-table listening on http://localhost:${PORT}`);

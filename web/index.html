@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MTG Agent Table</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="table">
+    <div id="topbar">
+      <div class="setup">
+        <input id="deck-you" size="9" value="25353034" title="Your Archidekt deck id">
+        <span>vs</span>
+        <input id="deck-agent" size="9" value="25351001" title="Agent's Archidekt deck id">
+        <button id="btn-newgame">New game</button>
+      </div>
+      <div id="turnbanner"></div>
+      <div class="phasebtns">
+        <button data-phase="untap/upkeep">Untap</button>
+        <button data-phase="main 1">Main 1</button>
+        <button data-phase="combat">Combat</button>
+        <button data-phase="main 2">Main 2</button>
+        <button data-phase="end">End</button>
+        <button id="btn-endturn" class="accent">End turn → Agent</button>
+      </div>
+    </div>
+
+    <div class="seat" id="seat-agent">
+      <div class="rail" id="rail-agent"></div>
+      <div class="boardwrap">
+        <div class="handrow" id="hand-agent"></div>
+        <div class="battlefield" id="bf-agent"></div>
+      </div>
+    </div>
+
+    <div id="midline"></div>
+
+    <div class="seat" id="seat-you">
+      <div class="rail" id="rail-you"></div>
+      <div class="boardwrap">
+        <div class="battlefield" id="bf-you"></div>
+        <div class="handrow" id="hand-you"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="side">
+    <div id="tabs">
+      <button data-tab="chat" class="active">Chat</button>
+      <button data-tab="brain">Agent brain</button>
+      <button data-tab="log">Log</button>
+    </div>
+    <div id="agent-status"></div>
+    <div class="tabpane" id="pane-chat"></div>
+    <div class="tabpane hidden" id="pane-brain"></div>
+    <div class="tabpane hidden" id="pane-log"></div>
+    <div id="question"></div>
+    <div id="composer">
+      <input id="chat-input" placeholder="Say something to the agent…">
+      <button id="btn-send">Send</button>
+    </div>
+    <button id="btn-done">Done — agent's window ▶</button>
+  </div>
+</div>
+
+<div id="menu" class="hidden"></div>
+<div id="modal" class="hidden"><div id="modal-box"></div></div>
+<div id="cardpreview" class="hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
