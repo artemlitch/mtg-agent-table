@@ -4,7 +4,7 @@ import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } fro
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
-import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory } from "./history";
+import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
@@ -17,13 +17,14 @@ const wakeAgent = (reason: "window" | "react" = "window") => {
 let lastDecks: { you: number; agent: number } | null = null;
 
 const saveSoon = () =>
-  scheduleSave(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks }));
+  scheduleSave(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks, history: getHistory() }));
 
 {
   const restored = await loadStateFile(STATE_FILE);
   if (restored) {
     if (restored.agent) agent.restore(restored.agent);
     lastDecks = restored.lastDecks;
+    setHistory(restored.history ?? []);
     console.log(`restored game from ${STATE_FILE} (turn ${game.turnNumber}, seq ${game.seq})`);
   }
 }
@@ -103,7 +104,8 @@ const server = Bun.serve({
       addLog("system", `↩ Artem undid: ${undone}`);
       saveSoon();
       broadcast({ type: "update", seq: game.seq });
-      if (game.started) queueMicrotask(() => wakeAgent("react"));
+      // deliberately NOT waking the agent: it would act immediately and pile
+      // new state on top, making it impossible to keep rewinding
       return json({ ok: true, undone });
     }
 
@@ -180,7 +182,7 @@ agent.onBrain((entry) => {
 // flush state on shutdown so kills never lose the debounce window
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, async () => {
-    await saveNow(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks }));
+    await saveNow(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks, history: getHistory() }));
     process.exit(0);
   });
 }

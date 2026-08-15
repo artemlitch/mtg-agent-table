@@ -7,12 +7,20 @@ import type { AgentSnapshot } from "./agent";
 export interface PersistedExtra {
   agent: AgentSnapshot | null;
   lastDecks: { you: number; agent: number } | null;
+  history?: any[];
 }
 
 export function serializeState(extra: PersistedExtra) {
   // deep-copy: the snapshot must not alias live singletons
   return JSON.parse(
-    JSON.stringify({ v: 1, game, nextCardId: getNextCardId(), agent: extra.agent, lastDecks: extra.lastDecks })
+    JSON.stringify({
+      v: 1,
+      game,
+      nextCardId: getNextCardId(),
+      agent: extra.agent,
+      lastDecks: extra.lastDecks,
+      ...(extra.history ? { history: extra.history } : {}),
+    })
   );
 }
 
@@ -22,7 +30,7 @@ export function restoreState(snap: any): PersistedExtra {
   (game as any).stack ??= [];
   for (const p of Object.values(game.players)) (p.zones as any).stack ??= [];
   setNextCardId(snap.nextCardId ?? 1);
-  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null };
+  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [] };
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

@@ -70,3 +70,22 @@ describe("undo", () => {
   });
 });
 
+
+describe("undo reporting and history depth", () => {
+  test("repeated undos report the real actions, not previous undo notices", () => {
+    doAction("you", "life", { player: "you", delta: -1 });   // 39
+    addLog("system", "↩ Artem undid: something");            // a notice, not an action
+    doAction("you", "life", { player: "you", delta: -1 });   // 38
+    const first = undoLast();
+    expect(first).toContain("life is now 38");
+    const second = undoLast();
+    expect(second).not.toContain("↩");                        // never reports a notice
+  });
+
+  test("undo walks back through many consecutive actions", () => {
+    for (let i = 0; i < 5; i++) doAction("you", "life", { player: "agent", delta: -1 });
+    expect(game.players.agent.life).toBe(35);
+    for (let i = 0; i < 5; i++) undoLast();
+    expect(game.players.agent.life).toBe(40);
+  });
+});

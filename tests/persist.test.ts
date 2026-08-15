@@ -127,3 +127,26 @@ describe("saveNow", () => {
     expect(snap.game.players.you.life).toBe(36);
   });
 });
+
+describe("undo history survives restarts", () => {
+  test("history is serialized and restored", async () => {
+    const { recordSnapshot, clearHistory, historySize, getHistory, setHistory, undoLast } = await import("../server/history");
+    resetGameState();
+    clearHistory();
+    recordSnapshot();
+    applyAction("you", "life", { player: "you", delta: -9 });
+    expect(game.players.you.life).toBe(31);
+    const saved = getHistory();
+    expect(saved.length).toBe(1);
+
+    // simulate a restart: fresh state, history reloaded from disk
+    const snapshot = JSON.parse(JSON.stringify({ game, history: saved }));
+    resetGameState();
+    clearHistory();
+    Object.assign(game, snapshot.game);
+    setHistory(snapshot.history);
+    expect(historySize()).toBe(1);
+    undoLast();
+    expect(game.players.you.life).toBe(40);
+  });
+});

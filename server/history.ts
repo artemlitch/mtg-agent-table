@@ -5,8 +5,18 @@
 import { game, getNextCardId, setNextCardId } from "./game";
 import { serializeState, restoreState } from "./persist";
 
-const history: any[] = [];
-const MAX = 100;
+let history: any[] = [];
+// full game snapshots are heavy; 30 steps of undo is plenty and keeps the
+// persisted file manageable
+const MAX = 30;
+
+export function getHistory() {
+  return history;
+}
+
+export function setHistory(h: any[]) {
+  history = Array.isArray(h) ? h.slice(-MAX) : [];
+}
 
 export function recordSnapshot() {
   history.push(serializeState({ agent: null, lastDecks: null }));
@@ -29,7 +39,9 @@ export function clearHistory() {
 export function undoLast(): string | null {
   const snap = history.pop();
   if (!snap) return null;
-  const undone = game.log.at(-1)?.text ?? "(unknown action)";
+  // report the last real ACTION, never a previous "↩ undid" notice
+  const undone =
+    [...game.log].reverse().find((e) => !e.text.startsWith("↩"))?.text ?? "(unknown action)";
   const seqBefore = game.seq;
   const idBefore = getNextCardId();
   restoreState(snap);
