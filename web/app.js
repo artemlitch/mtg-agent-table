@@ -402,7 +402,7 @@ function cardEl(c, opts = {}) {
   if (opts.small) d.style.cssText = "width:100%;height:auto;aspect-ratio:0.72;";
 
   if (c.hidden) {
-    d.innerHTML = `<img class="cardback" src="assets/card-back.jpg" alt="face-down card" draggable="false">`;
+    d.innerHTML = `<img class="cardback" src="card-back.jpg" alt="face-down card" draggable="false">`;
   } else {
     const img = c.image
       ? `<img src="${c.image}" alt="${c.name}" draggable="false">`
@@ -721,7 +721,7 @@ function showZoneModal(p, zone) {
     if (c.hidden) {
       const d = document.createElement("div");
       d.className = "modalcard";
-      d.innerHTML = `<img class="cardback" src="assets/card-back.jpg" alt="face-down card">`;
+      d.innerHTML = `<img class="cardback" src="card-back.jpg" alt="face-down card">`;
       wrap.appendChild(d);
       continue;
     }
