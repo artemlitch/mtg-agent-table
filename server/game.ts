@@ -346,6 +346,78 @@ export interface ActionCtx {
 
 export type ActionResult = { ok: true; [k: string]: any };
 
+/** Apply one already-removed stack item: combat/phase/turn payloads, text, or card resolution. */
+function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult {
+  if (item.apply?.type === "attack") {
+    const parts: string[] = [];
+    for (const pair of item.apply.pairs) {
+      const c = getCard(pair.attacker);
+      c.attacking = pair.target;
+      c.tapped = true;
+      parts.push(publicDesc(c));
+    }
+    game.phase = "combat";
+    addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`);
+    return { ok: true, resolved: item.text };
+  }
+  if (item.apply?.type === "phase") {
+    game.phase = item.apply.phase;
+    addLog(ctx.actor, `Phase: ${game.phase}`);
+    return { ok: true, resolved: item.text };
+  }
+  if (item.apply?.type === "turn") {
+    const player = item.apply.player;
+    if (player === "you" && game.turn !== "you") game.turnNumber++;
+    game.turn = player;
+    game.waitingOn = player;
+    game.phase = "untap/upkeep";
+    for (const c of Object.values(game.cards)) {
+      c.attacking = null;
+      c.blocking = null;
+    }
+    addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
+    return { ok: true, resolved: item.text };
+  }
+  if (item.apply?.type === "block") {
+    const parts: string[] = [];
+    for (const pair of item.apply.pairs) {
+      const b = getCard(pair.blocker);
+      b.blocking = pair.attacker;
+      parts.push(`${publicDesc(b)} ⇦ ${publicDesc(getCard(pair.attacker))}`);
+    }
+    addLog(ctx.actor, `Blocks locked in: ${parts.join("; ")}`);
+    return { ok: true, resolved: item.text };
+  }
+  if (!item.cardId) {
+    addLog(ctx.actor, `Resolved: ${item.text}`);
+    return { ok: true, resolved: item.text };
+  }
+  const card = getCard(item.cardId);
+  removeFromZone(card);
+  // a card with ANY land face is a permanent when played; MDFCs like
+  // "Instant // Land" must not be inferred into the graveyard
+  const tl = card.typeLine ?? "";
+  const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+  const toZone: Zone = (p.to as Zone) ?? item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
+  const toPlayer: PlayerId = p.toPlayer === undefined ? (toZone === "battlefield" ? card.controller : card.owner) : asPlayer(p.toPlayer, "toPlayer");
+  card.zone = toZone;
+  card.controller = toPlayer;
+  card.visibleTo = [];
+  game.players[toPlayer].zones[toZone].push(card.id);
+  // an MDFC whose front face can't exist on the battlefield (Instant // Land)
+  // must display the permanent face it actually resolved as
+  if (toZone === "battlefield" && card.faces && !card.face) {
+    const isPermanent = (t?: string) => !!t && !/\b(instant|sorcery)\b/i.test(t);
+    if (!isPermanent(card.faces[0]?.typeLine)) {
+      const idx = card.faces.findIndex((f) => isPermanent(f.typeLine));
+      if (idx > 0) card.face = idx;
+    }
+  }
+  const shownName = card.faces?.[card.face ?? 0]?.name ?? card.name;
+  addLog(ctx.actor, `${shownName} resolved → ${who(toPlayer)}'s ${toZone}`);
+  return { ok: true, card: card.id, toZone };
+}
+
 export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> = {
   draw(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
@@ -820,74 +892,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   stack_resolve(ctx, p) {
     const item = game.stack.pop();
     if (!item) throw new Error("the stack is empty");
-    if (item.apply?.type === "attack") {
-      const parts: string[] = [];
-      for (const pair of item.apply.pairs) {
-        const c = getCard(pair.attacker);
-        c.attacking = pair.target;
-        c.tapped = true;
-        parts.push(publicDesc(c));
-      }
-      game.phase = "combat";
-      addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`);
-      return { ok: true, resolved: item.text };
-    }
-    if (item.apply?.type === "phase") {
-      game.phase = item.apply.phase;
-      addLog(ctx.actor, `Phase: ${game.phase}`);
-      return { ok: true, resolved: item.text };
-    }
-    if (item.apply?.type === "turn") {
-      const player = item.apply.player;
-      if (player === "you" && game.turn !== "you") game.turnNumber++;
-      game.turn = player;
-      game.waitingOn = player;
-      game.phase = "untap/upkeep";
-      for (const c of Object.values(game.cards)) {
-        c.attacking = null;
-        c.blocking = null;
-      }
-      addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
-      return { ok: true, resolved: item.text };
-    }
-    if (item.apply?.type === "block") {
-      const parts: string[] = [];
-      for (const pair of item.apply.pairs) {
-        const b = getCard(pair.blocker);
-        b.blocking = pair.attacker;
-        parts.push(`${publicDesc(b)} ⇦ ${publicDesc(getCard(pair.attacker))}`);
-      }
-      addLog(ctx.actor, `Blocks locked in: ${parts.join("; ")}`);
-      return { ok: true, resolved: item.text };
-    }
-    if (!item.cardId) {
-      addLog(ctx.actor, `Resolved: ${item.text}`);
-      return { ok: true, resolved: item.text };
-    }
-    const card = getCard(item.cardId);
-    removeFromZone(card);
-    // a card with ANY land face is a permanent when played; MDFCs like
-    // "Instant // Land" must not be inferred into the graveyard
-    const tl = card.typeLine ?? "";
-    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
-    const toZone: Zone = (p.to as Zone) ?? item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
-    const toPlayer: PlayerId = p.toPlayer === undefined ? (toZone === "battlefield" ? card.controller : card.owner) : asPlayer(p.toPlayer, "toPlayer");
-    card.zone = toZone;
-    card.controller = toPlayer;
-    card.visibleTo = [];
-    game.players[toPlayer].zones[toZone].push(card.id);
-    // an MDFC whose front face can't exist on the battlefield (Instant // Land)
-    // must display the permanent face it actually resolved as
-    if (toZone === "battlefield" && card.faces && !card.face) {
-      const isPermanent = (t?: string) => !!t && !/\b(instant|sorcery)\b/i.test(t);
-      if (!isPermanent(card.faces[0]?.typeLine)) {
-        const idx = card.faces.findIndex((f) => isPermanent(f.typeLine));
-        if (idx > 0) card.face = idx;
-      }
-    }
-    const shownName = card.faces?.[card.face ?? 0]?.name ?? card.name;
-    addLog(ctx.actor, `${shownName} resolved → ${who(toPlayer)}'s ${toZone}`);
-    return { ok: true, card: card.id, toZone };
+    return resolveStackItem(ctx, item, p);
   },
 
   /**
@@ -900,13 +905,30 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (game.stack[game.stack.length - 1].player === ctx.actor) {
       throw new Error("the top of the stack is your own item — the opponent resolves those");
     }
+    // take the contiguous opponent-owned run from the top
+    let from = game.stack.length;
+    while (from > 0 && game.stack[from - 1].player !== ctx.actor && (!p.group || game.stack[from - 1].groupId === p.group)) from--;
+    const run = game.stack.splice(from);
+    // a grouped segment is an accepted PROPOSAL: it executes in proposal order
+    // (each item was contingent on the one before it). Ungrouped items are a
+    // true stack and resolve LIFO. Walk top-down, reversing each group run.
+    const order: StackItem[] = [];
+    for (let i = run.length - 1; i >= 0; ) {
+      if (run[i].groupId) {
+        const gid = run[i].groupId;
+        let j = i;
+        while (j >= 0 && run[j].groupId === gid) j--;
+        for (let k = j + 1; k <= i; k++) order.push(run[k]);
+        i = j;
+      } else {
+        order.push(run[i]);
+        i--;
+      }
+    }
     const resolved: string[] = [];
-    while (game.stack.length) {
-      const top = game.stack[game.stack.length - 1];
-      if (top.player === ctx.actor) break;
-      if (p.group && top.groupId !== p.group) break;
-      resolved.push(top.text);
-      actions.stack_resolve(ctx, {});
+    for (const item of order) {
+      resolved.push(item.text);
+      resolveStackItem(ctx, item, {});
     }
     return { ok: true, resolved };
   },

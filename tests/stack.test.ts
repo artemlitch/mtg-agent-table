@@ -409,3 +409,30 @@ describe("batched stack groups (proposed shortcuts)", () => {
     expect(game.stack[0].cardId).toBe(b.id);
   });
 });
+
+describe("accepted proposals execute in proposal order", () => {
+  test("resolve_all on a group runs bottom-up: the fetch happens before the planned cast", () => {
+    const bear = seedCard("Bear", "agent", "hand", { typeLine: "Creature — Bear" });
+    applyAction("agent", "stack_batch", { items: [
+      { text: "Fetch: sac tarn, find a Forest" },
+      { card: bear.id, retractable: true },
+    ]});
+    applyAction("you", "stack_resolve_all", {});
+    expect(bear.zone).toBe("battlefield");
+    const texts = game.log.slice(-3).map((e) => e.text);
+    const fetchIdx = texts.findIndex((t) => t.includes("Fetch"));
+    const bearIdx = texts.findIndex((t) => t.includes("Bear resolved"));
+    expect(fetchIdx).toBeGreaterThanOrEqual(0);
+    expect(bearIdx).toBeGreaterThan(fetchIdx);
+  });
+
+  test("ungrouped opponent items still resolve LIFO", () => {
+    const a = seedCard("First Spell", "agent", "hand", { typeLine: "Instant" });
+    const b = seedCard("Response To Own", "agent", "hand", { typeLine: "Instant" });
+    applyAction("agent", "cast", { card: a.id });
+    applyAction("agent", "cast", { card: b.id });
+    applyAction("you", "stack_resolve_all", {});
+    const texts = game.log.slice(-3).map((e) => e.text);
+    expect(texts.findIndex((t) => t.includes("Response To Own resolved"))).toBeLessThan(texts.findIndex((t) => t.includes("First Spell resolved")));
+  });
+});
