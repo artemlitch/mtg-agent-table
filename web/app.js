@@ -477,7 +477,7 @@ function cardEl(c, opts = {}) {
   } else {
     const img = c.image
       ? `<img src="${c.image}" alt="${c.name}" draggable="false">`
-      : `<div class="textcard"><b>${c.name}</b><br>${c.mana || ""}<br>${c.typeLine || ""}<br>${(c.oracle || "").slice(0, 120)}</div>`;
+      : `<div class="textcard"><b>${c.name}</b><br>${c.mana || ""}<br>${c.typeLine || ""}<br>${(c.oracle || "").slice(0, 120)}${c.power !== undefined && c.power !== null ? `<div class="textpt">${c.power}/${c.toughness}</div>` : ""}</div>`;
     d.innerHTML = c.faceDown ? `<div class="facedown-known">${img}</div>` : img;
     const badges = [];
     for (const [k, v] of Object.entries(c.counters || {})) badges.push(`<span class="badge">${v} ${k}</span>`);

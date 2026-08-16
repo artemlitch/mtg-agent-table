@@ -579,3 +579,29 @@ describe("flipping cards face-down (anyone, anywhere)", () => {
     expect(a.faceDown && b.faceDown).toBe(true);
   });
 });
+
+describe("token catalog", () => {
+  test("create_token fills art and copy from the deck's token catalog", () => {
+    game.tokenCatalog["elemental"] = {
+      name: "Elemental", image: "https://img/elemental.jpg",
+      oracle: "Haste", typeLine: "Token Creature — Elemental", power: "1", toughness: "1",
+    };
+    const r = applyAction("agent", "create_token", { name: "Elemental", n: 2 });
+    const c = game.cards[r.ids[0]];
+    expect(c.image).toBe("https://img/elemental.jpg");
+    expect(c.typeLine).toBe("Token Creature — Elemental");
+    expect(c.power).toBe("1");
+    expect(c.oracle).toBe("Haste");
+  });
+
+  test("explicit params win over the catalog; unknown tokens keep given copy for the placeholder", () => {
+    game.tokenCatalog["treasure"] = { name: "Treasure", image: "https://img/treasure.jpg", typeLine: "Token Artifact — Treasure" };
+    const r1 = applyAction("you", "create_token", { name: "Treasure", image: "https://img/mine.jpg" });
+    expect(game.cards[r1.ids[0]].image).toBe("https://img/mine.jpg");
+    const r2 = applyAction("you", "create_token", { name: "Weird Homunculus", power: "3", toughness: "3", typeLine: "Token Creature — Homunculus", oracle: "Flying" });
+    const c2 = game.cards[r2.ids[0]];
+    expect(c2.image).toBeUndefined();
+    expect(c2.power).toBe("3");
+    expect(c2.oracle).toBe("Flying");
+  });
+});

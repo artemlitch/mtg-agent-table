@@ -91,6 +91,9 @@ export interface GameState {
   seq: number;
   waitingOn: PlayerId; // whose window it is
   pendingQuestion: string | null; // agent question awaiting user answer
+  // token art/copy for this game's decks, keyed by lowercase token name —
+  // built from Scryfall all_parts when the decks load
+  tokenCatalog: Record<string, { name: string; image?: string; oracle?: string; typeLine?: string; power?: string; toughness?: string }>;
 }
 
 let nextCardId = 1;
@@ -119,6 +122,7 @@ export function newGameState(): GameState {
     seq: 0,
     waitingOn: "you",
     pendingQuestion: null,
+    tokenCatalog: {},
   };
 }
 
@@ -584,17 +588,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   create_token(ctx, p) {
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
+    // the deck's token catalog (built from Scryfall all_parts at load) supplies
+    // art and copy; explicit params always win
+    const cat = game.tokenCatalog?.[String(p.name ?? "").toLowerCase()];
     const ids: string[] = [];
     for (let i = 0; i < n; i++) {
       const id = newCardId();
       game.cards[id] = {
         id,
         name: p.name,
-        image: p.image,
-        oracle: p.oracle,
-        typeLine: p.typeLine || "Token",
-        power: p.power,
-        toughness: p.toughness,
+        image: p.image ?? cat?.image,
+        oracle: p.oracle ?? cat?.oracle,
+        typeLine: p.typeLine || cat?.typeLine || "Token",
+        power: p.power ?? cat?.power,
+        toughness: p.toughness ?? cat?.toughness,
         owner: player,
         controller: player,
         zone: "battlefield",

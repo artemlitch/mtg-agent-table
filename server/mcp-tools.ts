@@ -118,9 +118,10 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ cards: arr(str("card id"), "cards to change together"), card: str("single card id"), kind: str("counter kind"), delta: num("change") }),
   },
   create_token: {
-    description: "Create N token permanents under a player's control. Provide name; power/toughness/typeLine optional.",
+    description:
+      "Create N token permanents under a player's control. Art and text come from your deck's own token printings when available (else Scryfall). ALWAYS pass power/toughness/typeLine/oracle too — if no art exists the table renders a text placeholder with exactly the copy you give, so a missing P/T means a blank token.",
     schema: obj(
-      { name: str("token name, e.g. 'Treasure'"), n: num("count"), player: PLAYER, power: str("power"), toughness: str("toughness"), typeLine: str("type line") },
+      { name: str("token name, e.g. 'Treasure'"), n: num("count"), player: PLAYER, power: str("power"), toughness: str("toughness"), typeLine: str("type line, e.g. 'Token Creature — Elemental'"), oracle: str("token rules text, e.g. 'Haste'") },
       ["name"]
     ),
   },

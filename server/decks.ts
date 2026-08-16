@@ -56,7 +56,50 @@ interface ScryCard extends ScryFace {
   faces?: ScryFace[];
 }
 
-export async function hydrateScryfall(names: string[]): Promise<Map<string, ScryCard>> {
+/**
+ * From a RAW Scryfall card object, pick the face that IS the requested token.
+ * Double-faced token printings (art card // token, or token // token) would
+ * otherwise render their front face — the "City's Vengeance as an Elemental" bug.
+ */
+export function pickTokenFace(c: any, name: string): ScryFace {
+  const want = name.toLowerCase();
+  const faces: any[] = c.card_faces ?? [];
+  const match =
+    faces.find((f) => f.name?.toLowerCase() === want) ??
+    faces.find((f) => /\btoken\b/i.test(f.type_line ?? "")) ??
+    null;
+  const src = match ?? c;
+  return {
+    name: src.name ?? c.name,
+    image: src.image_uris?.normal ?? c.image_uris?.normal,
+    oracle: src.oracle_text ?? c.oracle_text,
+    mana: src.mana_cost ?? c.mana_cost,
+    typeLine: src.type_line ?? c.type_line,
+    power: src.power ?? c.power,
+    toughness: src.toughness ?? c.toughness,
+  };
+}
+
+/** Fetch full token cards for all_parts references and key them by lowercase token name. */
+export async function buildTokenCatalog(parts: Map<string, string>): Promise<Record<string, ScryFace>> {
+  const out: Record<string, ScryFace> = {};
+  for (const [name, uri] of parts) {
+    try {
+      const res = await fetch(uri, {
+        headers: { "User-Agent": SCRYFALL_HEADERS["User-Agent"], Accept: "application/json" },
+      });
+      if (!res.ok) continue;
+      const face = pickTokenFace(await res.json(), name);
+      out[name.toLowerCase()] = { ...face, name };
+    } catch {}
+  }
+  return out;
+}
+
+export async function hydrateScryfall(
+  names: string[],
+  tokenParts?: Map<string, string>
+): Promise<Map<string, ScryCard>> {
   const out = new Map<string, ScryCard>();
   const unique = [...new Set(names)];
   for (let i = 0; i < unique.length; i += 75) {
@@ -70,6 +113,13 @@ export async function hydrateScryfall(names: string[]): Promise<Map<string, Scry
     if (!res.ok) throw new Error(`scryfall collection: HTTP ${res.status} ${await res.text()}`);
     const data: any = await res.json();
     for (const c of data.data) {
+      if (tokenParts) {
+        for (const part of c.all_parts ?? []) {
+          if (part.component === "token" && !tokenParts.has(part.name)) {
+            tokenParts.set(part.name, part.uri);
+          }
+        }
+      }
       const face = c.card_faces?.[0];
       // two-faced cards: keep every face with its own art and text
       const faces: ScryFace[] | undefined = c.card_faces?.length
@@ -110,7 +160,10 @@ function lookup(scry: Map<string, ScryCard>, name: string): ScryCard {
 
 export async function loadPlayerDeck(player: PlayerId, deckId: number) {
   const deck = await fetchArchidektDeck(deckId);
-  const scry = await hydrateScryfall(deck.cards.map((c) => c.name));
+  const tokenParts = new Map<string, string>();
+  const scry = await hydrateScryfall(deck.cards.map((c) => c.name), tokenParts);
+  // the deck's own token printings become this game's token art/copy
+  Object.assign(game.tokenCatalog, await buildTokenCatalog(tokenParts));
   const ps = game.players[player];
   ps.deckName = deck.name;
   ps.deckId = deckId;
@@ -160,18 +213,14 @@ export async function scryfallToken(name: string): Promise<ScryCard | null> {
   });
   if (!res.ok) return null;
   const data: any = await res.json();
-  const c = data.data?.[0];
-  if (!c) return null;
-  const face = c.card_faces?.[0];
-  return {
-    name: c.name,
-    image: c.image_uris?.normal ?? face?.image_uris?.normal,
-    oracle: c.oracle_text ?? face?.oracle_text,
-    mana: c.mana_cost ?? face?.mana_cost,
-    typeLine: c.type_line,
-    power: c.power ?? face?.power,
-    toughness: c.toughness ?? face?.toughness,
-  };
+  const results: any[] = data.data ?? [];
+  if (!results.length) return null;
+  // prefer a single-faced printing named exactly right; else face-match a DFC
+  const single = results.find(
+    (c) => !c.card_faces?.length && c.name?.toLowerCase() === name.toLowerCase()
+  );
+  const face = pickTokenFace(single ?? results[0], name);
+  return { ...face, name };
 }
 
 /** Resolve a token/card image by fuzzy name, for create_token. */

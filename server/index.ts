@@ -68,11 +68,15 @@ const server = Bun.serve({
       const actor = body.actor as PlayerId;
       if (actor !== "you" && actor !== "agent") return json({ ok: false, error: "bad actor" }, 400);
       try {
-        // enrich tokens with scryfall art when available (exact token match only)
-        if (body.type === "create_token" && !body.params?.image) {
+        // enrich tokens with scryfall art when the deck catalog doesn't have them
+        if (
+          body.type === "create_token" &&
+          !body.params?.image &&
+          !game.tokenCatalog[String(body.params?.name ?? "").toLowerCase()]
+        ) {
           const info = await scryfallToken(body.params.name).catch(() => null);
           if (info) {
-            body.params = { ...body.params, image: info.image, oracle: info.oracle, typeLine: info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
+            body.params = { ...body.params, image: info.image, oracle: body.params.oracle ?? info.oracle, typeLine: body.params.typeLine ?? info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
         const cosmetic = body.type === "place";

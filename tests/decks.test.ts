@@ -57,3 +57,28 @@ describe.if(!!process.env.RUN_NET)("two-faced cards (network)", () => {
     expect(c.faces![1].power).toBe("3");
   }, 20000);
 });
+
+import { pickTokenFace } from "../server/decks";
+
+describe("pickTokenFace", () => {
+  const dfcToken = {
+    name: "City's Vengeance // Elemental",
+    type_line: "Card // Token Creature — Elemental",
+    card_faces: [
+      { name: "City's Vengeance", type_line: "Card", image_uris: { normal: "https://img/front.jpg" } },
+      { name: "Elemental", type_line: "Token Creature — Elemental", image_uris: { normal: "https://img/elemental.jpg" }, oracle_text: "Haste", power: "1", toughness: "1" },
+    ],
+  };
+  test("double-faced token: picks the face matching the requested name", () => {
+    const f = pickTokenFace(dfcToken as any, "Elemental");
+    expect(f.image).toBe("https://img/elemental.jpg");
+    expect(f.typeLine).toBe("Token Creature — Elemental");
+    expect(f.power).toBe("1");
+  });
+  test("single-faced token passes through", () => {
+    const single = { name: "Treasure", type_line: "Token Artifact — Treasure", image_uris: { normal: "https://img/t.jpg" }, oracle_text: "Sac: mana" };
+    const f = pickTokenFace(single as any, "Treasure");
+    expect(f.image).toBe("https://img/t.jpg");
+    expect(f.name).toBe("Treasure");
+  });
+});
