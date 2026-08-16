@@ -72,6 +72,11 @@ export interface StackItem {
   apply?: { type: "attack" | "block"; pairs: any[] } | { type: "turn"; player: PlayerId } | { type: "phase"; phase: string };
   // destination declared at cast time (MDFC faces, exile-on-resolve effects)
   resolveTo?: Zone;
+  // batched proposal (MTR-style shortcut): items pushed together share a groupId.
+  // retractable marks PLANNED follow-ups that unwind if the opponent responds
+  // below them; mandatory triggers are never retractable.
+  groupId?: string;
+  retractable?: boolean;
 }
 
 export interface GameState {
@@ -226,6 +231,8 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       id: item.id,
       player: item.player,
       text: item.text,
+      groupId: item.groupId,
+      retractable: item.retractable,
       card: item.cardId ? redactCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
@@ -295,6 +302,36 @@ export function shuffleZone(player: PlayerId, zone: Zone = "library") {
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [list[i], list[j]] = [list[j], list[i]];
+  }
+}
+
+/**
+ * MTR shortcut semantics: responding at item X holds the proposer to that
+ * point — retractable items ABOVE X (planned follow-ups) unwind as if never
+ * taken; mandatory triggers stay. Cards return to their owner's hand.
+ */
+function retractTailAbove(actor: PlayerId, respondAt: string) {
+  const idx = game.stack.findIndex((i) => i.id === respondAt);
+  if (idx < 0) throw new Error(`no stack item ${respondAt}`);
+  const retracted: string[] = [];
+  for (let i = game.stack.length - 1; i > idx; i--) {
+    const item = game.stack[i];
+    if (!item.retractable || item.player === actor) continue;
+    game.stack.splice(i, 1);
+    if (item.cardId) {
+      const card = getCard(item.cardId);
+      removeFromZone(card);
+      card.zone = "hand";
+      card.controller = card.owner;
+      card.visibleTo = [];
+      game.players[card.owner].zones.hand.push(card.id);
+      retracted.push(card.name);
+    } else {
+      retracted.push(item.text);
+    }
+  }
+  if (retracted.length) {
+    addLog(actor, `${who(actor)} responds below the proposed sequence — retracted (never happened): ${retracted.join("; ")}`);
   }
 }
 
@@ -694,6 +731,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    * the stack and can't be responded to; it goes straight to the battlefield.
    */
   cast(ctx, p) {
+    if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     const card = resolveCardRef(p.card ?? p.cardId);
     if (p.face !== undefined) {
       const face = Number(p.face);
@@ -740,9 +778,42 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   stack_push(ctx, p) {
     const text = p.text ?? p.note;
     if (!text || !String(text).trim()) throw new Error("stack_push requires text");
+    if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     game.stack.push({ id: "s" + (game.seq + 1), player: ctx.actor, cardId: null, text: String(text) });
     addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}`);
     return { ok: true, stackSize: game.stack.length };
+  },
+
+  /**
+   * Push several items as ONE proposed sequence (MTR-style shortcut): an event
+   * plus all its triggers, or a planned run of casts. Items share a groupId so
+   * the opponent can accept the lot with stack_resolve_all, or respond at any
+   * point (respondAt) — which retracts the retractable tail above that point.
+   * Each item: { card?, text?, face?, resolveTo?, retractable? }. Lands inside
+   * a batch stay special actions (straight to battlefield, CR 115.2a).
+   */
+  stack_batch(ctx, p) {
+    if (!Array.isArray(p.items) || !p.items.length) throw new Error("stack_batch requires items");
+    const groupId = "g" + (game.seq + 1);
+    const pushed: string[] = [];
+    for (const item of p.items) {
+      const before = game.stack.length;
+      if (item.card ?? item.cardId) {
+        actions.cast(ctx, { ...item, respondAt: undefined });
+      } else {
+        actions.stack_push(ctx, { ...item, respondAt: undefined });
+      }
+      if (game.stack.length > before) {
+        const top = game.stack[game.stack.length - 1];
+        top.groupId = groupId;
+        if (item.retractable) top.retractable = true;
+        pushed.push(top.id);
+      }
+    }
+    if (pushed.length > 1) {
+      addLog(ctx.actor, `${who(ctx.actor)} proposed the ${pushed.length} items above as one sequence — resolve all, or respond at any point`);
+    }
+    return { ok: true, groupId, items: pushed, stackSize: game.stack.length };
   },
 
   /** Resolve the TOP of the stack. Cards: battlefield for permanents, graveyard for instants/sorceries (or explicit p.to). */
@@ -819,9 +890,37 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, card: card.id, toZone };
   },
 
-  /** Counter the TOP of the stack: card goes to its owner's graveyard. */
+  /**
+   * Accept an opponent's whole proposal: resolve items LIFO from the top for
+   * as long as they belong to the opponent (optionally only one groupId).
+   * Refuses if the top item is your own — you can't resolve your own proposal.
+   */
+  stack_resolve_all(ctx, p) {
+    if (!game.stack.length) throw new Error("the stack is empty");
+    if (game.stack[game.stack.length - 1].player === ctx.actor) {
+      throw new Error("the top of the stack is your own item — the opponent resolves those");
+    }
+    const resolved: string[] = [];
+    while (game.stack.length) {
+      const top = game.stack[game.stack.length - 1];
+      if (top.player === ctx.actor) break;
+      if (p.group && top.groupId !== p.group) break;
+      resolved.push(top.text);
+      actions.stack_resolve(ctx, {});
+    }
+    return { ok: true, resolved };
+  },
+
+  /** Counter a stack item: card goes to its owner's graveyard. p.item targets mid-stack; default top. */
   stack_counter(ctx, p) {
-    const item = game.stack.pop();
+    let item: StackItem | undefined;
+    if (p.item) {
+      const idx = game.stack.findIndex((i) => i.id === p.item);
+      if (idx < 0) throw new Error(`no stack item ${p.item}`);
+      [item] = game.stack.splice(idx, 1);
+    } else {
+      item = game.stack.pop();
+    }
     if (!item) throw new Error("the stack is empty");
     if (item.cardId) {
       const card = getCard(item.cardId);

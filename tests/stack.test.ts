@@ -320,3 +320,92 @@ describe("phase steps go through the stack", () => {
     expect(game.phase).toBe("end");
   });
 });
+
+describe("batched stack groups (proposed shortcuts)", () => {
+  test("stack_batch pushes items in order sharing one groupId; cards move to the stack zone", () => {
+    const spell = seedCard("Fresh Meat", "agent", "hand", { typeLine: "Instant" });
+    const r = applyAction("agent", "stack_batch", { items: [
+      { card: spell.id },
+      { text: "Devour trigger — nine +1/+1 counters" },
+      { text: "PLANNED: cast Springbloom Druid after this resolves", retractable: true },
+    ]});
+    expect(game.stack.length).toBe(3);
+    expect(spell.zone).toBe("stack");
+    const gid = game.stack[0].groupId;
+    expect(gid).toBeTruthy();
+    expect(game.stack.every((i) => i.groupId === gid)).toBe(true);
+    expect(game.stack[2].retractable).toBe(true);
+    expect(game.stack[0].retractable).toBeFalsy();
+    expect(r.groupId).toBe(gid);
+  });
+
+  test("a land inside a batch is still a special action: straight to battlefield, not grouped", () => {
+    const land = seedCard("Bojuka Bog", "you", "hand", { typeLine: "Land" });
+    applyAction("you", "stack_batch", { items: [
+      { card: land.id },
+      { text: "Bojuka Bog ETB trigger — exile target graveyard" },
+    ]});
+    expect(land.zone).toBe("battlefield");
+    expect(game.stack.length).toBe(1);
+    expect(game.stack[0].groupId).toBeTruthy();
+  });
+
+  test("stack_resolve_all resolves opponent items LIFO and stops at your own", () => {
+    const mine = seedCard("My Instant", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: mine.id });
+    const spell = seedCard("Bear", "agent", "hand", { typeLine: "Creature — Bear" });
+    applyAction("agent", "stack_batch", { items: [
+      { card: spell.id },
+      { text: "ETB trigger — fight something" },
+    ]});
+    applyAction("you", "stack_resolve_all", {});
+    expect(spell.zone).toBe("battlefield");
+    expect(game.stack.length).toBe(1);       // my own item survives
+    expect(game.stack[0].cardId).toBe(mine.id);
+  });
+
+  test("stack_resolve_all refuses when the top item is yours", () => {
+    const mine = seedCard("My Instant", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: mine.id });
+    expect(() => applyAction("you", "stack_resolve_all", {})).toThrow();
+  });
+
+  test("respondAt retracts the proposer's retractable tail, keeps mandatory triggers, then pushes the response", () => {
+    const a = seedCard("Spell A", "agent", "hand", { typeLine: "Sorcery" });
+    const planned = seedCard("Planned B", "agent", "hand", { typeLine: "Creature — Ooze" });
+    applyAction("agent", "stack_batch", { items: [
+      { card: a.id },
+      { text: "A's cast trigger" },                       // mandatory, above A
+      { card: planned.id, retractable: true },            // planned follow-up
+      { text: "PLANNED: pass turn", retractable: true },
+    ]});
+    const targetId = game.stack[0].id;                    // respond while A is on the stack
+    const counter = seedCard("Counterspell", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: counter.id, respondAt: targetId });
+    // planned items above A are retracted (card back to agent's hand); trigger stays
+    expect(planned.zone).toBe("hand");
+    expect(game.stack.map((i) => i.text)).toEqual(["Spell A", "A's cast trigger", "Counterspell"]);
+    expect(game.stack.at(-1)!.player).toBe("you");
+  });
+
+  test("respondAt on stack_push works the same", () => {
+    const a = seedCard("Spell A", "agent", "hand", { typeLine: "Sorcery" });
+    applyAction("agent", "stack_batch", { items: [
+      { card: a.id },
+      { text: "PLANNED: something else", retractable: true },
+    ]});
+    applyAction("you", "stack_push", { text: "Soultrader ability in response", respondAt: game.stack[0].id });
+    expect(game.stack.map((i) => i.text)).toEqual(["Spell A", "Soultrader ability in response"]);
+  });
+
+  test("stack_counter can target a specific mid-stack item by id", () => {
+    const a = seedCard("Spell A", "agent", "hand", { typeLine: "Sorcery" });
+    const b = seedCard("Trigger card", "agent", "hand", { typeLine: "Instant" });
+    applyAction("agent", "cast", { card: a.id });
+    applyAction("agent", "cast", { card: b.id });
+    applyAction("you", "stack_counter", { item: game.stack[0].id });
+    expect(a.zone).toBe("graveyard");
+    expect(game.stack.length).toBe(1);
+    expect(game.stack[0].cardId).toBe(b.id);
+  });
+});

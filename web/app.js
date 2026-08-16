@@ -11,6 +11,11 @@ let agentBusy = false;
 // ---------------------------------------------------------------------------
 
 async function act(type, params = {}) {
+  // a pending "respond here" marker attaches to the next response-capable action
+  if (pendingRespondAt && (type === "cast" || type === "stack_push")) {
+    params = { ...params, respondAt: pendingRespondAt };
+    pendingRespondAt = null;
+  }
   const res = await fetch("/api/action", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -79,6 +84,8 @@ function render() {
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
 }
 
+let pendingRespondAt = null;
+
 function renderStack() {
   const bar = $("#stackbar");
   if (!state.stack || !state.stack.length) {
@@ -88,37 +95,63 @@ function renderStack() {
   }
   bar.classList.remove("hidden");
   bar.innerHTML = `<span class="stacklabel">THE STACK — top resolves first</span>`;
+  // one Resolve-all button when the top is a run of agent items (a proposal or just a pile)
+  const agentRun = [];
+  for (let i = state.stack.length - 1; i >= 0 && state.stack[i].player === "agent"; i--) agentRun.push(state.stack[i]);
+  if (agentRun.length > 1) {
+    const all = document.createElement("button");
+    all.className = "resolveall";
+    all.textContent = `Resolve all ${agentRun.length} (accept)`;
+    all.title = "Accept the agent's whole proposal — resolves its items top-down, stops at yours";
+    all.onclick = () => act("stack_resolve_all", {});
+    bar.appendChild(all);
+  }
+  if (pendingRespondAt) {
+    const chip = document.createElement("div");
+    chip.className = "respondchip";
+    chip.innerHTML = `responding inside the sequence — the agent's planned items above unwind. Cast/push now, or `;
+    const cancel = document.createElement("a");
+    cancel.textContent = "cancel";
+    cancel.onclick = () => { pendingRespondAt = null; renderStack(); };
+    chip.appendChild(cancel);
+    bar.appendChild(chip);
+  }
   [...state.stack].reverse().forEach((item, ri) => {
     const top = ri === 0;
     const d = document.createElement("div");
-    d.className = "stackitem" + (top ? " top" : "");
+    d.className = "stackitem" + (top ? " top" : "") + (item.groupId ? " grouped" : "") + (item.id === pendingRespondAt ? " respondat" : "");
     const who = item.player === "you" ? "you" : "agent";
     const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
-    d.innerHTML = `${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}</div><div class="sitext">${item.text}</div></div>`;
+    const planned = item.retractable ? `<span class="siplanned" title="planned follow-up — unwinds if responded below">planned</span>` : "";
+    d.innerHTML = `${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}</div><div class="sitext">${item.text}</div></div>`;
     if (item.card && !item.card.hidden) {
       d.onmouseenter = (e) => showPreview(item.card, e);
       d.onmousemove = (e) => positionPreview(e);
       d.onmouseleave = hidePreview;
     }
-    if (top) {
-      const btns = document.createElement("div");
-      btns.className = "sibtns";
-      const mk = (label, fn, title) => {
-        const b = document.createElement("button");
-        b.textContent = label;
-        if (title) b.title = title;
-        b.onclick = (e) => {
-          e.stopPropagation();
-          hidePreview();
-          fn();
-        };
-        btns.appendChild(b);
+    const btns = document.createElement("div");
+    btns.className = "sibtns";
+    const mk = (label, fn, title) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (title) b.title = title;
+      b.onclick = (e) => {
+        e.stopPropagation();
+        hidePreview();
+        fn();
       };
+      btns.appendChild(b);
+    };
+    if (top) {
       mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
       mk("Counter", () => act("stack_counter", {}));
       mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
-      d.appendChild(btns);
+    } else if (item.player === "agent") {
+      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); },
+        "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
+      mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
     }
+    if (btns.childNodes.length) d.appendChild(btns);
     bar.appendChild(d);
   });
 }

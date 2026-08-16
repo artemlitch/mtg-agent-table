@@ -144,6 +144,12 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 .stackitem .siwho { font-size: 9px; color: var(--dim); }
 .stackitem .sibtns { display: flex; flex-direction: row; gap: 3px; }
 .stackitem .sibtns button { font-size: 10px; padding: 1px 6px; }
+.stackitem.grouped { border-left: 3px solid var(--accent); }
+.stackitem.respondat { outline: 2px dashed var(--accent); }
+.stackitem .siplanned { margin-left: 6px; font-size: 9px; color: var(--dim); border: 1px dashed var(--dim); border-radius: 4px; padding: 0 4px; }
+#stackbar .resolveall { background: var(--accent); color: #1a1408; font-weight: 700; font-size: 11px; border: none; border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+#stackbar .respondchip { font-size: 10px; color: var(--dim); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 6px; }
+#stackbar .respondchip a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 #stack-noresp { background: #14301c; border-color: var(--green); color: #8fd8a0; font-size: 11px; white-space: nowrap; }
 
 /* free-placement board */

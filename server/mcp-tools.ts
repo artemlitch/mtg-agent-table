@@ -59,20 +59,40 @@ const TOOLS: Record<string, ToolDef> = {
       card: str("card id"),
       note: str("short cast note, e.g. 'targeting Kotis'"),
       resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
+      respondAt: str("stack item id you are responding at (inside Artem's proposed sequence) — his retractable planned items above it unwind"),
     }, ["card"]),
   },
   stack_push: {
-    description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses.",
-    schema: obj({ text: str("what the ability does") }, ["text"]),
+    description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses. respondAt: when responding inside Artem's proposed sequence, the stack item id you are responding at — his retractable planned items above it unwind automatically.",
+    schema: obj({ text: str("what the ability does"), respondAt: str("stack item id you are responding at (inside a proposed sequence)") }, ["text"]),
+  },
+  stack_batch: {
+    description:
+      "PREFERRED for busy turns: push a whole sequence as ONE call — an event plus ALL its triggers (CR: simultaneous triggers stack together before anyone gets priority), or a planned run of casts. Mark planned follow-up casts retractable:true; mandatory triggers are NOT retractable. Artem can accept everything with one resolve-all, or respond at any point — which retracts your retractable tail above that point (MTR shortcut rules: what came before stays committed). Then call done ONCE.",
+    schema: obj({
+      items: arr(obj({
+        card: str("card id to cast (omit for a text-only trigger/ability)"),
+        text: str("trigger/ability text (when no card)"),
+        note: str("cast note, e.g. targets"),
+        face: num("DFC face to cast (0 front / 1 back)"),
+        resolveTo: str("destination override on resolve", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
+        retractable: { type: "boolean", description: "true = planned follow-up that unwinds if Artem responds below it" },
+      }), "items bottom-first: the thing that happens first goes first"),
+    }, ["items"]),
   },
   stack_resolve: {
     description:
       "Resolve the TOP item of the stack (last in, first out) after the opponent had a chance to respond. Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). Text items just resolve.",
     schema: obj({ to: str("override destination zone", ["battlefield", "graveyard", "exile", "hand", "library"]) }),
   },
+  stack_resolve_all: {
+    description:
+      "Accept Artem's whole proposal in one call: resolves items top-down for as long as they are his (stops at your own items). Use this instead of many stack_resolve calls when you have no responses. group limits it to one proposed sequence.",
+    schema: obj({ group: str("only resolve items of this groupId") }),
+  },
   stack_counter: {
-    description: "Counter the TOP item of the stack: the card goes to its owner's graveyard.",
-    schema: obj({}),
+    description: "Counter a stack item: the card goes to its owner's graveyard. Default = top; pass item to counter a specific item mid-stack (e.g. the bottom spell of a proposed sequence).",
+    schema: obj({ item: str("stack item id (default: top of stack)") }),
   },
   stack_remove: {
     description: "Take back an illegal/mistaken stack item (discuss in chat first). The card returns to its owner's hand. index targets a specific item (0 = bottom); default = top.",
