@@ -37,14 +37,21 @@ export function restoreState(snap: any): PersistedExtra {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Immediate full snapshot write. */
-export function saveNow(file: string, collect: () => PersistedExtra) {
+export async function saveNow(file: string, collect: () => PersistedExtra) {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  return Bun.write(file, JSON.stringify(serializeState(collect()))).catch((e) =>
-    console.error("state save failed:", e)
-  );
+  // atomic: write to a tmp then rename, so a kill mid-write can never
+  // truncate the real file (that exact failure lost a game once)
+  try {
+    const json = JSON.stringify(serializeState(collect()));
+    await Bun.write(file + ".tmp", json);
+    const { renameSync } = await import("node:fs");
+    renameSync(file + ".tmp", file);
+  } catch (e) {
+    console.error("state save failed:", e);
+  }
 }
 
 /** Debounced save; collect() is called at write time so it sees latest state. */

@@ -150,3 +150,25 @@ describe("undo history survives restarts", () => {
     expect(game.players.you.life).toBe(40);
   });
 });
+
+describe("atomic saves", () => {
+  test("saveNow leaves no tmp file and the target always parses", async () => {
+    const { saveNow } = await import("../server/persist");
+    const path = "/tmp/mtg-table-atomic-test.json";
+    await saveNow(path, () => ({ agent: null, lastDecks: null }));
+    expect(await Bun.file(path + ".tmp").exists()).toBe(false);
+    JSON.parse(await Bun.file(path).text()); // throws if truncated
+  });
+
+  test("a pre-existing good file survives a save that produces empty output", async () => {
+    // simulate the truncation scenario: good file on disk, then a save writes
+    // via tmp+rename — a killed process leaves the tmp, never the target
+    const { saveNow } = await import("../server/persist");
+    const path = "/tmp/mtg-table-atomic-keep.json";
+    await saveNow(path, () => ({ agent: null, lastDecks: null }));
+    const before = await Bun.file(path).text();
+    await Bun.write(path + ".tmp", ""); // stale tmp from a killed writer
+    const after = await Bun.file(path).text();
+    expect(after).toBe(before);
+  });
+});
