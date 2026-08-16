@@ -42,20 +42,20 @@ describe("casting onto the stack", () => {
   test("resolution destination inferred from type line: permanents hit the battlefield", () => {
     const cr = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: cr.id });
-    applyAction("you", "stack_resolve", {});
+    applyAction("agent", "stack_resolve", {});
     expect(cr.zone).toBe("battlefield");
     expect(game.players.you.zones.battlefield).toContain(cr.id);
 
     const sorc = seedCard("Damnation", "you", "hand", { typeLine: "Sorcery" });
     applyAction("you", "cast", { card: sorc.id });
-    applyAction("you", "stack_resolve", {});
+    applyAction("agent", "stack_resolve", {});
     expect(sorc.zone).toBe("graveyard");
   });
 
   test("explicit destination overrides inference", () => {
     const c = seedCard("Beast Within", "you", "hand", { typeLine: "Instant" });
     applyAction("you", "cast", { card: c.id });
-    applyAction("you", "stack_resolve", { to: "exile" });
+    applyAction("agent", "stack_resolve", { to: "exile" });
     expect(c.zone).toBe("exile");
   });
 
@@ -73,7 +73,7 @@ describe("casting onto the stack", () => {
     applyAction("agent", "stack_push", { text: "Gonti trigger — exile top of Artem's library" });
     expect(game.stack.length).toBe(1);
     expect(game.stack[0].cardId).toBeNull();
-    applyAction("agent", "stack_resolve", {});
+    applyAction("you", "stack_resolve", {});
     expect(game.stack.length).toBe(0);
   });
 
@@ -434,5 +434,15 @@ describe("accepted proposals execute in proposal order", () => {
     applyAction("you", "stack_resolve_all", {});
     const texts = game.log.slice(-3).map((e) => e.text);
     expect(texts.findIndex((t) => t.includes("Response To Own resolved"))).toBeLessThan(texts.findIndex((t) => t.includes("First Spell resolved")));
+  });
+});
+
+describe("only the opponent resolves your items", () => {
+  test("stack_resolve refuses to resolve your own top item", () => {
+    const c = seedCard("My Spell", "you", "hand", { typeLine: "Sorcery" });
+    applyAction("you", "cast", { card: c.id });
+    expect(() => applyAction("you", "stack_resolve", {})).toThrow(/opponent/);
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("graveyard");
   });
 });

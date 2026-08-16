@@ -149,10 +149,13 @@ function renderStack() {
       };
       btns.appendChild(b);
     };
-    if (top) {
+    if (top && item.player === "agent") {
       mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
       mk("Counter", () => act("stack_counter", {}));
       mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
+    } else if (top) {
+      // your own item: the agent resolves it — you can only take it back
+      mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
     } else if (item.player === "agent") {
       mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); },
         "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");

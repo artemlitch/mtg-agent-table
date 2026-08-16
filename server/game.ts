@@ -888,10 +888,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, groupId, items: pushed, stackSize: game.stack.length };
   },
 
-  /** Resolve the TOP of the stack. Cards: battlefield for permanents, graveyard for instants/sorceries (or explicit p.to). */
+  /** Resolve the TOP of the stack. Cards: battlefield for permanents, graveyard for instants/sorceries (or explicit p.to).
+   * Resolving is the OPPONENT's acknowledgment — you never resolve your own item. */
   stack_resolve(ctx, p) {
-    const item = game.stack.pop();
-    if (!item) throw new Error("the stack is empty");
+    const top = game.stack[game.stack.length - 1];
+    if (!top) throw new Error("the stack is empty");
+    if (top.player === ctx.actor) {
+      throw new Error("that's your own item — the opponent resolves it (or take it back with stack_remove)");
+    }
+    const item = game.stack.pop()!;
     return resolveStackItem(ctx, item, p);
   },
 
