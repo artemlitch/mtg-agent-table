@@ -71,8 +71,11 @@ function render() {
   const prio = state.waitingOn === "agent" ? "⏳ agent has priority" : "● you have priority";
   $("#turnbanner").textContent = state.started
     ? `Round ${state.turnNumber} — ${turnWho} — ${state.phase} — ${prio}`
-    : "No game — load decks and hit New game";
-  syncDeckInputs();
+    : "No game — hit New game to load decks";
+  if (!state.started && $("#newgame-overlay").classList.contains("hidden") && !newGameAutoOpened) {
+    newGameAutoOpened = true;
+    openNewGame();
+  }
   renderStack();
   renderRail("agent");
   renderRail("you");
@@ -86,6 +89,7 @@ function render() {
 }
 
 let pendingRespondAt = null;
+let newGameAutoOpened = false;
 
 function renderStack() {
   const bar = $("#stackbar");
@@ -918,26 +922,36 @@ function parseDeckRef(v) {
   return m ? m[1] : "";
 }
 
-// Keep the deck inputs following the current game so New game defaults to a
-// rematch — but never clobber a value the user has started editing.
-function syncDeckInputs() {
-  if (!state.lastDecks) return;
-  for (const [id, val] of [["#deck-you", state.lastDecks.you], ["#deck-agent", state.lastDecks.agent]]) {
-    const el = $(id);
-    if (!el.value.trim() && document.activeElement !== el) el.value = String(val ?? "");
+// New-game overlay: fields start EMPTY; links to the currently loaded decks
+// are shown for reference. The overlay disappears once the decks load.
+function openNewGame() {
+  for (const side of ["you", "agent"]) {
+    $(`#deck-${side}`).value = "";
+    const a = $(`#decklink-${side}`);
+    const id = state?.lastDecks?.[side];
+    a.textContent = id ? `current: archidekt.com/decks/${id}` : "";
+    a.href = id ? `https://archidekt.com/decks/${id}` : "#";
   }
+  $("#newgame-overlay").classList.remove("hidden");
+  $("#deck-you").focus();
 }
 
-$("#btn-newgame").onclick = async () => {
+function closeNewGame() {
+  $("#newgame-overlay").classList.add("hidden");
+}
+
+$("#btn-newgame").onclick = openNewGame;
+$("#btn-ngcancel").onclick = closeNewGame;
+
+$("#btn-loaddecks").onclick = async () => {
   const youDeck = parseDeckRef($("#deck-you").value);
   const agentDeck = parseDeckRef($("#deck-agent").value);
   if (!youDeck || !agentDeck) {
     alert("Enter a deck for each side — an Archidekt URL or deck id.");
     return;
   }
-  if (state.started && !confirm("Start a new game? The current game is backed up, then wiped.")) return;
-  $("#btn-newgame").textContent = "Loading…";
-  $("#btn-newgame").disabled = true;
+  $("#btn-loaddecks").textContent = "Loading…";
+  $("#btn-loaddecks").disabled = true;
   try {
     const res = await fetch("/api/new_game", {
       method: "POST",
@@ -946,9 +960,10 @@ $("#btn-newgame").onclick = async () => {
     });
     const data = await res.json();
     if (!data.ok) alert("New game failed: " + data.error);
+    else closeNewGame();
   } finally {
-    $("#btn-newgame").textContent = "New game";
-    $("#btn-newgame").disabled = false;
+    $("#btn-loaddecks").textContent = "Load decks";
+    $("#btn-loaddecks").disabled = false;
   }
 };
 

@@ -150,6 +150,22 @@ input { background: var(--panel2); color: var(--text); border: 1px solid var(--l
 #stackbar .resolveall { background: var(--accent); color: #1a1408; font-weight: 700; font-size: 11px; border: none; border-radius: 8px; padding: 5px 8px; cursor: pointer; }
 #stackbar .respondchip { font-size: 10px; color: var(--dim); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 6px; }
 #stackbar .respondchip a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+#newgame-overlay {
+  position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; gap: 12px; z-index: 60;
+  background: var(--panel2, #1c1c22); border: 1px solid var(--accent); border-radius: 14px;
+  padding: 20px 24px; min-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+}
+#newgame-overlay.hidden { display: none; }
+#newgame-overlay .ngtitle { color: var(--accent); font-weight: 700; font-size: 15px; text-align: center; }
+#newgame-overlay .ngrow { display: flex; flex-direction: column; gap: 3px; }
+#newgame-overlay .ngrow label { font-size: 11px; color: var(--dim); }
+#newgame-overlay .ngrow input { font-size: 13px; padding: 6px 8px; }
+#newgame-overlay .ngrow a { font-size: 10px; color: var(--dim); text-decoration: underline; min-height: 12px; }
+#newgame-overlay .ngbtns { display: flex; gap: 8px; justify-content: center; }
+#newgame-overlay .ngbtns button { font-size: 12px; padding: 5px 14px; }
+#btn-loaddecks { background: var(--accent); color: #1a1408; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; }
 #stack-noresp { background: #14301c; border-color: var(--green); color: #8fd8a0; font-size: 11px; white-space: nowrap; }
 
 /* free-placement board */

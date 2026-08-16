@@ -11,14 +11,26 @@
   <div id="table">
     <div id="topbar">
       <div class="setup">
-        <label for="deck-you">You:</label>
-        <input id="deck-you" size="26" placeholder="Archidekt URL or deck id" title="Your deck — paste an Archidekt URL or deck id. Defaults to the current game's deck.">
-        <span>vs</span>
-        <label for="deck-agent">Agent:</label>
-        <input id="deck-agent" size="26" placeholder="Archidekt URL or deck id" title="Agent's deck — paste an Archidekt URL or deck id. Defaults to the current game's deck.">
         <button id="btn-newgame">New game</button>
       </div>
       <div id="turnbanner"></div>
+      <div id="newgame-overlay" class="hidden">
+        <div class="ngtitle">New game</div>
+        <div class="ngrow">
+          <label for="deck-you">Your deck</label>
+          <input id="deck-you" placeholder="Archidekt URL or deck id" autocomplete="off">
+          <a id="decklink-you" target="_blank" rel="noopener"></a>
+        </div>
+        <div class="ngrow">
+          <label for="deck-agent">Agent's deck</label>
+          <input id="deck-agent" placeholder="Archidekt URL or deck id" autocomplete="off">
+          <a id="decklink-agent" target="_blank" rel="noopener"></a>
+        </div>
+        <div class="ngbtns">
+          <button id="btn-loaddecks">Load decks</button>
+          <button id="btn-ngcancel">Cancel</button>
+        </div>
+      </div>
       <div class="phasebtns">
         <button data-phase="untap/upkeep">Untap</button>
         <button data-phase="main 1">Main 1</button>
