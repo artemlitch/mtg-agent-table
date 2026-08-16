@@ -269,6 +269,20 @@ function renderRail(p) {
       act("draw", { n: 1 });
     };
     lib.appendChild(drawBtn);
+    const mullBtn = document.createElement("button");
+    mullBtn.textContent = "♻ Mulligan";
+    mullBtn.style.cssText = "width:100%;margin-top:4px;font-size:11px";
+    mullBtn.title = "Shuffle your whole hand into your library, then draw 7";
+    mullBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const hand = state.players.you.zones.hand;
+      if (!hand.length) return;
+      if (!confirm(`Mulligan: shuffle ${hand.length} cards back and draw 7?`)) return;
+      await act("move", { cards: hand.map((c) => c.id), toZone: "library", note: "mulligan" });
+      await act("shuffle", { player: "you" });
+      await act("draw", { n: 7 });
+    };
+    lib.appendChild(mullBtn);
   }
   rail.appendChild(lib);
   rail.appendChild(pile("Graveyard", ps.counts.graveyard, () => showZoneModal(p, "graveyard")));
@@ -283,7 +297,19 @@ function renderRail(p) {
 function renderHand(p) {
   const row = $(`#hand-${p}`);
   row.innerHTML = "";
-  for (const c of state.players[p].zones.hand) row.appendChild(cardEl(c));
+  const cards = state.players[p].zones.hand;
+  for (const c of cards) row.appendChild(cardEl(c));
+  // your hand fans out from the center like held cards, poking over the board
+  if (p === "you") {
+    row.classList.add("fan");
+    const mid = (cards.length - 1) / 2;
+    [...row.children].forEach((el, i) => {
+      el.classList.add("fanned");
+      el.style.setProperty("--fan-rot", `${(i - mid) * 4}deg`);
+      el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * 2.4}px`);
+      el.style.zIndex = i + 1;
+    });
+  }
 }
 
 function typeCat(c) {
