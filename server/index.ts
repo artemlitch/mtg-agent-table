@@ -51,7 +51,7 @@ const server = Bun.serve({
     if (path === "/api/state") {
       const viewer = (url.searchParams.get("viewer") ?? "you") as PlayerId;
       if (viewer !== "you" && viewer !== "agent") return json({ error: "bad viewer" }, 400);
-      return json(viewFor(viewer, viewer === "agent" ? 60 : 200));
+      return json({ ...viewFor(viewer, viewer === "agent" ? 60 : 200), lastDecks });
     }
 
     if (path === "/api/brain") {
@@ -114,9 +114,11 @@ const server = Bun.serve({
       try {
         body = await req.json();
       } catch {}
-      const youDeck = Number(body.youDeck ?? lastDecks?.you);
-      const agentDeck = Number(body.agentDeck ?? lastDecks?.agent);
-      if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required" }, 400);
+      // accept a bare id or any archidekt.com URL
+      const parseDeckRef = (v: unknown) => Number(String(v ?? "").match(/(\d{4,})/)?.[1] ?? NaN);
+      const youDeck = parseDeckRef(body.youDeck ?? lastDecks?.you);
+      const agentDeck = parseDeckRef(body.agentDeck ?? lastDecks?.agent);
+      if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required (Archidekt URL or deck id)" }, 400);
       try {
         // never lose a game to a reset: back up the old one first
         if (game.started) {

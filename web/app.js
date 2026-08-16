@@ -72,6 +72,7 @@ function render() {
   $("#turnbanner").textContent = state.started
     ? `Round ${state.turnNumber} — ${turnWho} — ${state.phase} — ${prio}`
     : "No game — load decks and hit New game";
+  syncDeckInputs();
   renderStack();
   renderRail("agent");
   renderRail("you");
@@ -911,9 +912,30 @@ function renderBrain() {
 // Top-level controls
 // ---------------------------------------------------------------------------
 
+// Accepts a bare id or any archidekt.com URL ("…/decks/25319832/slug").
+function parseDeckRef(v) {
+  const m = String(v).match(/(\d{4,})/);
+  return m ? m[1] : "";
+}
+
+// Keep the deck inputs following the current game so New game defaults to a
+// rematch — but never clobber a value the user has started editing.
+function syncDeckInputs() {
+  if (!state.lastDecks) return;
+  for (const [id, val] of [["#deck-you", state.lastDecks.you], ["#deck-agent", state.lastDecks.agent]]) {
+    const el = $(id);
+    if (!el.value.trim() && document.activeElement !== el) el.value = String(val ?? "");
+  }
+}
+
 $("#btn-newgame").onclick = async () => {
-  const youDeck = $("#deck-you").value.trim();
-  const agentDeck = $("#deck-agent").value.trim();
+  const youDeck = parseDeckRef($("#deck-you").value);
+  const agentDeck = parseDeckRef($("#deck-agent").value);
+  if (!youDeck || !agentDeck) {
+    alert("Enter a deck for each side — an Archidekt URL or deck id.");
+    return;
+  }
+  if (state.started && !confirm("Start a new game? The current game is backed up, then wiped.")) return;
   $("#btn-newgame").textContent = "Loading…";
   $("#btn-newgame").disabled = true;
   try {

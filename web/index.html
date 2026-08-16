@@ -11,9 +11,11 @@
   <div id="table">
     <div id="topbar">
       <div class="setup">
-        <input id="deck-you" size="9" value="25353034" title="Your Archidekt deck id">
+        <label for="deck-you">You:</label>
+        <input id="deck-you" size="26" placeholder="Archidekt URL or deck id" title="Your deck — paste an Archidekt URL or deck id. Defaults to the current game's deck.">
         <span>vs</span>
-        <input id="deck-agent" size="9" value="25351001" title="Agent's Archidekt deck id">
+        <label for="deck-agent">Agent:</label>
+        <input id="deck-agent" size="26" placeholder="Archidekt URL or deck id" title="Agent's deck — paste an Archidekt URL or deck id. Defaults to the current game's deck.">
         <button id="btn-newgame">New game</button>
       </div>
       <div id="turnbanner"></div>

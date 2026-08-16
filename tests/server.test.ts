@@ -73,9 +73,15 @@ describe("api basics", () => {
 
 describe.if(!!process.env.RUN_NET)("deck loading (network)", () => {
   test("new_game loads two Archidekt decks, deals hands, redacts them", async () => {
-    const r = await api("/api/new_game", { youDeck: 25353034, agentDeck: 25351001 });
+    // deck refs may be bare ids or full Archidekt URLs
+    const r = await api("/api/new_game", {
+      youDeck: "https://archidekt.com/decks/25353034/kotis_sidisi",
+      agentDeck: 25351001,
+    });
     expect(r.ok).toBe(true);
     expect(r.you).toContain("Kotis");
+    const st = await api("/api/state?viewer=you");
+    expect(st.lastDecks).toEqual({ you: 25353034, agent: 25351001 });
 
     const you = await api("/api/state?viewer=you");
     const agent = await api("/api/state?viewer=agent");
