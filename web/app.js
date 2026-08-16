@@ -130,7 +130,7 @@ function renderStack() {
     const who = item.player === "you" ? "you" : "agent";
     const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
     const planned = item.retractable ? `<span class="siplanned" title="planned follow-up — unwinds if responded below">planned</span>` : "";
-    d.innerHTML = `${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}</div><div class="sitext">${item.text}</div></div>`;
+    d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}</div><div class="sitext">${item.text}</div></div></div>`;
     if (item.card && !item.card.hidden) {
       d.onmouseenter = (e) => showPreview(item.card, e);
       d.onmousemove = (e) => positionPreview(e);
