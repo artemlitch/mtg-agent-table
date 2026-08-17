@@ -895,9 +895,11 @@ function searchModal(p, cards) {
 // Side panel: chat / brain / log
 // ---------------------------------------------------------------------------
 
-// log lines describing stack traffic — surfaced in chat as inline bubbles
+// log lines describing stack traffic — surfaced in chat as inline bubbles.
+// "\(on the stack" catches attack/block declarations, phase moves and turn
+// passes; the "locked in"/Phase/Round lines are those items resolving.
 const STACK_CHAT_RE =
-  /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
+  /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(\(on the stack)|(^Attacks locked in: )|(^Blocks locked in: )|(^Phase: )|(^— Round )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
 
 // starts true so the first render after page load opens at the latest messages
 let scrollChatToBottom = true;
