@@ -913,7 +913,14 @@ function renderChat() {
       const d = document.createElement("div");
       d.className = "msg stackmsg " + (e.actor === "you" ? "you" : "agent");
       d.innerHTML = `<div class="mwho">${e.actor === "you" ? "You" : "Agent"} · ⚡ stack</div>`;
-      d.appendChild(document.createTextNode(e.text));
+      // the header names the actor — strip the redundant prefix and stack boilerplate
+      // (actor prefix only before a known verb, so card names like "Agent of Treachery" survive)
+      const text = e.text
+        .replace(/^(?:You|Agent) put on the stack: /, "")
+        .replace(/^(?:You|Agent) (cast|played|proposed|moves|declares|countered|took|removed)\b/, "$1")
+        .replace(/ → on the stack$/, "")
+        .replace(/ \(on the stack(?: — respond or resolve)?\)/, "");
+      d.appendChild(document.createTextNode(text));
       d.title = "Open the Stack tab";
       d.onclick = () => switchTab("stack");
       pane.appendChild(d);
