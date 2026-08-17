@@ -992,6 +992,53 @@ function renderBrain() {
 }
 
 // ---------------------------------------------------------------------------
+// Token creation
+// ---------------------------------------------------------------------------
+
+// Tokens harvested from both imported decks (Scryfall all_parts) show as
+// clickable cards; anything else can be typed in as a custom token.
+function tokenModal() {
+  const wrap = document.createElement("div");
+  const cat = Object.values(state.tokenCatalog || {});
+  const grid = document.createElement("div");
+  grid.className = "modalcards";
+  if (!cat.length) grid.textContent = "(no tokens came with the decks — make a custom one below)";
+  const create = (params) => {
+    const n = Number(prompt("How many?", "1") || 0);
+    if (n > 0) act("create_token", { ...params, n, player: "you" }).then(closeModal);
+  };
+  for (const t of cat) {
+    grid.appendChild(modalCardEl(t, [["create…", () => create({ name: t.name })]]));
+  }
+  wrap.appendChild(grid);
+
+  const custom = document.createElement("div");
+  custom.className = "tokencustom";
+  custom.innerHTML = `<div class="tclabel">Custom token</div>`;
+  const name = document.createElement("input");
+  name.placeholder = "name (e.g. Treasure, Soldier)";
+  const type = document.createElement("input");
+  type.placeholder = "type line (optional)";
+  const pt = document.createElement("input");
+  pt.placeholder = "P/T (optional, e.g. 1/1)";
+  const go = document.createElement("button");
+  go.textContent = "Create custom";
+  go.onclick = () => {
+    if (!name.value.trim()) return alert("Token needs a name");
+    const m = pt.value.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
+    create({
+      name: name.value.trim(),
+      ...(type.value.trim() ? { typeLine: type.value.trim() } : {}),
+      ...(m ? { power: m[1], toughness: m[2] } : {}),
+    });
+  };
+  custom.append(name, type, pt, go);
+  wrap.appendChild(custom);
+  openModal("Create a token", wrap);
+}
+$("#btn-token").onclick = tokenModal;
+
+// ---------------------------------------------------------------------------
 // Top-level controls
 // ---------------------------------------------------------------------------
 
@@ -1058,7 +1105,6 @@ $("#btn-endturn").onclick = async () => {
   await act("done", {});
 };
 
-$("#btn-done").onclick = () => act("done", {});
 
 $("#btn-undo").onclick = async () => {
   const res = await fetch("/api/undo", { method: "POST" });

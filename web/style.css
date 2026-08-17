@@ -174,13 +174,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #question { padding: 0 10px; color: #ffd97a; font-size: 12px; }
 #question:not(:empty) { padding: 6px 10px; background: #33290f; }
 #composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
-#composer input { flex: 1; }
-#btn-done {
-  margin: 0 10px 10px; padding: 9px; font-size: 12.5px;
-  background: linear-gradient(180deg, #17331f, #102616) padding-box, var(--chrome) border-box;
-  color: #a8e6b0;
-}
-#btn-done:hover { color: #cdf5d4; box-shadow: 0 0 10px rgba(89, 168, 108, 0.35); }
+#composer input { flex: 1; padding: 11px 10px; font-size: 13.5px; }
 
 #menu {
   position: fixed; z-index: 50; border: 1px solid transparent; border-radius: 8px; min-width: 170px;
@@ -303,6 +297,25 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
   color: #2a1c04; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
 }
+
+/* card-shaped token creator, bottom-right by your hand */
+#btn-token {
+  position: absolute; right: 10px; bottom: 10px; z-index: 45;
+  width: 64px; height: 89px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 1px dashed transparent;
+  background: linear-gradient(rgba(29, 25, 41, 0.85), rgba(29, 25, 41, 0.85)) padding-box, var(--chrome-dim) border-box;
+  color: var(--accent); font: 600 11px/1.3 var(--font-fantasy); letter-spacing: 0.06em;
+  font-size: 11px; padding: 0;
+}
+#btn-token .tstar { font-size: 22px; line-height: 1; }
+#btn-token:hover {
+  background: linear-gradient(rgba(36, 30, 51, 0.95), rgba(36, 30, 51, 0.95)) padding-box, var(--chrome) border-box;
+  box-shadow: 0 0 12px rgba(226, 179, 85, 0.35);
+}
+.tokencustom { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
+.tokencustom .tclabel { width: 100%; color: var(--accent); font: 600 11px/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
+.tokencustom input { width: 170px; }
 
 /* free-placement board */
 .battlefield.freeboard { display: block; position: relative; overflow: hidden; }

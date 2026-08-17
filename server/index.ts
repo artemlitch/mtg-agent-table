@@ -51,7 +51,7 @@ const server = Bun.serve({
     if (path === "/api/state") {
       const viewer = (url.searchParams.get("viewer") ?? "you") as PlayerId;
       if (viewer !== "you" && viewer !== "agent") return json({ error: "bad viewer" }, 400);
-      return json({ ...viewFor(viewer, viewer === "agent" ? 60 : 200), lastDecks });
+      return json({ ...viewFor(viewer, viewer === "agent" ? 60 : 200), lastDecks, tokenCatalog: game.tokenCatalog });
     }
 
     if (path === "/api/brain") {
@@ -90,10 +90,13 @@ const server = Bun.serve({
         }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
-        // every user action passes priority to the agent: full window on
-        // done/chat, reaction window on everything else. Drags are cosmetic.
+        // every user action passes priority to the agent. Full window on
+        // done/chat, and on ANY action during the agent's turn (there is no
+        // Done button — acting hands the table back so it continues its turn).
+        // On the user's own turn everything else is a reaction window, so the
+        // agent never grabs the initiative there. Drags are cosmetic.
         if (actor === "you" && game.started && !cosmetic) {
-          const reason = body.type === "done" || body.type === "chat" ? "window" : "react";
+          const reason = body.type === "done" || body.type === "chat" || game.turn === "agent" ? "window" : "react";
           queueMicrotask(() => wakeAgent(reason));
         }
         return json(result);
