@@ -181,7 +181,6 @@ function renderAgentStatus() {
     d.className = "msg agent typing-bubble";
     d.innerHTML = `<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>`;
     pane.appendChild(d);
-    pane.scrollTop = pane.scrollHeight;
   } else if (!agentBusy && existing) {
     existing.remove();
     pane.querySelector(".brain-peek")?.remove();
@@ -223,8 +222,6 @@ function rebuildPeek() {
     peek.appendChild(row);
   }
   peek.lastChild?.classList.add("flash");
-  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 120;
-  if (stick) pane.scrollTop = pane.scrollHeight;
 }
 
 function updateBrainPeek(entry) {
@@ -902,9 +899,11 @@ function searchModal(p, cards) {
 const STACK_CHAT_RE =
   /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
 
+let scrollChatToBottom = false;
+
 function renderChat() {
   const pane = $("#pane-chat");
-  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 40;
+  const prevScroll = pane.scrollTop;
   pane.innerHTML = "";
   for (const e of state.log) {
     if ((e.actor === "you" || e.actor === "agent") && !e.text.startsWith("💬") && !e.text.startsWith("❓") && STACK_CHAT_RE.test(e.text)) {
@@ -928,7 +927,13 @@ function renderChat() {
       pane.appendChild(d);
     }
   }
-  if (stick) pane.scrollTop = pane.scrollHeight;
+  // incoming chat never yanks the reader down — only your own send jumps to the bottom
+  if (scrollChatToBottom) {
+    scrollChatToBottom = false;
+    pane.scrollTop = pane.scrollHeight;
+  } else {
+    pane.scrollTop = prevScroll;
+  }
   renderAgentStatus();
 }
 
@@ -1044,7 +1049,10 @@ function sendChat() {
   // on the Stack tab the composer feeds the stack instead of the chat —
   // that's how you announce a random trigger/ability as a text item
   if (activeTab === "stack") act("stack_push", { text });
-  else act("chat", { text });
+  else {
+    scrollChatToBottom = true;
+    act("chat", { text });
+  }
 }
 $("#btn-send").onclick = sendChat;
 $("#chat-input").addEventListener("keydown", (e) => {
