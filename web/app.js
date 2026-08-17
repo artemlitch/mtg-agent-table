@@ -878,21 +878,21 @@ function peekModal(p, cards) {
   const toBottom = new Set();
   for (const c of cards) {
     const el = modalCardEl(c, [
-      [
-        "bottom: no",
-        function () {
-          if (toBottom.has(c.id)) {
-            toBottom.delete(c.id);
-            this.textContent = "bottom: no";
-          } else {
-            toBottom.add(c.id);
-            this.textContent = "BOTTOM";
-          }
-        },
-      ],
       ["draw→hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p }).then(closeModal)],
       ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: p }).then(closeModal)],
     ]);
+    // where does this card go: Top (keep, in shown order) or Bottom
+    const seg = document.createElement("div");
+    seg.className = "topbottom";
+    const bTop = document.createElement("button");
+    bTop.textContent = "Top";
+    bTop.className = "active";
+    const bBot = document.createElement("button");
+    bBot.textContent = "Bottom";
+    bTop.onclick = () => { toBottom.delete(c.id); bTop.classList.add("active"); bBot.classList.remove("active"); };
+    bBot.onclick = () => { toBottom.add(c.id); bBot.classList.add("active"); bTop.classList.remove("active"); };
+    seg.append(bTop, bBot);
+    el.insertBefore(seg, el.querySelector(".mcbtns"));
     grid.appendChild(el);
   }
   wrap.appendChild(grid);
