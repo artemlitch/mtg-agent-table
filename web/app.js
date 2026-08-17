@@ -659,6 +659,30 @@ function cardMenu(c, e) {
     items.push(moveItem("▶ Straight to battlefield", c, { toZone: "battlefield", toPlayer: c.controller }));
   }
 
+  if (!c.hidden) {
+    // token copy of any visible card (clone effects, Scarab God eternalize, …)
+    items.push({
+      label: "🪞 Copy as token",
+      fn: () => {
+        const n = Number(prompt(`Token copies of ${c.name}:`, "1") || 0);
+        if (n <= 0) return;
+        const face = c.faces?.[c.face ?? 0] ?? {};
+        const pick = (k) => face[k] ?? c[k];
+        act("create_token", {
+          name: pick("name") ?? c.name,
+          n,
+          player: "you",
+          ...(pick("image") ? { image: pick("image") } : {}),
+          ...(pick("oracle") ? { oracle: pick("oracle") } : {}),
+          ...(pick("typeLine") ? { typeLine: pick("typeLine") } : {}),
+          ...(pick("power") !== undefined && pick("power") !== null
+            ? { power: pick("power"), toughness: pick("toughness") }
+            : {}),
+        });
+      },
+    });
+  }
+
   items.push({
     label: c.faceDown ? "🔍 Turn face-up" : "🙈 Turn face-down",
     fn: () => act("flip_card", { card: c.id, faceDown: !c.faceDown }),
