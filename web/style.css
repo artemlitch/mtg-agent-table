@@ -225,7 +225,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #turnbanner { white-space: nowrap; }
 #topbar { flex-wrap: wrap; }
 
-/* the stack — lives in the side panel as its own tab */
+/* the stack — lives in the side panel as its own tab; the pile is anchored to
+   the bottom and grows upward (top of stack highest), like a real stack */
+#pane-stack > :first-child { margin-top: auto; }
 #pane-stack .stacklabel { color: var(--accent); font: 700 11px/1.6 var(--font-fantasy); letter-spacing: 0.14em; white-space: nowrap; text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.45); }
 #pane-stack .stackempty { text-align: center; color: var(--dim); font-family: var(--font-scroll); font-style: italic; font-size: 13px; margin-top: 18px; }
 #pane-stack .stackhint { text-align: center; color: var(--dim); font-size: 11px; opacity: 0.7; }
