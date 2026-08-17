@@ -94,13 +94,17 @@ let pendingRespondAt = null;
 let newGameAutoOpened = false;
 
 function renderStack() {
-  const bar = $("#stackbar");
-  if (!state.stack || !state.stack.length) {
-    bar.classList.add("hidden");
-    bar.innerHTML = "";
+  const bar = $("#pane-stack");
+  // notification badge on the Stack tab: count + pulse while anything awaits resolution
+  const n = state.stack ? state.stack.length : 0;
+  const badge = $("#stack-badge");
+  badge.classList.toggle("hidden", !n);
+  badge.textContent = n;
+  if (!n) {
+    bar.innerHTML = `<div class="stackempty">The stack is empty.</div>
+      <div class="stackhint">Type below to announce a trigger or ability onto the stack.</div>`;
     return;
   }
-  bar.classList.remove("hidden");
   bar.innerHTML = `<span class="stacklabel">THE STACK — top resolves first</span>`;
   // one Resolve-all button when the top is a run of agent items (a proposal or just a pile)
   const agentRun = [];
@@ -894,12 +898,24 @@ function searchModal(p, cards) {
 // Side panel: chat / brain / log
 // ---------------------------------------------------------------------------
 
+// log lines describing stack traffic — surfaced in chat as inline bubbles
+const STACK_CHAT_RE =
+  /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
+
 function renderChat() {
   const pane = $("#pane-chat");
   const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 40;
   pane.innerHTML = "";
   for (const e of state.log) {
-    if (e.text.startsWith("💬") || e.text.startsWith("❓")) {
+    if ((e.actor === "you" || e.actor === "agent") && !e.text.startsWith("💬") && !e.text.startsWith("❓") && STACK_CHAT_RE.test(e.text)) {
+      const d = document.createElement("div");
+      d.className = "msg stackmsg " + (e.actor === "you" ? "you" : "agent");
+      d.innerHTML = `<div class="mwho">${e.actor === "you" ? "You" : "Agent"} · ⚡ stack</div>`;
+      d.appendChild(document.createTextNode(e.text));
+      d.title = "Open the Stack tab";
+      d.onclick = () => switchTab("stack");
+      pane.appendChild(d);
+    } else if (e.text.startsWith("💬") || e.text.startsWith("❓")) {
       const d = document.createElement("div");
       d.className = "msg " + (e.actor === "you" ? "you" : "agent");
       d.innerHTML = `<div class="mwho">${e.actor === "you" ? "You" : "Agent"}</div>`;
@@ -1025,17 +1041,26 @@ function sendChat() {
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
-  act("chat", { text });
+  // on the Stack tab the composer feeds the stack instead of the chat —
+  // that's how you announce a random trigger/ability as a text item
+  if (activeTab === "stack") act("stack_push", { text });
+  else act("chat", { text });
 }
 $("#btn-send").onclick = sendChat;
 $("#chat-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();
 });
 
+let activeTab = "chat";
+
 function switchTab(name) {
+  activeTab = name;
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
   document.querySelectorAll(".tabpane").forEach((x) => x.classList.add("hidden"));
   $(`#pane-${name}`).classList.remove("hidden");
+  const stackMode = name === "stack";
+  $("#chat-input").placeholder = stackMode ? "Announce a trigger/ability onto the stack…" : "Say something to the agent…";
+  $("#btn-send").textContent = stackMode ? "⚡ Stack" : "Send";
 }
 document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => switchTab(b.dataset.tab);

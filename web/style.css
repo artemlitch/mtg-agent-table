@@ -225,17 +225,30 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #turnbanner { white-space: nowrap; }
 #topbar { flex-wrap: wrap; }
 
-/* the stack */
-#midline { position: relative; overflow: visible; z-index: 10; }
-#stackbar {
-  position: absolute; right: 10px; bottom: 10px; z-index: 50;
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-  border: 1px solid transparent; border-radius: 12px;
-  background: linear-gradient(180deg, #221709, #170f06) padding-box, var(--chrome) border-box;
-  padding: 8px 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(216, 160, 61, 0.15);
-  width: 250px; max-height: 60vh; overflow-y: auto;
+/* the stack — lives in the side panel as its own tab */
+#pane-stack .stacklabel { color: var(--accent); font: 700 11px/1.6 var(--font-fantasy); letter-spacing: 0.14em; white-space: nowrap; text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.45); }
+#pane-stack .stackempty { text-align: center; color: var(--dim); font-family: var(--font-scroll); font-style: italic; font-size: 13px; margin-top: 18px; }
+#pane-stack .stackhint { text-align: center; color: var(--dim); font-size: 11px; opacity: 0.7; }
+
+/* notification badge on the Stack tab */
+#tabs button { position: relative; }
+.tabbadge {
+  position: absolute; top: 2px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 9px; background: linear-gradient(180deg, #f0d078, #b8862c);
+  color: #2a1c04; font: 700 10px/16px var(--font-fantasy);
+  animation: badgepulse 1.4s infinite ease-in-out;
 }
-#stackbar .stacklabel { color: var(--accent); font: 700 11px/1.6 var(--font-fantasy); letter-spacing: 0.14em; white-space: nowrap; text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.45); }
+@keyframes badgepulse {
+  0%, 100% { box-shadow: 0 0 3px rgba(240, 208, 120, 0.5); transform: scale(1); }
+  50% { box-shadow: 0 0 12px rgba(240, 208, 120, 0.95); transform: scale(1.15); }
+}
+
+/* stack traffic surfaced inline in chat */
+.msg.stackmsg { cursor: pointer; font-size: 12px; }
+.msg.stackmsg.you { background: linear-gradient(#2b2410, #2b2410) padding-box, var(--chrome-dim) border-box; }
+.msg.stackmsg.agent { background: linear-gradient(#241d0d, #241d0d) padding-box, var(--chrome-dim) border-box; }
+.msg.stackmsg .mwho { color: var(--accent); }
+.msg.stackmsg:hover { background: linear-gradient(#332a12, #332a12) padding-box, var(--chrome) border-box; }
 .stackitem {
   display: flex; flex-direction: column; align-items: stretch; gap: 5px; border-radius: 8px; padding: 5px 8px; flex: none;
   border: 1px solid transparent;
@@ -254,14 +267,14 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .stackitem.grouped { border-left: 3px solid var(--accent); }
 .stackitem.respondat { outline: 2px dashed var(--accent); }
 .stackitem .siplanned { margin-left: 6px; font-size: 9px; color: var(--dim); border: 1px dashed var(--dim); border-radius: 4px; padding: 0 4px; }
-#stackbar .resolveall {
+#pane-stack .resolveall {
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
   color: #2a1c04; font: 700 10.5px/1.6 var(--font-fantasy); letter-spacing: 0.04em;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer;
 }
-#stackbar .resolveall:hover { box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
-#stackbar .respondchip { font-size: 10px; color: var(--dim); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 6px; }
-#stackbar .respondchip a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+#pane-stack .resolveall:hover { box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
+#pane-stack .respondchip { font-size: 10px; color: var(--dim); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 6px; }
+#pane-stack .respondchip a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 #newgame-overlay {
   position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%);
@@ -283,7 +296,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
   color: #2a1c04; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
 }
-#stack-noresp { background: linear-gradient(180deg, #17331f, #102616) padding-box, var(--chrome-dim) border-box; color: #8fd8a0; font-size: 10px; white-space: nowrap; }
 
 /* free-placement board */
 .battlefield.freeboard { display: block; position: relative; overflow: hidden; }

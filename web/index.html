@@ -55,7 +55,6 @@
     </div>
 
     <div id="midline"></div>
-    <div id="stackbar" class="hidden"></div>
 
     <div class="seat" id="seat-you">
       <div class="rail" id="rail-you"></div>
@@ -69,10 +68,12 @@
 
   <div id="side">
     <div id="tabs">
+      <button data-tab="stack">Stack<span id="stack-badge" class="tabbadge hidden"></span></button>
       <button data-tab="chat" class="active">Chat</button>
       <button data-tab="brain">Agent brain</button>
       <button data-tab="log">Log</button>
     </div>
+    <div class="tabpane hidden" id="pane-stack"></div>
     <div class="tabpane" id="pane-chat"></div>
     <div class="tabpane hidden" id="pane-brain"></div>
     <div class="tabpane hidden" id="pane-log"></div>
