@@ -158,9 +158,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .msg { border-radius: 8px; padding: 6px 9px; max-width: 95%; white-space: pre-wrap; word-wrap: break-word; border: 1px solid transparent; }
 .msg.you { background: linear-gradient(#23303d, #23303d) padding-box, linear-gradient(155deg, #3a4c5e, #7a97b3, #3a4c5e) border-box; align-self: flex-end; }
 .msg.agent { background: linear-gradient(#2c2437, #2c2437) padding-box, var(--chrome-dim) border-box; align-self: flex-start; }
-.msg.sys { color: var(--dim); font-size: 11px; align-self: center; background: none; border: none; padding: 1px; }
-.msg.actline { color: var(--dim); font-size: 11px; align-self: stretch; background: none; border: none; padding: 0 2px; max-width: 100%; }
-.msg .mwho { font: 600 9px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
+.msg.sys { color: var(--dim); font-size: 11px; align-self: center; background: none; border: none; padding: 1px; }.msg .mwho { font: 600 9px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
 
 .brain { font-size: 12px; white-space: pre-wrap; word-wrap: break-word; }
 .brain.thinking { color: var(--dim); font-family: var(--font-scroll); font-style: italic; font-size: 13px; }
