@@ -65,20 +65,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .boardwrap { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
-.lifefloat {
-  position: absolute; right: 10px; z-index: 40;
-  border: 1px solid transparent; border-radius: 10px;
-  background: linear-gradient(rgba(21, 17, 30, 0.94), rgba(21, 17, 30, 0.94)) padding-box, var(--chrome) border-box;
-  padding: 6px 10px; text-align: center; width: 120px; box-sizing: border-box;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 18px rgba(216, 160, 61, 0.10);
-}
-.lifefloat.topright { top: 8px; }
-.lifefloat.bottomright { bottom: 8px; }
-.lifefloat .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lifefloat .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.lifefloat .life { font-size: 26px; font-weight: 700; font-family: var(--font-fantasy); }
-.lifefloat .liferow button { font-size: 12px; padding: 1px 7px; }
-.lifefloat .cmdmg { font-size: 9px; color: var(--red); }
+/* life boxes live in the rails: yours tops your rail, the agent's is pinned
+   to the bottom of its rail — both hugging the midline */
+#rail-agent .lifebox { margin-top: auto; }
+.lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.lifebox .liferow button { font-size: 12px; padding: 1px 7px; }
+.lifebox .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lifebox .cmdmg { font-size: 9px; color: var(--red); }
 #midline { height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 
 .battlefield { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; overflow-y: auto; }
@@ -138,9 +131,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
 }
 .lifebox .life { font-size: 26px; font-weight: 800; font-family: var(--font-fantasy); }
-.lifebox .lname { font: 600 10px/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
-.lifebox .lbtns { display: flex; gap: 4px; justify-content: center; margin-top: 3px; }
-.lifebox .lbtns button { padding: 0 8px; font-size: 14px; }
 .cmdmg { font-size: 10px; color: var(--red); margin-top: 3px; }
 .deckname { font-size: 10px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

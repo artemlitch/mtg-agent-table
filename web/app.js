@@ -79,8 +79,6 @@ function render() {
   renderStack();
   renderRail("agent");
   renderRail("you");
-  renderLife("agent");
-  renderLife("you");
   renderHand("agent");
   renderHand("you");
   renderBattlefield("agent");
@@ -257,6 +255,7 @@ function renderRail(p) {
   const ps = state.players[p];
   const name = p === "you" ? "You" : "Agent";
 
+  if (p === "you") rail.appendChild(lifeBox(p));
   const lib = pile("Library", ps.counts.library, (e) => libraryMenu(p, e));
   if (p === "you") {
     const drawBtn = document.createElement("button");
@@ -291,23 +290,26 @@ function renderRail(p) {
     const el = cardEl(c, { small: true });
     rail.appendChild(el);
   }
+  if (p === "agent") rail.appendChild(lifeBox(p));
 }
 
-// Floating life badge over the board: yours top-right of your half,
-// the agent's bottom-right of its half (both hugging the midline).
-function renderLife(p) {
-  const el = $(`#life-${p}`);
+// Life box in the rail: yours at the top of your rail, the agent's pinned
+// to the bottom of its rail — both hugging the midline.
+function lifeBox(p) {
   const ps = state.players[p];
+  const d = document.createElement("div");
+  d.className = "lifebox";
   const cmdmg = Object.entries(ps.commanderDamage || {})
     .map(([c, n]) => `${n} from ${c}`)
     .join("<br>");
-  el.innerHTML = `<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
+  d.innerHTML = `<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
     <div class="liferow"><button data-d="-1">−</button><div class="life">${ps.life}</div><button data-d="1">+</button></div>
     ${cmdmg ? `<div class="cmdmg">${cmdmg}</div>` : ""}`;
-  el.querySelectorAll("button").forEach((b) => (b.onclick = (e) => {
+  d.querySelectorAll("button").forEach((b) => (b.onclick = (e) => {
     e.stopPropagation();
     act("life", { player: p, delta: Number(b.dataset.d) });
   }));
+  return d;
 }
 
 function renderHand(p) {
