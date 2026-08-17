@@ -899,7 +899,8 @@ function searchModal(p, cards) {
 const STACK_CHAT_RE =
   /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
 
-let scrollChatToBottom = false;
+// starts true so the first render after page load opens at the latest messages
+let scrollChatToBottom = true;
 
 function renderChat() {
   const pane = $("#pane-chat");
