@@ -245,6 +245,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   50% { box-shadow: 0 0 12px rgba(240, 208, 120, 0.95); transform: scale(1.15); }
 }
 
+/* live stack items embedded in chat — same widget as the Stack tab */
+.stackitem.inchat { max-width: 95%; min-width: 62%; }
+.stackitem.inchat.you { align-self: flex-end; }
+.stackitem.inchat.agent { align-self: flex-start; }
+
 /* stack traffic surfaced inline in chat */
 .msg.stackmsg { cursor: pointer; font-size: 12px; }
 .msg.stackmsg.you { background: linear-gradient(#2b2410, #2b2410) padding-box, var(--chrome-dim) border-box; }

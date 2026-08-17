@@ -127,11 +127,20 @@ function renderStack() {
     chip.appendChild(cancel);
     bar.appendChild(chip);
   }
-  [...state.stack].reverse().forEach((item, ri) => {
-    const top = ri === 0;
-    const d = document.createElement("div");
-    d.className = "stackitem" + (top ? " top" : "") + (item.groupId ? " grouped" : "") + (item.id === pendingRespondAt ? " respondat" : "");
-    const who = item.player === "you" ? "you" : "agent";
+  for (const item of [...state.stack].reverse()) bar.appendChild(stackItemEl(item));
+}
+
+/** One LIVE stack item, buttons included — the same widget in the Stack tab and inline in chat. */
+function stackItemEl(item, opts = {}) {
+  const top = state.stack.length > 0 && state.stack[state.stack.length - 1].id === item.id;
+  const d = document.createElement("div");
+  d.className =
+    "stackitem" +
+    (top ? " top" : "") +
+    (item.groupId ? " grouped" : "") +
+    (item.id === pendingRespondAt ? " respondat" : "") +
+    (opts.inChat ? " inchat " + (item.player === "you" ? "you" : "agent") : "");
+  const who = item.player === "you" ? "you" : "agent";
     const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
     const planned = item.retractable ? `<span class="siplanned" title="planned follow-up — unwinds if responded below">planned</span>` : "";
     d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}</div><div class="sitext">${item.text}</div></div></div>`;
@@ -161,13 +170,12 @@ function renderStack() {
       // your own item: the agent resolves it — you can only take it back
       mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
     } else if (item.player === "agent") {
-      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); },
+      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
         "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
       mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
     }
     if (btns.childNodes.length) d.appendChild(btns);
-    bar.appendChild(d);
-  });
+  return d;
 }
 
 let peekEntries = [];
@@ -910,6 +918,13 @@ function renderChat() {
   pane.innerHTML = "";
   for (const e of state.log) {
     if ((e.actor === "you" || e.actor === "agent") && !e.text.startsWith("💬") && !e.text.startsWith("❓") && STACK_CHAT_RE.test(e.text)) {
+      // a push's stack item id is "s" + the seq of its own log line — if that
+      // item is still LIVE, embed the actual widget (same text, same buttons)
+      const live = state.stack && state.stack.find((i) => i.id === "s" + e.seq);
+      if (live) {
+        pane.appendChild(stackItemEl(live, { inChat: true }));
+        continue;
+      }
       const d = document.createElement("div");
       d.className = "msg stackmsg " + (e.actor === "you" ? "you" : "agent");
       d.innerHTML = `<div class="mwho">${e.actor === "you" ? "You" : "Agent"} · ⚡ stack</div>`;
