@@ -531,6 +531,16 @@ function cardEl(c, opts = {}) {
     }
     cardMenu(c, e);
   };
+  // right-click = the same card menu (the browser menu is useless mid-game)
+  d.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hidePreview();
+    cardMenu(c, e);
+  });
+  // hover target for keybinds (E = tap)
+  d.addEventListener("mouseenter", () => { hoveredCard = c; });
+  d.addEventListener("mouseleave", () => { if (hoveredCard && hoveredCard.id === c.id) hoveredCard = null; });
   return d;
 }
 
@@ -1179,12 +1189,24 @@ document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => switchTab(b.dataset.tab);
 });
 
+let hoveredCard = null;
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     pendingAttach = null;
     closeMenu();
     closeModal();
     render();
+    return;
+  }
+  // keybinds are inert while typing
+  const t = document.activeElement;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  if ((e.key === "e" || e.key === "E") && hoveredCard) {
+    // E taps/untaps the hovered battlefield card (fresh lookup — state may
+    // have re-rendered under the cursor since mouseenter)
+    const cur = cardById(hoveredCard.id) ?? hoveredCard;
+    if (cur.zone === "battlefield") act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
 });
 
