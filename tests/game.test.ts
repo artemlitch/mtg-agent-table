@@ -605,3 +605,28 @@ describe("token catalog", () => {
     expect(c2.oracle).toBe("Flying");
   });
 });
+
+describe("set_pt overrides", () => {
+  test("override remembers printed P/T and shows both in the view", () => {
+    const c = seedCard("Bear", "you", "battlefield", { power: "2", toughness: "2" });
+    applyAction("you", "set_pt", { card: c.id, power: "4", toughness: "4" });
+    expect(c.power).toBe("4");
+    expect(c.basePower).toBe("2");
+    // second override keeps the ORIGINAL printed values
+    applyAction("you", "set_pt", { card: c.id, power: "7", toughness: "1" });
+    expect(c.basePower).toBe("2");
+    const view = viewFor("you").players.you.zones.battlefield[0] as any;
+    expect(view.power).toBe("7");
+    expect(view.basePower).toBe("2");
+  });
+
+  test("empty power resets to printed and clears the override", () => {
+    const c = seedCard("Bear", "you", "battlefield", { power: "2", toughness: "3" });
+    applyAction("you", "set_pt", { card: c.id, power: "0", toughness: "1" });
+    applyAction("you", "set_pt", { card: c.id });
+    expect(c.power).toBe("2");
+    expect(c.toughness).toBe("3");
+    expect(c.basePower).toBeUndefined();
+    expect((viewFor("you").players.you.zones.battlefield[0] as any).basePower).toBeUndefined();
+  });
+});

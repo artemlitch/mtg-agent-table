@@ -298,6 +298,14 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   color: #2a1c04; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
 }
 
+/* explicit P/T override drawn over the card's own P/T corner */
+.ptbadge {
+  position: absolute; bottom: 2px; right: 2px; z-index: 4; pointer-events: none;
+  background: rgba(12, 9, 4, 0.94); border: 1px solid transparent; border-radius: 4px;
+  padding: 0 4px; font: 800 12px/1.5 var(--font-fantasy); color: #ffd97a;
+  background: linear-gradient(rgba(12, 9, 4, 0.94), rgba(12, 9, 4, 0.94)) padding-box, var(--chrome) border-box;
+}
+
 /* card-shaped token creator, bottom-right by your hand */
 #btn-token {
   position: absolute; right: 10px; bottom: 10px; z-index: 45;

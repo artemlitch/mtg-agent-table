@@ -26,6 +26,9 @@ export interface Card {
   typeLine?: string;
   power?: string;
   toughness?: string;
+  // printed P/T remembered while an explicit set_pt override is active
+  basePower?: string;
+  baseToughness?: string;
   // modal/transforming double-faced cards: both faces, and which one is showing
   faces?: CardFace[];
   face?: number;
@@ -200,6 +203,8 @@ function redactCard(card: Card, viewer: PlayerId) {
     typeLine: f?.typeLine ?? card.typeLine,
     power: f?.power ?? card.power,
     toughness: f?.toughness ?? card.toughness,
+    basePower: card.basePower,
+    baseToughness: card.baseToughness,
     faceCount: card.faces?.length ?? 1,
     face: idx,
     faces: card.faces,
@@ -620,6 +625,29 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     }
     addLog(ctx.actor, `${who(ctx.actor)} created ${n}x ${p.name} token for ${who(player)}`);
     return { ok: true, ids };
+  },
+
+  /** Override a card's current P/T (layers shorthand); empty/absent power resets to printed. */
+  set_pt(ctx, p) {
+    const c = getCard(p.card ?? p.cardId);
+    if (p.power === undefined || p.power === null || p.power === "") {
+      if (c.basePower !== undefined) {
+        c.power = c.basePower;
+        c.toughness = c.baseToughness;
+        delete c.basePower;
+        delete c.baseToughness;
+      }
+      addLog(ctx.actor, `${who(ctx.actor)} reset ${c.name} to printed P/T (${c.power ?? "?"}/${c.toughness ?? "?"})`);
+    } else {
+      if (c.basePower === undefined) {
+        c.basePower = c.power ?? "?";
+        c.baseToughness = c.toughness ?? "?";
+      }
+      c.power = String(p.power);
+      c.toughness = String(p.toughness ?? p.power);
+      addLog(ctx.actor, `${who(ctx.actor)} set ${c.name} to ${c.power}/${c.toughness} (printed ${c.basePower}/${c.baseToughness})`);
+    }
+    return { ok: true, power: c.power, toughness: c.toughness };
   },
 
   attach(ctx, p) {

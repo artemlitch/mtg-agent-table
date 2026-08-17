@@ -498,6 +498,10 @@ function cardEl(c, opts = {}) {
     }
     if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
     if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
+    // explicit P/T override: drawn over the card's own P/T corner
+    if (c.basePower !== undefined && c.zone === "battlefield") {
+      d.innerHTML += `<div class="ptbadge" title="printed ${c.basePower}/${c.baseToughness}">${c.power}/${c.toughness}</div>`;
+    }
     if ((c.faceCount ?? 1) > 1) {
       const flip = document.createElement("button");
       flip.className = "flipbtn";
@@ -624,6 +628,19 @@ function cardMenu(c, e) {
     if (c.controller === "you" && attackers.length) {
       for (const a of attackers)
         items.push({ label: `🛡 Block ${a.hidden ? "?" : a.name}`, fn: () => act("block", { pairs: [{ blocker: c.id, attacker: a.id }] }) });
+    }
+    if (c.power !== undefined && c.power !== null) {
+      items.push({
+        label: `⚔ Set P/T… (now ${c.power}/${c.toughness})`,
+        fn: () => {
+          const v = prompt(`P/T for ${c.name} (e.g. 4/4 — empty resets to printed):`, `${c.power}/${c.toughness}`);
+          if (v === null) return;
+          const m = v.match(/^\s*([^/\s]+)\s*\/\s*([^/\s]+)\s*$/);
+          if (!v.trim()) act("set_pt", { card: c.id });
+          else if (m) act("set_pt", { card: c.id, power: m[1], toughness: m[2] });
+          else alert("Use the form P/T, e.g. 4/4 (or leave empty to reset)");
+        },
+      });
     }
     items.push({ label: "+1/+1 counter +", fn: () => act("counters", { card: c.id, kind: "+1/+1", delta: 1 }) });
     items.push({ label: "+1/+1 counter −", fn: () => act("counters", { card: c.id, kind: "+1/+1", delta: -1 }) });
