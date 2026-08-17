@@ -975,6 +975,13 @@ function renderChat() {
       d.className = "msg sys";
       d.textContent = e.text;
       pane.appendChild(d);
+    } else {
+      // every other action (draws, taps, scries, moves…) shows as a dim line —
+      // the chat is the full play-by-play, nothing happens invisibly
+      const d = document.createElement("div");
+      d.className = "msg actline";
+      d.textContent = e.text;
+      pane.appendChild(d);
     }
   }
   // incoming chat never yanks the reader down — only your own send jumps to the bottom
