@@ -875,35 +875,19 @@ function peekModal(p, cards) {
   const wrap = document.createElement("div");
   const grid = document.createElement("div");
   grid.className = "modalcards";
-  const toBottom = new Set();
   for (const c of cards) {
-    const el = modalCardEl(c, [
+    // every button acts immediately; "move to bottom" dims the card,
+    // "keep on top" brings it back to the top of the library
+    let el;
+    el = modalCardEl(c, [
+      ["keep on top", () => { act("reorder_top", { player: p, top: [c.id] }); el.classList.remove("bottomed"); }],
+      ["move to bottom", () => { act("reorder_top", { player: p, toBottom: [c.id] }); el.classList.add("bottomed"); }],
       ["draw→hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p }).then(closeModal)],
       ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: p }).then(closeModal)],
     ]);
-    // where does this card go: Top (keep, in shown order) or Bottom
-    const seg = document.createElement("div");
-    seg.className = "topbottom";
-    const bTop = document.createElement("button");
-    bTop.textContent = "Top";
-    bTop.className = "active";
-    const bBot = document.createElement("button");
-    bBot.textContent = "Bottom";
-    bTop.onclick = () => { toBottom.delete(c.id); bTop.classList.add("active"); bBot.classList.remove("active"); };
-    bBot.onclick = () => { toBottom.add(c.id); bBot.classList.add("active"); bTop.classList.remove("active"); };
-    seg.append(bTop, bBot);
-    el.insertBefore(seg, el.querySelector(".mcbtns"));
     grid.appendChild(el);
   }
   wrap.appendChild(grid);
-  const submit = document.createElement("button");
-  submit.textContent = "Apply order (left = top)";
-  submit.style.marginTop = "10px";
-  submit.onclick = () => {
-    const top = cards.map((c) => c.id).filter((id) => !toBottom.has(id));
-    act("reorder_top", { player: p, top, toBottom: [...toBottom] }).then(closeModal);
-  };
-  wrap.appendChild(submit);
   openModal(`Top of ${p === "you" ? "your" : "agent's"} library`, wrap);
 }
 
@@ -989,6 +973,13 @@ function renderChat() {
     } else if (e.actor === "system") {
       const d = document.createElement("div");
       d.className = "msg sys";
+      d.textContent = e.text;
+      pane.appendChild(d);
+    } else {
+      // every other action (draws, taps, scries, moves…) shows as a dim line —
+      // the chat is the full play-by-play, nothing happens invisibly
+      const d = document.createElement("div");
+      d.className = "msg actline";
       d.textContent = e.text;
       pane.appendChild(d);
     }

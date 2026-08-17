@@ -159,6 +159,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .msg.you { background: linear-gradient(#23303d, #23303d) padding-box, linear-gradient(155deg, #3a4c5e, #7a97b3, #3a4c5e) border-box; align-self: flex-end; }
 .msg.agent { background: linear-gradient(#2c2437, #2c2437) padding-box, var(--chrome-dim) border-box; align-self: flex-start; }
 .msg.sys { color: var(--dim); font-size: 11px; align-self: center; background: none; border: none; padding: 1px; }
+.msg.actline { color: var(--dim); font-size: 11px; align-self: stretch; background: none; border: none; padding: 0 2px; max-width: 100%; }
 .msg .mwho { font: 600 9px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
 
 .brain { font-size: 12px; white-space: pre-wrap; word-wrap: break-word; }
@@ -198,14 +199,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .modalcard { width: 130px; }
 .modalcard img { width: 100%; border-radius: 6px; }
 .modalcard .mcbtns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
-.modalcard .topbottom { display: flex; gap: 0; margin-top: 4px; }
-.modalcard .topbottom button { flex: 1; font-size: 10px; padding: 3px 0; border-radius: 0; }
-.modalcard .topbottom button:first-child { border-radius: 6px 0 0 6px; }
-.modalcard .topbottom button:last-child { border-radius: 0 6px 6px 0; }
-.modalcard .topbottom button.active {
-  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
-  color: #2a1c04;
-}
+.modalcard.bottomed img { opacity: 0.4; }
+.modalcard.bottomed::after { content: "→ bottom"; color: var(--accent); font: 600 10px/1.5 var(--font-fantasy); }
 .modalcard .mcbtns button { font-size: 9px; padding: 2px 5px; }
 .modalclose { margin-top: 12px; }
 
