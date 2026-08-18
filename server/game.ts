@@ -75,6 +75,8 @@ export interface StackItem {
   apply?: { type: "attack" | "block"; pairs: any[] } | { type: "turn"; player: PlayerId } | { type: "phase"; phase: string };
   // destination declared at cast time (MDFC faces, exile-on-resolve effects)
   resolveTo?: Zone;
+  // whose zone it resolves into (reanimation targets, returns to owner's hand)
+  resolveToPlayer?: PlayerId;
   // batched proposal (MTR-style shortcut): items pushed together share a groupId.
   // retractable marks PLANNED follow-ups that unwind if the opponent responds
   // below them; mandatory triggers are never retractable.
@@ -408,7 +410,10 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
   const tl = card.typeLine ?? "";
   const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
   const toZone: Zone = (p.to as Zone) ?? item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
-  const toPlayer: PlayerId = p.toPlayer === undefined ? (toZone === "battlefield" ? card.controller : card.owner) : asPlayer(p.toPlayer, "toPlayer");
+  const toPlayer: PlayerId =
+    p.toPlayer === undefined
+      ? item.resolveToPlayer ?? (toZone === "battlefield" ? card.controller : card.owner)
+      : asPlayer(p.toPlayer, "toPlayer");
   card.zone = toZone;
   card.controller = toPlayer;
   card.visibleTo = [];
@@ -849,7 +854,9 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     }
     // the effective type is the chosen face's for DFCs, else the whole card's
     const effType = (p.face !== undefined ? card.faces?.[Number(p.face)]?.typeLine : card.typeLine) ?? "";
-    const isLandPlay = /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
+    // an explicit resolveTo means this is an EFFECT moving the card (reanimate,
+    // return to hand), not a land drop — those always use the stack
+    const isLandPlay = !p.resolveTo && /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
     if (isLandPlay) {
       removeFromZone(card);
       card.zone = "battlefield";
@@ -875,6 +882,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       cardId: card.id,
       text: p.note ? `${card.name} — ${p.note}` : card.name,
       ...(p.resolveTo ? { resolveTo: p.resolveTo as Zone } : {}),
+      ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
     const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
     addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""} → on the stack`);

@@ -630,3 +630,25 @@ describe("set_pt overrides", () => {
     expect((viewFor("you").players.you.zones.battlefield[0] as any).basePower).toBeUndefined();
   });
 });
+
+describe("stack moves out of graveyard/exile", () => {
+  test("cast from graveyard with resolveTo hand + resolveToPlayer goes via the stack", () => {
+    const c = seedCard("Sepulchral Primordial", "agent", "graveyard", { typeLine: "Creature — Avatar" });
+    applyAction("you", "cast", { card: c.id, resolveTo: "hand", resolveToPlayer: "agent", note: "from graveyard → owner's hand" });
+    expect(c.zone).toBe("stack");
+    expect(game.stack[game.stack.length - 1].resolveToPlayer).toBe("agent");
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("hand");
+    expect(c.controller).toBe("agent");
+    expect(game.players.agent.zones.hand).toContain(c.id);
+  });
+
+  test("a land cast with resolveTo is NOT a land drop — it uses the stack", () => {
+    const c = seedCard("Wasteland", "you", "graveyard", { typeLine: "Land" });
+    applyAction("you", "cast", { card: c.id, resolveTo: "hand" });
+    expect(c.zone).toBe("stack");
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("hand");
+    expect(game.players.you.zones.hand).toContain(c.id);
+  });
+});

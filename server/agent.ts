@@ -101,6 +101,14 @@ export class AgentRunner {
     const stackText = game.stack.length
       ? `\nTHE STACK (bottom → top): ${game.stack.map((i) => `[${i.player}] ${i.text}`).join(" · ")}\n`
       : "";
+    // regardless of wake reason: Artem's items on the stack are the agent's to
+    // acknowledge — without this, window wakes routinely leave them sitting
+    const artemItems = game.stack.filter((i) => i.player === "you").length;
+    const stackDuty = artemItems
+      ? `\n⚠ ${artemItems} of the stack item(s) are ARTEM'S. Deal with them FIRST, before anything else: ` +
+        `respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve (top first). ` +
+        `Never take other actions or call done while his items sit unresolved.\n`
+      : "";
     const situation =
       `It is ${game.turn === "agent" ? "YOUR turn" : "Artem's turn"} ` +
       `(round ${game.turnNumber}, phase: ${game.phase}).`;
@@ -112,11 +120,12 @@ export class AgentRunner {
           `Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. ` +
           `Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.`
         : `This is your window to act. Use your table tools. Call get_state first if you need to re-inspect anything. ` +
+          `First settle the stack (resolve Artem's items or respond), then proceed. ` +
           `When you cast a spell, use cast (it goes on the stack) and then call done so Artem can respond — ` +
           `NEVER resolve your own spell in the same window you cast it. ` +
           `When you are finished, call done to pass back to Artem, or ask_user if you need something from him.`;
     return (
-      `${header}\n${events || "(nothing new)"}\n${stackText}\n${situation} ${directive}\n` +
+      `${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}\n${situation} ${directive}\n` +
       `Narrate your reasoning in plain text BEFORE each action. ` +
       `Speak to Artem with the say tool — plain response text is your visible thought process, not chat.`
     );

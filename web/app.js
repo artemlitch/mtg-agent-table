@@ -870,13 +870,24 @@ function showZoneModal(p, zone) {
       wrap.appendChild(d);
       continue;
     }
+    // leaving a graveyard/exile is a game action — it goes ON THE STACK
+    // (cast with a declared destination; the agent resolves or responds)
+    const viaStack = (label, resolveTo, toPlayer) => [
+      `${label} ⚡`,
+      () =>
+        act("cast", {
+          card: c.id,
+          resolveTo,
+          ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
+          note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${resolveTo}`,
+        }).then(closeModal),
+    ];
     wrap.appendChild(
       modalCardEl(c, [
-        ["to hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: c.owner }).then(closeModal)],
-        ["to my bf", () => act("move", { card: c.id, toZone: "battlefield", toPlayer: "you" }).then(closeModal)],
-        ["to owner bf", () => act("move", { card: c.id, toZone: "battlefield", toPlayer: c.owner }).then(closeModal)],
-        ["exile", () => act("move", { card: c.id, toZone: "exile", toPlayer: c.owner }).then(closeModal)],
-        ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: c.owner }).then(closeModal)],
+        viaStack("to hand", "hand", c.owner),
+        viaStack("to my bf", "battlefield", "you"),
+        viaStack("to owner bf", "battlefield", c.owner),
+        viaStack(zone === "exile" ? "gy" : "exile", zone === "exile" ? "graveyard" : "exile", c.owner),
       ])
     );
   }
