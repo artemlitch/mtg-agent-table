@@ -301,23 +301,21 @@ describe("turn passes go through the stack", () => {
   });
 });
 
-describe("phase steps go through the stack", () => {
-  test("set_phase declares on the stack; the phase changes on resolve", () => {
+describe("phase steps apply immediately — only the turn pass stacks", () => {
+  test("set_phase changes the phase with no stack item", () => {
     applyAction("you", "set_phase", { phase: "combat" });
-    expect(game.phase).not.toBe("combat");
-    expect(game.stack.length).toBe(1);
-    applyAction("agent", "stack_resolve", {});
     expect(game.phase).toBe("combat");
+    expect(game.stack.length).toBe(0);
   });
 
-  test("the opponent can act at a declared end step before it resolves", () => {
-    applyAction("you", "set_phase", { phase: "end" });
+  test("end-of-turn responses happen against the TURN PASS declaration", () => {
+    applyAction("you", "set_turn", { player: "agent" });
     const flash = seedCard("End-step Trick", "agent", "hand", { typeLine: "Instant" });
-    applyAction("agent", "cast", { card: flash.id, note: "in your end step" });
+    applyAction("agent", "cast", { card: flash.id, note: "in response to the turn pass" });
     applyAction("you", "stack_resolve", {});    // trick first
     expect(flash.zone).toBe("graveyard");
-    applyAction("agent", "stack_resolve", {});  // then the phase
-    expect(game.phase).toBe("end");
+    applyAction("agent", "stack_resolve", {});  // then the turn pass
+    expect(game.turn).toBe("agent");
   });
 });
 

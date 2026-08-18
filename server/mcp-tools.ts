@@ -146,7 +146,7 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ player: PLAYER, zone: ZONE }, ["player", "zone"]),
   },
   shuffle: { description: "Shuffle a library (after searching).", schema: obj({ player: PLAYER }) },
-  set_phase: { description: "Declare a phase/step change. untap/upkeep and main phases apply IMMEDIATELY (logged, no stack). combat and end go ON THE STACK as priority windows: Artem responds at that step or resolves it — then call done.", schema: obj({ phase: str("phase label") }, ["phase"]) },
+  set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
   set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Artem resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
   attack: {
     description:

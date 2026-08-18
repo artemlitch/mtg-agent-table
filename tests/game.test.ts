@@ -653,14 +653,15 @@ describe("stack moves out of graveyard/exile", () => {
   });
 });
 
-describe("set_phase untap/upkeep bypasses the stack", () => {
-  test("untap/upkeep applies directly; other phases still stack", () => {
-    applyAction("you", "set_phase", { phase: "untap/upkeep" });
-    expect(game.stack.length).toBe(0);
-    expect(game.phase).toBe("untap/upkeep");
-    applyAction("you", "set_phase", { phase: "combat" });
+describe("set_phase never stacks", () => {
+  test("every phase applies directly — the turn pass is the only turn-structure stack item", () => {
+    for (const phase of ["untap/upkeep", "main 1", "combat", "main 2", "end"]) {
+      applyAction("you", "set_phase", { phase });
+      expect(game.stack.length).toBe(0);
+      expect(game.phase).toBe(phase);
+    }
+    applyAction("you", "set_turn", { player: "agent" });
     expect(game.stack.length).toBe(1);
-    expect(game.phase).toBe("untap/upkeep"); // combat waits for the resolve
   });
 });
 
@@ -672,12 +673,3 @@ describe("create_token validation", () => {
   });
 });
 
-describe("main phases bypass the stack too", () => {
-  test("main 1 / main 2 apply directly; combat and end still stack", () => {
-    applyAction("agent", "set_phase", { phase: "main 1" });
-    expect(game.stack.length).toBe(0);
-    expect(game.phase).toBe("main 1");
-    applyAction("agent", "set_phase", { phase: "end" });
-    expect(game.stack.length).toBe(1);
-  });
-});

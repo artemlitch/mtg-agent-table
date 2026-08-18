@@ -768,26 +768,13 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true };
   },
 
-  /** Declare a phase/step change — goes ON THE STACK so the opponent can act at that step (end step, beginning of combat, …). */
+  /** Declare a phase/step change — applies immediately. The only turn-structure
+   * stack item is the TURN PASS (set_turn); attack/block declarations and any
+   * announced triggers still create their own priority windows. */
   set_phase(ctx, p) {
     const phase = String(p.phase).slice(0, 40);
-    // tournament-shortcut style: untap/upkeep and main phases apply directly
-    // (nobody holds priority there) — only combat, end and the turn pass are
-    // real hold points and go on the stack. Triggers worth announcing at any
-    // step still go up via stack_push.
-    if (/^(untap|main)/i.test(phase)) {
-      game.phase = phase;
-      addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}`);
-      return { ok: true, stackSize: game.stack.length };
-    }
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
-      cardId: null,
-      text: `STEP: ${phase}`,
-      apply: { type: "phase", phase },
-    });
-    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase} (on the stack — respond or resolve)`);
+    game.phase = phase;
+    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}`);
     return { ok: true, stackSize: game.stack.length };
   },
 
