@@ -319,6 +319,18 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .tokencustom .tclabel { width: 100%; color: var(--accent); font: 600 11px/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
 .tokencustom input { width: 170px; }
 
+/* combat: one-click block decline, floating just under the midline */
+#btn-noblocks {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 45;
+  padding: 6px 16px; font-size: 12px;
+  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+  color: #2a1c04; animation: noblockspulse 1.6s infinite ease-in-out;
+}
+@keyframes noblockspulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(240, 208, 120, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(240, 208, 120, 0.9); }
+}
+
 /* stack cards ghosting over the slot they'd resolve into */
 .ghostwrap { position: absolute; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .ghostwrap .card.ghost {

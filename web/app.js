@@ -85,7 +85,28 @@ function render() {
   renderBattlefield("you");
   renderChat();
   renderLog();
+  renderNoBlocks();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
+}
+
+// one-click decline when locked-in attackers are pointing at you and you have
+// no blocks declared — the standoff killer
+let noBlocksDeclaredFor = null;
+
+function renderNoBlocks() {
+  const btn = $("#btn-noblocks");
+  const attackers = state.players.agent.zones.battlefield.filter((c) => c.attacking);
+  const sig = attackers.map((c) => c.id).sort().join(",");
+  const blocking = state.players.you.zones.battlefield.some((c) => c.blocking);
+  const show = attackers.length > 0 && !blocking && noBlocksDeclaredFor !== sig;
+  btn.classList.toggle("hidden", !show);
+  if (show) {
+    btn.onclick = () => {
+      noBlocksDeclaredFor = sig;
+      btn.classList.add("hidden");
+      act("chat", { text: "No blocks." });
+    };
+  }
 }
 
 let pendingRespondAt = null;
