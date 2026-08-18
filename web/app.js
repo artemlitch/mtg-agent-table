@@ -260,7 +260,7 @@ function applyPeekLine() {
   if (!el) return;
   el.textContent = lastPeek ? lastPeek.text : "";
   if (lastPeek) {
-    el.title = "Open in Agent brain";
+    el.title = "Open in the Agent tab";
     el.onclick = () => openBrainAt(lastPeek.seq);
   }
 }
