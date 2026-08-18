@@ -671,3 +671,13 @@ describe("create_token validation", () => {
     expect(game.players.agent.zones.battlefield.length).toBe(0);
   });
 });
+
+describe("main phases bypass the stack too", () => {
+  test("main 1 / main 2 apply directly; combat and end still stack", () => {
+    applyAction("agent", "set_phase", { phase: "main 1" });
+    expect(game.stack.length).toBe(0);
+    expect(game.phase).toBe("main 1");
+    applyAction("agent", "set_phase", { phase: "end" });
+    expect(game.stack.length).toBe(1);
+  });
+});
