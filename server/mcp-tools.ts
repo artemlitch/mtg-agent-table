@@ -176,7 +176,9 @@ const TOOLS: Record<string, ToolDef> = {
 async function callTable(tool: string, args: any): Promise<string> {
   const def = TOOLS[tool];
   if (def.special === "state") {
-    const res = await fetch(`${TABLE_URL}/api/state?viewer=agent`);
+    // lean: no hidden library/hand stubs, no image urls — the full view is
+    // ~77KB and the CLI offloads it to a file the model then greps by hand
+    const res = await fetch(`${TABLE_URL}/api/state?viewer=agent&lean=1`);
     return await res.text();
   }
   const res = await fetch(`${TABLE_URL}/api/action`, {

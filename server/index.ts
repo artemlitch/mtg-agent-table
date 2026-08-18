@@ -51,7 +51,26 @@ const server = Bun.serve({
     if (path === "/api/state") {
       const viewer = (url.searchParams.get("viewer") ?? "you") as PlayerId;
       if (viewer !== "you" && viewer !== "agent") return json({ error: "bad viewer" }, 400);
-      return json({ ...viewFor(viewer, viewer === "agent" ? 60 : 200), lastDecks, tokenCatalog: game.tokenCatalog });
+      const view: any = { ...viewFor(viewer, viewer === "agent" ? 60 : 200), lastDecks, tokenCatalog: game.tokenCatalog };
+      // lean view for the agent: hidden library/hand stubs carry zero information
+      // beyond the zone counts, and image urls are for human eyes only
+      if (url.searchParams.get("lean")) {
+        for (const p of Object.values<any>(view.players)) {
+          for (const z of Object.keys(p.zones)) {
+            let cards = p.zones[z];
+            if (z === "library" || z === "hand") cards = cards.filter((c: any) => !c.hidden);
+            p.zones[z] = cards.map(({ image, pos, faces, ...rest }: any) => ({
+              ...rest,
+              ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}),
+            }));
+          }
+        }
+        view.tokenCatalog = Object.fromEntries(
+          Object.entries<any>(view.tokenCatalog).map(([k, { image, ...t }]) => [k, t])
+        );
+        delete view.lastDecks;
+      }
+      return json(view);
     }
 
     if (path === "/api/brain") {

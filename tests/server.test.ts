@@ -120,3 +120,18 @@ describe.if(!!process.env.RUN_NET)("deck loading (network)", () => {
     expect(agent.players.you.zones.exile[0].name).toBeTruthy();
   });
 });
+
+test("lean state view drops hidden library/hand stubs and image urls", async () => {
+  const res = await fetch(`${BASE}/api/state?viewer=agent&lean=1`);
+  const d: any = await res.json();
+  for (const p of Object.values<any>(d.players)) {
+    expect(p.zones.library.filter((c: any) => c.hidden).length).toBe(0);
+    for (const z of Object.values<any>(p.zones))
+      for (const c of z) {
+        expect(c.image).toBeUndefined();
+        expect(c.pos).toBeUndefined();
+      }
+  }
+  // counts still tell the agent how big the hidden zones are
+  expect(typeof d.players.you.counts.library).toBe("number");
+});
