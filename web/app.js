@@ -327,7 +327,9 @@ function renderRail(p) {
   const ps = state.players[p];
   const name = p === "you" ? "You" : "Agent";
 
-  if (p === "you") rail.appendChild(lifeBox(p));
+  // both rails share one order — the agent's is mirrored via column-reverse,
+  // so each element sits at the same distance from the midline on both sides
+  rail.appendChild(lifeBox(p));
   rail.appendChild(deckEl(p));
   rail.appendChild(pile("Graveyard", ps.counts.graveyard, () => showZoneModal(p, "graveyard")));
   rail.appendChild(pile("Exile", ps.counts.exile, () => showZoneModal(p, "exile")));
@@ -336,7 +338,6 @@ function renderRail(p) {
     const el = cardEl(c, { small: true });
     rail.appendChild(el);
   }
-  if (p === "agent") rail.appendChild(lifeBox(p));
 }
 
 // Life box in the rail: yours at the top of your rail, the agent's pinned

@@ -65,9 +65,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .boardwrap { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
-/* life boxes live in the rails: yours tops your rail, the agent's is pinned
-   to the bottom of its rail — both hugging the midline */
-#rail-agent .lifebox { margin-top: auto; }
+/* the agent's rail mirrors yours across the midline: same element order in
+   the DOM, reversed visually, packed toward the midline */
+#rail-agent { flex-direction: column-reverse; }
 .lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .lifebox .liferow button { font-size: 12px; padding: 1px 7px; }
 .lifebox .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
