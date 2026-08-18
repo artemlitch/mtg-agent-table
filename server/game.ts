@@ -596,6 +596,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   create_token(ctx, p) {
+    // a nameless token is always a caller mistake (e.g. {token, count} instead
+    // of {name, n}) — fail loudly with the expected shape
+    const name = typeof p.name === "string" ? p.name.trim() : "";
+    if (!name) {
+      throw new Error(
+        `create_token requires a non-empty "name" (got keys: ${JSON.stringify(Object.keys(p ?? {}))}). ` +
+          `Use { name, n, player, power, toughness, typeLine, oracle }.`
+      );
+    }
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     // the deck's token catalog (built from Scryfall all_parts at load) supplies

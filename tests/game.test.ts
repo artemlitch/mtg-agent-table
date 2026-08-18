@@ -663,3 +663,11 @@ describe("set_phase untap/upkeep bypasses the stack", () => {
     expect(game.phase).toBe("untap/upkeep"); // combat waits for the resolve
   });
 });
+
+describe("create_token validation", () => {
+  test("missing/blank name throws with the expected shape in the message", () => {
+    expect(() => applyAction("agent", "create_token", { token: "Saproling", count: 1 })).toThrow(/requires a non-empty "name"/);
+    expect(() => applyAction("you", "create_token", { name: "   " })).toThrow(/requires a non-empty "name"/);
+    expect(game.players.agent.zones.battlefield.length).toBe(0);
+  });
+});
