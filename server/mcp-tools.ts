@@ -64,7 +64,7 @@ const TOOLS: Record<string, ToolDef> = {
   },
   stack_push: {
     description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses. respondAt: when responding inside Artem's proposed sequence, the stack item id you are responding at — his retractable planned items above it unwind automatically.",
-    schema: obj({ text: str("what the ability does"), respondAt: str("stack item id you are responding at (inside a proposed sequence)") }, ["text"]),
+    schema: obj({ text: str("what the ability does"), source: str("card id of the permanent this trigger/ability comes from — ALWAYS pass it when the ability belongs to a permanent (the table lifts that card visually)"), respondAt: str("stack item id you are responding at (inside a proposed sequence)") }, ["text"]),
   },
   stack_batch: {
     description:
@@ -73,6 +73,7 @@ const TOOLS: Record<string, ToolDef> = {
       items: arr(obj({
         card: str("card id to cast (omit for a text-only trigger/ability)"),
         text: str("trigger/ability text (when no card)"),
+        source: str("for text items: card id of the permanent the trigger/ability comes from"),
         note: str("cast note, e.g. targets"),
         face: num("DFC face to cast (0 front / 1 back)"),
         resolveTo: str("destination override on resolve", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),

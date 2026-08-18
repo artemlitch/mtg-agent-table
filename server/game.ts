@@ -77,6 +77,8 @@ export interface StackItem {
   resolveTo?: Zone;
   // whose zone it resolves into (reanimation targets, returns to owner's hand)
   resolveToPlayer?: PlayerId;
+  // for text-only trigger/ability items: the permanent the ability comes from
+  sourceId?: string;
   // batched proposal (MTR-style shortcut): items pushed together share a groupId.
   // retractable marks PLANNED follow-ups that unwind if the opponent responds
   // below them; mandatory triggers are never retractable.
@@ -245,6 +247,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       groupId: item.groupId,
       retractable: item.retractable,
       resolveTo: item.resolveTo,
+      source: item.sourceId,
       card: item.cardId ? redactCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
@@ -895,12 +898,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, card: card.id, stackSize: game.stack.length };
   },
 
-  /** Announce a trigger or activated ability as a text-only stack item. */
+  /** Announce a trigger or activated ability as a text-only stack item.
+   * p.source: the id of the permanent the ability comes from (validated). */
   stack_push(ctx, p) {
     const text = p.text ?? p.note;
     if (!text || !String(text).trim()) throw new Error("stack_push requires text");
     if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
-    game.stack.push({ id: "s" + (game.seq + 1), player: ctx.actor, cardId: null, text: String(text) });
+    const sourceId = p.source ? getCard(p.source).id : undefined;
+    game.stack.push({
+      id: "s" + (game.seq + 1),
+      player: ctx.actor,
+      cardId: null,
+      text: String(text),
+      ...(sourceId ? { sourceId } : {}),
+    });
     addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}`);
     return { ok: true, stackSize: game.stack.length };
   },

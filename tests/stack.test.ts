@@ -444,3 +444,13 @@ describe("only the opponent resolves your items", () => {
     expect(c.zone).toBe("graveyard");
   });
 });
+
+describe("stack_push source", () => {
+  test("stores a validated source id and exposes it in the view", () => {
+    const keep = seedCard("Kher Keep", "agent", "battlefield", { typeLine: "Legendary Land" });
+    applyAction("agent", "stack_push", { text: "Kher Keep: create a Kobold", source: keep.id });
+    expect(game.stack[0].sourceId).toBe(keep.id);
+    expect((viewFor("you") as any).stack[0].source).toBe(keep.id);
+    expect(() => applyAction("agent", "stack_push", { text: "x", source: "nope" })).toThrow();
+  });
+});

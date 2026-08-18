@@ -212,11 +212,16 @@ function battlefieldTriggerGhosts(p) {
   const bf = state.players[p].zones.battlefield;
   for (const it of state.stack || []) {
     if (it.card || /^(ATTACKS|BLOCKS|STEP|TURN PASS):/.test(it.text)) continue;
+    // structured source id (stack_push { source }) is authoritative
+    if (it.source) {
+      const src = bf.find((c) => c.id === it.source);
+      if (src && !src.hidden) out.push({ item: it, source: src });
+      continue;
+    }
+    // fallback for source-less items (composer text): earliest-mentioned
+    // battlefield card — ability texts lead with the source, while payment
+    // and target mentions come later. Ties go to the longer name.
     const t = it.text.toLowerCase();
-    // the source is the EARLIEST-mentioned battlefield card — ability texts
-    // lead with the source, while payment/target mentions come later
-    // ("Kher Keep activated ability (paid with Valakut Stoneforge …)").
-    // Ties (one name inside another at the same spot) go to the longer name.
     let best = null;
     for (const c of bf) {
       if (c.hidden || !c.name) continue;
@@ -833,7 +838,7 @@ function cardMenu(c, e) {
       label: "⚡ Ability → stack…",
       fn: () => {
         const text = prompt(`Ability of ${c.hidden ? "this card" : c.name}:`);
-        if (text) act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${text}` });
+        if (text) act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${text}`, source: c.id });
       },
     });
   }
