@@ -183,10 +183,12 @@ function renderAgentStatus() {
   const pane = $("#pane-chat");
   const existing = pane.querySelector(".typing-bubble");
   if (agentBusy && !existing) {
+    const follow = nearBottom(pane);
     const d = document.createElement("div");
     d.className = "msg agent typing-bubble";
     d.innerHTML = `<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>`;
     pane.appendChild(d);
+    if (follow) pane.scrollTop = pane.scrollHeight;
   } else if (!agentBusy && existing) {
     existing.remove();
     pane.querySelector(".brain-peek")?.remove();
@@ -228,6 +230,7 @@ function rebuildPeek() {
     peek.appendChild(row);
   }
   peek.lastChild?.classList.add("flash");
+  if (nearBottom(pane)) pane.scrollTop = pane.scrollHeight;
 }
 
 function updateBrainPeek(entry) {
@@ -960,9 +963,16 @@ const STACK_CHAT_RE =
 // starts true so the first render after page load opens at the latest messages
 let scrollChatToBottom = true;
 
+const NEAR_BOTTOM = 90; // px — within this of the bottom counts as "following"
+
+function nearBottom(pane) {
+  return pane.scrollTop + pane.clientHeight >= pane.scrollHeight - NEAR_BOTTOM;
+}
+
 function renderChat() {
   const pane = $("#pane-chat");
   const prevScroll = pane.scrollTop;
+  const follow = nearBottom(pane);
   pane.innerHTML = "";
   for (const e of state.log) {
     if ((e.actor === "you" || e.actor === "agent") && !e.text.startsWith("💬") && !e.text.startsWith("❓") && STACK_CHAT_RE.test(e.text)) {
@@ -1007,8 +1017,9 @@ function renderChat() {
       pane.appendChild(d);
     }
   }
-  // incoming chat never yanks the reader down — only your own send jumps to the bottom
-  if (scrollChatToBottom) {
+  // follow along when you were at (or near) the bottom; hold position when
+  // you've scrolled up to read. Your own send always jumps down.
+  if (scrollChatToBottom || follow) {
     scrollChatToBottom = false;
     pane.scrollTop = pane.scrollHeight;
   } else {
