@@ -213,13 +213,19 @@ function battlefieldTriggerGhosts(p) {
   for (const it of state.stack || []) {
     if (it.card || /^(ATTACKS|BLOCKS|STEP|TURN PASS):/.test(it.text)) continue;
     const t = it.text.toLowerCase();
+    // the source is the EARLIEST-mentioned battlefield card — ability texts
+    // lead with the source, while payment/target mentions come later
+    // ("Kher Keep activated ability (paid with Valakut Stoneforge …)").
+    // Ties (one name inside another at the same spot) go to the longer name.
     let best = null;
     for (const c of bf) {
       if (c.hidden || !c.name) continue;
       const n = c.name.toLowerCase();
-      if (t.includes(n) && (!best || n.length > best.name.length)) best = c;
+      const idx = t.indexOf(n);
+      if (idx < 0) continue;
+      if (!best || idx < best.idx || (idx === best.idx && n.length > best.len)) best = { card: c, idx, len: n.length };
     }
-    if (best) out.push({ item: it, source: best });
+    if (best) out.push({ item: it, source: best.card });
   }
   return out;
 }
