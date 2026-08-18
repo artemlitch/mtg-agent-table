@@ -333,6 +333,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .ghostwrap .sibtns { display: flex; gap: 3px; }
 .ghostwrap .sibtns button { font-size: 9px; padding: 1px 6px; }
+/* trigger source: full color (it's already in play), solid gold lift */
+.ghostwrap .card.ghost.trigger { opacity: 1; filter: none; outline-style: solid; }
+.trigchip {
+  max-width: 170px; background: rgba(12, 9, 4, 0.93); border: 1px solid transparent; border-radius: 6px;
+  padding: 3px 7px; font-size: 10px; color: var(--text); text-align: center;
+  background: linear-gradient(rgba(12, 9, 4, 0.93), rgba(12, 9, 4, 0.93)) padding-box, var(--chrome-dim) border-box;
+}
 
 /* free-placement board */
 .battlefield.freeboard { display: block; position: relative; overflow: hidden; }

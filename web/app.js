@@ -184,6 +184,25 @@ function stackItemButtons(item) {
   return btns.childNodes.length ? btns : null;
 }
 
+/** Text-only stack items (triggered/activated abilities) matched to their source
+    permanent on p's battlefield by name — the source lifts off the board. */
+function battlefieldTriggerGhosts(p) {
+  const out = [];
+  const bf = state.players[p].zones.battlefield;
+  for (const it of state.stack || []) {
+    if (it.card || /^(ATTACKS|BLOCKS|STEP|TURN PASS):/.test(it.text)) continue;
+    const t = it.text.toLowerCase();
+    let best = null;
+    for (const c of bf) {
+      if (c.hidden || !c.name) continue;
+      const n = c.name.toLowerCase();
+      if (t.includes(n) && (!best || n.length > best.name.length)) best = c;
+    }
+    if (best) out.push({ item: it, source: best });
+  }
+  return out;
+}
+
 /** Stack items whose card would resolve onto p's battlefield — shown as ghosts
     hovering in the slot they'd land in. */
 function battlefieldGhosts(p) {
@@ -437,6 +456,33 @@ function renderBattlefield(p) {
     if (btns) wrap.appendChild(btns);
     bf.appendChild(wrap);
   }
+
+  // triggered abilities: the source permanent lifts off the board (full color —
+  // it's already in play), trigger text + stack buttons underneath
+  battlefieldTriggerGhosts(p).forEach(({ item, source }, i) => {
+    const pos = posMap[source.id];
+    if (!pos) return;
+    const wrap = document.createElement("div");
+    wrap.className = "ghostwrap";
+    wrap.style.left = Math.max(0, Math.min(W - CW, pos.left + 10 + i * 10)).toFixed(0) + "px";
+    wrap.style.top = Math.max(0, Math.min(H - CH, pos.top - 14 - i * 10)).toFixed(0) + "px";
+    const el = cardEl({ ...source, tapped: false });
+    el.classList.add("ghost", "trigger");
+    el.onclick = (e) => {
+      e.stopPropagation();
+      hidePreview();
+      switchTab("stack");
+    };
+    wrap.appendChild(el);
+    const chip = document.createElement("div");
+    chip.className = "trigchip";
+    chip.textContent = item.text.length > 110 ? item.text.slice(0, 110) + "…" : item.text;
+    chip.title = item.text;
+    wrap.appendChild(chip);
+    const btns = stackItemButtons(item);
+    if (btns) wrap.appendChild(btns);
+    bf.appendChild(wrap);
+  });
 }
 window.addEventListener("resize", () => render());
 
