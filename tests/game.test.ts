@@ -652,3 +652,14 @@ describe("stack moves out of graveyard/exile", () => {
     expect(game.players.you.zones.hand).toContain(c.id);
   });
 });
+
+describe("set_phase untap/upkeep bypasses the stack", () => {
+  test("untap/upkeep applies directly; other phases still stack", () => {
+    applyAction("you", "set_phase", { phase: "untap/upkeep" });
+    expect(game.stack.length).toBe(0);
+    expect(game.phase).toBe("untap/upkeep");
+    applyAction("you", "set_phase", { phase: "combat" });
+    expect(game.stack.length).toBe(1);
+    expect(game.phase).toBe("untap/upkeep"); // combat waits for the resolve
+  });
+});

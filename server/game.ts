@@ -761,6 +761,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   /** Declare a phase/step change — goes ON THE STACK so the opponent can act at that step (end step, beginning of combat, …). */
   set_phase(ctx, p) {
     const phase = String(p.phase).slice(0, 40);
+    // untap/upkeep never carries a response at this table (the turn pass
+    // already resets to it on resolve) — apply directly, no stack item.
+    // Upkeep triggers worth announcing still go up via stack_push.
+    if (/^untap/i.test(phase)) {
+      game.phase = phase;
+      addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}`);
+      return { ok: true, stackSize: game.stack.length };
+    }
     game.stack.push({
       id: "s" + (game.seq + 1),
       player: ctx.actor,
