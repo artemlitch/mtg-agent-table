@@ -176,8 +176,7 @@ function stackItemEl(item, opts = {}) {
   return d;
 }
 
-let peekEntries = [];
-const PEEK_ROWS = 4;
+let lastPeek = null; // latest thought: { text, seq }
 
 function renderAgentStatus() {
   const pane = $("#pane-chat");
@@ -186,16 +185,25 @@ function renderAgentStatus() {
     const follow = nearBottom(pane);
     const d = document.createElement("div");
     d.className = "msg agent typing-bubble";
-    d.innerHTML = `<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>`;
+    d.innerHTML = `<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="peek-line"></span>`;
     pane.appendChild(d);
     if (follow) pane.scrollTop = pane.scrollHeight;
   } else if (!agentBusy && existing) {
     existing.remove();
-    pane.querySelector(".brain-peek")?.remove();
-    peekEntries = [];
+    lastPeek = null;
   }
-  // chat re-renders wipe the pane — restore the thought feed
-  if (agentBusy && peekEntries.length && !pane.querySelector(".brain-peek")) rebuildPeek();
+  if (agentBusy) applyPeekLine();
+}
+
+// one line of the agent's latest thought, hot-swapped next to the dots
+function applyPeekLine() {
+  const el = $("#pane-chat .typing-bubble .peek-line");
+  if (!el) return;
+  el.textContent = lastPeek ? lastPeek.text : "";
+  if (lastPeek) {
+    el.title = "Open in Agent brain";
+    el.onclick = () => openBrainAt(lastPeek.seq);
+  }
 }
 
 function openBrainAt(seq) {
@@ -208,37 +216,12 @@ function openBrainAt(seq) {
   }
 }
 
-/* mini-feed of the agent's recent thoughts under the typing bubble;
-   each row click-jumps to that entry in the brain tab */
-function rebuildPeek() {
-  const pane = $("#pane-chat");
-  if (!pane.querySelector(".typing-bubble")) renderAgentStatus();
-  let peek = pane.querySelector(".brain-peek");
-  if (!peek) {
-    peek = document.createElement("div");
-    peek.className = "brain-peek";
-    pane.appendChild(peek);
-  }
-  peek.innerHTML = "";
-  for (const e of peekEntries) {
-    const row = document.createElement("div");
-    row.className = "peek-row " + e.kind;
-    const text = e.kind === "tool" ? `🔧 ${e.text}` : e.text;
-    row.textContent = text.length > 160 ? text.slice(0, 160) + "…" : text;
-    row.title = "Open in Agent brain";
-    row.onclick = () => openBrainAt(e.seq);
-    peek.appendChild(row);
-  }
-  peek.lastChild?.classList.add("flash");
-  if (nearBottom(pane)) pane.scrollTop = pane.scrollHeight;
-}
-
 function updateBrainPeek(entry) {
   if (!agentBusy) return;
   if (!["text", "thinking", "tool"].includes(entry.kind)) return;
-  peekEntries.push(entry);
-  if (peekEntries.length > PEEK_ROWS) peekEntries = peekEntries.slice(-PEEK_ROWS);
-  rebuildPeek();
+  const text = entry.kind === "tool" ? `🔧 ${entry.text}` : entry.text;
+  lastPeek = { text: text.length > 140 ? text.slice(0, 140) + "…" : text, seq: entry.seq };
+  applyPeekLine();
 }
 
 function pile(label, count, onClick) {
@@ -1231,6 +1214,18 @@ document.addEventListener("keydown", (e) => {
     if (cur.zone === "battlefield") act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
 });
+
+// late-loading images grow the pane after we've pinned to the bottom —
+// re-pin as each one lands if the reader is still following (capture:
+// load events don't bubble)
+$("#pane-chat").addEventListener(
+  "load",
+  (e) => {
+    const pane = $("#pane-chat");
+    if (e.target.tagName === "IMG" && nearBottom(pane)) pane.scrollTop = pane.scrollHeight;
+  },
+  true
+);
 
 // boot
 refresh();

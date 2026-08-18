@@ -253,7 +253,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(rgba(33, 27, 43, 0.95), rgba(33, 27, 43, 0.95)) padding-box, var(--chrome) border-box;
   box-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
 }
-.stackitem img { width: 42px; border-radius: 4px; }
+/* fixed aspect ratio so late-loading art can't shift layout under the reader */
+.stackitem img { width: 42px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 4px; }
 .stackitem .sitext { font-size: 11px; flex: 1; }
 .stackitem .siwho { font-size: 9px; color: var(--dim); }
 .stackitem .sibtns { display: flex; flex-direction: row; gap: 3px; }
@@ -336,27 +337,15 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   30% { opacity: 1; transform: translateY(-3px); }
 }
 
-/* latest-thought peek under the typing bubble */
-.brain-peek {
-  align-self: flex-start; max-width: 92%; cursor: pointer;
-  font-size: 12px; font-family: var(--font-scroll); font-style: italic; color: var(--dim); opacity: 0.65;
-  padding: 2px 10px; border-left: 2px solid var(--line);
-  white-space: pre-wrap; word-wrap: break-word;
+/* the agent's latest thought, one hot-swapped line beside the typing dots */
+.typing-bubble { max-width: 95%; }
+.peek-line {
+  margin-left: 7px; flex: 1; min-width: 0; cursor: pointer;
+  font-family: var(--font-scroll); font-style: italic; font-size: 12px; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.brain-peek:hover { opacity: 1; border-left-color: var(--accent); }
-.brain-peek.flash { animation: peekfade 0.5s ease-out; }
-@keyframes peekfade { from { opacity: 0.15; } to { opacity: 0.65; } }
+.peek-line:hover { color: var(--text); }
 .brain.highlight { background: #33290f; border-radius: 4px; transition: background 0.4s; }
-
-/* peek feed rows */
-.brain-peek { display: flex; flex-direction: column; gap: 3px; }
-.peek-row { cursor: pointer; font-size: 12px; padding: 1px 4px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
-.peek-row.text, .peek-row.thinking { font-family: var(--font-scroll); font-style: italic; color: var(--text); opacity: 0.75; }
-.peek-row.tool { font-family: ui-monospace, monospace; font-size: 10px; color: var(--green); opacity: 0.6; }
-.peek-row:hover { background: #2c2416; opacity: 1; }
-.peek-row:nth-last-child(3) { opacity: 0.4; }
-.peek-row:nth-last-child(4) { opacity: 0.28; }
-.peek-row.flash { animation: peekfade 0.5s ease-out; }
 
 /* two-faced cards */
 .card .flipbtn {
