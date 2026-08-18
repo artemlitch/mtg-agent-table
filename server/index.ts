@@ -100,12 +100,14 @@ const server = Bun.serve({
           }
         }
         const cosmetic = body.type === "place";
-        if (!cosmetic) recordSnapshot();
+        // chat is conversation, not a game action — it never becomes an undo step
+        const undoable = !cosmetic && body.type !== "chat";
+        if (undoable) recordSnapshot();
         let result;
         try {
           result = applyAction(actor, body.type, body.params);
         } catch (e) {
-          if (!cosmetic) dropLastSnapshot();
+          if (undoable) dropLastSnapshot();
           throw e;
         }
         saveSoon();
