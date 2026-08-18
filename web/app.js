@@ -283,6 +283,33 @@ function updateBrainPeek(entry) {
   applyPeekLine();
 }
 
+// The library drawn as a face-down pile of cards, count on top; your deck
+// carries a Draw 1 button on its bottom edge. Click opens the library menu.
+function deckEl(p) {
+  const wrap = document.createElement("div");
+  wrap.className = "deckpile";
+  wrap.title = "Library — click for options";
+  wrap.innerHTML = `<div class="deckstack">
+    <img class="cardback" src="card-back.jpg" alt="library">
+    <div class="deckcount">${state.players[p].counts.library}</div>
+  </div>`;
+  wrap.onclick = (e) => {
+    e.stopPropagation();
+    libraryMenu(p, e);
+  };
+  if (p === "you") {
+    const b = document.createElement("button");
+    b.className = "drawbtn";
+    b.textContent = "🂠 Draw 1";
+    b.onclick = (e) => {
+      e.stopPropagation();
+      act("draw", { n: 1 });
+    };
+    wrap.querySelector(".deckstack").appendChild(b);
+  }
+  return wrap;
+}
+
 function pile(label, count, onClick) {
   const d = document.createElement("div");
   d.className = "pile";
@@ -301,33 +328,7 @@ function renderRail(p) {
   const name = p === "you" ? "You" : "Agent";
 
   if (p === "you") rail.appendChild(lifeBox(p));
-  const lib = pile("Library", ps.counts.library, (e) => libraryMenu(p, e));
-  if (p === "you") {
-    const drawBtn = document.createElement("button");
-    drawBtn.textContent = "🂠 Draw 1";
-    drawBtn.style.cssText = "width:100%;margin-top:4px;font-size:11px";
-    drawBtn.title = "Draw a card (more options: click the Library count)";
-    drawBtn.onclick = (e) => {
-      e.stopPropagation();
-      act("draw", { n: 1 });
-    };
-    lib.appendChild(drawBtn);
-    const mullBtn = document.createElement("button");
-    mullBtn.textContent = "♻ Mulligan";
-    mullBtn.style.cssText = "width:100%;margin-top:4px;font-size:11px";
-    mullBtn.title = "Shuffle your whole hand into your library, then draw 7";
-    mullBtn.onclick = async (e) => {
-      e.stopPropagation();
-      const hand = state.players.you.zones.hand;
-      if (!hand.length) return;
-      if (!confirm(`Mulligan: shuffle ${hand.length} cards back and draw 7?`)) return;
-      await act("move", { cards: hand.map((c) => c.id), toZone: "library", note: "mulligan" });
-      await act("shuffle", { player: "you" });
-      await act("draw", { n: 7 });
-    };
-    lib.appendChild(mullBtn);
-  }
-  rail.appendChild(lib);
+  rail.appendChild(deckEl(p));
   rail.appendChild(pile("Graveyard", ps.counts.graveyard, () => showZoneModal(p, "graveyard")));
   rail.appendChild(pile("Exile", ps.counts.exile, () => showZoneModal(p, "exile")));
 
@@ -844,6 +845,17 @@ function libraryMenu(p, e) {
   const items = [{ label: `${mine ? "Your" : "Agent's"} library`, title: true }];
   if (mine) {
     items.push({ label: "Draw 1", fn: () => act("draw", { n: 1 }) });
+    items.push({
+      label: "♻ Mulligan (hand → library, draw 7)",
+      fn: async () => {
+        const hand = state.players.you.zones.hand;
+        if (!hand.length) return;
+        if (!confirm(`Mulligan: shuffle ${hand.length} cards back and draw 7?`)) return;
+        await act("move", { cards: hand.map((c) => c.id), toZone: "library", note: "mulligan" });
+        await act("shuffle", { player: "you" });
+        await act("draw", { n: 7 });
+      },
+    });
     items.push({
       label: "Draw N…",
       fn: () => {

@@ -119,6 +119,25 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .textcard .textpt { position: absolute; bottom: 2px; right: 4px; font-weight: 700; font-size: 12px; background: var(--panel2); padding: 0 2px; }
 
+/* the library as a physical face-down pile */
+.deckpile { cursor: pointer; padding: 0 6px 6px 0; }
+.deckstack { position: relative; border-radius: 8px; }
+.deckstack::before, .deckstack::after {
+  content: ""; position: absolute; inset: 0; border-radius: 8px;
+  background: #26190c; border: 1px solid #4a350f;
+}
+.deckstack::before { transform: translate(3px, 3px); z-index: 0; }
+.deckstack::after { transform: translate(6px, 6px); opacity: 0.65; z-index: 0; }
+.deckstack img.cardback { position: relative; z-index: 1; width: 100%; border-radius: 8px; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6); }
+.deckcount {
+  position: absolute; z-index: 2; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  background: rgba(10, 8, 4, 0.88); border: 1px solid transparent; border-radius: 12px; padding: 2px 12px;
+  font: 700 17px/1.4 var(--font-fantasy); color: var(--gold-hi);
+  background: linear-gradient(rgba(10, 8, 4, 0.88), rgba(10, 8, 4, 0.88)) padding-box, var(--chrome) border-box;
+}
+.deckstack .drawbtn { position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 7px; font-size: 10.5px; padding: 3px 0; }
+.deckpile:hover img.cardback { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6), 0 0 14px rgba(226, 179, 85, 0.3); }
+
 .pile {
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
