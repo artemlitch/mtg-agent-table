@@ -1,3 +1,5 @@
 .DS_Store
 node_modules/
 state.json
+state-backup-*.json
+games/

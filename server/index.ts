@@ -4,6 +4,7 @@ import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } fro
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
+import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
 
 const PORT = Number(process.env.PORT ?? 4780);
@@ -135,6 +136,24 @@ const server = Bun.serve({
       return json({ ok: true, undone });
     }
 
+    // end the current game now: archive it and clear the table (no new decks)
+    if (path === "/api/end_game" && req.method === "POST") {
+      if (!game.started) return json({ ok: false, error: "no game in progress" }, 400);
+      const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
+      await Bun.write(backup, JSON.stringify(serializeState({ agent: agent.serialize(), lastDecks })));
+      const archived = await archiveGame(game, new URL("../games/", import.meta.url).pathname).catch((e) => {
+        console.error("archive failed:", e);
+        return null;
+      });
+      resetGameState();
+      clearHistory();
+      agent.kill();
+      addLog("system", "— Game ended and archived —");
+      saveSoon();
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true, archived });
+    }
+
     if (path === "/api/new_game" && req.method === "POST") {
       let body: any = {};
       try {
@@ -146,11 +165,16 @@ const server = Bun.serve({
       const agentDeck = parseDeckRef(body.agentDeck ?? lastDecks?.agent);
       if (!youDeck || !agentDeck) return json({ ok: false, error: "youDeck and agentDeck required (Archidekt URL or deck id)" }, 400);
       try {
-        // never lose a game to a reset: back up the old one first
+        // never lose a game to a reset: back up the old one first, and file it
+        // into the games/ archive (json + readable transcript) for analysis
         if (game.started) {
           const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
           await Bun.write(backup, JSON.stringify(serializeState({ agent: agent.serialize(), lastDecks })));
-          addLog("system", `(previous game backed up)`);
+          const archived = await archiveGame(game, new URL("../games/", import.meta.url).pathname).catch((e) => {
+            console.error("archive failed:", e);
+            return null;
+          });
+          addLog("system", `(previous game backed up${archived ? ` and archived: ${archived.split("/").pop()}` : ""})`);
         }
         resetGameState();
         clearHistory();
