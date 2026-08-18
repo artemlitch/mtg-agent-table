@@ -244,6 +244,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       text: item.text,
       groupId: item.groupId,
       retractable: item.retractable,
+      resolveTo: item.resolveTo,
       card: item.cardId ? redactCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),

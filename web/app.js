@@ -147,33 +147,52 @@ function stackItemEl(item, opts = {}) {
       d.onmousemove = (e) => positionPreview(e);
       d.onmouseleave = hidePreview;
     }
-    const btns = document.createElement("div");
-    btns.className = "sibtns";
-    const mk = (label, fn, title) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      if (title) b.title = title;
-      b.onclick = (e) => {
-        e.stopPropagation();
-        hidePreview();
-        fn();
-      };
-      btns.appendChild(b);
-    };
-    if (top && item.player === "agent") {
-      mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
-      mk("Counter", () => act("stack_counter", {}));
-      mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
-    } else if (top) {
-      // your own item: the agent resolves it — you can only take it back
-      mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
-    } else if (item.player === "agent") {
-      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
-        "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
-      mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
-    }
-    if (btns.childNodes.length) d.appendChild(btns);
+  const btns = stackItemButtons(item);
+  if (btns) d.appendChild(btns);
   return d;
+}
+
+/** The action row for a stack item (Resolve/Counter/Take back/Respond here) — shared
+    by the Stack tab, the chat widgets and battlefield ghosts. Null if no actions. */
+function stackItemButtons(item) {
+  const top = state.stack.length > 0 && state.stack[state.stack.length - 1].id === item.id;
+  const btns = document.createElement("div");
+  btns.className = "sibtns";
+  const mk = (label, fn, title) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (title) b.title = title;
+    b.onclick = (e) => {
+      e.stopPropagation();
+      hidePreview();
+      fn();
+    };
+    btns.appendChild(b);
+  };
+  if (top && item.player === "agent") {
+    mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
+    mk("Counter", () => act("stack_counter", {}));
+    mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
+  } else if (top) {
+    // your own item: the agent resolves it — you can only take it back
+    mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
+  } else if (item.player === "agent") {
+    mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
+      "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
+    mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
+  }
+  return btns.childNodes.length ? btns : null;
+}
+
+/** Stack items whose card would resolve onto p's battlefield — shown as ghosts
+    hovering in the slot they'd land in. */
+function battlefieldGhosts(p) {
+  return (state.stack || []).filter((it) => {
+    if (!it.card || it.card.hidden || it.player !== p) return false;
+    const tl = it.card.typeLine || "";
+    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+    return (it.resolveTo ?? (isSpell ? "graveyard" : "battlefield")) === "battlefield";
+  });
 }
 
 let lastPeek = null; // latest thought: { text, seq }
@@ -335,6 +354,10 @@ function renderBattlefield(p) {
   const free = cards.filter((c) => !c.attachedTo);
   const autos = { creature: [], land: [], other: [] };
   for (const c of free) if (!c.pos) autos[typeCat(c)].push(c);
+  // stack cards headed for this battlefield claim the NEXT auto-layout slot
+  // in their row — that's where the ghost hovers
+  const ghosts = battlefieldGhosts(p);
+  for (const g of ghosts) autos[typeCat(g.card)].push(g.card);
   const regions =
     p === "you"
       ? { creature: 0.12, land: 0.72, other: 0.05 }
@@ -347,7 +370,7 @@ function renderBattlefield(p) {
   const perRow = Math.max(1, Math.floor((W * 0.8) / (CW + GAP)));
 
   const posMap = {}; // id -> {left, top} px
-  for (const c of free) {
+  for (const c of [...free, ...ghosts.map((g) => g.card)]) {
     let left, top;
     if (c.pos) {
       left = c.pos.x * (W - CW);
@@ -393,6 +416,26 @@ function renderBattlefield(p) {
     if (pos.under) el.classList.add("tucked");
     if (c.controller === "you") makeDraggable(el, c, bf);
     bf.appendChild(el);
+  }
+
+  // ghosts: translucent card bobbing in its would-be slot, stack buttons under it
+  for (const g of ghosts) {
+    const wrap = document.createElement("div");
+    wrap.className = "ghostwrap";
+    const pos = posMap[g.card.id];
+    wrap.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
+    wrap.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
+    const el = cardEl(g.card);
+    el.classList.add("ghost");
+    el.onclick = (e) => {
+      e.stopPropagation();
+      hidePreview();
+      switchTab("stack");
+    };
+    wrap.appendChild(el);
+    const btns = stackItemButtons(g);
+    if (btns) wrap.appendChild(btns);
+    bf.appendChild(wrap);
   }
 }
 window.addEventListener("resize", () => render());
