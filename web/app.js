@@ -166,9 +166,10 @@ const SFX = {
     sfxNoise({ freq: 430, dur: 0.84, vol: 0.06, q: 2.5, slide: 1400, verb: 0.13 });
     sfxTone(262, { dur: 0.1, vol: 0.13, slide: 926, verb: 0.32 });
   },
-  // tap: a short knock — a lighter, higher cousin of the placement thud
+  // tap (values tuned by Artem in the sound lab)
   tap() {
-    sfxTone(160, { dur: 0.12, vol: 0.22, slide: 85, verb: 0.25 });
+    sfxNoise({ freq: 130, dur: 0.15, vol: 0.095, q: 1.5, slide: 1170, verb: 0.23 });
+    sfxTone(84, { dur: 0.15, vol: 0.1 });
   },
 };
 

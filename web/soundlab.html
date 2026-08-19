@@ -146,8 +146,11 @@ const SOUNDS = {
     ],
   },
   tap: {
-    desc: "card taps — short knock",
-    layers: [{ kind: "tone", freq: 160, dur: 0.12, vol: 0.22, t: 0, type: "sine", slide: 85, verb: 0.25 }],
+    desc: "card taps",
+    layers: [
+      { kind: "noise", freq: 130, dur: 0.15, vol: 0.095, t: 0, q: 1.5, slide: 1170, verb: 0.23 },
+      { kind: "tone", freq: 84, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
+    ],
   },
 };
 
