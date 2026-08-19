@@ -357,6 +357,15 @@ export function shuffleZone(player: PlayerId, zone: Zone = "library") {
   }
 }
 
+/** The ONE way an item reaches the stack. Its id is derived from the seq of
+ * the log line the caller writes next ("s" + seq) — the frontend pairs chat
+ * lines with live stack items by that id, so nothing else may mint one. */
+function pushStackItem(actor: PlayerId, item: Omit<StackItem, "id" | "player">): StackItem {
+  const entry: StackItem = { id: "s" + (game.seq + 1), player: actor, ...item };
+  game.stack.push(entry);
+  return entry;
+}
+
 /**
  * MTR shortcut semantics: responding at item X holds the proposer to that
  * point — retractable items ABOVE X (planned follow-ups) unwind as if never
@@ -803,9 +812,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       );
     }
     const player: PlayerId = asPlayer(p.player);
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
+    pushStackItem(ctx.actor, {
       cardId: null,
       text: `TURN PASS: ${who(player)}'s turn begins when this resolves`,
       apply: { type: "turn", player },
@@ -822,9 +829,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const tgt = pair.target === "you" || pair.target === "agent" ? who(pair.target) : publicDesc(getCard(pair.target));
       parts.push(`${publicDesc(c)} → ${tgt}`);
     }
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
+    pushStackItem(ctx.actor, {
       cardId: null,
       text: `ATTACKS: ${parts.join("; ")}`,
       apply: { type: "attack", pairs: p.pairs },
@@ -840,9 +845,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const b = getCard(pair.blocker);
       parts.push(`${publicDesc(b)} blocks ${publicDesc(getCard(pair.attacker))}`);
     }
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
+    pushStackItem(ctx.actor, {
       cardId: null,
       text: `BLOCKS: ${parts.join("; ")}`,
       apply: { type: "block", pairs: p.pairs },
@@ -889,9 +892,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     placeCard(card, "stack", ctx.actor);
     card.faceDown = false;
     card.tapped = false;
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
+    pushStackItem(ctx.actor, {
       cardId: card.id,
       text: p.note ? `${card.name} — ${p.note}` : card.name,
       ...(p.resolveTo ? { resolveTo: p.resolveTo as Zone } : {}),
@@ -909,9 +910,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (!text || !String(text).trim()) throw new Error("stack_push requires text");
     if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     const sourceId = p.source ? getCard(p.source).id : undefined;
-    game.stack.push({
-      id: "s" + (game.seq + 1),
-      player: ctx.actor,
+    pushStackItem(ctx.actor, {
       cardId: null,
       text: String(text),
       ...(sourceId ? { sourceId } : {}),
