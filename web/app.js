@@ -114,11 +114,11 @@ const SFX = {
     sfxTone(1320, { t: 0.07, dur: 0.18, vol: 0.06 });
     sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
   },
-  // card lands on the field: a slap — sharp attack, short low body
+  // card lands on the field: the original low thump with a soft attack tick
   thump() {
-    sfxNoise({ dur: 0.025, vol: 0.24, freq: 3000, q: 0.9 }); // snap transient
-    sfxNoise({ dur: 0.06, vol: 0.14, freq: 700, q: 1 });
-    sfxTone(170, { dur: 0.12, vol: 0.18, slide: 75 });
+    sfxNoise({ dur: 0.02, vol: 0.1, freq: 1200, q: 1 }); // gentle contact tick
+    sfxTone(110, { dur: 0.18, vol: 0.22, slide: 55 });
+    sfxNoise({ dur: 0.06, vol: 0.1, freq: 260, q: 0.8 });
   },
   // turn over: airy glimmer arpeggio
   glimmer() {
