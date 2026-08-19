@@ -733,7 +733,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const lib = game.players[player].zones.library;
     const cards = lib.slice(0, n).map((id) => {
       const c = game.cards[id];
-      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image };
+      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image, power: c.power, toughness: c.toughness };
     });
     addLog(ctx.actor, `${who(ctx.actor)} looked at the top ${n} of ${who(player)}'s library`);
     return { ok: true, cards };
@@ -765,7 +765,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const list = game.players[player].zones[zone];
     const cards = list.map((id) => {
       const c = game.cards[id];
-      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image, faceDown: c.faceDown };
+      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image, faceDown: c.faceDown, power: c.power, toughness: c.toughness };
     });
     if (zone === "library" || (zone === "hand" && player !== ctx.actor)) {
       addLog(ctx.actor, `${who(ctx.actor)} looked at ${who(player)}'s ${zone} (${list.length} cards)`);

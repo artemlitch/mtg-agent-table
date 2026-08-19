@@ -709,3 +709,14 @@ describe("MDFC active face and hidden flips", () => {
     expect(renderLogFor(entry, "you").text).toContain("Agadeem, the Undercrypt");
   });
 });
+
+describe("zone browsing card shape", () => {
+  test("view_zone and peek include power/toughness (the client filters need them)", () => {
+    seedCard("Agent of Treachery", "you", "library", { typeLine: "Creature — Human Rogue", power: "2", toughness: "3" });
+    const v: any = applyAction("you", "view_zone", { player: "you", zone: "library" });
+    expect(v.cards[0].power).toBe("2");
+    expect(v.cards[0].toughness).toBe("3");
+    const pk: any = applyAction("you", "peek", { player: "you", n: 1 });
+    expect(pk.cards[0].power).toBe("2");
+  });
+});
