@@ -108,6 +108,24 @@ export function newCardId() {
   return "c" + nextCardId++;
 }
 
+/** A card is a card ANYWHERE: the ONE constructor for a card object. The
+ * caller supplies identity and printed values; every gameplay field starts at
+ * its default here, so a new field is defaulted in exactly one place. */
+export function makeCard(init: Pick<Card, "id" | "name" | "owner" | "controller" | "zone"> & Partial<Card>): Card {
+  return {
+    tapped: false,
+    faceDown: false,
+    counters: {},
+    attachedTo: null,
+    isToken: false,
+    isCommander: false,
+    visibleTo: [],
+    attacking: null,
+    blocking: null,
+    ...init,
+  };
+}
+
 export function emptyPlayer(): PlayerState {
   return {
     life: 40,
@@ -646,7 +664,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const ids: string[] = [];
     for (let i = 0; i < n; i++) {
       const id = newCardId();
-      game.cards[id] = {
+      game.cards[id] = makeCard({
         id,
         name: p.name,
         image: p.image ?? cat?.image,
@@ -658,15 +676,8 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         controller: player,
         zone: "battlefield",
         tapped: !!p.tapped,
-        faceDown: false,
-        counters: {},
-        attachedTo: null,
         isToken: true,
-        isCommander: false,
-        visibleTo: [],
-        attacking: null,
-        blocking: null,
-      };
+      });
       game.players[player].zones.battlefield.push(id);
       ids.push(id);
     }

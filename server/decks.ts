@@ -1,6 +1,6 @@
 // Deck loading: Archidekt (public read, no auth) + Scryfall hydration.
 
-import { game, newCardId, shuffleZone, addLog, type PlayerId, type Card } from "./game";
+import { game, newCardId, makeCard, shuffleZone, addLog, type PlayerId } from "./game";
 
 const SCRYFALL_HEADERS = {
   "User-Agent": "mtg-agent-table/1.0",
@@ -172,7 +172,7 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
     const info = lookup(scry, spec.name);
     for (let i = 0; i < spec.quantity; i++) {
       const id = newCardId();
-      const card: Card = {
+      const card = makeCard({
         id,
         // a DFC's name is its ACTIVE face's name (front at load) — never the
         // composite "A // B"; the composite survives only inside faces[]
@@ -187,16 +187,8 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
         owner: player,
         controller: player,
         zone: spec.isCommander ? "command" : "library",
-        tapped: false,
-        faceDown: false,
-        counters: {},
-        attachedTo: null,
-        isToken: false,
         isCommander: spec.isCommander,
-        visibleTo: [],
-        attacking: null,
-        blocking: null,
-      };
+      });
       game.cards[id] = card;
       ps.zones[card.zone].push(id);
     }
