@@ -198,9 +198,15 @@ function stackItemButtons(item) {
     // your own item: the agent resolves it — you can only take it back
     mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
   } else if (item.player === "agent") {
+    // not the top — but when everything above is also the agent's, accepting
+    // from here is legal: resolve the whole run (proposal order for groups)
+    const idx = state.stack.findIndex((i) => i.id === item.id);
+    if (idx >= 0 && state.stack.slice(idx).every((i) => i.player === "agent")) {
+      mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
+    }
+    mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
     mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
       "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
-    mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
   }
   return btns.childNodes.length ? btns : null;
 }
