@@ -58,6 +58,116 @@ function connectWS() {
 }
 
 // ---------------------------------------------------------------------------
+// Sound effects — synthesized (Web Audio), triggered off new log entries
+// ---------------------------------------------------------------------------
+
+let audioCtx = null;
+document.addEventListener(
+  "pointerdown",
+  () => {
+    // browsers only allow audio after a user gesture
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  },
+  { capture: true }
+);
+
+function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null } = {}) {
+  if (!audioCtx || audioCtx.state !== "running") return;
+  const now = audioCtx.currentTime + t;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, now);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
+  g.gain.setValueAtTime(vol, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(now);
+  o.stop(now + dur + 0.05);
+}
+
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1 } = {}) {
+  if (!audioCtx || audioCtx.state !== "running") return;
+  const now = audioCtx.currentTime + t;
+  const len = Math.ceil(audioCtx.sampleRate * dur);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const f = audioCtx.createBiquadFilter();
+  f.type = "bandpass";
+  f.frequency.value = freq;
+  f.Q.value = q;
+  const g = audioCtx.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(now);
+}
+
+const SFX = {
+  // magical notification: rising chime sparkle
+  stack() {
+    sfxTone(880, { dur: 0.12, vol: 0.07 });
+    sfxTone(1320, { t: 0.07, dur: 0.18, vol: 0.06 });
+    sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
+  },
+  // card lands on the field: low thump
+  thump() {
+    sfxTone(110, { dur: 0.18, vol: 0.22, slide: 55 });
+    sfxNoise({ dur: 0.06, vol: 0.1, freq: 260, q: 0.8 });
+  },
+  // turn over: airy glimmer arpeggio
+  glimmer() {
+    [660, 880, 1174, 1568, 2093].forEach((f, i) => sfxTone(f, { t: i * 0.09, dur: 0.5, vol: 0.045 }));
+  },
+  // creature dies: little hit
+  hit() {
+    sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
+    sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
+  },
+  // tap: soft tick
+  tap() {
+    sfxTone(1500, { dur: 0.035, vol: 0.05, type: "triangle" });
+  },
+};
+
+// first matching rule per log entry decides its sound
+const SOUND_RULES = [
+  ["glimmer", /^— Round \d+:/],
+  ["hit", / from battlefield to .*graveyard/],
+  ["hit", / countered .* → .*graveyard/],
+  ["thump", / resolved → .*battlefield/],
+  ["thump", / played .* — land drop/],
+  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares (attackers|blockers|the turn pass))/],
+  ["tap", / tapped /],
+];
+
+let lastSoundSeq = null;
+
+function processSounds() {
+  if (!state || !state.log || !state.log.length) return;
+  const maxSeq = state.log[state.log.length - 1].seq;
+  if (lastSoundSeq === null) {
+    lastSoundSeq = maxSeq; // no barrage for history on page load
+    return;
+  }
+  const cats = [];
+  for (const e of state.log) {
+    if (e.seq <= lastSoundSeq) continue;
+    for (const [cat, re] of SOUND_RULES) {
+      if (re.test(e.text)) {
+        if (!cats.includes(cat)) cats.push(cat);
+        break;
+      }
+    }
+  }
+  lastSoundSeq = maxSeq;
+  cats.slice(0, 4).forEach((c, i) => setTimeout(() => SFX[c](), i * 140));
+}
+
+// ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
 
@@ -86,6 +196,7 @@ function render() {
   renderChat();
   renderLog();
   renderNoBlocks();
+  processSounds();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
 }
 
