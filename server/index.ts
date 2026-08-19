@@ -1,6 +1,6 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
-import { game, applyAction, viewFor, resetGameState, addLog, type PlayerId } from "./game";
+import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
@@ -112,6 +112,20 @@ const server = Bun.serve({
         }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
+        // mid-window injection: anything Artem did/said while the agent was
+        // working rides back inside the agent's next tool result, so it can
+        // factor the new information in BEFORE continuing its line of play
+        if (actor === "agent" && agent.busy) {
+          const fresh = game.log.filter((e) => e.seq > agent.lastSeenSeq && e.actor === "you");
+          if (fresh.length) {
+            (result as any).NEW_FROM_ARTEM_WHILE_YOU_WERE_ACTING = fresh.map(
+              (e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`
+            );
+            (result as any).note =
+              "Artem acted or spoke while you were working — read the entries above and factor them in before continuing.";
+            agent.lastSeenSeq = game.seq;
+          }
+        }
         // Wake policy. Every wake costs a fresh CLI spawn + a full-context
         // inference (10s+, and it grows the session that slows later wakes),
         // so only response-worthy actions wake the agent:

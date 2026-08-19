@@ -194,8 +194,16 @@ export class AgentRunner {
       this.busy = false;
       this.push("status", "Agent window closed.");
       if (this.pendingWake) {
-        // more happened while it was thinking — follow up once
-        setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
+        // more happened while it was thinking — follow up once, UNLESS it was
+        // all already delivered inline via tool results and nothing of
+        // Artem's awaits resolution (an empty window costs 10s+ for nothing)
+        const undelivered = game.log.some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
+        const artemsItemWaits = game.stack.length > 0 && game.stack[game.stack.length - 1].player === "you";
+        if (undelivered || artemsItemWaits) {
+          setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
+        } else {
+          this.pendingWake = false;
+        }
       }
     }
   }
