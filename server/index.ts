@@ -14,6 +14,7 @@ const STATE_FILE = process.env.STATE_FILE ?? new URL("../state.json", import.met
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
+agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
 

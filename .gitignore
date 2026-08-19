@@ -3,3 +3,4 @@ node_modules/
 state.json
 state-backup-*.json
 games/
+mcp-[0-9]*.json

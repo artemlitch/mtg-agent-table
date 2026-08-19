@@ -1,6 +1,11 @@
-// Agent harness: drives an Opus pilot through the `claude` CLI in -p mode with
-// --resume to keep one conversation per game. Tools come from mcp-tools.ts.
+// Agent harness: drives an Opus pilot through ONE persistent `claude` CLI
+// process per game (-p with stream-json input/output). Wakes are user messages
+// written to its stdin — no per-wake spawn, and the prompt cache stays hot, so
+// time-to-first-output is model latency instead of cold-start. Preemption
+// sends the interrupt control message. If the child dies, the next wake
+// respawns it with --resume (sessionId is persisted). Tools: mcp-tools.ts.
 
+import { writeFileSync } from "node:fs";
 import { game, viewFor, renderLogFor } from "./game";
 
 export interface BrainEntry {
@@ -27,6 +32,10 @@ export class AgentRunner {
   sessionId: string | null = null;
   systemPrompt = "";
   model = "opus";
+  // set by the server at boot — the agent's tools MUST talk to the instance
+  // that spawned it (a hardcoded url once let a sandbox agent act on the
+  // live table)
+  tableUrl = "http://localhost:4780";
   busy = false;
   pendingWake = false;
   pendingReason: "window" | null = null;
@@ -78,6 +87,7 @@ export class AgentRunner {
 
   kill() {
     if (this.proc) {
+      this.expectExit = true;
       try {
         this.proc.kill();
       } catch {}
@@ -137,21 +147,40 @@ export class AgentRunner {
 
   private preempted = false;
   private interruptNote = false;
+  private expectExit = false;
+  private interruptWatchdog: ReturnType<typeof setTimeout> | null = null;
+  private stderrTail = "";
 
   async wake(reason: "window" | "react" = "window") {
     if (this.busy) {
-      // PREEMPT: new information arrived mid-thought — kill the in-flight
-      // window and restart it so the agent reasons over the full picture
-      // instead of finishing a plan built on stale state. Completed actions
-      // and the session transcript survive; only the unfinished thought dies.
+      // PREEMPT: new information arrived mid-thought — interrupt the in-flight
+      // turn (the process survives, warm) and rewake with the full picture.
+      // Completed actions and the transcript stay; only the unfinished
+      // thought dies. Watchdog hard-kills if the interrupt goes unanswered.
       this.pendingWake = true;
       if (reason === "window") this.pendingReason = "window";
       this.preempted = true;
       this.interruptNote = true;
       this.push("status", "⟳ Interrupted — restarting with the new information…");
       try {
-        this.proc?.kill();
-      } catch {}
+        this.write({ type: "control_request", request_id: "int-" + Date.now(), request: { subtype: "interrupt" } });
+        if (!this.interruptWatchdog) {
+          this.interruptWatchdog = setTimeout(() => {
+            this.interruptWatchdog = null;
+            if (this.busy && this.preempted) {
+              this.expectExit = true;
+              try {
+                this.proc?.kill();
+              } catch {}
+            }
+          }, 15000);
+        }
+      } catch {
+        this.expectExit = true;
+        try {
+          this.proc?.kill();
+        } catch {}
+      }
       return;
     }
     this.busy = true;
@@ -160,39 +189,69 @@ export class AgentRunner {
     this.pendingReason = null;
     const prompt = this.composeWakePrompt(reason);
     this.push("status", this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
+    try {
+      this.ensureProc();
+      this.write({ type: "user", message: { role: "user", content: [{ type: "text", text: prompt }] } });
+    } catch (e: any) {
+      this.push("error", `agent transport failed: ${e.message}`);
+      this.busy = false;
+    }
+  }
 
+  /** Spawn the persistent streaming child if it isn't running. */
+  private ensureProc() {
+    if (this.proc) return;
+    // per-instance MCP config so the tools hit THIS server, not a hardcoded port
+    const port = new URL(this.tableUrl).port || "80";
+    const mcpConfigPath = PROJECT_DIR + `mcp-${port}.json`;
+    writeFileSync(
+      mcpConfigPath,
+      JSON.stringify({
+        mcpServers: {
+          table: { command: "bun", args: ["run", "server/mcp-tools.ts"], env: { TABLE_URL: this.tableUrl } },
+        },
+      })
+    );
     const args = [
       "-p",
-      prompt,
-      "--model",
-      this.model,
-      "--output-format",
-      "stream-json",
+      "--input-format", "stream-json",
+      "--output-format", "stream-json",
       "--verbose",
-      "--mcp-config",
-      PROJECT_DIR + "mcp.json",
-      "--allowedTools",
-      "mcp__table",
-      "--append-system-prompt",
-      this.systemPrompt,
+      "--model", this.model,
+      "--mcp-config", mcpConfigPath,
+      "--allowedTools", "mcp__table",
+      "--append-system-prompt", this.systemPrompt,
     ];
     if (this.sessionId) args.push("--resume", this.sessionId);
-
     const env = { ...process.env };
     delete env.CLAUDECODE;
     delete env.CLAUDE_CODE_ENTRYPOINT;
     delete env.ANTHROPIC_API_KEY;
+    this.expectExit = false;
+    this.stderrTail = "";
+    this.proc = Bun.spawn(["claude", ...args], {
+      cwd: PROJECT_DIR,
+      env,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    this.readLoop(this.proc);
+    this.drainStderr(this.proc);
+  }
 
+  private write(obj: any) {
+    if (!this.proc) throw new Error("agent process not running");
+    const sink = this.proc.stdin as any;
+    sink.write(JSON.stringify(obj) + "\n");
+    sink.flush();
+  }
+
+  /** Reads the child's event stream for its whole lifetime; handles death. */
+  private async readLoop(proc: Bun.Subprocess) {
     try {
-      this.proc = Bun.spawn(["claude", ...args], {
-        cwd: PROJECT_DIR,
-        env,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const reader = this.proc.stdout as ReadableStream;
       let buf = "";
-      for await (const chunk of reader) {
+      for await (const chunk of proc.stdout as ReadableStream) {
         buf += new TextDecoder().decode(chunk);
         let nl;
         while ((nl = buf.indexOf("\n")) >= 0) {
@@ -201,31 +260,47 @@ export class AgentRunner {
           if (line) this.handleLine(line);
         }
       }
-      const stderrText = await new Response(this.proc.stderr as ReadableStream).text();
-      const code = await this.proc.exited;
-      // a preempt kill exits nonzero by design — not an error
-      if (code !== 0 && !this.preempted) this.push("error", `agent process exited ${code}: ${stderrText.slice(0, 500)}`);
-    } catch (e: any) {
-      this.push("error", `agent spawn failed: ${e.message}`);
-    } finally {
-      this.proc = null;
-      this.busy = false;
-      this.push("status", "Agent window closed.");
-      if (this.pendingWake) {
-        // more happened while it was thinking — follow up once. A preempted
-        // window ALWAYS rewakes (its thought was killed mid-flight); an
-        // uninterrupted one skips the rewake if everything was already
-        // delivered inline and nothing of Artem's awaits resolution.
-        const undelivered = game.log.some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
-        const artemsItemWaits = game.stack.length > 0 && game.stack[game.stack.length - 1].player === "you";
-        if (this.preempted || undelivered || artemsItemWaits) {
-          setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
-        } else {
-          this.pendingWake = false;
-        }
-      }
-      this.preempted = false;
+    } catch {}
+    const code = await proc.exited;
+    if (this.proc !== proc) return; // superseded by kill()/reset()
+    this.proc = null;
+    if (!this.expectExit && code !== 0) {
+      this.push("error", `agent process died (${code}): ${this.stderrTail.slice(-400)} — respawning on next wake`);
     }
+    this.expectExit = false;
+    if (this.busy) this.endTurn(); // died mid-turn: close out and maybe rewake
+  }
+
+  private async drainStderr(proc: Bun.Subprocess) {
+    try {
+      for await (const chunk of proc.stderr as ReadableStream) {
+        this.stderrTail = (this.stderrTail + new TextDecoder().decode(chunk)).slice(-2000);
+      }
+    } catch {}
+  }
+
+  /** A turn finished (result event, interrupt, or child death mid-turn). */
+  private endTurn() {
+    if (this.interruptWatchdog) {
+      clearTimeout(this.interruptWatchdog);
+      this.interruptWatchdog = null;
+    }
+    this.busy = false;
+    this.push("status", "Agent window closed.");
+    if (this.pendingWake) {
+      // more happened while it was thinking — follow up once. A preempted
+      // turn ALWAYS rewakes; an uninterrupted one skips the rewake if
+      // everything was already delivered inline and nothing of Artem's
+      // awaits resolution.
+      const undelivered = game.log.some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
+      const artemsItemWaits = game.stack.length > 0 && game.stack[game.stack.length - 1].player === "you";
+      if (this.preempted || undelivered || artemsItemWaits) {
+        setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
+      } else {
+        this.pendingWake = false;
+      }
+    }
+    this.preempted = false;
   }
 
   private handleLine(line: string) {
@@ -251,8 +326,11 @@ export class AgentRunner {
       return;
     }
     if (msg.type === "result") {
-      if (msg.is_error) this.push("error", `agent error: ${String(msg.result ?? msg.subtype).slice(0, 800)}`);
+      // an interrupted turn reports error_during_execution — that's the
+      // preempt working, not a failure
+      if (msg.is_error && !this.preempted) this.push("error", `agent error: ${String(msg.result ?? msg.subtype).slice(0, 800)}`);
       if (msg.session_id) this.sessionId = msg.session_id;
+      if (this.busy) this.endTurn();
     }
   }
 }
