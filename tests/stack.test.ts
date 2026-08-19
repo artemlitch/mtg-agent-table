@@ -228,7 +228,9 @@ describe("MDFC face display", () => {
     const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
     applyAction("you", "cast", { card: c.id, face: 0 });
     expect(game.cards[c.id].face).toBe(0);
-    expect(viewFor("you").players.you.zones.stack[0].name).toBe("Valakut Awakening // Valakut Stoneforge");
+    // the stack shows the face being cast, never the composite name
+    expect(viewFor("you").players.you.zones.stack[0].name).toBe("Valakut Awakening");
+    expect(game.stack[0].text).toBe("Valakut Awakening");
   });
 
   test("an MDFC resolving to the battlefield auto-shows its permanent face", () => {

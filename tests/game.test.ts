@@ -521,7 +521,8 @@ describe("two-faced cards", () => {
         { name: "Valakut Stoneforge", image: "back.jpg", typeLine: "Land", oracle: "taps for R" },
       ],
     } as any);
-    expect(viewFor("you").players.you.zones.battlefield[0].name).toBe("Valakut Awakening // Valakut Stoneforge");
+    // a DFC always presents as its active face — never the composite name
+    expect(viewFor("you").players.you.zones.battlefield[0].name).toBe("Valakut Awakening");
     applyAction("you", "set_face", { card: c.id, face: 1 });
     const v = viewFor("you").players.you.zones.battlefield[0];
     expect(v.name).toBe("Valakut Stoneforge");

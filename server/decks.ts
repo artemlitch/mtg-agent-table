@@ -174,7 +174,9 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
       const id = newCardId();
       const card: Card = {
         id,
-        name: info.name ?? spec.name,
+        // a DFC's name is its ACTIVE face's name (front at load) — never the
+        // composite "A // B"; the composite survives only inside faces[]
+        name: info.faces?.[0]?.name ?? info.name ?? spec.name,
         image: info.image,
         oracle: info.oracle,
         mana: info.mana,

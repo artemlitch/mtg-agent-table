@@ -29,6 +29,10 @@ export function restoreState(snap: any): PersistedExtra {
   // migrations for snapshots from before the stack existed
   (game as any).stack ??= [];
   (game as any).tokenCatalog ??= {};
+  // DFC names follow the active face now — rewrite composite names in place
+  for (const c of Object.values(game.cards) as any[]) {
+    if (c.faces) c.name = c.faces[c.face ?? 0]?.name ?? c.name;
+  }
   for (const p of Object.values(game.players)) (p.zones as any).stack ??= [];
   setNextCardId(snap.nextCardId ?? 1);
   return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [] };

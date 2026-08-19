@@ -194,9 +194,9 @@ function redactCard(card: Card, viewer: PlayerId) {
     pos: card.pos ?? null,
   };
   if (!visible) return { ...base, hidden: true as const };
-  // show the active face for double-faced cards; face 0 keeps the composite name
+  // a DFC always presents as its ACTIVE face — the composite name never shows
   const idx = card.face ?? 0;
-  const f = idx > 0 ? card.faces?.[idx] : undefined;
+  const f = card.faces?.[idx];
   return {
     ...base,
     hidden: false as const,
@@ -287,6 +287,16 @@ function removeFromZone(card: Card) {
 
 function cardName(card: Card, forViewerText = false): string {
   return card.name;
+}
+
+/** A DFC IS its active face: switching faces rewrites card.name (and every
+ * card.name consumer — logs, stack text, views — is right by construction). */
+export function applyFace(card: Card, face: number) {
+  if (!card.faces || face < 0 || face >= card.faces.length) {
+    throw new Error(`${card.name} has no face ${face}`);
+  }
+  card.face = face;
+  card.name = card.faces[face].name ?? card.name;
 }
 
 /** Public description of a card for the log: name if publicly visible, else "a face-down card". */
@@ -428,11 +438,10 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     const isPermanent = (t?: string) => !!t && !/\b(instant|sorcery)\b/i.test(t);
     if (!isPermanent(card.faces[0]?.typeLine)) {
       const idx = card.faces.findIndex((f) => isPermanent(f.typeLine));
-      if (idx > 0) card.face = idx;
+      if (idx > 0) applyFace(card, idx);
     }
   }
-  const shownName = card.faces?.[card.face ?? 0]?.name ?? card.name;
-  addLog(ctx.actor, `${shownName} resolved → ${who(toPlayer)}'s ${toZone}`);
+  addLog(ctx.actor, `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`);
   return { ok: true, card: card.id, toZone };
 }
 
@@ -854,13 +863,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   cast(ctx, p) {
     if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     const card = resolveCardRef(p.card ?? p.cardId);
-    if (p.face !== undefined) {
-      const face = Number(p.face);
-      if (!card.faces || face < 0 || face >= card.faces.length) {
-        throw new Error(`${card.name} has no face ${face}`);
-      }
-      card.face = face;
-    }
+    if (p.face !== undefined) applyFace(card, Number(p.face));
     // the effective type is the ACTIVE face's for DFCs: the explicit face
     // param, else whatever face the card is already flipped to (a card turned
     // to its land side in hand must play as a land) — else the whole card's
@@ -877,8 +880,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.faceDown = false;
       card.visibleTo = [];
       game.players[ctx.actor].zones.battlefield.push(card.id);
-      const shown = card.faces?.[card.face ?? 0]?.name ?? card.name;
-      addLog(ctx.actor, `${who(ctx.actor)} played ${shown}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
+      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
       return { ok: true, card: card.id, landPlay: true };
     }
     removeFromZone(card);
@@ -1085,19 +1087,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   set_face(ctx, p) {
     const c = getCard(p.card ?? p.cardId);
     const face = Number(p.face ?? 0);
-    if (!c.faces || face < 0 || face >= c.faces.length) {
-      throw new Error(`${c.name} has no face ${face}`);
-    }
-    c.face = face;
+    applyFace(c, face);
     // flipping a HIDDEN card (in hand) must not leak its name to the opponent
-    const detail = `${who(ctx.actor)} turned ${c.name} to its ${face === 0 ? "front" : "back"} face (${c.faces[face].name})`;
+    const detail = `${who(ctx.actor)} turned to ${c.name} (${face === 0 ? "front" : "back"} face)`;
     const opponent: PlayerId = ctx.actor === "you" ? "agent" : "you";
     if (cardVisibleTo(c, opponent)) {
       addLog(ctx.actor, detail);
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, { [ctx.actor]: detail });
     }
-    return { ok: true, face, name: c.faces[face].name };
+    return { ok: true, face, name: c.name };
   },
 
   /** Cosmetic drag placement — no log entry, callers must not snapshot/wake for this. */
