@@ -1084,6 +1084,7 @@ function searchModal(p, cards) {
         modalCardEl(c, [
           ["to hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p === "you" ? "you" : "you" }).then(closeModal)],
           ["to my bf", () => act("move", { card: c.id, toZone: "battlefield", toPlayer: "you" }).then(closeModal)],
+          ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: p, note: "from library search" }).then(closeModal)],
           ["exile ⬇ (theft)", () => act("move", { card: c.id, toZone: "exile", toPlayer: p, faceDown: true, revealTo: "you", note: "search theft" }).then(closeModal)],
           ["top", () => act("move", { card: c.id, toZone: "library", toPlayer: p, position: "top" }).then(closeModal)],
         ])
