@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sound Lab — MTG Agent Table</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { overflow: auto; padding: 20px; }
+  h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
+  .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
+  .sounds { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .sound {
+    border: 1px solid transparent; border-radius: 12px; padding: 12px 14px; width: 360px;
+    background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome-dim) border-box;
+  }
+  .sound h2 { font: 700 14px/1.5 var(--font-fantasy); color: var(--accent); letter-spacing: 0.06em; }
+  .sound .desc { color: var(--dim); font-size: 11px; margin-bottom: 8px; }
+  .layer { border-top: 1px solid var(--line); padding: 8px 0; }
+  .layer .lhead { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--dim); }
+  .param { display: grid; grid-template-columns: 52px 1fr 58px; gap: 8px; align-items: center; margin: 3px 0; font-size: 11px; }
+  .param input[type="range"] { width: 100%; padding: 0; background: none; border: none; }
+  .param input[type="number"] { width: 100%; padding: 2px 4px; font-size: 11px; }
+  .param select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; font-size: 11px; }
+  .rowbtns { display: flex; gap: 6px; margin-top: 8px; }
+  .playbtn {
+    background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+    color: #2a1c04; border: 1px solid transparent;
+  }
+  #exportbox { width: 100%; height: 180px; margin-top: 8px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; font: 11px/1.5 ui-monospace, monospace; padding: 8px; }
+  .exportwrap { margin-top: 22px; max-width: 760px; }
+</style>
+</head>
+<body>
+<h1>Sound Lab</h1>
+<div class="hint">Tweak, hit Play, repeat. When a sound is right, hit “Export all values” and send me the block. (Click anywhere once to arm audio.)</div>
+<div class="sounds" id="sounds"></div>
+<div class="exportwrap">
+  <button id="exportbtn" class="playbtn">Export all values</button>
+  <textarea id="exportbox" readonly placeholder="Values appear here — copy and paste them to Claude."></textarea>
+</div>
+
+<script>
+// ---- the exact engine from app.js ----
+let audioCtx = null;
+document.addEventListener("pointerdown", () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}, { capture: true });
+
+function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null } = {}) {
+  if (!audioCtx || audioCtx.state !== "running") return;
+  const now = audioCtx.currentTime + t;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, now);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
+  g.gain.setValueAtTime(vol, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(now);
+  o.stop(now + dur + 0.05);
+}
+
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null } = {}) {
+  if (!audioCtx || audioCtx.state !== "running") return;
+  const now = audioCtx.currentTime + t;
+  const len = Math.ceil(audioCtx.sampleRate * dur);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const f = audioCtx.createBiquadFilter();
+  f.type = "bandpass";
+  f.frequency.setValueAtTime(freq, now);
+  if (slide) f.frequency.exponentialRampToValueAtTime(slide, now + dur);
+  f.Q.value = q;
+  const g = audioCtx.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(now);
+}
+
+// ---- editable sound definitions (seeded with production values) ----
+const SOUNDS = {
+  stack: {
+    desc: "item goes on the stack — magical notification",
+    layers: [
+      { kind: "tone", freq: 880, dur: 0.12, vol: 0.07, t: 0, type: "sine", slide: 0 },
+      { kind: "tone", freq: 1320, dur: 0.18, vol: 0.06, t: 0.07, type: "sine", slide: 0 },
+      { kind: "tone", freq: 1760, dur: 0.28, vol: 0.045, t: 0.13, type: "sine", slide: 0 },
+    ],
+  },
+  thump: {
+    desc: "card resolves onto the field",
+    layers: [
+      { kind: "noise", freq: 1200, dur: 0.02, vol: 0.1, t: 0, q: 1, slide: 0 },
+      { kind: "tone", freq: 110, dur: 0.18, vol: 0.22, t: 0, type: "sine", slide: 55 },
+      { kind: "noise", freq: 260, dur: 0.06, vol: 0.1, t: 0, q: 0.8, slide: 0 },
+    ],
+  },
+  glimmer: {
+    desc: "turn is over — magical glimmer",
+    layers: [660, 880, 1174, 1568, 2093].map((f, i) => ({ kind: "tone", freq: f, dur: 0.5, vol: 0.045, t: +(i * 0.09).toFixed(2), type: "sine", slide: 0 })),
+  },
+  hit: {
+    desc: "creature dies",
+    layers: [
+      { kind: "noise", freq: 900, dur: 0.09, vol: 0.18, t: 0, q: 0.7, slide: 0 },
+      { kind: "tone", freq: 180, dur: 0.1, vol: 0.13, t: 0, type: "sine", slide: 90 },
+    ],
+  },
+  tap: {
+    desc: "card taps — woosh",
+    layers: [{ kind: "noise", freq: 1800, dur: 0.25, vol: 0.55, t: 0, q: 0.5, slide: 300 }],
+  },
+};
+
+const PARAMS = {
+  tone: [
+    ["freq", 40, 4000, 1], ["slide", 0, 4000, 1], ["dur", 0.01, 1.2, 0.01],
+    ["vol", 0, 0.8, 0.005], ["t", 0, 1, 0.01],
+  ],
+  noise: [
+    ["freq", 60, 6000, 10], ["slide", 0, 6000, 10], ["q", 0.1, 8, 0.1],
+    ["dur", 0.01, 1.2, 0.01], ["vol", 0, 0.8, 0.005], ["t", 0, 1, 0.01],
+  ],
+};
+
+function play(name) {
+  for (const l of SOUNDS[name].layers) {
+    const opts = { ...l, slide: l.slide > 0 ? l.slide : null };
+    if (l.kind === "tone") sfxTone(l.freq, opts);
+    else sfxNoise(opts);
+  }
+}
+
+function build() {
+  const root = document.getElementById("sounds");
+  root.innerHTML = "";
+  for (const [name, def] of Object.entries(SOUNDS)) {
+    const card = document.createElement("div");
+    card.className = "sound";
+    card.innerHTML = `<h2>${name}</h2><div class="desc">${def.desc}</div>`;
+    def.layers.forEach((layer, li) => {
+      const ld = document.createElement("div");
+      ld.className = "layer";
+      const head = document.createElement("div");
+      head.className = "lhead";
+      head.innerHTML = `<span>layer ${li + 1} — ${layer.kind}</span>`;
+      const rm = document.createElement("button");
+      rm.textContent = "✕";
+      rm.onclick = () => { def.layers.splice(li, 1); build(); };
+      head.appendChild(rm);
+      ld.appendChild(head);
+      if (layer.kind === "tone") {
+        const row = document.createElement("div");
+        row.className = "param";
+        row.innerHTML = `<span>wave</span><span></span>`;
+        const sel = document.createElement("select");
+        for (const w of ["sine", "triangle", "square", "sawtooth"]) {
+          const o = document.createElement("option");
+          o.value = w; o.textContent = w;
+          if (layer.type === w) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.onchange = () => (layer.type = sel.value);
+        row.appendChild(sel);
+        ld.appendChild(row);
+      }
+      for (const [p, min, max, step] of PARAMS[layer.kind]) {
+        const row = document.createElement("div");
+        row.className = "param";
+        const slider = document.createElement("input");
+        slider.type = "range"; slider.min = min; slider.max = max; slider.step = step; slider.value = layer[p] ?? 0;
+        const num = document.createElement("input");
+        num.type = "number"; num.min = min; num.max = max; num.step = step; num.value = layer[p] ?? 0;
+        const sync = (v) => { layer[p] = Number(v); slider.value = v; num.value = v; };
+        slider.oninput = () => { sync(slider.value); };
+        slider.onchange = () => play(name);
+        num.onchange = () => { sync(num.value); play(name); };
+        row.innerHTML = `<span>${p}</span>`;
+        row.appendChild(slider);
+        row.appendChild(num);
+        ld.appendChild(row);
+      }
+      card.appendChild(ld);
+    });
+    const btns = document.createElement("div");
+    btns.className = "rowbtns";
+    const playB = document.createElement("button");
+    playB.className = "playbtn";
+    playB.textContent = "▶ Play";
+    playB.onclick = () => play(name);
+    const addT = document.createElement("button");
+    addT.textContent = "+ tone";
+    addT.onclick = () => { def.layers.push({ kind: "tone", freq: 800, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 }); build(); };
+    const addN = document.createElement("button");
+    addN.textContent = "+ noise";
+    addN.onclick = () => { def.layers.push({ kind: "noise", freq: 1000, dur: 0.1, vol: 0.15, t: 0, q: 1, slide: 0 }); build(); };
+    btns.append(playB, addT, addN);
+    card.appendChild(btns);
+    root.appendChild(card);
+  }
+}
+build();
+
+document.getElementById("exportbtn").onclick = () => {
+  document.getElementById("exportbox").value = JSON.stringify(SOUNDS, (k, v) => (k === "desc" ? undefined : v), 1);
+  document.getElementById("exportbox").select();
+  document.execCommand("copy");
+};
+</script>
+</body>
+</html>
