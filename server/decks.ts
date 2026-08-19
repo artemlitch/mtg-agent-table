@@ -56,6 +56,21 @@ interface ScryCard extends ScryFace {
   faces?: ScryFace[];
 }
 
+/** The ONE mapping from a raw Scryfall object to our card fields. `fb` is a
+ * second raw object supplying whatever the first leaves out — a face borrowing
+ * the printing's art, a card borrowing its front face's mana cost. */
+function scryFace(src: any, fb: any = {}): ScryFace {
+  return {
+    name: src.name ?? fb.name,
+    image: src.image_uris?.normal ?? fb.image_uris?.normal,
+    oracle: src.oracle_text ?? fb.oracle_text,
+    mana: src.mana_cost ?? fb.mana_cost,
+    typeLine: src.type_line ?? fb.type_line,
+    power: src.power ?? fb.power,
+    toughness: src.toughness ?? fb.toughness,
+  };
+}
+
 /**
  * From a RAW Scryfall card object, pick the face that IS the requested token.
  * Double-faced token printings (art card // token, or token // token) would
@@ -68,16 +83,7 @@ export function pickTokenFace(c: any, name: string): ScryFace {
     faces.find((f) => f.name?.toLowerCase() === want) ??
     faces.find((f) => /\btoken\b/i.test(f.type_line ?? "")) ??
     null;
-  const src = match ?? c;
-  return {
-    name: src.name ?? c.name,
-    image: src.image_uris?.normal ?? c.image_uris?.normal,
-    oracle: src.oracle_text ?? c.oracle_text,
-    mana: src.mana_cost ?? c.mana_cost,
-    typeLine: src.type_line ?? c.type_line,
-    power: src.power ?? c.power,
-    toughness: src.toughness ?? c.toughness,
-  };
+  return scryFace(match ?? c, c);
 }
 
 /** Fetch full token cards for all_parts references and key them by lowercase token name. */
@@ -124,24 +130,17 @@ export async function hydrateScryfall(
       // two-faced cards: keep every face with its own art and text
       const faces: ScryFace[] | undefined = c.card_faces?.length
         ? c.card_faces.map((f: any) => ({
-            name: f.name,
+            ...scryFace(f),
             // transforming DFCs have per-face art; split/adventure cards share one image
             image: f.image_uris?.normal ?? c.image_uris?.normal,
-            oracle: f.oracle_text,
-            mana: f.mana_cost,
-            typeLine: f.type_line,
-            power: f.power,
-            toughness: f.toughness,
           }))
         : undefined;
       out.set((c.name as string).toLowerCase(), {
-        name: c.name,
-        image: c.image_uris?.normal ?? face?.image_uris?.normal,
-        oracle: c.oracle_text ?? c.card_faces?.map((f: any) => `${f.name}: ${f.oracle_text}`).join("\n// "),
-        mana: c.mana_cost ?? face?.mana_cost,
+        ...scryFace(c, face),
+        // the whole card keeps the composite "A // B" type line and, when the
+        // printing has no single oracle text, both faces' text joined
         typeLine: c.type_line,
-        power: c.power ?? face?.power,
-        toughness: c.toughness ?? face?.toughness,
+        oracle: c.oracle_text ?? c.card_faces?.map((f: any) => `${f.name}: ${f.oracle_text}`).join("\n// "),
         ...(faces ? { faces } : {}),
       });
     }
@@ -225,14 +224,6 @@ export async function scryfallNamed(name: string): Promise<ScryCard | null> {
   );
   if (!res.ok) return null;
   const c: any = await res.json();
-  const face = c.card_faces?.[0];
-  return {
-    name: c.name,
-    image: c.image_uris?.normal ?? face?.image_uris?.normal,
-    oracle: c.oracle_text ?? face?.oracle_text,
-    mana: c.mana_cost ?? face?.mana_cost,
-    typeLine: c.type_line,
-    power: c.power ?? face?.power,
-    toughness: c.toughness ?? face?.toughness,
-  };
+  // a DFC keeps its composite type line; everything else may fall back to the front face
+  return { ...scryFace(c, c.card_faces?.[0]), typeLine: c.type_line };
 }
