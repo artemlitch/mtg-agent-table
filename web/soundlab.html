@@ -12,9 +12,11 @@
   body { overflow: auto; padding: 20px; }
   h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
   .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
-  .sounds { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  /* pinterest-style masonry: variable-height cards packed into columns */
+  .sounds { columns: 360px; column-gap: 14px; }
   .sound {
-    border: 1px solid transparent; border-radius: 12px; padding: 12px 14px; width: 360px;
+    border: 1px solid transparent; border-radius: 12px; padding: 12px 14px; width: 100%;
+    break-inside: avoid; margin-bottom: 14px; display: inline-block;
     background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome-dim) border-box;
   }
   .sound h2 { font: 700 14px/1.5 var(--font-fantasy); color: var(--accent); letter-spacing: 0.06em; }
