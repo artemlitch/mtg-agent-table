@@ -679,6 +679,11 @@ function cardEl(c, opts = {}) {
   }
   d.onclick = (e) => {
     e.stopPropagation();
+    // a drag's release fires a click — swallow it, no menu
+    if (d.dataset.dragged) {
+      delete d.dataset.dragged;
+      return;
+    }
     hidePreview();
     if (pendingAttach && pendingAttach !== c.id) {
       act("attach", { card: pendingAttach, target: c.id });
