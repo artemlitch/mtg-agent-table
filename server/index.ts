@@ -112,14 +112,24 @@ const server = Bun.serve({
         }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
-        // every user action passes priority to the agent. Full window on
-        // done/chat, and on ANY action during the agent's turn (there is no
-        // Done button — acting hands the table back so it continues its turn).
-        // On the user's own turn everything else is a reaction window, so the
-        // agent never grabs the initiative there. Drags are cosmetic.
+        // Wake policy. Every wake costs a fresh CLI spawn + a full-context
+        // inference (10s+, and it grows the session that slows later wakes),
+        // so only response-worthy actions wake the agent:
+        // - full window on done/chat, and on ANY action during the agent's
+        //   turn (acting hands the table back so it continues its turn)
+        // - reaction window on stack traffic and combat during YOUR turn
+        // - everything else (draws, taps, life, moves, phases) just lands in
+        //   the log and is seen at the agent's next wake
         if (actor === "you" && game.started && !cosmetic) {
-          const reason = body.type === "done" || body.type === "chat" || game.turn === "agent" ? "window" : "react";
-          queueMicrotask(() => wakeAgent(reason));
+          const REACTIVE = new Set([
+            "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
+            "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",
+          ]);
+          if (body.type === "done" || body.type === "chat" || game.turn === "agent") {
+            queueMicrotask(() => wakeAgent("window"));
+          } else if (REACTIVE.has(body.type)) {
+            queueMicrotask(() => wakeAgent("react"));
+          }
         }
         return json(result);
       } catch (e: any) {
