@@ -1300,6 +1300,13 @@ function filterBar(onChange) {
   const el = document.createElement("div");
   el.className = "filterbar";
 
+  // search bar on its own line above the filters
+  const q = document.createElement("input");
+  q.className = "namein";
+  q.placeholder = "search by name…";
+  q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
+  el.appendChild(q);
+
   const row = document.createElement("div");
   row.className = "frow";
   const type = document.createElement("select");
@@ -1310,11 +1317,7 @@ function filterBar(onChange) {
     type.appendChild(o);
   }
   type.onchange = () => { f.type = type.value; onChange(); };
-  const q = document.createElement("input");
-  q.className = "namein";
-  q.placeholder = "name…";
-  q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
-  row.append(type, q);
+  row.append(type);
   const numFilter = (label, opKey, valKey) => {
     const span = document.createElement("span");
     span.className = "numf";

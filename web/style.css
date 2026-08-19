@@ -216,7 +216,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 /* filter bar shared by zone modals and library search — one line */
-.filterbar { margin-bottom: 10px; }
+.filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.filterbar .namein { width: 100%; }
 .filterbar .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .filterbar .namein { flex: 1; min-width: 120px; }
 .filterbar select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px; font-size: 11px; }
