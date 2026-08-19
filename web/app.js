@@ -959,7 +959,14 @@ function cardMenu(c, e) {
   const owner = c.owner;
 
   if (c.zone === "hand" && c.controller === "you") {
-    items.push({ label: "🌀 Play → stack", fn: () => act("cast", { card: c.id }) });
+    if ((c.faceCount ?? 1) > 1 && c.faces) {
+      // one Play per face — the chosen face decides land-drop vs stack
+      c.faces.forEach((f, i) =>
+        items.push({ label: `🌀 Play ${f.name}`, fn: () => act("cast", { card: c.id, face: i }) })
+      );
+    } else {
+      items.push({ label: "🌀 Play → stack", fn: () => act("cast", { card: c.id }) });
+    }
     items.push(moveItem("Discard", c, { toZone: "graveyard", toPlayer: owner, note: "discard" }));
     items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
     items.push({ label: "Reveal to agent", fn: () => act("reveal", { cards: [c.id], to: "agent" }) });

@@ -675,3 +675,36 @@ describe("create_token validation", () => {
   });
 });
 
+
+describe("MDFC active face and hidden flips", () => {
+  const mdfc = () =>
+    seedCard("Agadeem's Awakening // Agadeem, the Undercrypt", "you", "hand", {
+      typeLine: "Sorcery // Land",
+      faces: [
+        { name: "Agadeem's Awakening", typeLine: "Sorcery" },
+        { name: "Agadeem, the Undercrypt", typeLine: "Land" },
+      ],
+    } as any);
+
+  test("a card pre-flipped to its land face plays as a land drop, no face param needed", () => {
+    const c = mdfc();
+    applyAction("you", "set_face", { card: c.id, face: 1 });
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("battlefield");
+    expect(game.stack.length).toBe(0);
+  });
+
+  test("explicit face 0 still casts the spell side onto the stack", () => {
+    const c = mdfc();
+    applyAction("you", "cast", { card: c.id, face: 0 });
+    expect(c.zone).toBe("stack");
+  });
+
+  test("flipping a hidden hand card does not leak its name to the opponent", () => {
+    const c = mdfc();
+    applyAction("you", "set_face", { card: c.id, face: 1 });
+    const entry = game.log.at(-1)!;
+    expect(renderLogFor(entry, "agent").text).not.toContain("Agadeem");
+    expect(renderLogFor(entry, "you").text).toContain("Agadeem, the Undercrypt");
+  });
+});

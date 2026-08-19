@@ -861,8 +861,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       }
       card.face = face;
     }
-    // the effective type is the chosen face's for DFCs, else the whole card's
-    const effType = (p.face !== undefined ? card.faces?.[Number(p.face)]?.typeLine : card.typeLine) ?? "";
+    // the effective type is the ACTIVE face's for DFCs: the explicit face
+    // param, else whatever face the card is already flipped to (a card turned
+    // to its land side in hand must play as a land) — else the whole card's
+    const activeFace = p.face !== undefined ? Number(p.face) : card.face;
+    const effType =
+      (activeFace !== undefined && card.faces ? card.faces[activeFace]?.typeLine : undefined) ?? card.typeLine ?? "";
     // an explicit resolveTo means this is an EFFECT moving the card (reanimate,
     // return to hand), not a land drop — those always use the stack
     const isLandPlay = !p.resolveTo && /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
@@ -1085,7 +1089,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       throw new Error(`${c.name} has no face ${face}`);
     }
     c.face = face;
-    addLog(ctx.actor, `${who(ctx.actor)} turned ${c.name} to its ${face === 0 ? "front" : "back"} face (${c.faces[face].name})`);
+    // flipping a HIDDEN card (in hand) must not leak its name to the opponent
+    const detail = `${who(ctx.actor)} turned ${c.name} to its ${face === 0 ? "front" : "back"} face (${c.faces[face].name})`;
+    const opponent: PlayerId = ctx.actor === "you" ? "agent" : "you";
+    if (cardVisibleTo(c, opponent)) {
+      addLog(ctx.actor, detail);
+    } else {
+      addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, { [ctx.actor]: detail });
+    }
     return { ok: true, face, name: c.faces[face].name };
   },
 
