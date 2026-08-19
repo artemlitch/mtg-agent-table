@@ -39,10 +39,6 @@
 <h1>Sound Lab</h1>
 <div class="hint">Tweak, hit Play, repeat. When a sound is right, hit “Export all values” and send me the block. (Click anywhere once to arm audio.)</div>
 <div class="sounds" id="sounds"></div>
-<div class="exportwrap">
-  <button id="exportbtn" class="playbtn">Export all values</button>
-  <textarea id="exportbox" readonly placeholder="Values appear here — copy and paste them to Claude."></textarea>
-</div>
 
 <script>
 // ---- the exact engine from app.js ----
@@ -229,18 +225,30 @@ function build() {
     const addN = document.createElement("button");
     addN.textContent = "+ noise";
     addN.onclick = () => { def.layers.push({ kind: "noise", freq: 1000, dur: 0.1, vol: 0.15, t: 0, q: 1, slide: 0 }); build(); };
-    btns.append(playB, addT, addN);
+    const copy = document.createElement("button");
+    copy.textContent = "⧉ Copy";
+    copy.title = "Copy this sound's layers to the clipboard";
+    copy.onclick = async () => {
+      const json = `${name}: ${JSON.stringify(def.layers, null, 1)}`;
+      try {
+        await navigator.clipboard.writeText(json);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = json;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      copy.textContent = "✓ Copied";
+      setTimeout(() => (copy.textContent = "⧉ Copy"), 1200);
+    };
+    btns.append(playB, addT, addN, copy);
     card.appendChild(btns);
     root.appendChild(card);
   }
 }
 build();
-
-document.getElementById("exportbtn").onclick = () => {
-  document.getElementById("exportbox").value = JSON.stringify(SOUNDS, (k, v) => (k === "desc" ? undefined : v), 1);
-  document.getElementById("exportbox").select();
-  document.execCommand("copy");
-};
 </script>
 </body>
 </html>
