@@ -58,120 +58,9 @@ function connectWS() {
 }
 
 // ---------------------------------------------------------------------------
-// Sound effects — synthesized (Web Audio), triggered off new log entries
+// Sound effects — engine and sound definitions live in sfx.js (shared with the
+// sound lab); here we only decide WHICH sound a new log entry earns.
 // ---------------------------------------------------------------------------
-
-let audioCtx = null;
-document.addEventListener(
-  "pointerdown",
-  () => {
-    // browsers only allow audio after a user gesture
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-  },
-  { capture: true }
-);
-
-// shared convolution reverb (synthesized decaying-noise impulse response);
-// layers opt in with verb: 0..1 (wet send amount)
-let sfxVerb = null;
-function getVerb() {
-  if (!sfxVerb) {
-    sfxVerb = audioCtx.createConvolver();
-    const dur = 1.4;
-    const len = Math.ceil(audioCtx.sampleRate * dur);
-    const buf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
-    }
-    sfxVerb.buffer = buf;
-    sfxVerb.connect(audioCtx.destination);
-  }
-  return sfxVerb;
-}
-
-function sfxOut(g, verb) {
-  g.connect(audioCtx.destination);
-  if (verb > 0) {
-    const w = audioCtx.createGain();
-    w.gain.value = verb;
-    g.connect(w).connect(getVerb());
-  }
-}
-
-function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004 } = {}) {
-  if (!audioCtx || audioCtx.state !== "running") return;
-  const now = audioCtx.currentTime + t;
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.type = type;
-  o.frequency.setValueAtTime(freq, now);
-  if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
-  // short attack ramp: an instant-on envelope clicks, and on low tones the
-  // click is all small speakers reproduce — it reads as a high tick
-  g.gain.setValueAtTime(0.0001, now);
-  g.gain.linearRampToValueAtTime(vol, now + atk);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(dur, atk + 0.01));
-  o.connect(g);
-  sfxOut(g, verb);
-  o.start(now);
-  o.stop(now + dur + 0.05);
-}
-
-function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0, atk = 0 } = {}) {
-  if (!audioCtx || audioCtx.state !== "running") return;
-  const now = audioCtx.currentTime + t;
-  const len = Math.ceil(audioCtx.sampleRate * dur);
-  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  const f = audioCtx.createBiquadFilter();
-  f.type = "bandpass";
-  f.frequency.setValueAtTime(freq, now);
-  if (slide) f.frequency.exponentialRampToValueAtTime(slide, now + dur);
-  f.Q.value = q;
-  const g = audioCtx.createGain();
-  if (atk > 0) {
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(vol, now + atk);
-  } else {
-    g.gain.value = vol;
-  }
-  src.connect(f).connect(g);
-  sfxOut(g, verb);
-  src.start(now);
-}
-
-const SFX = {
-  // magical notification: rising chime sparkle
-  stack() {
-    sfxTone(880, { dur: 0.12, vol: 0.07 });
-    sfxTone(1320, { t: 0.07, dur: 0.18, vol: 0.06 });
-    sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
-  },
-  // card lands on the field: a clean THUD — one low tone into the reverb
-  // (values tuned by Artem in the sound lab)
-  thump() {
-    sfxTone(95, { dur: 0.22, vol: 0.32, slide: 48, verb: 0.24 });
-  },
-  // turn over: airy glimmer arpeggio
-  glimmer() {
-    [660, 880, 1174, 1568, 2093].forEach((f, i) => sfxTone(f, { t: i * 0.09, dur: 0.5, vol: 0.045 }));
-  },
-  // creature dies (values tuned by Artem in the sound lab)
-  hit() {
-    sfxNoise({ freq: 430, dur: 0.84, vol: 0.06, q: 2.5, slide: 1400, verb: 0.13 });
-    sfxTone(262, { dur: 0.1, vol: 0.13, slide: 926, verb: 0.32 });
-  },
-  // tap (values tuned by Artem in the sound lab)
-  tap() {
-    sfxNoise({ freq: 130, dur: 0.15, vol: 0.095, q: 1.5, slide: 1170, verb: 0.23 });
-    sfxTone(84, { dur: 0.15, vol: 0.1 });
-  },
-};
 
 // first matching rule per log entry decides its sound
 const SOUND_RULES = [
@@ -204,7 +93,7 @@ function processSounds() {
     }
   }
   lastSoundSeq = maxSeq;
-  cats.slice(0, 4).forEach((c, i) => setTimeout(() => SFX[c](), i * 140));
+  cats.slice(0, 4).forEach((c, i) => setTimeout(() => SFX.play(c), i * 140));
 }
 
 // ---------------------------------------------------------------------------
