@@ -119,7 +119,7 @@ function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = nu
   o.stop(now + dur + 0.05);
 }
 
-function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0 } = {}) {
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0, atk = 0 } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const len = Math.ceil(audioCtx.sampleRate * dur);
@@ -134,7 +134,12 @@ function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = n
   if (slide) f.frequency.exponentialRampToValueAtTime(slide, now + dur);
   f.Q.value = q;
   const g = audioCtx.createGain();
-  g.gain.value = vol;
+  if (atk > 0) {
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(vol, now + atk);
+  } else {
+    g.gain.value = vol;
+  }
   src.connect(f).connect(g);
   sfxOut(g, verb);
   src.start(now);
@@ -148,8 +153,9 @@ const SFX = {
     sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
   },
   // card lands on the field: a clean THUD — one low tone into the reverb
+  // (values tuned by Artem in the sound lab)
   thump() {
-    sfxTone(95, { dur: 0.22, vol: 0.32, slide: 48, verb: 0.5 });
+    sfxTone(95, { dur: 0.22, vol: 0.32, slide: 48, verb: 0.24 });
   },
   // turn over: airy glimmer arpeggio
   glimmer() {
@@ -160,10 +166,9 @@ const SFX = {
     sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
     sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
   },
-  // tap: a quick woosh — noise swept downward, like a card swiveling.
-  // wide band + high drive: a narrow bandpass eats most of the noise energy
+  // tap: a short knock — a lighter, higher cousin of the placement thud
   tap() {
-    sfxNoise({ dur: 0.25, vol: 0.55, freq: 1800, q: 0.5, slide: 300 });
+    sfxTone(160, { dur: 0.12, vol: 0.22, slide: 85, verb: 0.25 });
   },
 };
 
