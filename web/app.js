@@ -161,10 +161,10 @@ const SFX = {
   glimmer() {
     [660, 880, 1174, 1568, 2093].forEach((f, i) => sfxTone(f, { t: i * 0.09, dur: 0.5, vol: 0.045 }));
   },
-  // creature dies: little hit
+  // creature dies (values tuned by Artem in the sound lab)
   hit() {
-    sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
-    sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
+    sfxNoise({ freq: 430, dur: 0.84, vol: 0.06, q: 2.5, slide: 1400, verb: 0.13 });
+    sfxTone(262, { dur: 0.1, vol: 0.13, slide: 926, verb: 0.32 });
   },
   // tap: a short knock — a lighter, higher cousin of the placement thud
   tap() {
