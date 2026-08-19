@@ -296,6 +296,22 @@ function removeFromZone(card: Card) {
   if (i >= 0) list.splice(i, 1);
 }
 
+/** The ONE zone change: unlink from the old zone, rewrite the card's placement
+ * fields, hand back the destination list so the caller picks the spot in it.
+ * Visibility always resets — explicit grants are re-applied by the caller. */
+function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
+  removeFromZone(card);
+  card.zone = zone;
+  card.controller = player;
+  card.visibleTo = [];
+  return game.players[player].zones[zone];
+}
+
+/** relocateCard onto the usual landing spot: the end of the destination zone. */
+function placeCard(card: Card, zone: Zone, player: PlayerId) {
+  relocateCard(card, zone, player).push(card.id);
+}
+
 function cardName(card: Card, forViewerText = false): string {
   return card.name;
 }
@@ -356,11 +372,7 @@ function retractTailAbove(actor: PlayerId, respondAt: string) {
     game.stack.splice(i, 1);
     if (item.cardId) {
       const card = getCard(item.cardId);
-      removeFromZone(card);
-      card.zone = "hand";
-      card.controller = card.owner;
-      card.visibleTo = [];
-      game.players[card.owner].zones.hand.push(card.id);
+      placeCard(card, "hand", card.owner);
       retracted.push(card.name);
     } else {
       retracted.push(item.text);
@@ -429,7 +441,6 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text };
   }
   const card = getCard(item.cardId);
-  removeFromZone(card);
   // a card with ANY land face is a permanent when played; MDFCs like
   // "Instant // Land" must not be inferred into the graveyard
   const tl = card.typeLine ?? "";
@@ -439,10 +450,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     p.toPlayer === undefined
       ? item.resolveToPlayer ?? (toZone === "battlefield" ? card.controller : card.owner)
       : asPlayer(p.toPlayer, "toPlayer");
-  card.zone = toZone;
-  card.controller = toPlayer;
-  card.visibleTo = [];
-  game.players[toPlayer].zones[toZone].push(card.id);
+  placeCard(card, toZone, toPlayer);
   // an MDFC whose front face can't exist on the battlefield (Instant // Land)
   // must display the permanent face it actually resolved as
   if (toZone === "battlefield" && card.faces && !card.face) {
@@ -465,12 +473,8 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const lib = game.players[player].zones.library;
       if (!lib.length) break;
       const card = game.cards[lib[0]];
-      removeFromZone(card);
-      card.zone = "hand";
-      card.controller = player;
-      card.visibleTo = [];
+      placeCard(card, "hand", player);
       card.tapped = false;
-      game.players[player].zones.hand.push(card.id);
       drawn.push(card.name);
     }
     addLog(ctx.actor, `${who(player)} drew ${drawn.length} card${drawn.length === 1 ? "" : "s"}`, {
@@ -523,18 +527,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const toPlayer: PlayerId = p.toPlayer === undefined ? card.controller : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
 
-      removeFromZone(card);
       if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
-      card.zone = toZone;
-      card.controller = toPlayer;
+      const list = relocateCard(card, toZone, toPlayer);
       card.attachedTo = null;
       card.attacking = null;
       card.blocking = null;
       if (toZone !== "battlefield") card.tapped = false;
       card.pos = null;
-      // visibility resets on zone change, then explicit grants apply
+      // visibility reset by relocateCard, then explicit grants apply
       card.faceDown = !!p.faceDown;
-      card.visibleTo = [];
       if (p.revealTo === "all") card.visibleTo = [...PLAYERS];
       else if (p.revealTo === "you" || p.revealTo === "agent") card.visibleTo = [p.revealTo];
       // mover always gets to see a card it placed face-down (it chose the card)
@@ -549,7 +550,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         continue;
       }
 
-      const list = game.players[toPlayer].zones[toZone];
       if (p.position === "bottom") list.push(card.id);
       else if (typeof p.position === "number") {
         list.splice(Math.max(0, Math.min(list.length, p.position + movedIds.length)), 0, card.id);
@@ -879,23 +879,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // return to hand), not a land drop — those always use the stack
     const isLandPlay = !p.resolveTo && /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
     if (isLandPlay) {
-      removeFromZone(card);
-      card.zone = "battlefield";
-      card.controller = ctx.actor;
+      placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
-      card.visibleTo = [];
-      game.players[ctx.actor].zones.battlefield.push(card.id);
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
       return { ok: true, card: card.id, landPlay: true };
     }
-    removeFromZone(card);
+    // recasting something already on the stack drops its old item first
     if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
-    card.zone = "stack";
-    card.controller = ctx.actor;
+    placeCard(card, "stack", ctx.actor);
     card.faceDown = false;
     card.tapped = false;
-    card.visibleTo = [];
-    game.players[ctx.actor].zones.stack.push(card.id);
     game.stack.push({
       id: "s" + (game.seq + 1),
       player: ctx.actor,
@@ -1022,11 +1015,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (!item) throw new Error("the stack is empty");
     if (item.cardId) {
       const card = getCard(item.cardId);
-      removeFromZone(card);
-      card.zone = "graveyard";
-      card.controller = card.owner;
-      card.visibleTo = [];
-      game.players[card.owner].zones.graveyard.push(card.id);
+      placeCard(card, "graveyard", card.owner);
       addLog(ctx.actor, `${who(ctx.actor)} countered ${card.name} → ${who(card.owner)}'s graveyard`);
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} countered/removed: ${item.text}`);
@@ -1042,11 +1031,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (!item) throw new Error(`no stack item at index ${index}`);
     if (item.cardId) {
       const card = getCard(item.cardId);
-      removeFromZone(card);
-      card.zone = "hand";
-      card.controller = card.owner;
-      card.visibleTo = [];
-      game.players[card.owner].zones.hand.push(card.id);
+      placeCard(card, "hand", card.owner);
       addLog(ctx.actor, `${who(ctx.actor)} took ${card.name} back off the stack → ${who(card.owner)}'s hand`);
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
