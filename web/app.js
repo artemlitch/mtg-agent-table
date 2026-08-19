@@ -129,9 +129,10 @@ const SFX = {
     sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
     sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
   },
-  // tap: a quick woosh — noise swept downward, like a card swiveling
+  // tap: a quick woosh — noise swept downward, like a card swiveling.
+  // wide band + high drive: a narrow bandpass eats most of the noise energy
   tap() {
-    sfxNoise({ dur: 0.22, vol: 0.2, freq: 2200, q: 1.8, slide: 320 });
+    sfxNoise({ dur: 0.25, vol: 0.55, freq: 1800, q: 0.5, slide: 300 });
   },
 };
 
