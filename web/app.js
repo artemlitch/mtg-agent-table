@@ -536,6 +536,20 @@ function renderRail(p) {
 
 // Life box in the rail: yours at the top of your rail, the agent's pinned
 // to the bottom of its rail — both hugging the midline.
+// Rapid −/+ clicks accumulate into a running delta shown on the box
+// (−5, −6, −7…); it resets after 2s without touching.
+const lifeDelta = { you: { sum: 0, timer: null }, agent: { sum: 0, timer: null } };
+
+function bumpLifeDelta(p, d) {
+  const ld = lifeDelta[p];
+  ld.sum += d;
+  clearTimeout(ld.timer);
+  ld.timer = setTimeout(() => {
+    ld.sum = 0;
+    renderRail(p);
+  }, 2000);
+}
+
 function lifeBox(p) {
   const ps = state.players[p];
   const d = document.createElement("div");
@@ -543,11 +557,14 @@ function lifeBox(p) {
   const cmdmg = Object.entries(ps.commanderDamage || {})
     .map(([c, n]) => `${n} from ${c}`)
     .join("<br>");
-  d.innerHTML = `<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
+  const ld = lifeDelta[p].sum;
+  const deltaTag = ld !== 0 ? `<div class="lifedelta ${ld < 0 ? "neg" : "pos"}">${ld > 0 ? "+" : ""}${ld}</div>` : "";
+  d.innerHTML = `${deltaTag}<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
     <div class="liferow"><button data-d="-1">−</button><div class="life">${ps.life}</div><button data-d="1">+</button></div>
     ${cmdmg ? `<div class="cmdmg">${cmdmg}</div>` : ""}`;
   d.querySelectorAll("button").forEach((b) => (b.onclick = (e) => {
     e.stopPropagation();
+    bumpLifeDelta(p, Number(b.dataset.d));
     act("life", { player: p, delta: Number(b.dataset.d) });
   }));
   return d;

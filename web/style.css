@@ -68,6 +68,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* the agent's rail mirrors yours across the midline: same element order in
    the DOM, reversed visually, packed toward the midline */
 #rail-agent { flex-direction: column-reverse; }
+.lifebox { position: relative; }
+.lifedelta {
+  position: absolute; top: 3px; right: 6px;
+  font: 800 13px/1.4 var(--font-fantasy);
+}
+.lifedelta.neg { color: var(--red); text-shadow: 0 0 8px rgba(208, 85, 85, 0.5); }
+.lifedelta.pos { color: var(--green); text-shadow: 0 0 8px rgba(89, 168, 108, 0.5); }
 .lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .lifebox .liferow button { font-size: 12px; padding: 1px 7px; }
 .lifebox .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
