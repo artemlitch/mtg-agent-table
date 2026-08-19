@@ -52,7 +52,33 @@ document.addEventListener("pointerdown", () => {
   if (audioCtx.state === "suspended") audioCtx.resume();
 }, { capture: true });
 
-function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null } = {}) {
+let sfxVerb = null;
+function getVerb() {
+  if (!sfxVerb) {
+    sfxVerb = audioCtx.createConvolver();
+    const dur = 1.4;
+    const len = Math.ceil(audioCtx.sampleRate * dur);
+    const buf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    }
+    sfxVerb.buffer = buf;
+    sfxVerb.connect(audioCtx.destination);
+  }
+  return sfxVerb;
+}
+
+function sfxOut(g, verb) {
+  g.connect(audioCtx.destination);
+  if (verb > 0) {
+    const w = audioCtx.createGain();
+    w.gain.value = verb;
+    g.connect(w).connect(getVerb());
+  }
+}
+
+function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004 } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const o = audioCtx.createOscillator();
@@ -60,14 +86,16 @@ function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = nu
   o.type = type;
   o.frequency.setValueAtTime(freq, now);
   if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
-  g.gain.setValueAtTime(vol, now);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-  o.connect(g).connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(vol, now + atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(dur, atk + 0.01));
+  o.connect(g);
+  sfxOut(g, verb);
   o.start(now);
   o.stop(now + dur + 0.05);
 }
 
-function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null } = {}) {
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0 } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const len = Math.ceil(audioCtx.sampleRate * dur);
@@ -83,7 +111,8 @@ function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = n
   f.Q.value = q;
   const g = audioCtx.createGain();
   g.gain.value = vol;
-  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.connect(f).connect(g);
+  sfxOut(g, verb);
   src.start(now);
 }
 
@@ -98,12 +127,8 @@ const SOUNDS = {
     ],
   },
   thump: {
-    desc: "card resolves onto the field",
-    layers: [
-      { kind: "noise", freq: 1200, dur: 0.02, vol: 0.1, t: 0, q: 1, slide: 0 },
-      { kind: "tone", freq: 110, dur: 0.18, vol: 0.22, t: 0, type: "sine", slide: 55 },
-      { kind: "noise", freq: 260, dur: 0.06, vol: 0.1, t: 0, q: 0.8, slide: 0 },
-    ],
+    desc: "card resolves onto the field — a clean reverberant THUD",
+    layers: [{ kind: "tone", freq: 95, dur: 0.22, vol: 0.32, t: 0, type: "sine", slide: 48, verb: 0.5 }],
   },
   glimmer: {
     desc: "turn is over — magical glimmer",
@@ -124,12 +149,12 @@ const SOUNDS = {
 
 const PARAMS = {
   tone: [
-    ["freq", 40, 4000, 1], ["slide", 0, 4000, 1], ["dur", 0.01, 1.2, 0.01],
-    ["vol", 0, 0.8, 0.005], ["t", 0, 1, 0.01],
+    ["freq", 30, 4000, 1], ["slide", 0, 4000, 1], ["dur", 0.01, 1.2, 0.01],
+    ["vol", 0, 0.8, 0.005], ["verb", 0, 1, 0.01], ["atk", 0.001, 0.06, 0.001], ["t", 0, 1, 0.01],
   ],
   noise: [
     ["freq", 60, 6000, 10], ["slide", 0, 6000, 10], ["q", 0.1, 8, 0.1],
-    ["dur", 0.01, 1.2, 0.01], ["vol", 0, 0.8, 0.005], ["t", 0, 1, 0.01],
+    ["dur", 0.01, 1.2, 0.01], ["vol", 0, 0.8, 0.005], ["verb", 0, 1, 0.01], ["t", 0, 1, 0.01],
   ],
 };
 

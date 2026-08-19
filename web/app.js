@@ -72,7 +72,35 @@ document.addEventListener(
   { capture: true }
 );
 
-function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null } = {}) {
+// shared convolution reverb (synthesized decaying-noise impulse response);
+// layers opt in with verb: 0..1 (wet send amount)
+let sfxVerb = null;
+function getVerb() {
+  if (!sfxVerb) {
+    sfxVerb = audioCtx.createConvolver();
+    const dur = 1.4;
+    const len = Math.ceil(audioCtx.sampleRate * dur);
+    const buf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    }
+    sfxVerb.buffer = buf;
+    sfxVerb.connect(audioCtx.destination);
+  }
+  return sfxVerb;
+}
+
+function sfxOut(g, verb) {
+  g.connect(audioCtx.destination);
+  if (verb > 0) {
+    const w = audioCtx.createGain();
+    w.gain.value = verb;
+    g.connect(w).connect(getVerb());
+  }
+}
+
+function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004 } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const o = audioCtx.createOscillator();
@@ -80,14 +108,18 @@ function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = nu
   o.type = type;
   o.frequency.setValueAtTime(freq, now);
   if (slide) o.frequency.exponentialRampToValueAtTime(slide, now + dur);
-  g.gain.setValueAtTime(vol, now);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-  o.connect(g).connect(audioCtx.destination);
+  // short attack ramp: an instant-on envelope clicks, and on low tones the
+  // click is all small speakers reproduce — it reads as a high tick
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.linearRampToValueAtTime(vol, now + atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(dur, atk + 0.01));
+  o.connect(g);
+  sfxOut(g, verb);
   o.start(now);
   o.stop(now + dur + 0.05);
 }
 
-function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null } = {}) {
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0 } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const len = Math.ceil(audioCtx.sampleRate * dur);
@@ -103,7 +135,8 @@ function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = n
   f.Q.value = q;
   const g = audioCtx.createGain();
   g.gain.value = vol;
-  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.connect(f).connect(g);
+  sfxOut(g, verb);
   src.start(now);
 }
 
@@ -114,11 +147,9 @@ const SFX = {
     sfxTone(1320, { t: 0.07, dur: 0.18, vol: 0.06 });
     sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
   },
-  // card lands on the field: the original low thump with a soft attack tick
+  // card lands on the field: a clean THUD — one low tone into the reverb
   thump() {
-    sfxNoise({ dur: 0.02, vol: 0.1, freq: 1200, q: 1 }); // gentle contact tick
-    sfxTone(110, { dur: 0.18, vol: 0.22, slide: 55 });
-    sfxNoise({ dur: 0.06, vol: 0.1, freq: 260, q: 0.8 });
+    sfxTone(95, { dur: 0.22, vol: 0.32, slide: 48, verb: 0.5 });
   },
   // turn over: airy glimmer arpeggio
   glimmer() {
