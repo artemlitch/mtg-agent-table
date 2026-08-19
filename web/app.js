@@ -1300,11 +1300,8 @@ function filterBar(onChange) {
   const el = document.createElement("div");
   el.className = "filterbar";
 
-  const row1 = document.createElement("div");
-  row1.className = "frow";
-  const q = document.createElement("input");
-  q.placeholder = "name…";
-  q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
+  const row = document.createElement("div");
+  row.className = "frow";
   const type = document.createElement("select");
   for (const t of CARD_TYPES) {
     const o = document.createElement("option");
@@ -1313,10 +1310,11 @@ function filterBar(onChange) {
     type.appendChild(o);
   }
   type.onchange = () => { f.type = type.value; onChange(); };
-  row1.append(q, type);
-
-  const row2 = document.createElement("div");
-  row2.className = "frow";
+  const q = document.createElement("input");
+  q.className = "namein";
+  q.placeholder = "name…";
+  q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
+  row.append(type, q);
   const numFilter = (label, opKey, valKey) => {
     const span = document.createElement("span");
     span.className = "numf";
@@ -1337,22 +1335,21 @@ function filterBar(onChange) {
     span.append(op, n);
     return span;
   };
-  row2.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
+  row.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
 
-  const row3 = document.createElement("div");
-  row3.className = "frow colors";
+  const PIP_NAMES = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" };
   for (const col of ["W", "U", "B", "R", "G"]) {
     const b = document.createElement("button");
     b.className = "colbtn col" + col;
-    b.textContent = col;
+    b.title = PIP_NAMES[col];
     b.onclick = () => {
       if (f.colors.has(col)) { f.colors.delete(col); b.classList.remove("on"); }
       else { f.colors.add(col); b.classList.add("on"); }
       onChange();
     };
-    row3.appendChild(b);
+    row.appendChild(b);
   }
-  el.append(row1, row2, row3);
+  el.append(row);
 
   const active = () =>
     !!(f.q || f.type || f.pow !== "" || f.tou !== "" || f.mv !== "" || f.colors.size);
