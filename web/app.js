@@ -127,9 +127,10 @@ const SFX = {
     sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
     sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
   },
-  // tap: soft tick
+  // tap: short woody click
   tap() {
-    sfxTone(1500, { dur: 0.035, vol: 0.05, type: "triangle" });
+    sfxTone(1050, { dur: 0.07, vol: 0.16, type: "triangle", slide: 700 });
+    sfxNoise({ dur: 0.03, vol: 0.08, freq: 2200, q: 1.5 });
   },
 };
 
