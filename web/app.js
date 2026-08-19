@@ -586,8 +586,10 @@ function renderBattlefield(p) {
   const cards = state.players[p].zones.battlefield;
   const attached = cards.filter((c) => c.attachedTo);
   const free = cards.filter((c) => !c.attachedTo);
+  // every free card claims a slot in its category — dragged cards keep theirs
+  // as a HOLE, so moving one card never reflows its neighbors
   const autos = { creature: [], land: [], other: [] };
-  for (const c of free) if (!c.pos) autos[typeCat(c)].push(c);
+  for (const c of free) autos[typeCat(c)].push(c);
   // stack cards headed for this battlefield claim the NEXT auto-layout slot
   // in their row — that's where the ghost hovers
   const ghosts = battlefieldGhosts(p);
@@ -780,12 +782,19 @@ function makeDraggable(el, c, bf) {
           return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
         });
         if (targetEl) {
+          c.attachedTo = targetEl.dataset.cardId; // optimistic — no flash back
           await act("attach", { card: c.id, target: targetEl.dataset.cardId });
         } else {
-          if (c.attachedTo) await act("attach", { card: c.id, target: "" });
+          if (c.attachedTo) {
+            c.attachedTo = null;
+            await act("attach", { card: c.id, target: "" });
+          }
           const x = Math.max(0, Math.min(1, parseFloat(el.style.left) / Math.max(1, bfRect.width - rect.width)));
           // y stays relative to the own field but may cross the midline
           const y = parseFloat(el.style.top) / Math.max(1, bfRect.height - rect.height);
+          // optimistic: renders between drop and the server ack must not
+          // snap the card back to its pre-drag spot
+          c.pos = { x, y };
           await act("place", { positions: [{ card: c.id, x, y }] });
         }
         if (pendingRender) {
