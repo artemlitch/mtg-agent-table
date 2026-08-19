@@ -252,7 +252,11 @@ function battlefieldGhosts(p) {
   });
 }
 
-let lastPeek = null; // latest thought: { text, seq }
+// The agent's thoughts run as a ticker beside the typing dots: lines queue up
+// as they stream in and the display advances every 0.5s, holding on the last.
+let peekQueue = [];
+let peekIndex = -1;
+let peekTimer = null;
 
 function renderAgentStatus() {
   const pane = $("#pane-chat");
@@ -266,19 +270,31 @@ function renderAgentStatus() {
     if (follow) pane.scrollTop = pane.scrollHeight;
   } else if (!agentBusy && existing) {
     existing.remove();
-    lastPeek = null;
+    peekQueue = [];
+    peekIndex = -1;
+    if (peekTimer) {
+      clearInterval(peekTimer);
+      peekTimer = null;
+    }
   }
   if (agentBusy) applyPeekLine();
 }
 
-// one line of the agent's latest thought, hot-swapped next to the dots
 function applyPeekLine() {
   const el = $("#pane-chat .typing-bubble .peek-line");
   if (!el) return;
-  el.textContent = lastPeek ? lastPeek.text : "";
-  if (lastPeek) {
+  const cur = peekQueue[peekIndex];
+  el.textContent = cur ? cur.text : "";
+  if (cur) {
     el.title = "Open in the Agent tab";
-    el.onclick = () => openBrainAt(lastPeek.seq);
+    el.onclick = () => openBrainAt(cur.seq);
+  }
+}
+
+function advancePeek() {
+  if (peekIndex < peekQueue.length - 1) {
+    peekIndex++;
+    applyPeekLine();
   }
 }
 
@@ -294,11 +310,18 @@ function openBrainAt(seq) {
 
 function updateBrainPeek(entry) {
   if (!agentBusy) return;
-  // narration and thinking only — tool calls would instantly overwrite the
-  // interesting reasoning with "🔧 tap {...}"
+  // narration and thinking only — tool calls are noise here
   if (!["text", "thinking"].includes(entry.kind)) return;
-  lastPeek = { text: entry.text.length > 140 ? entry.text.slice(0, 140) + "…" : entry.text, seq: entry.seq };
-  applyPeekLine();
+  // split multi-line thoughts so the ticker reveals them line by line
+  for (const line of entry.text.split(/\n+/)) {
+    const t = line.trim();
+    if (!t) continue;
+    peekQueue.push({ text: t.length > 140 ? t.slice(0, 140) + "…" : t, seq: entry.seq });
+  }
+  if (!peekTimer) {
+    advancePeek();
+    peekTimer = setInterval(advancePeek, 500);
+  }
 }
 
 // The library drawn as a face-down pile of cards, count on top; your deck
