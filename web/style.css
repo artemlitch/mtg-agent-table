@@ -105,6 +105,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .card.attach-source { outline: 2px dashed var(--accent); }
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
 .badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: 10px; padding: 0 4px; color: #ffd97a; }
+.tokentag {
+  position: absolute; top: 2px; right: 2px; z-index: 4; pointer-events: none;
+  background: rgba(0, 0, 0, 0.8); border-radius: 4px; padding: 0 4px;
+  font: 600 8px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase;
+}
 .badge.att { color: #ff9c9c; }
 .badge.blk { color: #9cc4ff; }
 .badge.eq { color: #a8e6b0; }

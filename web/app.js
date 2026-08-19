@@ -832,6 +832,7 @@ function cardEl(c, opts = {}) {
     }
     if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
     if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
+    if (c.isToken) d.innerHTML += `<span class="tokentag">token</span>`;
     // explicit P/T override: drawn over the card's own P/T corner
     if (c.basePower !== undefined && c.zone === "battlefield") {
       d.innerHTML += `<div class="ptbadge" title="printed ${c.basePower}/${c.baseToughness}">${c.power}/${c.toughness}</div>`;
@@ -1010,7 +1011,14 @@ function cardMenu(c, e) {
       },
     });
     if (c.attachedTo) items.push({ label: "Unattach", fn: () => act("attach", { card: c.id, target: "" }) });
-    items.push({ label: "To graveyard", sep: true, fn: () => act("move", { card: c.id, toZone: "graveyard", toPlayer: owner }) });
+    if (c.isToken) {
+      items.push({
+        label: "🗑 Delete token",
+        sep: true,
+        fn: () => act("move", { card: c.id, toZone: "graveyard", toPlayer: owner, note: "token removed" }),
+      });
+    }
+    items.push({ label: "To graveyard", sep: !c.isToken, fn: () => act("move", { card: c.id, toZone: "graveyard", toPlayer: owner }) });
     items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
     items.push(moveItem("Exile face-down (I may look)", c, { toZone: "exile", toPlayer: owner, faceDown: true, revealTo: "you" }));
     items.push(moveItem("To owner's hand", c, { toZone: "hand", toPlayer: owner }));
