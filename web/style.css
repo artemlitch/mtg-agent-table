@@ -215,6 +215,21 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 12px 44px rgba(0, 0, 0, 0.8), 0 0 24px rgba(216, 160, 61, 0.12);
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+/* filter bar shared by zone modals and library search */
+.filterbar { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.filterbar .frow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.filterbar .frow input:first-child { flex: 1; min-width: 140px; }
+.filterbar select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px; font-size: 11px; }
+.filterbar .numf { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--dim); }
+.filterbar .numin { width: 52px; padding: 3px 5px; font-size: 11px; }
+.filterbar .colbtn { width: 26px; height: 26px; border-radius: 50%; padding: 0; font-size: 11px; opacity: 0.45; }
+.filterbar .colbtn.on { opacity: 1; box-shadow: 0 0 8px rgba(226, 179, 85, 0.5); }
+.filterbar .colW.on, .filterbar .colbtn.colW.on { color: #f5eecb; }
+.filterbar .colbtn.colU.on { color: #7ab6e8; }
+.filterbar .colbtn.colB.on { color: #b08fc9; }
+.filterbar .colbtn.colR.on { color: #e88070; }
+.filterbar .colbtn.colG.on { color: #7cc98a; }
+
 .modalcards { display: flex; flex-wrap: wrap; gap: 8px; }
 .modalcard { width: 130px; }
 .modalcard img { width: 100%; border-radius: 6px; }

@@ -1271,40 +1271,153 @@ function modalCardEl(info, buttons) {
   return d;
 }
 
+// ---------------------------------------------------------------------------
+// Card filtering (zone modals + library search)
+// ---------------------------------------------------------------------------
+
+function manaValue(mana) {
+  if (!mana) return 0;
+  let mv = 0;
+  for (const sym of mana.match(/\{[^}]+\}/g) ?? []) {
+    const s = sym.slice(1, -1);
+    if (/^\d+$/.test(s)) mv += Number(s);
+    else if (s.toUpperCase() !== "X") mv += 1; // colored/hybrid/phyrexian = 1, X = 0
+  }
+  return mv;
+}
+
+function cardColors(c) {
+  const set = new Set();
+  for (const ch of (c.mana || "").toUpperCase()) if ("WUBRG".includes(ch)) set.add(ch);
+  return set;
+}
+
+const CARD_TYPES = ["", "creature", "land", "artifact", "enchantment", "instant", "sorcery", "planeswalker", "battle"];
+
+/** Shared filter bar: name, type, P/T (≥/≤), mana value (≥/≤), colors. */
+function filterBar(onChange) {
+  const f = { q: "", type: "", powOp: ">=", pow: "", touOp: ">=", tou: "", mvOp: "<=", mv: "", colors: new Set() };
+  const el = document.createElement("div");
+  el.className = "filterbar";
+
+  const row1 = document.createElement("div");
+  row1.className = "frow";
+  const q = document.createElement("input");
+  q.placeholder = "name…";
+  q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
+  const type = document.createElement("select");
+  for (const t of CARD_TYPES) {
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = t || "any type";
+    type.appendChild(o);
+  }
+  type.onchange = () => { f.type = type.value; onChange(); };
+  row1.append(q, type);
+
+  const row2 = document.createElement("div");
+  row2.className = "frow";
+  const numFilter = (label, opKey, valKey) => {
+    const span = document.createElement("span");
+    span.className = "numf";
+    span.textContent = label;
+    const op = document.createElement("select");
+    for (const o of [">=", "<="]) {
+      const e = document.createElement("option");
+      e.value = o;
+      e.textContent = o === ">=" ? "≥" : "≤";
+      op.appendChild(e);
+    }
+    op.value = f[opKey];
+    op.onchange = () => { f[opKey] = op.value; onChange(); };
+    const n = document.createElement("input");
+    n.type = "number";
+    n.className = "numin";
+    n.oninput = () => { f[valKey] = n.value; onChange(); };
+    span.append(op, n);
+    return span;
+  };
+  row2.append(numFilter("P", "powOp", "pow"), numFilter("T", "touOp", "tou"), numFilter("MV", "mvOp", "mv"));
+
+  const row3 = document.createElement("div");
+  row3.className = "frow colors";
+  for (const col of ["W", "U", "B", "R", "G"]) {
+    const b = document.createElement("button");
+    b.className = "colbtn col" + col;
+    b.textContent = col;
+    b.onclick = () => {
+      if (f.colors.has(col)) { f.colors.delete(col); b.classList.remove("on"); }
+      else { f.colors.add(col); b.classList.add("on"); }
+      onChange();
+    };
+    row3.appendChild(b);
+  }
+  el.append(row1, row2, row3);
+
+  const active = () =>
+    !!(f.q || f.type || f.pow !== "" || f.tou !== "" || f.mv !== "" || f.colors.size);
+  const cmp = (val, op, target) => (op === ">=" ? val >= target : val <= target);
+  const predicate = (c) => {
+    if (c.hidden) return !active(); // hidden cards can't match filters
+    if (f.q && !(c.name || "").toLowerCase().includes(f.q)) return false;
+    if (f.type && !(c.typeLine || "").toLowerCase().includes(f.type)) return false;
+    if (f.pow !== "") {
+      const v = Number(c.power);
+      if (isNaN(v) || !cmp(v, f.powOp, Number(f.pow))) return false;
+    }
+    if (f.tou !== "") {
+      const v = Number(c.toughness);
+      if (isNaN(v) || !cmp(v, f.touOp, Number(f.tou))) return false;
+    }
+    if (f.mv !== "" && !cmp(manaValue(c.mana), f.mvOp, Number(f.mv))) return false;
+    for (const col of f.colors) if (!cardColors(c).has(col)) return false;
+    return true;
+  };
+  return { el, predicate };
+}
+
 function showZoneModal(p, zone) {
   const cards = state.players[p].zones[zone];
   const wrap = document.createElement("div");
-  wrap.className = "modalcards";
-  if (!cards.length) wrap.textContent = "(empty)";
-  for (const c of cards) {
-    if (c.hidden) {
-      const d = document.createElement("div");
-      d.className = "modalcard";
-      d.innerHTML = `<img class="cardback" src="card-back.jpg" alt="face-down card">`;
-      wrap.appendChild(d);
-      continue;
+  const grid = document.createElement("div");
+  grid.className = "modalcards";
+  const renderGrid = () => {
+    grid.innerHTML = "";
+    const shown = cards.filter(fb.predicate);
+    if (!shown.length) grid.textContent = cards.length ? "(no matches)" : "(empty)";
+    for (const c of shown) {
+      if (c.hidden) {
+        const d = document.createElement("div");
+        d.className = "modalcard";
+        d.innerHTML = `<img class="cardback" src="card-back.jpg" alt="face-down card">`;
+        grid.appendChild(d);
+        continue;
+      }
+      // leaving a graveyard/exile is a game action — it goes ON THE STACK
+      // (cast with a declared destination; the agent resolves or responds)
+      const viaStack = (label, resolveTo, toPlayer) => [
+        `${label} ⚡`,
+        () =>
+          act("cast", {
+            card: c.id,
+            resolveTo,
+            ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
+            note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${resolveTo}`,
+          }).then(closeModal),
+      ];
+      grid.appendChild(
+        modalCardEl(c, [
+          viaStack("to hand", "hand", c.owner),
+          viaStack("to my bf", "battlefield", "you"),
+          viaStack("to owner bf", "battlefield", c.owner),
+          viaStack(zone === "exile" ? "gy" : "exile", zone === "exile" ? "graveyard" : "exile", c.owner),
+        ])
+      );
     }
-    // leaving a graveyard/exile is a game action — it goes ON THE STACK
-    // (cast with a declared destination; the agent resolves or responds)
-    const viaStack = (label, resolveTo, toPlayer) => [
-      `${label} ⚡`,
-      () =>
-        act("cast", {
-          card: c.id,
-          resolveTo,
-          ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
-          note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${resolveTo}`,
-        }).then(closeModal),
-    ];
-    wrap.appendChild(
-      modalCardEl(c, [
-        viaStack("to hand", "hand", c.owner),
-        viaStack("to my bf", "battlefield", "you"),
-        viaStack("to owner bf", "battlefield", c.owner),
-        viaStack(zone === "exile" ? "gy" : "exile", zone === "exile" ? "graveyard" : "exile", c.owner),
-      ])
-    );
-  }
+  };
+  const fb = filterBar(() => renderGrid());
+  wrap.append(fb.el, grid);
+  renderGrid();
   openModal(`${p === "you" ? "Your" : "Agent's"} ${zone} (${cards.length})`, wrap);
 }
 
@@ -1330,15 +1443,13 @@ function peekModal(p, cards) {
 
 function searchModal(p, cards) {
   const wrap = document.createElement("div");
-  const input = document.createElement("input");
-  input.placeholder = "filter…";
-  input.style.cssText = "width:100%;margin-bottom:8px";
   const grid = document.createElement("div");
   grid.className = "modalcards";
   const renderGrid = () => {
     grid.innerHTML = "";
-    const q = input.value.toLowerCase();
-    for (const c of cards.filter((c) => c.name.toLowerCase().includes(q))) {
+    const shown = cards.filter(fb.predicate);
+    if (!shown.length) grid.textContent = "(no matches)";
+    for (const c of shown) {
       grid.appendChild(
         modalCardEl(c, [
           ["to hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p === "you" ? "you" : "you" }).then(closeModal)],
@@ -1350,10 +1461,10 @@ function searchModal(p, cards) {
       );
     }
   };
-  input.oninput = renderGrid;
-  renderGrid();
-  wrap.appendChild(input);
+  const fb = filterBar(() => renderGrid());
+  wrap.appendChild(fb.el);
   wrap.appendChild(grid);
+  renderGrid();
   const sh = document.createElement("button");
   sh.textContent = "Shuffle when done";
   sh.style.marginTop = "10px";
