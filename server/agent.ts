@@ -124,17 +124,34 @@ export class AgentRunner {
           `When you cast a spell, use cast (it goes on the stack) and then call done so Artem can respond — ` +
           `NEVER resolve your own spell in the same window you cast it. ` +
           `When you are finished, call done to pass back to Artem, or ask_user if you need something from him.`;
+    const interrupted = this.interruptNote
+      ? `(Your previous window was INTERRUPTED mid-thought because the table changed. Any actions you completed before the cut are already applied — re-check the state rather than assuming your plan finished.)\n`
+      : "";
+    this.interruptNote = false;
     return (
-      `${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}\n${situation} ${directive}\n` +
+      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}\n${situation} ${directive}\n` +
       `Narrate your reasoning in plain text BEFORE each action. ` +
       `Speak to Artem with the say tool — plain response text is your visible thought process, not chat.`
     );
   }
 
+  private preempted = false;
+  private interruptNote = false;
+
   async wake(reason: "window" | "react" = "window") {
     if (this.busy) {
+      // PREEMPT: new information arrived mid-thought — kill the in-flight
+      // window and restart it so the agent reasons over the full picture
+      // instead of finishing a plan built on stale state. Completed actions
+      // and the session transcript survive; only the unfinished thought dies.
       this.pendingWake = true;
       if (reason === "window") this.pendingReason = "window";
+      this.preempted = true;
+      this.interruptNote = true;
+      this.push("status", "⟳ Interrupted — restarting with the new information…");
+      try {
+        this.proc?.kill();
+      } catch {}
       return;
     }
     this.busy = true;
@@ -186,7 +203,8 @@ export class AgentRunner {
       }
       const stderrText = await new Response(this.proc.stderr as ReadableStream).text();
       const code = await this.proc.exited;
-      if (code !== 0) this.push("error", `agent process exited ${code}: ${stderrText.slice(0, 500)}`);
+      // a preempt kill exits nonzero by design — not an error
+      if (code !== 0 && !this.preempted) this.push("error", `agent process exited ${code}: ${stderrText.slice(0, 500)}`);
     } catch (e: any) {
       this.push("error", `agent spawn failed: ${e.message}`);
     } finally {
@@ -194,17 +212,19 @@ export class AgentRunner {
       this.busy = false;
       this.push("status", "Agent window closed.");
       if (this.pendingWake) {
-        // more happened while it was thinking — follow up once, UNLESS it was
-        // all already delivered inline via tool results and nothing of
-        // Artem's awaits resolution (an empty window costs 10s+ for nothing)
+        // more happened while it was thinking — follow up once. A preempted
+        // window ALWAYS rewakes (its thought was killed mid-flight); an
+        // uninterrupted one skips the rewake if everything was already
+        // delivered inline and nothing of Artem's awaits resolution.
         const undelivered = game.log.some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
         const artemsItemWaits = game.stack.length > 0 && game.stack[game.stack.length - 1].player === "you";
-        if (undelivered || artemsItemWaits) {
+        if (this.preempted || undelivered || artemsItemWaits) {
           setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
         } else {
           this.pendingWake = false;
         }
       }
+      this.preempted = false;
     }
   }
 
