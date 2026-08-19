@@ -1337,7 +1337,7 @@ function filterBar(onChange) {
     span.append(op, n);
     return span;
   };
-  row2.append(numFilter("P", "powOp", "pow"), numFilter("T", "touOp", "tou"), numFilter("MV", "mvOp", "mv"));
+  row2.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
 
   const row3 = document.createElement("div");
   row3.className = "frow colors";
