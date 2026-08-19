@@ -294,9 +294,10 @@ function openBrainAt(seq) {
 
 function updateBrainPeek(entry) {
   if (!agentBusy) return;
-  if (!["text", "thinking", "tool"].includes(entry.kind)) return;
-  const text = entry.kind === "tool" ? `🔧 ${entry.text}` : entry.text;
-  lastPeek = { text: text.length > 140 ? text.slice(0, 140) + "…" : text, seq: entry.seq };
+  // narration and thinking only — tool calls would instantly overwrite the
+  // interesting reasoning with "🔧 tap {...}"
+  if (!["text", "thinking"].includes(entry.kind)) return;
+  lastPeek = { text: entry.text.length > 140 ? entry.text.slice(0, 140) + "…" : entry.text, seq: entry.seq };
   applyPeekLine();
 }
 
