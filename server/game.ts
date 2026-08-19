@@ -176,6 +176,31 @@ export function cardVisibleTo(card: Card, viewer: PlayerId): boolean {
   }
 }
 
+/** A card is a card ANYWHERE: the ONE projection of a visible card, used by
+ * every place that serializes cards (state views, view_zone, peek). Add a
+ * field here and every consumer gets it. */
+export function projectCard(card: Card) {
+  // a DFC always presents as its ACTIVE face — the composite name never shows
+  const idx = card.face ?? 0;
+  const f = card.faces?.[idx];
+  return {
+    id: card.id,
+    name: f?.name ?? card.name,
+    image: f?.image ?? card.image,
+    oracle: f?.oracle ?? card.oracle,
+    mana: f?.mana ?? card.mana,
+    typeLine: f?.typeLine ?? card.typeLine,
+    power: f?.power ?? card.power,
+    toughness: f?.toughness ?? card.toughness,
+    basePower: card.basePower,
+    baseToughness: card.baseToughness,
+    faceCount: card.faces?.length ?? 1,
+    face: idx,
+    faces: card.faces,
+    faceDown: card.faceDown,
+  };
+}
+
 function redactCard(card: Card, viewer: PlayerId) {
   const visible = cardVisibleTo(card, viewer);
   const base = {
@@ -194,24 +219,10 @@ function redactCard(card: Card, viewer: PlayerId) {
     pos: card.pos ?? null,
   };
   if (!visible) return { ...base, hidden: true as const };
-  // a DFC always presents as its ACTIVE face — the composite name never shows
-  const idx = card.face ?? 0;
-  const f = card.faces?.[idx];
   return {
     ...base,
+    ...projectCard(card),
     hidden: false as const,
-    name: f?.name ?? card.name,
-    image: f?.image ?? card.image,
-    oracle: f?.oracle ?? card.oracle,
-    mana: f?.mana ?? card.mana,
-    typeLine: f?.typeLine ?? card.typeLine,
-    power: f?.power ?? card.power,
-    toughness: f?.toughness ?? card.toughness,
-    basePower: card.basePower,
-    baseToughness: card.baseToughness,
-    faceCount: card.faces?.length ?? 1,
-    face: idx,
-    faces: card.faces,
     revealedTo: card.visibleTo,
   };
 }
@@ -731,10 +742,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const lib = game.players[player].zones.library;
-    const cards = lib.slice(0, n).map((id) => {
-      const c = game.cards[id];
-      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image, power: c.power, toughness: c.toughness };
-    });
+    const cards = lib.slice(0, n).map((id) => projectCard(game.cards[id]));
     addLog(ctx.actor, `${who(ctx.actor)} looked at the top ${n} of ${who(player)}'s library`);
     return { ok: true, cards };
   },
@@ -763,10 +771,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const zone: Zone = p.zone;
     const list = game.players[player].zones[zone];
-    const cards = list.map((id) => {
-      const c = game.cards[id];
-      return { id: c.id, name: c.name, mana: c.mana, typeLine: c.typeLine, oracle: c.oracle, image: c.image, faceDown: c.faceDown, power: c.power, toughness: c.toughness };
-    });
+    const cards = list.map((id) => projectCard(game.cards[id]));
     if (zone === "library" || (zone === "hand" && player !== ctx.actor)) {
       addLog(ctx.actor, `${who(ctx.actor)} looked at ${who(player)}'s ${zone} (${list.length} cards)`);
     }
