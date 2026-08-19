@@ -87,7 +87,7 @@ function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = nu
   o.stop(now + dur + 0.05);
 }
 
-function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1 } = {}) {
+function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null } = {}) {
   if (!audioCtx || audioCtx.state !== "running") return;
   const now = audioCtx.currentTime + t;
   const len = Math.ceil(audioCtx.sampleRate * dur);
@@ -98,7 +98,8 @@ function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1 } = {}) {
   src.buffer = buf;
   const f = audioCtx.createBiquadFilter();
   f.type = "bandpass";
-  f.frequency.value = freq;
+  f.frequency.setValueAtTime(freq, now);
+  if (slide) f.frequency.exponentialRampToValueAtTime(slide, now + dur);
   f.Q.value = q;
   const g = audioCtx.createGain();
   g.gain.value = vol;
@@ -113,10 +114,11 @@ const SFX = {
     sfxTone(1320, { t: 0.07, dur: 0.18, vol: 0.06 });
     sfxTone(1760, { t: 0.13, dur: 0.28, vol: 0.045 });
   },
-  // card lands on the field: low thump
+  // card lands on the field: a slap — sharp attack, short low body
   thump() {
-    sfxTone(110, { dur: 0.18, vol: 0.22, slide: 55 });
-    sfxNoise({ dur: 0.06, vol: 0.1, freq: 260, q: 0.8 });
+    sfxNoise({ dur: 0.025, vol: 0.24, freq: 3000, q: 0.9 }); // snap transient
+    sfxNoise({ dur: 0.06, vol: 0.14, freq: 700, q: 1 });
+    sfxTone(170, { dur: 0.12, vol: 0.18, slide: 75 });
   },
   // turn over: airy glimmer arpeggio
   glimmer() {
@@ -127,10 +129,9 @@ const SFX = {
     sfxNoise({ dur: 0.09, vol: 0.18, freq: 900, q: 0.7 });
     sfxTone(180, { dur: 0.1, vol: 0.13, slide: 90 });
   },
-  // tap: short woody click
+  // tap: a quick woosh — noise swept downward, like a card swiveling
   tap() {
-    sfxTone(1050, { dur: 0.07, vol: 0.16, type: "triangle", slide: 700 });
-    sfxNoise({ dur: 0.03, vol: 0.08, freq: 2200, q: 1.5 });
+    sfxNoise({ dur: 0.22, vol: 0.2, freq: 2200, q: 1.8, slide: 320 });
   },
 };
 
