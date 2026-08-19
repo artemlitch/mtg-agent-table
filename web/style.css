@@ -365,6 +365,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .ghostwrap .sibtns button { font-size: 9px; padding: 1px 6px; }
 /* trigger source: full color (it's already in play), solid gold lift */
 .ghostwrap .card.ghost.trigger { opacity: 1; filter: none; outline-style: solid; }
+/* spells mid-cast: brighter than resolving-permanent ghosts, arcane violet cast */
+.ghostwrap .card.ghost.spell {
+  opacity: 0.85; filter: none;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 20px rgba(140, 100, 220, 0.45);
+}
 .trigchip {
   max-width: 170px; background: rgba(12, 9, 4, 0.93); border: 1px solid transparent; border-radius: 6px;
   padding: 3px 7px; font-size: 10px; color: var(--text); text-align: center;

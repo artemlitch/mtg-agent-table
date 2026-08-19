@@ -491,6 +491,35 @@ function renderBattlefield(p) {
     bf.appendChild(wrap);
   }
 
+  // spells that DON'T resolve to the battlefield (sorceries, instants,
+  // gy-to-hand returns) hover at a casting spot: center of the caster's
+  // half, hugging the midline, fanning out if several are up
+  const spells = (state.stack || []).filter((it) => {
+    if (!it.card || it.card.hidden || it.player !== p) return false;
+    const tl = it.card.typeLine || "";
+    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+    return (it.resolveTo ?? (isSpell ? "graveyard" : "battlefield")) !== "battlefield";
+  });
+  spells.forEach((g, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "ghostwrap";
+    const left = W / 2 - CW / 2 + (i - (spells.length - 1) / 2) * (CW * 0.65);
+    const top = p === "you" ? 10 : H - CH - 16;
+    wrap.style.left = Math.max(0, Math.min(W - CW, left)).toFixed(0) + "px";
+    wrap.style.top = Math.max(0, top).toFixed(0) + "px";
+    const el = cardEl(g.card);
+    el.classList.add("ghost", "spell");
+    el.onclick = (e) => {
+      e.stopPropagation();
+      hidePreview();
+      switchTab("stack");
+    };
+    wrap.appendChild(el);
+    const btns = stackItemButtons(g);
+    if (btns) wrap.appendChild(btns);
+    bf.appendChild(wrap);
+  });
+
   // triggered abilities: the source permanent lifts off the board (full color —
   // it's already in play), trigger text + stack buttons underneath
   battlefieldTriggerGhosts(p).forEach(({ item, source }, i) => {
