@@ -226,6 +226,8 @@ function render() {
     newGameAutoOpened = true;
     openNewGame();
   }
+  // card ids restart across games — clear the placement memory on empty boards
+  if (!state.players.you.zones.battlefield.length && !state.players.agent.zones.battlefield.length) autoPlaced.clear();
   renderStack();
   renderRail("agent");
   renderRail("you");
@@ -606,25 +608,46 @@ function renderBattlefield(p) {
   const perRow = Math.max(1, Math.floor((W * 0.8) / (CW + GAP)));
 
   const posMap = {}; // id -> {left, top} px
-  for (const c of [...free, ...ghosts.map((g) => g.card)]) {
-    let left, top;
-    if (c.pos) {
-      left = c.pos.x * (W - CW);
-      top = c.pos.y * (H - CH);
-    } else {
-      const cat = typeCat(c);
-      const i = autos[cat].indexOf(c);
-      if (cat === "other") {
-        const col = Math.floor(i / 3);
-        left = W - CW - 10 - col * (CW + 10);
-        top = regions.other * (H - CH) + (i % 3) * (CH * 0.45);
-      } else {
-        left = 8 + (i % perRow) * (CW + GAP) + (c.tapped ? 14 : 0);
-        top = regions[cat] * (H - CH) + Math.floor(i / perRow) * (CH * 0.55);
-      }
+  const slotFor = (cat, i) => {
+    if (cat === "other") {
+      const col = Math.floor(i / 3);
+      return { left: W - CW - 10 - col * (CW + 10), top: regions.other * (H - CH) + (i % 3) * (CH * 0.45) };
     }
-    posMap[c.id] = { left, top };
+    return {
+      left: 8 + (i % perRow) * (CW + GAP),
+      top: regions[cat] * (H - CH) + Math.floor(i / perRow) * (CH * 0.55),
+    };
+  };
+  const collides = (s) =>
+    Object.values(posMap).some((p) => Math.abs(p.left - s.left) < CW * 0.55 && Math.abs(p.top - s.top) < CH * 0.55);
+  // saved positions first — they own their spots
+  const unplaced = [];
+  for (const c of [...free, ...ghosts.map((g) => g.card)]) {
+    if (c.pos) posMap[c.id] = { left: c.pos.x * (W - CW), top: c.pos.y * (H - CH) };
+    else unplaced.push(c);
   }
+  // newcomers take the first FREE slot in their category's region
+  for (const c of unplaced) {
+    const cat = typeCat(c);
+    let i = autos[cat].indexOf(c);
+    let s = slotFor(cat, i);
+    let guard = 0;
+    while (collides(s) && guard++ < 80) s = slotFor(cat, ++i);
+    posMap[c.id] = s;
+  }
+  // a card's first spot is SAVED (cosmetic place, no log/wake): from then on
+  // it owns its position exactly like a dragged card — nothing ever reflows
+  const toSave = [];
+  for (const c of free) {
+    if (c.pos || autoPlaced.has(c.id)) continue;
+    const s = posMap[c.id];
+    const x = Math.max(0, Math.min(1, s.left / Math.max(1, W - CW)));
+    const y = s.top / Math.max(1, H - CH);
+    c.pos = { x, y };
+    autoPlaced.add(c.id);
+    toSave.push({ card: c.id, x, y });
+  }
+  if (toSave.length && state.started) act("place", { positions: toSave });
   // attached cards tuck under their target (chains collapse onto the root)
   const byId = Object.fromEntries(cards.map((c) => [c.id, c]));
   for (const c of attached) {
@@ -741,6 +764,8 @@ window.addEventListener("resize", () => render());
 
 let draggingNow = false;
 let pendingRender = false;
+// cards whose first battlefield spot we've already persisted this game
+const autoPlaced = new Set();
 
 function makeDraggable(el, c, bf) {
   el.addEventListener("pointerdown", (down) => {
