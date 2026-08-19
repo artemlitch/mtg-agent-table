@@ -219,7 +219,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
 .filterbar .namein { width: 100%; }
 .filterbar .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.filterbar .namein { flex: 1; min-width: 120px; }
 .filterbar select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px; font-size: 11px; }
 .filterbar .numf { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--dim); white-space: nowrap; }
 .filterbar .numin { width: 48px; padding: 3px 5px; font-size: 11px; }
