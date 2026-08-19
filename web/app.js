@@ -1340,8 +1340,8 @@ function filterBar(onChange) {
   };
   row.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
 
-  const PIP_NAMES = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" };
-  for (const col of ["W", "U", "B", "R", "G"]) {
+  const PIP_NAMES = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green", C: "No color" };
+  for (const col of ["W", "U", "B", "R", "G", "C"]) {
     const b = document.createElement("button");
     b.className = "colbtn col" + col;
     b.title = PIP_NAMES[col];
@@ -1370,7 +1370,12 @@ function filterBar(onChange) {
       if (isNaN(v) || !cmp(v, f.touOp, Number(f.tou))) return false;
     }
     if (f.mv !== "" && !cmp(manaValue(c.mana), f.mvOp, Number(f.mv))) return false;
-    for (const col of f.colors) if (!cardColors(c).has(col)) return false;
+    const cols = cardColors(c);
+    for (const col of f.colors) {
+      if (col === "C") {
+        if (cols.size > 0) return false; // "no color" = zero colored pips
+      } else if (!cols.has(col)) return false;
+    }
     return true;
   };
   return { el, predicate };
