@@ -376,8 +376,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(rgba(12, 9, 4, 0.93), rgba(12, 9, 4, 0.93)) padding-box, var(--chrome-dim) border-box;
 }
 
-/* free-placement board */
-.battlefield.freeboard { display: block; position: relative; overflow: hidden; }
+/* free-placement board — one continuous surface: cards may overhang into the
+   other half, so overflow stays visible */
+.battlefield.freeboard { display: block; position: relative; overflow: visible; }
 .battlefield.freeboard .card.placed { position: absolute; transition: left 0.18s, top 0.18s; z-index: 2; }
 .battlefield.freeboard .card.placed.tucked { z-index: 1; filter: brightness(0.85); }
 .battlefield.freeboard .card.placed.dragging { transition: none; z-index: 30; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8); cursor: grabbing; }

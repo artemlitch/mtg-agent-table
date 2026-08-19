@@ -466,10 +466,12 @@ describe("board placement (drag positions)", () => {
     expect(game.log.length).toBe(before);
   });
 
-  test("positions clamp to 0..1 and clear when the card changes zones", () => {
+  test("x clamps to 0..1; y may cross the midline within the table bounds", () => {
     const c = seedCard("C", "you", "battlefield");
     applyAction("you", "place", { positions: [{ card: c.id, x: 7, y: -3 }] });
-    expect(c.pos).toEqual({ x: 1, y: 0 });
+    expect(c.pos).toEqual({ x: 1, y: -1.25 });
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.5, y: -0.6 }] });
+    expect(c.pos).toEqual({ x: 0.5, y: -0.6 });
     applyAction("you", "move", { card: c.id, toZone: "graveyard" });
     expect(c.pos).toBeNull();
   });

@@ -470,8 +470,15 @@ function renderBattlefield(p) {
     el.classList.add("placed");
     el.dataset.cardId = c.id;
     const pos = posMap[c.id];
-    el.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
-    el.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
+    // explicitly dragged positions may cross the midline into the other
+    // half — only auto-laid cards are clamped to their own field
+    if (c.pos) {
+      el.style.left = pos.left.toFixed(0) + "px";
+      el.style.top = pos.top.toFixed(0) + "px";
+    } else {
+      el.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
+      el.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
+    }
     if (pos.under) el.classList.add("tucked");
     if (c.controller === "you") makeDraggable(el, c, bf);
     bf.appendChild(el);
@@ -563,6 +570,10 @@ function makeDraggable(el, c, bf) {
     if (down.button !== 0) return;
     const rect = el.getBoundingClientRect();
     const bfRect = bf.getBoundingClientRect();
+    // the table is one continuous surface: drag bounds span BOTH battlefields
+    const otherRect = $(bf.id === "bf-you" ? "#bf-agent" : "#bf-you").getBoundingClientRect();
+    const minY = Math.min(bfRect.top, otherRect.top) - bfRect.top;
+    const maxY = Math.max(bfRect.bottom, otherRect.bottom) - bfRect.top - rect.height;
     const offX = down.clientX - rect.left;
     const offY = down.clientY - rect.top;
     let moved = false;
@@ -575,7 +586,7 @@ function makeDraggable(el, c, bf) {
         el.setPointerCapture?.(down.pointerId);
       }
       el.style.left = Math.max(0, Math.min(bfRect.width - rect.width, mv.clientX - bfRect.left - offX)) + "px";
-      el.style.top = Math.max(0, Math.min(bfRect.height - rect.height, mv.clientY - bfRect.top - offY)) + "px";
+      el.style.top = Math.max(minY, Math.min(maxY, mv.clientY - bfRect.top - offY)) + "px";
     };
     const onUp = async () => {
       el.removeEventListener("pointermove", onMove);
@@ -587,7 +598,8 @@ function makeDraggable(el, c, bf) {
         // drop onto another card = attach (that's how equip works)
         const myRect = el.getBoundingClientRect();
         const center = { x: myRect.left + myRect.width / 2, y: myRect.top + myRect.height / 2 };
-        const targetEl = [...bf.querySelectorAll(".card.placed")].find((o) => {
+        // attach-drop works across the whole table, either battlefield
+        const targetEl = [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
           if (o === el || !o.dataset.cardId) return false;
           const r = o.getBoundingClientRect();
           return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
@@ -597,7 +609,8 @@ function makeDraggable(el, c, bf) {
         } else {
           if (c.attachedTo) await act("attach", { card: c.id, target: "" });
           const x = Math.max(0, Math.min(1, parseFloat(el.style.left) / Math.max(1, bfRect.width - rect.width)));
-          const y = Math.max(0, Math.min(1, parseFloat(el.style.top) / Math.max(1, bfRect.height - rect.height)));
+          // y stays relative to the own field but may cross the midline
+          const y = parseFloat(el.style.top) / Math.max(1, bfRect.height - rect.height);
           await act("place", { positions: [{ card: c.id, x, y }] });
         }
         if (pendingRender) {

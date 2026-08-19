@@ -1094,7 +1094,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const positions: { card: string; x: number; y: number }[] = p.positions ?? [];
     for (const pos of positions) {
       const c = getCard(pos.card);
-      c.pos = { x: Math.max(0, Math.min(1, Number(pos.x))), y: Math.max(0, Math.min(1, Number(pos.y))) };
+      // y is relative to the controller's half but may cross the midline into
+      // the other half (the table is one continuous surface): <0 is up beyond
+      // the own field's top edge, >1 down beyond its bottom
+      c.pos = { x: Math.max(0, Math.min(1, Number(pos.x))), y: Math.max(-1.25, Math.min(2.25, Number(pos.y))) };
     }
     return { ok: true };
   },
