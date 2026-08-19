@@ -1320,7 +1320,7 @@ function openNewGame() {
     a.href = id ? `https://archidekt.com/decks/${id}` : "#";
   }
   $("#newgame-overlay").classList.remove("hidden");
-  $("#deck-you").focus();
+  $("#deck-agent").focus();
 }
 
 function closeNewGame() {
