@@ -220,11 +220,28 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 #modal { position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68); display: flex; align-items: center; justify-content: center; }
 #modal-box {
-  border: 1px solid transparent; border-radius: 10px; padding: 14px; max-width: 80vw; max-height: 80vh; overflow-y: auto;
+  /* HARD RULE: modals are a fixed size — content (filtered cards etc.) never
+     resizes the box */
+  border: 1px solid transparent; border-radius: 10px; padding: 14px;
+  width: min(1100px, 85vw); height: 82vh; overflow-y: auto;
   background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome) border-box;
   box-shadow: 0 12px 44px rgba(0, 0, 0, 0.8), 0 0 24px rgba(216, 160, 61, 0.12);
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+/* ability-to-stack modal */
+.abilitymodal { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.abilitymodal .amrow { display: flex; gap: 12px; align-items: flex-start; }
+.abilitymodal .amrow img { width: 150px; border-radius: 8px; flex: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55); }
+.abilitymodal .amoracle {
+  font-size: 12px; line-height: 1.5; white-space: pre-wrap; color: var(--text);
+  max-height: 200px; overflow-y: auto; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid transparent;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+}
+.abilitymodal .amsubmit { display: flex; gap: 8px; }
+.abilitymodal .amsubmit input { flex: 1; padding: 9px 10px; font-size: 13px; }
+.abilitymodal .amsubmit button { white-space: nowrap; }
+
 /* filter bar shared by zone modals and library search — one line */
 .filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
 .filterbar .namein { width: 100%; }

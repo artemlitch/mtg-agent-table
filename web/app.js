@@ -1069,13 +1069,7 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "battlefield") {
-    items.push({
-      label: "⚡ Ability → stack…",
-      fn: () => {
-        const text = prompt(`Ability of ${c.hidden ? "this card" : c.name}:`);
-        if (text) act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${text}`, source: c.id });
-      },
-    });
+    items.push({ label: "⚡ Ability → stack…", fn: () => abilityModal(c) });
   }
 
   if (c.zone === "exile" && !c.hidden) {
@@ -1327,6 +1321,39 @@ function filterBar(onChange) {
     return true;
   };
   return { el, predicate };
+}
+
+/** Announce an ability of a battlefield card onto the stack — our own modal:
+    the card and its oracle text for reference, one input, Enter submits. */
+function abilityModal(c) {
+  const wrap = document.createElement("div");
+  wrap.className = "abilitymodal";
+  const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  wrap.innerHTML = `<div class="amrow">
+    ${c.image ? `<img src="${c.image}" alt="">` : ""}
+    <div class="amoracle">${esc(c.oracle) || "<i>(no rules text)</i>"}</div>
+  </div>`;
+  const input = document.createElement("input");
+  input.placeholder = "what does the ability do? (targets, numbers…)";
+  const go = document.createElement("button");
+  go.className = "accent";
+  go.textContent = "⚡ Onto the stack";
+  const submit = () => {
+    const t = input.value.trim();
+    if (!t) return;
+    act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${t}`, source: c.id });
+    closeModal();
+  };
+  go.onclick = submit;
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+  const row = document.createElement("div");
+  row.className = "amsubmit";
+  row.append(input, go);
+  wrap.appendChild(row);
+  openModal(`⚡ ${c.hidden ? "Hidden card" : c.name} — ability onto the stack`, wrap);
+  setTimeout(() => input.focus(), 0);
 }
 
 function showZoneModal(p, zone) {
@@ -1702,9 +1729,16 @@ document.addEventListener("keydown", (e) => {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
   if ((e.key === "e" || e.key === "E") && hoveredCard) {
     // E taps/untaps the hovered battlefield card (fresh lookup — state may
-    // have re-rendered under the cursor since mouseenter)
+    // have re-rendered under the cursor since mouseenter).
+    // Shift+E = activate: tap it AND open the ability-to-stack input.
     const cur = cardById(hoveredCard.id) ?? hoveredCard;
-    if (cur.zone === "battlefield") act("tap", { cards: [cur.id], tapped: !cur.tapped });
+    if (cur.zone !== "battlefield") return;
+    if (e.shiftKey) {
+      if (!cur.tapped) act("tap", { cards: [cur.id], tapped: true });
+      abilityModal(cur);
+    } else {
+      act("tap", { cards: [cur.id], tapped: !cur.tapped });
+    }
   }
 });
 
