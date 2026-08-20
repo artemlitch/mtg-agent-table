@@ -10,6 +10,7 @@ import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, s
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+const GAMES_DIR = new URL("../games/", import.meta.url).pathname;
 const STATE_FILE = process.env.STATE_FILE ?? new URL("../state.json", import.meta.url).pathname;
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
@@ -18,8 +19,23 @@ agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
 
-const saveSoon = () =>
-  scheduleSave(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks, history: getHistory() }));
+// Everything persisted beside the game itself. A backup carries the table as
+// it stands; the live state file adds the undo history.
+const tableSnapshot = () => ({ agent: agent.serialize(), lastDecks });
+const collectState = () => ({ ...tableSnapshot(), history: getHistory() });
+
+const saveSoon = () => scheduleSave(STATE_FILE, collectState);
+
+/** Park the game that is ending: a timestamped state backup plus a games/
+ * archive entry (json + readable transcript). Returns the archive base path. */
+async function backupAndArchive(): Promise<string | null> {
+  const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
+  await Bun.write(backup, JSON.stringify(serializeState(tableSnapshot())));
+  return await archiveGame(game, GAMES_DIR).catch((e) => {
+    console.error("archive failed:", e);
+    return null;
+  });
+}
 
 {
   const restored = await loadStateFile(STATE_FILE);
@@ -166,12 +182,7 @@ const server = Bun.serve({
     // end the current game now: archive it and clear the table (no new decks)
     if (path === "/api/end_game" && req.method === "POST") {
       if (!game.started) return json({ ok: false, error: "no game in progress" }, 400);
-      const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
-      await Bun.write(backup, JSON.stringify(serializeState({ agent: agent.serialize(), lastDecks })));
-      const archived = await archiveGame(game, new URL("../games/", import.meta.url).pathname).catch((e) => {
-        console.error("archive failed:", e);
-        return null;
-      });
+      const archived = await backupAndArchive();
       resetGameState();
       clearHistory();
       agent.kill();
@@ -195,12 +206,7 @@ const server = Bun.serve({
         // never lose a game to a reset: back up the old one first, and file it
         // into the games/ archive (json + readable transcript) for analysis
         if (game.started) {
-          const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
-          await Bun.write(backup, JSON.stringify(serializeState({ agent: agent.serialize(), lastDecks })));
-          const archived = await archiveGame(game, new URL("../games/", import.meta.url).pathname).catch((e) => {
-            console.error("archive failed:", e);
-            return null;
-          });
+          const archived = await backupAndArchive();
           addLog("system", `(previous game backed up${archived ? ` and archived: ${archived.split("/").pop()}` : ""})`);
         }
         resetGameState();
@@ -261,7 +267,7 @@ agent.onBrain((entry) => {
 // flush state on shutdown so kills never lose the debounce window
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, async () => {
-    await saveNow(STATE_FILE, () => ({ agent: agent.serialize(), lastDecks, history: getHistory() }));
+    await saveNow(STATE_FILE, collectState);
     process.exit(0);
   });
 }
