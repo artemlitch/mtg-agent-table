@@ -266,6 +266,14 @@ function pendingAttackOf(cardId) {
   return null;
 }
 
+/** Pull one attacker out of a pending declaration (re-declaring the rest). */
+async function removeAttacker(c, pendingAtk) {
+  const idx = state.stack.findIndex((i) => i.id === pendingAtk.id);
+  await act("stack_remove", { index: idx });
+  const rest = pendingAtk.attackPairs.filter((pair) => pair.attacker !== c.id);
+  if (rest.length) await act("attack", { pairs: rest });
+}
+
 /** Text-only stack items (triggered/activated abilities) matched to their source
     permanent on p's battlefield by name — the source lifts off the board. */
 function battlefieldTriggerGhosts(p) {
@@ -961,16 +969,7 @@ function cardMenu(c, e) {
       items.push({ label: "⚔ Attack agent", fn: () => act("attack", { pairs: [{ attacker: c.id, target: "agent" }] }) });
     }
     if (c.controller === "you" && pendingAtk) {
-      items.push({
-        label: "✖ Remove attacker",
-        fn: async () => {
-          // pull the declaration off the stack; re-declare any other attackers
-          const idx = state.stack.findIndex((i) => i.id === pendingAtk.id);
-          await act("stack_remove", { index: idx });
-          const rest = pendingAtk.attackPairs.filter((pair) => pair.attacker !== c.id);
-          if (rest.length) await act("attack", { pairs: rest });
-        },
-      });
+      items.push({ label: "✖ Remove attacker", fn: () => removeAttacker(c, pendingAtk) });
     }
     if (c.attacking) items.push({ label: "Cancel attack", fn: () => act("clear_combat", {}) });
     const attackers = state.players.agent.zones.battlefield.filter((x) => x.attacking);
@@ -1763,12 +1762,36 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     if (cur.zone !== "battlefield") return;
+    // Shift+E = activate: tap (if untapped) and announce the ability
     if (e.shiftKey) {
       if (!cur.tapped) act("tap", { cards: [cur.id], tapped: true });
       abilityModal(cur);
-    } else {
-      act("tap", { cards: [cur.id], tapped: !cur.tapped });
+      return;
     }
+    // E is a TOGGLE on the battlefield:
+    // 1. pending attack declaration → undo it
+    if (cur.controller === "you") {
+      const pa = pendingAttackOf(cur.id);
+      if (pa) {
+        removeAttacker(cur, pa);
+        return;
+      }
+      // 2. the card's own pending stack item (shift+E ability) → undo it, untapping
+      const mine = (state.stack || []).filter((it) => it.source === cur.id && it.player === "you");
+      if (mine.length) {
+        const it = mine[mine.length - 1];
+        act("stack_remove", { index: state.stack.findIndex((i) => i.id === it.id) });
+        if (cur.tapped) act("tap", { cards: [cur.id], tapped: false });
+        return;
+      }
+      // 3. your untapped creature → declare the attack
+      if (typeCat(cur) === "creature" && !cur.attacking && !cur.tapped) {
+        act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
+        return;
+      }
+    }
+    // 4. anything else just taps/untaps
+    act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
 });
 
