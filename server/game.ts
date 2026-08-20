@@ -287,6 +287,8 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       retractable: item.retractable,
       resolveTo: item.resolveTo,
       source: item.sourceId,
+      // structured combat declaration — the client marks declared attackers
+      attackPairs: item.apply?.type === "attack" ? item.apply.pairs : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),

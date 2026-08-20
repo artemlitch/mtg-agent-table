@@ -253,6 +253,14 @@ function stackItemButtons(item) {
   return btns.childNodes.length ? btns : null;
 }
 
+/** The pending (unresolved) attack declaration containing this card, if any. */
+function pendingAttackOf(cardId) {
+  for (const it of state.stack || []) {
+    if (it.attackPairs && it.attackPairs.some((pair) => pair.attacker === cardId)) return it;
+  }
+  return null;
+}
+
 /** Text-only stack items (triggered/activated abilities) matched to their source
     permanent on p's battlefield by name — the source lifts off the board. */
 function battlefieldTriggerGhosts(p) {
@@ -311,6 +319,11 @@ function ghostEl(card, item, left, top, opts = {}) {
   if (opts.cls) el.classList.add(opts.cls);
   el.onclick = (e) => {
     e.stopPropagation();
+    // a drag's release fires a click — swallow it
+    if (wrap.dataset.dragged) {
+      delete wrap.dataset.dragged;
+      return;
+    }
     hidePreview();
     switchTab("stack");
   };
@@ -610,6 +623,13 @@ function renderBattlefield(p) {
       : { left: W / 2, top: H / 2 };
   }
 
+  // a trigger on the stack LIFTS its real source card — a state on the card,
+  // not a copy (the card stays draggable, one element per card)
+  const lifts = new Map();
+  for (const { item, source } of battlefieldTriggerGhosts(p)) {
+    if (!lifts.has(source.id)) lifts.set(source.id, item);
+  }
+
   for (const c of cards) {
     const el = cardEl(c);
     el.classList.add("placed");
@@ -625,6 +645,26 @@ function renderBattlefield(p) {
       el.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
     }
     if (pos.under) el.classList.add("tucked");
+    const lift = lifts.get(c.id);
+    if (lift) {
+      el.classList.add("lifted");
+      const panel = document.createElement("div");
+      panel.className = "liftpanel";
+      const chip = document.createElement("div");
+      chip.className = "trigchip";
+      chip.textContent = lift.text.length > 110 ? lift.text.slice(0, 110) + "…" : lift.text;
+      chip.title = lift.text;
+      chip.onclick = (e) => {
+        e.stopPropagation();
+        switchTab("stack");
+      };
+      panel.appendChild(chip);
+      const btns = stackItemButtons(lift);
+      if (btns) panel.appendChild(btns);
+      el.appendChild(panel);
+    }
+    // declared-but-unresolved attacker: slight lift + red glow
+    if (pendingAttackOf(c.id)) el.classList.add("declaring");
     if (c.controller === "you") makeDraggable(el, c, bf);
     bf.appendChild(el);
   }
@@ -632,10 +672,16 @@ function renderBattlefield(p) {
   const clampX = (x) => Math.max(0, Math.min(W - CW, x));
   const clampY = (y) => Math.max(0, Math.min(H - CH, y));
 
-  // ghosts: translucent card bobbing in its would-be slot, stack buttons under it
+  // ghosts: translucent card bobbing in its would-be slot, stack buttons under
+  // it. Draggable (your own): dragging pre-places where the card will land —
+  // pos set on the stack card survives resolution onto the battlefield.
   for (const g of ghosts) {
     const pos = posMap[g.card.id];
-    bf.appendChild(ghostEl(g.card, g, clampX(pos.left), clampY(pos.top)));
+    const wrap = g.card.pos
+      ? ghostEl(g.card, g, pos.left, pos.top)
+      : ghostEl(g.card, g, clampX(pos.left), clampY(pos.top));
+    if (g.player === "you") makeDraggable(wrap, g.card, bf, { attach: false });
+    bf.appendChild(wrap);
   }
 
   // spells that DON'T resolve to the battlefield (sorceries, instants,
@@ -643,22 +689,18 @@ function renderBattlefield(p) {
   // half, hugging the midline, fanning out if several are up
   const spells = stackCardsOf(p).filter((it) => resolveZoneOf(it) !== "battlefield");
   spells.forEach((g, i) => {
-    const left = W / 2 - CW / 2 + (i - (spells.length - 1) / 2) * (CW * 0.65);
-    const top = p === "you" ? 10 : H - CH - 16;
-    bf.appendChild(ghostEl(g.card, g, clampX(left), Math.max(0, top), { cls: "spell" }));
-  });
-
-  // triggered abilities: the source permanent lifts off the board (full color —
-  // it's already in play), trigger text + stack buttons underneath
-  battlefieldTriggerGhosts(p).forEach(({ item, source }, i) => {
-    const pos = posMap[source.id];
-    if (!pos) return;
-    bf.appendChild(
-      ghostEl({ ...source, tapped: false }, item, clampX(pos.left + 10 + i * 10), clampY(pos.top - 14 - i * 10), {
-        cls: "trigger",
-        chip: item.text,
-      })
-    );
+    let left = W / 2 - CW / 2 + (i - (spells.length - 1) / 2) * (CW * 0.65);
+    let top = p === "you" ? 10 : H - CH - 16;
+    if (g.card.pos) {
+      left = g.card.pos.x * (W - CW);
+      top = g.card.pos.y * (H - CH);
+    } else {
+      left = clampX(left);
+      top = Math.max(0, top);
+    }
+    const wrap = ghostEl(g.card, g, left, top, { cls: "spell" });
+    if (g.player === "you") makeDraggable(wrap, g.card, bf, { attach: false });
+    bf.appendChild(wrap);
   });
 }
 window.addEventListener("resize", () => render());
@@ -668,7 +710,7 @@ let pendingRender = false;
 // cards whose first battlefield spot we've already persisted this game
 const autoPlaced = new Set();
 
-function makeDraggable(el, c, bf) {
+function makeDraggable(el, c, bf, opts = {}) {
   el.addEventListener("pointerdown", (down) => {
     if (down.button !== 0) return;
     const rect = el.getBoundingClientRect();
@@ -702,7 +744,8 @@ function makeDraggable(el, c, bf) {
         const myRect = el.getBoundingClientRect();
         const center = { x: myRect.left + myRect.width / 2, y: myRect.top + myRect.height / 2 };
         // attach-drop works across the whole table, either battlefield
-        const targetEl = [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
+        // (disabled for stack ghosts — they only pre-place their landing spot)
+        const targetEl = opts.attach === false ? null : [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
           if (o === el || !o.dataset.cardId) return false;
           const r = o.getBoundingClientRect();
           return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
@@ -912,8 +955,21 @@ function cardMenu(c, e) {
 
   if (c.zone === "battlefield") {
     items.push({ label: c.tapped ? "Untap" : "Tap", fn: () => act("tap", { cards: [c.id], tapped: !c.tapped }) });
-    if (c.controller === "you" && !c.attacking) {
+    const pendingAtk = pendingAttackOf(c.id);
+    if (c.controller === "you" && !c.attacking && !pendingAtk) {
       items.push({ label: "⚔ Attack agent", fn: () => act("attack", { pairs: [{ attacker: c.id, target: "agent" }] }) });
+    }
+    if (c.controller === "you" && pendingAtk) {
+      items.push({
+        label: "✖ Remove attacker",
+        fn: async () => {
+          // pull the declaration off the stack; re-declare any other attackers
+          const idx = state.stack.findIndex((i) => i.id === pendingAtk.id);
+          await act("stack_remove", { index: idx });
+          const rest = pendingAtk.attackPairs.filter((pair) => pair.attacker !== c.id);
+          if (rest.length) await act("attack", { pairs: rest });
+        },
+      });
     }
     if (c.attacking) items.push({ label: "Cancel attack", fn: () => act("clear_combat", {}) });
     const attackers = state.players.agent.zones.battlefield.filter((x) => x.attacking);
