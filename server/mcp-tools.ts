@@ -155,6 +155,10 @@ const TOOLS: Record<string, ToolDef> = {
     leanCards: true,
   },
   shuffle: { description: "Shuffle a library (after searching).", schema: obj({ player: PLAYER }) },
+  read_card: {
+    description: "Read ONE card's full details (oracle text, type, P/T, faces) by card id — any card you can legally see: battlefields, graveyards, stack, your hand, revealed cards. Free and unlogged. This is the tool for checking what a card does; peek is only for library tops.",
+    schema: obj({ card: str("card id") }, ["card"]),
+  },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
   set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Artem resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
   attack: {

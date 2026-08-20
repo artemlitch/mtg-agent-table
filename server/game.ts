@@ -785,8 +785,19 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, names };
   },
 
+  /** Read one card's full details by id — anything you can legally see.
+   * Free and unlogged, like reading a card across a paper table. */
+  read_card(ctx, p) {
+    const c = getCard(p.card ?? p.cardId);
+    if (!cardVisibleTo(c, ctx.actor)) throw new Error(`${c.zone === "hand" || c.zone === "library" ? "that card is hidden from you" : "that card is face-down"} — read_card only shows cards you can legally see`);
+    return { ok: true, card: serializeCard(c, ctx.actor) };
+  },
+
   /** Look at top N of a library (scry/surveil/impulse start). Private to the actor. */
   peek(ctx, p) {
+    if (p.card ?? p.cardId) {
+      throw new Error("peek looks at the TOP of a library ({player, n}) — to read one card's text use read_card {card}");
+    }
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const lib = game.players[player].zones.library;

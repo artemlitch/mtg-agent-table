@@ -720,3 +720,19 @@ describe("zone browsing card shape", () => {
     expect(pk.cards[0].power).toBe("2");
   });
 });
+
+describe("read_card and peek misuse", () => {
+  test("read_card returns full details for visible cards, refuses hidden ones", () => {
+    const pub = seedCard("Thalakos Deceiver", "you", "battlefield", { oracle: "Shadow. Sacrifice: gain control...", power: "1", toughness: "1" });
+    const hid = seedCard("Secret", "you", "hand");
+    const r: any = applyAction("agent", "read_card", { card: pub.id });
+    expect(r.card.oracle).toContain("Shadow");
+    expect(() => applyAction("agent", "read_card", { card: hid.id })).toThrow(/hidden/);
+    expect(game.log.length).toBe(0); // unlogged
+  });
+
+  test("peek with a card param fails loudly and points at read_card", () => {
+    seedLibrary("agent", ["Top"]);
+    expect(() => applyAction("agent", "peek", { card: "c1" })).toThrow(/read_card/);
+  });
+});
