@@ -267,9 +267,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .filterbar .colbtn.colR { background: url("pip-R.svg") center/100% no-repeat; }
 .filterbar .colbtn.colG { background: url("pip-G.svg") center/100% no-repeat; }
 .filterbar .colbtn.colC { background: url("pip-C.svg") center/100% no-repeat; }
+.filterbar .sizeslider { width: 90px; margin-left: auto; accent-color: var(--accent); background: none; border: none; padding: 0; }
 
 .modalcards { display: flex; flex-wrap: wrap; gap: 8px; }
-.modalcard { width: 130px; }
+.modalcard { width: var(--cardsize, 170px); }
 .modalcard img { width: 100%; border-radius: 6px; }
 .modalcard .mcbtns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 .modalcard.bottomed img { opacity: 0.4; }

@@ -1170,6 +1170,7 @@ function openModal(title, bodyEl, opts = {}) {
   const box = $("#modal-box");
   // card browsers are fixed-size (hard rule); compact modals size to content
   box.classList.toggle("compact", !!opts.compact);
+  box.style.setProperty("--cardsize", (localStorage.getItem("cardsize") || 170) + "px");
   box.innerHTML = "";
   const x = document.createElement("button");
   x.className = "modalx";
@@ -1283,6 +1284,20 @@ function filterBar(onChange) {
     return span;
   };
   row.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
+
+  // card-size slider — persisted, applies to every card browser
+  const size = document.createElement("input");
+  size.type = "range";
+  size.min = 110;
+  size.max = 280;
+  size.value = localStorage.getItem("cardsize") || 170;
+  size.className = "sizeslider";
+  size.title = "card size";
+  size.oninput = () => {
+    localStorage.setItem("cardsize", size.value);
+    $("#modal-box").style.setProperty("--cardsize", size.value + "px");
+  };
+  row.appendChild(size);
 
   const PIP_NAMES = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green", C: "No color" };
   for (const col of ["W", "U", "B", "R", "G", "C"]) {
