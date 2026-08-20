@@ -194,33 +194,21 @@ export function cardVisibleTo(card: Card, viewer: PlayerId): boolean {
   }
 }
 
-/** A card is a card ANYWHERE: the ONE projection of a visible card, used by
- * every place that serializes cards (state views, view_zone, peek). Add a
- * field here and every consumer gets it. */
-export function projectCard(card: Card) {
-  // a DFC always presents as its ACTIVE face — the composite name never shows
-  const idx = card.face ?? 0;
-  const f = card.faces?.[idx];
-  return {
-    id: card.id,
-    name: f?.name ?? card.name,
-    image: f?.image ?? card.image,
-    oracle: f?.oracle ?? card.oracle,
-    mana: f?.mana ?? card.mana,
-    typeLine: f?.typeLine ?? card.typeLine,
-    power: f?.power ?? card.power,
-    toughness: f?.toughness ?? card.toughness,
-    basePower: card.basePower,
-    baseToughness: card.baseToughness,
-    faceCount: card.faces?.length ?? 1,
-    face: idx,
-    faces: card.faces,
-    faceDown: card.faceDown,
-  };
-}
-
-function redactCard(card: Card, viewer: PlayerId) {
-  const visible = cardVisibleTo(card, viewer);
+/**
+ * A card is a card ANYWHERE: the ONE card serialization, used by every place
+ * that hands a card to a client (state views, view_zone, peek).
+ *
+ * PUBLIC fields — where it is, who owns and controls it, tapped, counters,
+ * attachments, combat, board position — are always present: an opponent sees
+ * all of that even on a card whose face is hidden. SECRET fields — name, art,
+ * oracle text, mana, type line, P/T, faces — are added only when the viewer is
+ * allowed to know them, and on a hidden card they are ABSENT (not null), so a
+ * client can never read a name it was not given.
+ *
+ * opts.reveal is the granted peek: view_zone and peek are effects that have
+ * already earned the look, so they skip the visibility test.
+ */
+export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boolean } = {}) {
   const base = {
     id: card.id,
     zone: card.zone,
@@ -236,10 +224,24 @@ function redactCard(card: Card, viewer: PlayerId) {
     blocking: card.blocking,
     pos: card.pos ?? null,
   };
-  if (!visible) return { ...base, hidden: true as const };
+  if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
+  // a DFC always presents as its ACTIVE face — the composite name never shows
+  const idx = card.face ?? 0;
+  const f = card.faces?.[idx];
   return {
     ...base,
-    ...projectCard(card),
+    name: f?.name ?? card.name,
+    image: f?.image ?? card.image,
+    oracle: f?.oracle ?? card.oracle,
+    mana: f?.mana ?? card.mana,
+    typeLine: f?.typeLine ?? card.typeLine,
+    power: f?.power ?? card.power,
+    toughness: f?.toughness ?? card.toughness,
+    basePower: card.basePower,
+    baseToughness: card.baseToughness,
+    faceCount: card.faces?.length ?? 1,
+    face: idx,
+    faces: card.faces,
     hidden: false as const,
     revealedTo: card.visibleTo,
   };
@@ -256,7 +258,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       deckName: ps.deckName,
       counts: Object.fromEntries(ZONES.map((z) => [z, ps.zones[z].length])),
       zones: Object.fromEntries(
-        ZONES.map((z) => [z, ps.zones[z].map((id) => redactCard(game.cards[id], viewer))])
+        ZONES.map((z) => [z, ps.zones[z].map((id) => serializeCard(game.cards[id], viewer))])
       ),
     };
   }
@@ -277,7 +279,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       retractable: item.retractable,
       resolveTo: item.resolveTo,
       source: item.sourceId,
-      card: item.cardId ? redactCard(game.cards[item.cardId], viewer) : null,
+      card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
     seq: game.seq,
@@ -758,7 +760,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const lib = game.players[player].zones.library;
-    const cards = lib.slice(0, n).map((id) => projectCard(game.cards[id]));
+    const cards = lib.slice(0, n).map((id) => serializeCard(game.cards[id], ctx.actor, { reveal: true }));
     addLog(ctx.actor, `${who(ctx.actor)} looked at the top ${n} of ${who(player)}'s library`);
     return { ok: true, cards };
   },
@@ -787,7 +789,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const zone: Zone = p.zone;
     const list = game.players[player].zones[zone];
-    const cards = list.map((id) => projectCard(game.cards[id]));
+    const cards = list.map((id) => serializeCard(game.cards[id], ctx.actor, { reveal: true }));
     if (zone === "library" || (zone === "hand" && player !== ctx.actor)) {
       addLog(ctx.actor, `${who(ctx.actor)} looked at ${who(player)}'s ${zone} (${list.length} cards)`);
     }
