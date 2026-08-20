@@ -2,6 +2,8 @@
 // All calls proxy to the game server HTTP API as actor=agent, so redaction
 // is enforced server-side. Zero dependencies: hand-rolled JSON-RPC over stdio.
 
+import { leanCard } from "./game";
+
 const TABLE_URL = process.env.TABLE_URL || "http://localhost:4780";
 
 type Schema = Record<string, any>;
@@ -22,6 +24,9 @@ interface ToolDef {
   schema: Schema;
   action?: string; // /api/action type; defaults to tool name
   special?: "state";
+  // result carries a card list: trim it the way the lean state view is trimmed,
+  // so art urls and board positions never burn context here either
+  leanCards?: boolean;
 }
 
 const TOOLS: Record<string, ToolDef> = {
@@ -136,6 +141,7 @@ const TOOLS: Record<string, ToolDef> = {
   peek: {
     description: "Look at the top N cards of a library privately (scry/surveil/impulse effects). Follow with reorder_top or move.",
     schema: obj({ player: PLAYER, n: num("how many") }, ["n"]),
+    leanCards: true,
   },
   reorder_top: {
     description: "Finish a scry: top = card ids in new order (first = top), toBottom = ids to bottom the library.",
@@ -145,6 +151,7 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "See every card in a zone: search your own library (then shuffle!), read a graveyard, or look at Artem's hand/library WHEN A GAME EFFECT ALLOWS IT (this is logged loudly — cite the effect with say).",
     schema: obj({ player: PLAYER, zone: ZONE }, ["player", "zone"]),
+    leanCards: true,
   },
   shuffle: { description: "Shuffle a library (after searching).", schema: obj({ player: PLAYER }) },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
@@ -187,7 +194,16 @@ async function callTable(tool: string, args: any): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor: "agent", type: def.action ?? tool, params: args ?? {} }),
   });
-  return await res.text();
+  const text = await res.text();
+  if (!def.leanCards) return text;
+  try {
+    const data = JSON.parse(text);
+    // errors and card-less results pass through untouched
+    if (!Array.isArray(data?.cards)) return text;
+    return JSON.stringify({ ...data, cards: data.cards.map((c: any) => leanCard(c)) });
+  } catch {
+    return text;
+  }
 }
 
 function reply(id: any, result: any) {

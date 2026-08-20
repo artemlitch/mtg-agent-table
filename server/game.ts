@@ -247,6 +247,14 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
   };
 }
 
+/** The agent-facing trim of an already-serialized card: the same card, minus
+ * the fields that exist for human eyes only — art urls (on the card and on each
+ * face) and the cosmetic board position. Not a second card shape: a transport
+ * trim, applied by the lean state view and by the granted peeks. */
+export function leanCard({ image, pos, faces, ...rest }: any) {
+  return { ...rest, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
+}
+
 /** Full table snapshot as one viewer is allowed to see it. */
 export function viewFor(viewer: PlayerId, logTail = 40) {
   const players: any = {};

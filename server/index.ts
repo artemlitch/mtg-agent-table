@@ -1,6 +1,6 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
-import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, type PlayerId } from "./game";
+import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, leanCard, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
@@ -77,10 +77,7 @@ const server = Bun.serve({
           for (const z of Object.keys(p.zones)) {
             let cards = p.zones[z];
             if (z === "library" || z === "hand") cards = cards.filter((c: any) => !c.hidden);
-            p.zones[z] = cards.map(({ image, pos, faces, ...rest }: any) => ({
-              ...rest,
-              ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}),
-            }));
+            p.zones[z] = cards.map((c: any) => leanCard(c));
           }
         }
         view.tokenCatalog = Object.fromEntries(
