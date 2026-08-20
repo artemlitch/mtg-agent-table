@@ -25,6 +25,7 @@
   .layer { border-top: 1px solid var(--line); padding: 8px 0; }
   .layer .lhead { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--dim); }
   .param { display: grid; grid-template-columns: 52px 1fr 58px; gap: 8px; align-items: center; margin: 3px 0; font-size: 11px; }
+  .notelabel { display: block; color: var(--accent); font-size: 9px; font-weight: 700; }
   .param input[type="range"] { width: 100%; padding: 0; background: none; border: none; }
   .param input[type="number"] { width: 100%; padding: 2px 4px; font-size: 11px; }
   .param select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; font-size: 11px; }
@@ -116,11 +117,30 @@ function build() {
         slider.value = toSlider(layer[p] ?? 0);
         const num = document.createElement("input");
         num.type = "number"; num.min = min; num.max = max; num.step = step; num.value = layer[p] ?? 0;
-        const sync = (v) => { layer[p] = Number(v); slider.value = toSlider(Number(v)); num.value = v; };
+        // live musical-note readout on frequency params (E2 = 82Hz etc.)
+        const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const noteOf = (hz) => {
+          if (!hz || hz < 16) return "";
+          const n = Math.round(12 * Math.log2(hz / 440)) + 57; // A4=440 → index 57
+          return NOTES[((n % 12) + 12) % 12] + Math.floor(n / 12);
+        };
+        let noteEl = null;
+        if (isLog) {
+          noteEl = document.createElement("span");
+          noteEl.className = "notelabel";
+          noteEl.textContent = noteOf(layer[p]);
+        }
+        const sync = (v) => {
+          layer[p] = Number(v);
+          slider.value = toSlider(Number(v));
+          num.value = v;
+          if (noteEl) noteEl.textContent = noteOf(Number(v));
+        };
         slider.oninput = () => { sync(fromSlider(slider.value)); };
         slider.onchange = () => play(name);
         num.onchange = () => { sync(num.value); play(name); };
-        row.innerHTML = `<span>${p}</span>`;
+        row.innerHTML = `<span>${p}${noteEl ? "" : ""}</span>`;
+        if (noteEl) row.firstChild.appendChild(noteEl);
         row.appendChild(slider);
         row.appendChild(num);
         ld.appendChild(row);
