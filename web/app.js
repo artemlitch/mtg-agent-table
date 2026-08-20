@@ -309,40 +309,35 @@ function resolveZoneOf(item) {
   return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
 }
 
-/** A card lifted off the board with its stack buttons under it — an incoming
-    permanent in its would-be slot, a spell at the casting spot, or a trigger's
-    source. left/top are pixels inside the battlefield; opts.cls adds the
-    flavor class and opts.chip the trigger text under the card. */
+/** THE card, in its on-the-stack presentation — the SAME .card.placed element
+    as any board card (same size, same drag geometry); "ghost" is a state
+    class, and the stack buttons ride below as a child panel that doesn't
+    affect the card's bounding box. */
 function ghostEl(card, item, left, top, opts = {}) {
-  const wrap = document.createElement("div");
-  wrap.className = "ghostwrap";
-  wrap.style.left = left.toFixed(0) + "px";
-  wrap.style.top = top.toFixed(0) + "px";
   const el = cardEl(card);
-  el.classList.add("ghost");
+  el.classList.add("placed", "ghost");
   if (item.countered) el.classList.add("countered");
   if (opts.cls) el.classList.add(opts.cls);
+  el.style.left = left.toFixed(0) + "px";
+  el.style.top = top.toFixed(0) + "px";
   el.onclick = (e) => {
     e.stopPropagation();
     // a drag's release fires a click — swallow it
-    if (wrap.dataset.dragged) {
-      delete wrap.dataset.dragged;
+    if (el.dataset.dragged) {
+      delete el.dataset.dragged;
       return;
     }
     hidePreview();
     switchTab("stack");
   };
-  wrap.appendChild(el);
-  if (opts.chip) {
-    const chip = document.createElement("div");
-    chip.className = "trigchip";
-    chip.textContent = opts.chip.length > 110 ? opts.chip.slice(0, 110) + "…" : opts.chip;
-    chip.title = opts.chip;
-    wrap.appendChild(chip);
-  }
   const btns = stackItemButtons(item);
-  if (btns) wrap.appendChild(btns);
-  return wrap;
+  if (btns) {
+    const panel = document.createElement("div");
+    panel.className = "liftpanel";
+    panel.appendChild(btns);
+    el.appendChild(panel);
+  }
+  return el;
 }
 
 /** Stack items whose card would resolve onto p's battlefield — shown as ghosts

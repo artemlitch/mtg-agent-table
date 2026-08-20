@@ -408,20 +408,19 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   50% { box-shadow: 0 0 16px rgba(240, 208, 120, 0.9); }
 }
 
-/* stack cards ghosting over the slot they'd resolve into */
-.ghostwrap { position: absolute; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.ghostwrap .card.ghost {
-  opacity: 0.55; filter: saturate(0.75);
+/* ghost = THE card in its on-the-stack presentation: same .card.placed
+   element and drag geometry as any board card, styled as a state */
+.card.ghost {
+  opacity: 0.55; filter: saturate(0.75); z-index: 6;
   outline: 1.5px dashed var(--accent); outline-offset: 2px;
   animation: ghostbob 2.6s ease-in-out infinite;
   box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 16px rgba(226, 179, 85, 0.25);
 }
+.card.ghost.dragging { animation: none; }
 @keyframes ghostbob {
   0%, 100% { transform: translateY(-5px); }
   50% { transform: translateY(-11px); }
 }
-.ghostwrap .sibtns { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 170px; }
-.ghostwrap .sibtns button { font-size: 9px; padding: 1px 6px; }
 /* a trigger on the stack lifts its REAL battlefield card — a state, not a copy */
 .card.lifted {
   outline: 1.5px solid var(--accent); outline-offset: 2px; z-index: 6;
@@ -436,7 +435,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .card .liftpanel .sibtns { display: flex; gap: 3px; }
 .card .liftpanel .sibtns button { font-size: 9px; padding: 1px 6px; }
 /* spells mid-cast: brighter than resolving-permanent ghosts, arcane violet cast */
-.ghostwrap .card.ghost.spell {
+.card.ghost.spell {
   opacity: 0.85; filter: none;
   box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 20px rgba(140, 100, 220, 0.45);
 }
