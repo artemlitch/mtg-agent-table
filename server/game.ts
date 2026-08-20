@@ -87,6 +87,9 @@ export interface StackItem {
   // countered is a MARK, not a removal: the item stays on the stack so
   // responses can reference it; resolving a countered item fizzles it.
   countered?: boolean;
+  // multi-part announcements (combat damage per pairing): one line per part,
+  // rendered as a table by the client. text stays the headline.
+  lines?: string[];
 }
 
 export interface GameState {
@@ -291,6 +294,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       resolveTo: item.resolveTo,
       source: item.sourceId,
       countered: item.countered,
+      lines: item.lines,
       // structured combat declaration — the client marks declared attackers
       attackPairs: item.apply?.type === "attack" ? item.apply.pairs : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
@@ -945,12 +949,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (!text || !String(text).trim()) throw new Error("stack_push requires text");
     if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     const sourceId = p.source ? getCard(p.source).id : undefined;
+    const lines = Array.isArray(p.lines) && p.lines.length ? p.lines.map((l: any) => String(l).slice(0, 300)).slice(0, 30) : undefined;
     pushStackItem(ctx.actor, {
       cardId: null,
       text: String(text),
       ...(sourceId ? { sourceId } : {}),
+      ...(lines ? { lines } : {}),
     });
-    addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}`);
+    addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}${lines ? "\n" + lines.map((l: string, i: number) => `  ${i + 1}. ${l}`).join("\n") : ""}`);
     return { ok: true, stackSize: game.stack.length };
   },
 
@@ -986,19 +992,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, groupId, items: pushed, stackSize: game.stack.length };
   },
 
-  /** Resolve ANY stack item (p.item targets by id; default = top). Either
-   * player may resolve any item — no top-only or opponent-only rule; the log
-   * keeps everyone honest. A COUNTERED item resolves as a fizzle. */
+  /** Resolve any of the OPPONENT's stack items (p.item targets by id; default =
+   * top) — no top-only rule, but you never resolve your own item: resolving is
+   * the opponent's acknowledgment. A COUNTERED item resolves as a fizzle. */
   stack_resolve(ctx, p) {
-    let item: StackItem | undefined;
-    if (p.item) {
-      const idx = game.stack.findIndex((i) => i.id === p.item);
-      if (idx < 0) throw new Error(`no stack item ${p.item}`);
-      [item] = game.stack.splice(idx, 1);
-    } else {
-      item = game.stack.pop();
+    const idx = p.item ? game.stack.findIndex((i) => i.id === p.item) : game.stack.length - 1;
+    const item = idx >= 0 ? game.stack[idx] : undefined;
+    if (!item) throw new Error(p.item ? `no stack item ${p.item}` : "the stack is empty");
+    if (item.player === ctx.actor) {
+      throw new Error("that's your own item — the opponent resolves it (or take it back with stack_remove)");
     }
-    if (!item) throw new Error("the stack is empty");
+    game.stack.splice(idx, 1);
     if (item.countered) return fizzleItem(ctx, item);
     return resolveStackItem(ctx, item, p);
   },

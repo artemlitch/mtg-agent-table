@@ -78,12 +78,12 @@ describe("casting onto the stack", () => {
     expect(game.stack.length).toBe(0);
   });
 
-  test("resolve can target ANY item by id, either player's", () => {
-    const a = seedCard("Bottom Spell", "you", "hand", { typeLine: "Creature — Bear" });
+  test("resolve can target the opponent's items mid-stack by id", () => {
+    const a = seedCard("Bottom Spell", "agent", "hand", { typeLine: "Creature — Bear" });
     const b = seedCard("Top Spell", "agent", "hand", { typeLine: "Instant" });
-    applyAction("you", "cast", { card: a.id });
+    applyAction("agent", "cast", { card: a.id });
     applyAction("agent", "cast", { card: b.id });
-    // mid-stack resolve of your OWN bottom item — allowed, no top-only rule
+    // mid-stack resolve of the agent's BOTTOM item — no top-only rule
     applyAction("you", "stack_resolve", { item: game.stack[0].id });
     expect(a.zone).toBe("battlefield");
     expect(game.stack.length).toBe(1);
@@ -465,13 +465,27 @@ describe("accepted proposals execute in proposal order", () => {
   });
 });
 
-describe("anyone may resolve anything", () => {
-  test("resolving your own item is allowed — no opponent-only rule", () => {
+describe("only the opponent resolves your items", () => {
+  test("stack_resolve refuses your own item (any position); opponent resolves it", () => {
     const c = seedCard("My Spell", "you", "hand", { typeLine: "Sorcery" });
     applyAction("you", "cast", { card: c.id });
-    applyAction("you", "stack_resolve", {});
+    expect(() => applyAction("you", "stack_resolve", {})).toThrow(/opponent/);
+    expect(() => applyAction("you", "stack_resolve", { item: game.stack[0].id })).toThrow(/opponent/);
+    expect(game.stack.length).toBe(1); // refused resolves leave the stack intact
+    applyAction("agent", "stack_resolve", {});
     expect(c.zone).toBe("graveyard");
-    expect(game.stack.length).toBe(0);
+  });
+});
+
+describe("multi-part announcements", () => {
+  test("stack_push lines are stored, exposed in the view, and logged numbered", () => {
+    applyAction("agent", "stack_push", {
+      text: "COMBAT DAMAGE",
+      lines: ["Marchesa 7/7 → Warrior token: token dies", "Imperial Recruiter unblocked → 2 to Agent"],
+    });
+    expect(game.stack[0].lines!.length).toBe(2);
+    expect((viewFor("you") as any).stack[0].lines[1]).toContain("Imperial Recruiter");
+    expect(game.log.at(-1)!.text).toContain("1. Marchesa");
   });
 });
 

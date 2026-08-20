@@ -322,6 +322,16 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .stackitem.grouped { border-left: 3px solid var(--accent); }
 .stackitem.respondat { outline: 2px dashed var(--accent); }
 .stackitem .siplanned { margin-left: 6px; font-size: 9px; color: var(--dim); border: 1px dashed var(--dim); border-radius: 4px; padding: 0 4px; }
+/* multi-part announcements (combat damage): one row per pairing */
+.stackitem .sirows { display: flex; flex-direction: column; margin-top: 3px; }
+.stackitem .sirow {
+  display: flex; gap: 6px; align-items: baseline; font-size: 11px;
+  padding: 3px 0; border-top: 1px dashed rgba(110, 83, 34, 0.55);
+}
+.stackitem .sirownum {
+  flex: none; min-width: 15px; height: 15px; border-radius: 8px; text-align: center;
+  font: 700 9px/15px var(--font-fantasy); color: var(--gold-hi); background: rgba(110, 83, 34, 0.4);
+}
 /* countered items stay on the stack, visibly dead until resolved (fizzle) */
 .stackitem.countered { opacity: 0.7; }
 .stackitem.countered .sitext { text-decoration: line-through; text-decoration-color: var(--red); }

@@ -206,7 +206,27 @@ function stackItemEl(item, opts = {}) {
     const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
     const planned = item.retractable ? `<span class="siplanned" title="planned follow-up — unwinds if responded below">planned</span>` : "";
     const ctag = item.countered ? `<span class="ctag">COUNTERED</span>` : "";
-    d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}${ctag}</div><div class="sitext">${item.text}</div></div></div>`;
+    // multi-part announcements (combat damage) render as rows: explicit
+    // lines[] from the agent, or a fallback split on "(1) … (2) …" numbering
+    let bodyHtml;
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    let rows = item.lines;
+    let headline = item.text;
+    if (!rows) {
+      const parts = item.text.split(/\s*\(\d+\)\s+/);
+      if (parts.length >= 3) {
+        headline = parts[0].trim();
+        rows = parts.slice(1);
+      }
+    }
+    if (rows && rows.length) {
+      bodyHtml = `<div class="sitext">${esc(headline)}</div><div class="sirows">${rows
+        .map((r, i) => `<div class="sirow"><span class="sirownum">${i + 1}</span>${esc(r)}</div>`)
+        .join("")}</div>`;
+    } else {
+      bodyHtml = `<div class="sitext">${esc(item.text)}</div>`;
+    }
+    d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}${ctag}</div>${bodyHtml}</div></div>`;
     if (item.card && !item.card.hidden) {
       d.onmouseenter = (e) => showPreview(item.card, e);
       d.onmousemove = (e) => positionPreview(e);
@@ -234,23 +254,26 @@ function stackItemButtons(item) {
     };
     btns.appendChild(b);
   };
-  // any item, any time — resolve removes (fizzling if countered), counter marks
+  // any of the AGENT's items, any position — resolve removes (fizzling if
+  // countered), counter marks. Your own items: take back only.
   const idx = state.stack.findIndex((i) => i.id === item.id);
-  mk(
-    "Resolve",
-    () => act("stack_resolve", { item: item.id }),
-    item.countered ? "Fizzle: the countered card goes to its owner's graveyard, no effect" : "Resolve this item"
-  );
-  mk(item.countered ? "Un-counter" : "Counter", () => act("stack_counter", { item: item.id }),
-    item.countered ? "Remove the countered mark" : "Mark as countered — it stays on the stack until resolved (then fizzles)");
-  if (item.player === "agent" && idx >= 0 && idx < state.stack.length - 1 && state.stack.slice(idx).every((i) => i.player === "agent")) {
-    mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
-  }
-  if (item.player === "you") {
+  if (item.player === "agent") {
+    mk(
+      "Resolve",
+      () => act("stack_resolve", { item: item.id }),
+      item.countered ? "Fizzle: the countered card goes to its owner's graveyard, no effect" : "Resolve this item"
+    );
+    mk(item.countered ? "Un-counter" : "Counter", () => act("stack_counter", { item: item.id }),
+      item.countered ? "Remove the countered mark" : "Mark as countered — it stays on the stack until resolved (then fizzles)");
+    if (idx >= 0 && idx < state.stack.length - 1 && state.stack.slice(idx).every((i) => i.player === "agent")) {
+      mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
+    }
+    if (idx >= 0 && idx < state.stack.length - 1) {
+      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
+        "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
+    }
+  } else {
     mk("Take back", () => act("stack_remove", { index: idx }), "Withdraw your own item — the card returns to your hand");
-  } else if (idx >= 0 && idx < state.stack.length - 1) {
-    mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
-      "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
   }
   return btns.childNodes.length ? btns : null;
 }
