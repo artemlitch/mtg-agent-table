@@ -1244,7 +1244,7 @@ function filterBar(onChange) {
   // search bar on its own line above the filters
   const q = document.createElement("input");
   q.className = "namein";
-  q.placeholder = "search by name…";
+  q.placeholder = "search name, type, or card text…";
   q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
   el.appendChild(q);
 
@@ -1300,7 +1300,12 @@ function filterBar(onChange) {
   const cmp = (val, op, target) => (op === ">=" ? val >= target : val <= target);
   const predicate = (c) => {
     if (c.hidden) return !active(); // hidden cards can't match filters
-    if (f.q && !(c.name || "").toLowerCase().includes(f.q)) return false;
+    // free text matches EVERYTHING: name, type line, oracle text —
+    // "mountain" finds duals, "token" finds token-makers
+    if (f.q) {
+      const hay = `${c.name || ""} ${c.typeLine || ""} ${c.oracle || ""}`.toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
     if (f.type && !(c.typeLine || "").toLowerCase().includes(f.type)) return false;
     if (f.pow !== "") {
       const v = Number(c.power);
