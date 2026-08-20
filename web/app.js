@@ -297,6 +297,36 @@ function resolveZoneOf(item) {
   return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
 }
 
+/** A card lifted off the board with its stack buttons under it — an incoming
+    permanent in its would-be slot, a spell at the casting spot, or a trigger's
+    source. left/top are pixels inside the battlefield; opts.cls adds the
+    flavor class and opts.chip the trigger text under the card. */
+function ghostEl(card, item, left, top, opts = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "ghostwrap";
+  wrap.style.left = left.toFixed(0) + "px";
+  wrap.style.top = top.toFixed(0) + "px";
+  const el = cardEl(card);
+  el.classList.add("ghost");
+  if (opts.cls) el.classList.add(opts.cls);
+  el.onclick = (e) => {
+    e.stopPropagation();
+    hidePreview();
+    switchTab("stack");
+  };
+  wrap.appendChild(el);
+  if (opts.chip) {
+    const chip = document.createElement("div");
+    chip.className = "trigchip";
+    chip.textContent = opts.chip.length > 110 ? opts.chip.slice(0, 110) + "…" : opts.chip;
+    chip.title = opts.chip;
+    wrap.appendChild(chip);
+  }
+  const btns = stackItemButtons(item);
+  if (btns) wrap.appendChild(btns);
+  return wrap;
+}
+
 /** Stack items whose card would resolve onto p's battlefield — shown as ghosts
     hovering in the slot they'd land in. */
 function battlefieldGhosts(p) {
@@ -599,24 +629,13 @@ function renderBattlefield(p) {
     bf.appendChild(el);
   }
 
+  const clampX = (x) => Math.max(0, Math.min(W - CW, x));
+  const clampY = (y) => Math.max(0, Math.min(H - CH, y));
+
   // ghosts: translucent card bobbing in its would-be slot, stack buttons under it
   for (const g of ghosts) {
-    const wrap = document.createElement("div");
-    wrap.className = "ghostwrap";
     const pos = posMap[g.card.id];
-    wrap.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
-    wrap.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
-    const el = cardEl(g.card);
-    el.classList.add("ghost");
-    el.onclick = (e) => {
-      e.stopPropagation();
-      hidePreview();
-      switchTab("stack");
-    };
-    wrap.appendChild(el);
-    const btns = stackItemButtons(g);
-    if (btns) wrap.appendChild(btns);
-    bf.appendChild(wrap);
+    bf.appendChild(ghostEl(g.card, g, clampX(pos.left), clampY(pos.top)));
   }
 
   // spells that DON'T resolve to the battlefield (sorceries, instants,
@@ -624,23 +643,9 @@ function renderBattlefield(p) {
   // half, hugging the midline, fanning out if several are up
   const spells = stackCardsOf(p).filter((it) => resolveZoneOf(it) !== "battlefield");
   spells.forEach((g, i) => {
-    const wrap = document.createElement("div");
-    wrap.className = "ghostwrap";
     const left = W / 2 - CW / 2 + (i - (spells.length - 1) / 2) * (CW * 0.65);
     const top = p === "you" ? 10 : H - CH - 16;
-    wrap.style.left = Math.max(0, Math.min(W - CW, left)).toFixed(0) + "px";
-    wrap.style.top = Math.max(0, top).toFixed(0) + "px";
-    const el = cardEl(g.card);
-    el.classList.add("ghost", "spell");
-    el.onclick = (e) => {
-      e.stopPropagation();
-      hidePreview();
-      switchTab("stack");
-    };
-    wrap.appendChild(el);
-    const btns = stackItemButtons(g);
-    if (btns) wrap.appendChild(btns);
-    bf.appendChild(wrap);
+    bf.appendChild(ghostEl(g.card, g, clampX(left), Math.max(0, top), { cls: "spell" }));
   });
 
   // triggered abilities: the source permanent lifts off the board (full color —
@@ -648,26 +653,12 @@ function renderBattlefield(p) {
   battlefieldTriggerGhosts(p).forEach(({ item, source }, i) => {
     const pos = posMap[source.id];
     if (!pos) return;
-    const wrap = document.createElement("div");
-    wrap.className = "ghostwrap";
-    wrap.style.left = Math.max(0, Math.min(W - CW, pos.left + 10 + i * 10)).toFixed(0) + "px";
-    wrap.style.top = Math.max(0, Math.min(H - CH, pos.top - 14 - i * 10)).toFixed(0) + "px";
-    const el = cardEl({ ...source, tapped: false });
-    el.classList.add("ghost", "trigger");
-    el.onclick = (e) => {
-      e.stopPropagation();
-      hidePreview();
-      switchTab("stack");
-    };
-    wrap.appendChild(el);
-    const chip = document.createElement("div");
-    chip.className = "trigchip";
-    chip.textContent = item.text.length > 110 ? item.text.slice(0, 110) + "…" : item.text;
-    chip.title = item.text;
-    wrap.appendChild(chip);
-    const btns = stackItemButtons(item);
-    if (btns) wrap.appendChild(btns);
-    bf.appendChild(wrap);
+    bf.appendChild(
+      ghostEl({ ...source, tapped: false }, item, clampX(pos.left + 10 + i * 10), clampY(pos.top - 14 - i * 10), {
+        cls: "trigger",
+        chip: item.text,
+      })
+    );
   });
 }
 window.addEventListener("resize", () => render());
