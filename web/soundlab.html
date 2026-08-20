@@ -53,7 +53,7 @@ const play = SFX.play;
 // slider ranges per layer kind — lab UI only
 const PARAMS = {
   tone: [
-    ["freq", 30, 4000, 1], ["slide", 0, 4000, 1], ["dur", 0.01, 1.2, 0.01],
+    ["freq", 20, 4000, 1], ["slide", 0, 4000, 1], ["dur", 0.01, 1.2, 0.01],
     ["vol", 0, 0.8, 0.005], ["verb", 0, 1, 0.01], ["atk", 0.001, 0.06, 0.001], ["t", 0, 1, 0.01],
   ],
   noise: [
@@ -99,12 +99,25 @@ function build() {
       for (const [p, min, max, step] of PARAMS[layer.kind]) {
         const row = document.createElement("div");
         row.className = "param";
+        // frequencies get a LOGARITHMIC slider — equal travel per octave, so
+        // octave 1 is as reachable as octave 7 (linear buried 30-200Hz in the
+        // first few pixels). slide keeps position 0 = "off".
+        const isLog = p === "freq" || p === "slide";
+        const logMin = Math.max(20, min);
+        const toSlider = (v) =>
+          !isLog ? v : v < logMin ? 0 : Math.round(1000 * (Math.log(v / logMin) / Math.log(max / logMin)));
+        const fromSlider = (s) =>
+          !isLog ? Number(s) : Number(s) === 0 && min === 0 ? 0 : Math.round(logMin * Math.pow(max / logMin, Number(s) / 1000));
         const slider = document.createElement("input");
-        slider.type = "range"; slider.min = min; slider.max = max; slider.step = step; slider.value = layer[p] ?? 0;
+        slider.type = "range";
+        slider.min = isLog ? 0 : min;
+        slider.max = isLog ? 1000 : max;
+        slider.step = isLog ? 1 : step;
+        slider.value = toSlider(layer[p] ?? 0);
         const num = document.createElement("input");
         num.type = "number"; num.min = min; num.max = max; num.step = step; num.value = layer[p] ?? 0;
-        const sync = (v) => { layer[p] = Number(v); slider.value = v; num.value = v; };
-        slider.oninput = () => { sync(slider.value); };
+        const sync = (v) => { layer[p] = Number(v); slider.value = toSlider(Number(v)); num.value = v; };
+        slider.oninput = () => { sync(fromSlider(slider.value)); };
         slider.onchange = () => play(name);
         num.onchange = () => { sync(num.value); play(name); };
         row.innerHTML = `<span>${p}</span>`;
