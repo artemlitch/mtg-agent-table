@@ -1741,6 +1741,12 @@ document.addEventListener("keydown", (e) => {
     // have re-rendered under the cursor since mouseenter).
     // Shift+E = activate: tap it AND open the ability-to-stack input.
     const cur = cardById(hoveredCard.id) ?? hoveredCard;
+    // E on a hand card plays it (lands = land drop, spells = onto the stack;
+    // a DFC plays whichever face it's showing)
+    if (cur.zone === "hand" && cur.controller === "you") {
+      act("cast", { card: cur.id });
+      return;
+    }
     if (cur.zone !== "battlefield") return;
     if (e.shiftKey) {
       if (!cur.tapped) act("tap", { cards: [cur.id], tapped: true });
