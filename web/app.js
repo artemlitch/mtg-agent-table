@@ -1375,7 +1375,7 @@ function abilityModal(c) {
   };
   const btnRow = document.createElement("div");
   btnRow.className = "ambtns";
-  btnRow.append(mkBtn("⚡ Tap + Stack", "⇧⏎", true, true), mkBtn("⚡ Stack", "⏎", false, false));
+  btnRow.append(mkBtn("⚡ Tap + Stack", "⇧⏎", true, false), mkBtn("⚡ Stack", "⏎", false, true));
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
