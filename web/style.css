@@ -247,6 +247,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
 }
 .abilitymodal .amcol textarea:focus { outline: none; background: linear-gradient(#221d30, #221d30) padding-box, var(--chrome) border-box; }
+.abilitymodal .ambtns { display: flex; gap: 8px; }
+.abilitymodal .ambtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; }
+.abilitymodal .ambtn small { font-size: 10px; opacity: 0.65; font-family: -apple-system, sans-serif; letter-spacing: 0.1em; }
 
 /* filter bar shared by zone modals and library search — one line */
 .filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }

@@ -1357,23 +1357,32 @@ function abilityModal(c) {
   col.className = "amcol";
   const input = document.createElement("textarea");
   input.placeholder = "what does the ability do? (targets, numbers…)";
-  const go = document.createElement("button");
-  go.className = "accent";
-  go.textContent = "⚡ Onto the stack";
-  const submit = () => {
+  // not everything taps to activate: [Tap + Stack] (⇧⏎) vs [Stack] (⏎)
+  const submit = (tapToo) => {
     const t = input.value.trim();
     if (!t) return;
+    if (tapToo && !c.tapped) act("tap", { cards: [c.id], tapped: true });
     act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${t}`, source: c.id });
     closeModal();
   };
-  go.onclick = submit;
+  const mkBtn = (label, sub, tapToo, accent) => {
+    const b = document.createElement("button");
+    if (accent) b.className = "accent";
+    b.classList.add("ambtn");
+    b.innerHTML = `<span>${label}</span><small>${sub}</small>`;
+    b.onclick = () => submit(tapToo);
+    return b;
+  };
+  const btnRow = document.createElement("div");
+  btnRow.className = "ambtns";
+  btnRow.append(mkBtn("⚡ Tap + Stack", "⇧⏎", true, true), mkBtn("⚡ Stack", "⏎", false, false));
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter") {
       e.preventDefault();
-      submit();
+      submit(e.shiftKey);
     }
   });
-  col.append(input, go);
+  col.append(input, btnRow);
   wrap.appendChild(col);
   openModal(`⚡ ${c.hidden ? "Hidden card" : c.name}`, wrap, { compact: true });
   setTimeout(() => input.focus(), 0);
@@ -1762,9 +1771,8 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     if (cur.zone !== "battlefield") return;
-    // Shift+E = activate: tap (if untapped) and announce the ability
+    // Shift+E = announce an ability (the modal decides tap vs no-tap)
     if (e.shiftKey) {
-      if (!cur.tapped) act("tap", { cards: [cur.id], tapped: true });
       abilityModal(cur);
       return;
     }
