@@ -330,10 +330,6 @@ function placeCard(card: Card, zone: Zone, player: PlayerId) {
   relocateCard(card, zone, player).push(card.id);
 }
 
-function cardName(card: Card, forViewerText = false): string {
-  return card.name;
-}
-
 /** A DFC IS its active face: switching faces rewrites card.name (and every
  * card.name consumer — logs, stack text, views — is right by construction). */
 export function applyFace(card: Card, face: number) {
