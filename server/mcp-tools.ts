@@ -88,8 +88,8 @@ const TOOLS: Record<string, ToolDef> = {
   },
   stack_resolve: {
     description:
-      "Resolve the TOP item of the stack (last in, first out) after the opponent had a chance to respond. Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). Text items just resolve.",
-    schema: obj({ to: str("override destination zone", ["battlefield", "graveyard", "exile", "hand", "library"]) }),
+      "Resolve a stack item — any item, any time (default: top; pass item for a specific one). Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). A COUNTERED item resolves as a fizzle: the card goes to its owner's graveyard with no effect. Etiquette: give Artem a response window (done) before resolving your own spells.",
+    schema: obj({ item: str("stack item id (default: top of stack)"), to: str("override destination zone", ["battlefield", "graveyard", "exile", "hand", "library"]) }),
   },
   stack_resolve_all: {
     description:
@@ -97,7 +97,7 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ group: str("only resolve items of this groupId") }),
   },
   stack_counter: {
-    description: "Counter a stack item: the card goes to its owner's graveyard. Default = top; pass item to counter a specific item mid-stack (e.g. the bottom spell of a proposed sequence).",
+    description: "MARK a stack item as countered (toggle) — it STAYS on the stack so responses can reference it; resolving it later fizzles it (card → owner's graveyard, no effect). Default = top; pass item for a specific one.",
     schema: obj({ item: str("stack item id (default: top of stack)") }),
   },
   stack_remove: {

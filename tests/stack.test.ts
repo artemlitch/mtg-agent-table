@@ -59,14 +59,35 @@ describe("casting onto the stack", () => {
     expect(c.zone).toBe("exile");
   });
 
-  test("countering sends the top card to its owner's graveyard", () => {
+  test("countering MARKS the item; resolving a countered item fizzles it", () => {
     const spell = seedCard("Threat", "you", "hand", { typeLine: "Sorcery" });
     applyAction("you", "cast", { card: spell.id });
     applyAction("agent", "stack_counter", {});
+    // still on the stack, marked — responses can reference it
+    expect(game.stack.length).toBe(1);
+    expect(game.stack[0].countered).toBe(true);
+    expect(spell.zone).toBe("stack");
+    // counter again = un-mark
+    applyAction("agent", "stack_counter", {});
+    expect(game.stack[0].countered).toBe(false);
+    applyAction("agent", "stack_counter", {});
+    // resolving the countered item fizzles: card → owner's graveyard, no effect
+    applyAction("agent", "stack_resolve", {});
     expect(spell.zone).toBe("graveyard");
     expect(game.players.you.zones.graveyard).toContain(spell.id);
     expect(game.stack.length).toBe(0);
-    expect(game.log.at(-1)!.text.toLowerCase()).toContain("counter");
+  });
+
+  test("resolve can target ANY item by id, either player's", () => {
+    const a = seedCard("Bottom Spell", "you", "hand", { typeLine: "Creature — Bear" });
+    const b = seedCard("Top Spell", "agent", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: a.id });
+    applyAction("agent", "cast", { card: b.id });
+    // mid-stack resolve of your OWN bottom item — allowed, no top-only rule
+    applyAction("you", "stack_resolve", { item: game.stack[0].id });
+    expect(a.zone).toBe("battlefield");
+    expect(game.stack.length).toBe(1);
+    expect(game.stack[0].cardId).toBe(b.id);
   });
 
   test("text-only items (triggers/abilities) push and resolve", () => {
@@ -398,15 +419,22 @@ describe("batched stack groups (proposed shortcuts)", () => {
     expect(game.stack.map((i) => i.text)).toEqual(["Spell A", "Soultrader ability in response"]);
   });
 
-  test("stack_counter can target a specific mid-stack item by id", () => {
+  test("stack_counter can mark a specific mid-stack item by id", () => {
     const a = seedCard("Spell A", "agent", "hand", { typeLine: "Sorcery" });
     const b = seedCard("Trigger card", "agent", "hand", { typeLine: "Instant" });
     applyAction("agent", "cast", { card: a.id });
     applyAction("agent", "cast", { card: b.id });
     applyAction("you", "stack_counter", { item: game.stack[0].id });
+    // both still on the stack; only the bottom one is marked
+    expect(game.stack.length).toBe(2);
+    expect(game.stack[0].countered).toBe(true);
+    expect(game.stack[1].countered).toBeUndefined();
+    expect(a.zone).toBe("stack");
+    // resolve_all fizzles the countered one and resolves the other
+    applyAction("you", "stack_resolve_all", {});
     expect(a.zone).toBe("graveyard");
-    expect(game.stack.length).toBe(1);
-    expect(game.stack[0].cardId).toBe(b.id);
+    expect(b.zone).toBe("graveyard"); // instant resolves to graveyard normally
+    expect(game.stack.length).toBe(0);
   });
 });
 
@@ -437,13 +465,13 @@ describe("accepted proposals execute in proposal order", () => {
   });
 });
 
-describe("only the opponent resolves your items", () => {
-  test("stack_resolve refuses to resolve your own top item", () => {
+describe("anyone may resolve anything", () => {
+  test("resolving your own item is allowed — no opponent-only rule", () => {
     const c = seedCard("My Spell", "you", "hand", { typeLine: "Sorcery" });
     applyAction("you", "cast", { card: c.id });
-    expect(() => applyAction("you", "stack_resolve", {})).toThrow(/opponent/);
-    applyAction("agent", "stack_resolve", {});
+    applyAction("you", "stack_resolve", {});
     expect(c.zone).toBe("graveyard");
+    expect(game.stack.length).toBe(0);
   });
 });
 

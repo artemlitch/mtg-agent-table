@@ -200,11 +200,13 @@ function stackItemEl(item, opts = {}) {
     (top ? " top" : "") +
     (item.groupId ? " grouped" : "") +
     (item.id === pendingRespondAt ? " respondat" : "") +
+    (item.countered ? " countered" : "") +
     (opts.inChat ? " inchat " + (item.player === "you" ? "you" : "agent") : "");
   const who = item.player === "you" ? "you" : "agent";
     const img = item.card && !item.card.hidden && item.card.image ? `<img src="${item.card.image}">` : "";
     const planned = item.retractable ? `<span class="siplanned" title="planned follow-up — unwinds if responded below">planned</span>` : "";
-    d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}</div><div class="sitext">${item.text}</div></div></div>`;
+    const ctag = item.countered ? `<span class="ctag">COUNTERED</span>` : "";
+    d.innerHTML = `<div class="sihead">${img}<div><div class="siwho">${who}${top ? " · TOP" : ""}${planned}${ctag}</div><div class="sitext">${item.text}</div></div></div>`;
     if (item.card && !item.card.hidden) {
       d.onmouseenter = (e) => showPreview(item.card, e);
       d.onmousemove = (e) => positionPreview(e);
@@ -232,21 +234,21 @@ function stackItemButtons(item) {
     };
     btns.appendChild(b);
   };
-  if (top && item.player === "agent") {
-    mk("Resolve", () => act("stack_resolve", {}), "Resolve: permanents → battlefield, spells → graveyard");
-    mk("Counter", () => act("stack_counter", {}));
-    mk("Take back", () => act("stack_remove", {}), "Remove an illegal/mistaken item — card returns to owner's hand");
-  } else if (top) {
-    // your own item: the agent resolves it — you can only take it back
-    mk("Take back", () => act("stack_remove", {}), "Withdraw your own item — the card returns to your hand");
-  } else if (item.player === "agent") {
-    // not the top — but when everything above is also the agent's, accepting
-    // from here is legal: resolve the whole run (proposal order for groups)
-    const idx = state.stack.findIndex((i) => i.id === item.id);
-    if (idx >= 0 && state.stack.slice(idx).every((i) => i.player === "agent")) {
-      mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
-    }
-    mk("Counter", () => act("stack_counter", { item: item.id }), "Counter this specific item — the card goes to its owner's graveyard");
+  // any item, any time — resolve removes (fizzling if countered), counter marks
+  const idx = state.stack.findIndex((i) => i.id === item.id);
+  mk(
+    "Resolve",
+    () => act("stack_resolve", { item: item.id }),
+    item.countered ? "Fizzle: the countered card goes to its owner's graveyard, no effect" : "Resolve this item"
+  );
+  mk(item.countered ? "Un-counter" : "Counter", () => act("stack_counter", { item: item.id }),
+    item.countered ? "Remove the countered mark" : "Mark as countered — it stays on the stack until resolved (then fizzles)");
+  if (item.player === "agent" && idx >= 0 && idx < state.stack.length - 1 && state.stack.slice(idx).every((i) => i.player === "agent")) {
+    mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
+  }
+  if (item.player === "you") {
+    mk("Take back", () => act("stack_remove", { index: idx }), "Withdraw your own item — the card returns to your hand");
+  } else if (idx >= 0 && idx < state.stack.length - 1) {
     mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
       "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
   }
@@ -316,6 +318,7 @@ function ghostEl(card, item, left, top, opts = {}) {
   wrap.style.top = top.toFixed(0) + "px";
   const el = cardEl(card);
   el.classList.add("ghost");
+  if (item.countered) el.classList.add("countered");
   if (opts.cls) el.classList.add(opts.cls);
   el.onclick = (e) => {
     e.stopPropagation();
@@ -1426,7 +1429,7 @@ function searchModal(p, cards) {
 // "\(on the stack" catches attack/block declarations, phase moves and turn
 // passes; the "locked in"/Phase/Round lines are those items resolving.
 const STACK_CHAT_RE =
-  /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(\(on the stack)|(^Attacks locked in: )|(^Blocks locked in: )|(^Phase: )|(^— Round )|(^Resolved: )|( resolved → )|( countered )|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
+  /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(\(on the stack)|(^Attacks locked in: )|(^Blocks locked in: )|(^Phase: )|(^— Round )|(^Resolved: )|( resolved → )|( countered[ :])|( un-countered: )|( fizzles)|(countered\/removed: )|( back off the stack → )|( removed from the stack: )/;
 
 // starts true so the first render after page load opens at the latest messages
 let scrollChatToBottom = true;

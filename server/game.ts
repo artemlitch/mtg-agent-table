@@ -84,6 +84,9 @@ export interface StackItem {
   // below them; mandatory triggers are never retractable.
   groupId?: string;
   retractable?: boolean;
+  // countered is a MARK, not a removal: the item stays on the stack so
+  // responses can reference it; resolving a countered item fizzles it.
+  countered?: boolean;
 }
 
 export interface GameState {
@@ -287,6 +290,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       retractable: item.retractable,
       resolveTo: item.resolveTo,
       source: item.sourceId,
+      countered: item.countered,
       // structured combat declaration — the client marks declared attackers
       attackPairs: item.apply?.type === "attack" ? item.apply.pairs : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
@@ -428,6 +432,18 @@ export interface ActionCtx {
 }
 
 export type ActionResult = { ok: true; [k: string]: any };
+
+/** A countered item leaving the stack: the card fizzles to its owner's graveyard, no effect. */
+function fizzleItem(ctx: ActionCtx, item: StackItem): ActionResult {
+  if (item.cardId) {
+    const card = getCard(item.cardId);
+    placeCard(card, "graveyard", card.owner);
+    addLog(ctx.actor, `${card.name} was countered — fizzles → ${who(card.owner)}'s graveyard`);
+  } else {
+    addLog(ctx.actor, `Countered item fizzles: ${item.text}`);
+  }
+  return { ok: true, fizzled: item.text };
+}
 
 /** Apply one already-removed stack item: combat/phase/turn payloads, text, or card resolution. */
 function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult {
@@ -970,15 +986,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, groupId, items: pushed, stackSize: game.stack.length };
   },
 
-  /** Resolve the TOP of the stack. Cards: battlefield for permanents, graveyard for instants/sorceries (or explicit p.to).
-   * Resolving is the OPPONENT's acknowledgment — you never resolve your own item. */
+  /** Resolve ANY stack item (p.item targets by id; default = top). Either
+   * player may resolve any item — no top-only or opponent-only rule; the log
+   * keeps everyone honest. A COUNTERED item resolves as a fizzle. */
   stack_resolve(ctx, p) {
-    const top = game.stack[game.stack.length - 1];
-    if (!top) throw new Error("the stack is empty");
-    if (top.player === ctx.actor) {
-      throw new Error("that's your own item — the opponent resolves it (or take it back with stack_remove)");
+    let item: StackItem | undefined;
+    if (p.item) {
+      const idx = game.stack.findIndex((i) => i.id === p.item);
+      if (idx < 0) throw new Error(`no stack item ${p.item}`);
+      [item] = game.stack.splice(idx, 1);
+    } else {
+      item = game.stack.pop();
     }
-    const item = game.stack.pop()!;
+    if (!item) throw new Error("the stack is empty");
+    if (item.countered) return fizzleItem(ctx, item);
     return resolveStackItem(ctx, item, p);
   },
 
@@ -1015,30 +1036,26 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const resolved: string[] = [];
     for (const item of order) {
       resolved.push(item.text);
-      resolveStackItem(ctx, item, {});
+      if (item.countered) fizzleItem(ctx, item);
+      else resolveStackItem(ctx, item, {});
     }
     return { ok: true, resolved };
   },
 
-  /** Counter a stack item: card goes to its owner's graveyard. p.item targets mid-stack; default top. */
+  /** Counter MARKS a stack item (toggle) — it stays on the stack so responses
+   * can reference it; resolving it later fizzles it. p.item targets by id;
+   * default top. */
   stack_counter(ctx, p) {
-    let item: StackItem | undefined;
-    if (p.item) {
-      const idx = game.stack.findIndex((i) => i.id === p.item);
-      if (idx < 0) throw new Error(`no stack item ${p.item}`);
-      [item] = game.stack.splice(idx, 1);
-    } else {
-      item = game.stack.pop();
-    }
-    if (!item) throw new Error("the stack is empty");
-    if (item.cardId) {
-      const card = getCard(item.cardId);
-      placeCard(card, "graveyard", card.owner);
-      addLog(ctx.actor, `${who(ctx.actor)} countered ${card.name} → ${who(card.owner)}'s graveyard`);
-    } else {
-      addLog(ctx.actor, `${who(ctx.actor)} countered/removed: ${item.text}`);
-    }
-    return { ok: true };
+    const item = p.item ? game.stack.find((i) => i.id === p.item) : game.stack[game.stack.length - 1];
+    if (!item) throw new Error(p.item ? `no stack item ${p.item}` : "the stack is empty");
+    item.countered = !item.countered;
+    addLog(
+      ctx.actor,
+      item.countered
+        ? `${who(ctx.actor)} countered: ${item.text} (marked — resolve it to fizzle)`
+        : `${who(ctx.actor)} un-countered: ${item.text}`
+    );
+    return { ok: true, countered: item.countered };
   },
 
   /** Take back an illegal/mistaken stack item: card returns to its owner's hand. p.index targets a specific item (0 = bottom); default top. */
