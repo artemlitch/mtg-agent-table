@@ -105,9 +105,10 @@
     attack: {
       desc: "attack declared — war drum (tuned by Artem)",
       layers: [
-        { kind: "tone", freq: 130, dur: 0.28, vol: 0.28, t: 0, type: "sawtooth", slide: 163, verb: 0.3 },
-        { kind: "noise", freq: 2050, dur: 0.75, vol: 0.2, t: 0, q: 0.8, slide: 120, verb: 0.25 },
-        { kind: "tone", freq: 90, dur: 0.3, vol: 0.25, t: 0.02, type: "sine", slide: 45, verb: 0.35 },
+        { kind: "tone", freq: 41, dur: 0.86, vol: 0.555, t: 0, type: "triangle", slide: 174, verb: 0.82, atk: 0.013 },
+        { kind: "tone", freq: 133, dur: 0.36, vol: 0.525, t: 0, type: "triangle", slide: 252, verb: 0.78, atk: 0.011 },
+        { kind: "tone", freq: 226, dur: 0.94, vol: 0.33, t: 0, type: "sine", slide: 0, verb: 0.6, atk: 0.015 },
+        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
       ],
     },
     glimmer: {
