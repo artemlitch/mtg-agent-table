@@ -102,6 +102,14 @@
       desc: "card resolves onto the field — a clean reverberant THUD",
       layers: [{ kind: "tone", freq: 95, dur: 0.22, vol: 0.32, t: 0, type: "sine", slide: 48, verb: 0.24 }],
     },
+    attack: {
+      desc: "attack declared — war drum",
+      layers: [
+        { kind: "tone", freq: 140, dur: 0.22, vol: 0.28, t: 0, type: "sawtooth", slide: 70, verb: 0.3 },
+        { kind: "noise", freq: 350, dur: 0.18, vol: 0.2, t: 0, q: 0.8, slide: 120, verb: 0.25 },
+        { kind: "tone", freq: 90, dur: 0.3, vol: 0.25, t: 0.02, type: "sine", slide: 45, verb: 0.35 },
+      ],
+    },
     glimmer: {
       desc: "turn is over — magical glimmer",
       layers: [660, 880, 1174, 1568, 2093].map((f, i) => ({

@@ -60,11 +60,12 @@ function connectWS() {
 // first matching rule per log entry decides its sound
 const SOUND_RULES = [
   ["glimmer", /^— Round \d+:/],
+  ["attack", /(declares attackers)|(^Attacks locked in: )/],
   ["hit", / from battlefield to .*graveyard/],
   ["hit", / countered .* → .*graveyard/],
   ["thump", / resolved → .*battlefield/],
   ["thump", / played .* — land drop/],
-  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares (attackers|blockers|the turn pass))/],
+  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares (blockers|the turn pass))/],
   ["tap", / tapped /],
 ];
 
