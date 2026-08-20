@@ -1166,8 +1166,10 @@ function libraryMenu(p, e) {
 // Modals
 // ---------------------------------------------------------------------------
 
-function openModal(title, bodyEl) {
+function openModal(title, bodyEl, opts = {}) {
   const box = $("#modal-box");
+  // card browsers are fixed-size (hard rule); compact modals size to content
+  box.classList.toggle("compact", !!opts.compact);
   box.innerHTML = `<h3>${title}</h3>`;
   box.appendChild(bodyEl);
   const close = document.createElement("button");
@@ -1329,11 +1331,12 @@ function abilityModal(c) {
   const wrap = document.createElement("div");
   wrap.className = "abilitymodal";
   const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  wrap.innerHTML = `<div class="amrow">
-    ${c.image ? `<img src="${c.image}" alt="">` : ""}
-    <div class="amoracle">${esc(c.oracle) || "<i>(no rules text)</i>"}</div>
-  </div>`;
-  const input = document.createElement("input");
+  wrap.innerHTML = c.image
+    ? `<img src="${c.image}" alt="">`
+    : `<div class="amoracle">${esc(c.oracle) || "<i>(no rules text)</i>"}</div>`;
+  const col = document.createElement("div");
+  col.className = "amcol";
+  const input = document.createElement("textarea");
   input.placeholder = "what does the ability do? (targets, numbers…)";
   const go = document.createElement("button");
   go.className = "accent";
@@ -1346,13 +1349,14 @@ function abilityModal(c) {
   };
   go.onclick = submit;
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submit();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
   });
-  const row = document.createElement("div");
-  row.className = "amsubmit";
-  row.append(input, go);
-  wrap.appendChild(row);
-  openModal(`⚡ ${c.hidden ? "Hidden card" : c.name} — ability onto the stack`, wrap);
+  col.append(input, go);
+  wrap.appendChild(col);
+  openModal(`⚡ ${c.hidden ? "Hidden card" : c.name}`, wrap, { compact: true });
   setTimeout(() => input.focus(), 0);
 }
 
