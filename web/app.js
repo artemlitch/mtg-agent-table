@@ -1247,6 +1247,8 @@ function filterBar(onChange) {
   q.placeholder = "search name, type, or card text…";
   q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
   el.appendChild(q);
+  // focus once the modal is actually in the DOM
+  setTimeout(() => q.focus(), 0);
 
   const row = document.createElement("div");
   row.className = "frow";
