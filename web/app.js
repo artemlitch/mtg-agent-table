@@ -1170,13 +1170,18 @@ function openModal(title, bodyEl, opts = {}) {
   const box = $("#modal-box");
   // card browsers are fixed-size (hard rule); compact modals size to content
   box.classList.toggle("compact", !!opts.compact);
-  box.innerHTML = `<h3>${title}</h3>`;
-  box.appendChild(bodyEl);
-  const close = document.createElement("button");
-  close.className = "modalclose";
-  close.textContent = "Close";
-  close.onclick = closeModal;
-  box.appendChild(close);
+  box.innerHTML = "";
+  const x = document.createElement("button");
+  x.className = "modalx";
+  x.textContent = "✕";
+  x.title = "Close (Esc)";
+  x.onclick = closeModal;
+  box.appendChild(x);
+  const scroll = document.createElement("div");
+  scroll.className = "modalscroll";
+  scroll.innerHTML = `<h3>${title}</h3>`;
+  scroll.appendChild(bodyEl);
+  box.appendChild(scroll);
   $("#modal").classList.remove("hidden");
 }
 function closeModal() {
