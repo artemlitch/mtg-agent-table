@@ -283,15 +283,24 @@ function battlefieldTriggerGhosts(p) {
   return out;
 }
 
+/** Visible cards on the stack that belong to p. */
+function stackCardsOf(p) {
+  return (state.stack || []).filter((it) => it.card && !it.card.hidden && it.player === p);
+}
+
+/** Where a stack item's card lands when it resolves — the client's copy of the
+    server's rule: a declared resolveTo wins, else instants and sorceries go to
+    the graveyard and everything with a land face to the battlefield. */
+function resolveZoneOf(item) {
+  const tl = item.card.typeLine || "";
+  const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+  return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
+}
+
 /** Stack items whose card would resolve onto p's battlefield — shown as ghosts
     hovering in the slot they'd land in. */
 function battlefieldGhosts(p) {
-  return (state.stack || []).filter((it) => {
-    if (!it.card || it.card.hidden || it.player !== p) return false;
-    const tl = it.card.typeLine || "";
-    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
-    return (it.resolveTo ?? (isSpell ? "graveyard" : "battlefield")) === "battlefield";
-  });
+  return stackCardsOf(p).filter((it) => resolveZoneOf(it) === "battlefield");
 }
 
 // The agent's thoughts run as a ticker beside the typing dots: lines queue up
@@ -613,12 +622,7 @@ function renderBattlefield(p) {
   // spells that DON'T resolve to the battlefield (sorceries, instants,
   // gy-to-hand returns) hover at a casting spot: center of the caster's
   // half, hugging the midline, fanning out if several are up
-  const spells = (state.stack || []).filter((it) => {
-    if (!it.card || it.card.hidden || it.player !== p) return false;
-    const tl = it.card.typeLine || "";
-    const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
-    return (it.resolveTo ?? (isSpell ? "graveyard" : "battlefield")) !== "battlefield";
-  });
+  const spells = stackCardsOf(p).filter((it) => resolveZoneOf(it) !== "battlefield");
   spells.forEach((g, i) => {
     const wrap = document.createElement("div");
     wrap.className = "ghostwrap";
