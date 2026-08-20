@@ -317,10 +317,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .stackitem img { width: 42px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 4px; }
 .stackitem .sitext { font-size: 11px; flex: 1; }
 .stackitem .siwho { font-size: 9px; color: var(--dim); }
-.stackitem .sibtns { display: flex; flex-direction: row; gap: 3px; }
+.stackitem .sibtns { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px; }
 .stackitem .sibtns button { font-size: 9px; padding: 1px 6px; }
 .stackitem.grouped { border-left: 3px solid var(--accent); }
-.stackitem.respondat { outline: 2px dashed var(--accent); }
 .stackitem .siplanned { margin-left: 6px; font-size: 9px; color: var(--dim); border: 1px dashed var(--dim); border-radius: 4px; padding: 0 4px; }
 /* multi-part announcements (combat damage): one row per pairing */
 .stackitem .sirows { display: flex; flex-direction: column; margin-top: 3px; }
@@ -348,8 +347,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer;
 }
 #pane-stack .resolveall:hover { box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
-#pane-stack .respondchip { font-size: 10px; color: var(--dim); border: 1px dashed var(--accent); border-radius: 8px; padding: 4px 6px; }
-#pane-stack .respondchip a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 #newgame-overlay {
   position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%);
@@ -423,7 +420,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   0%, 100% { transform: translateY(-5px); }
   50% { transform: translateY(-11px); }
 }
-.ghostwrap .sibtns { display: flex; gap: 3px; }
+.ghostwrap .sibtns { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 170px; }
 .ghostwrap .sibtns button { font-size: 9px; padding: 1px 6px; }
 /* a trigger on the stack lifts its REAL battlefield card — a state, not a copy */
 .card.lifted {

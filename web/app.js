@@ -11,11 +11,6 @@ let agentBusy = false;
 // ---------------------------------------------------------------------------
 
 async function act(type, params = {}) {
-  // a pending "respond here" marker attaches to the next response-capable action
-  if (pendingRespondAt && (type === "cast" || type === "stack_push")) {
-    params = { ...params, respondAt: pendingRespondAt };
-    pendingRespondAt = null;
-  }
   const res = await fetch("/api/action", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -151,7 +146,6 @@ function renderNoBlocks() {
   }
 }
 
-let pendingRespondAt = null;
 let newGameAutoOpened = false;
 
 function renderStack() {
@@ -178,16 +172,6 @@ function renderStack() {
     all.onclick = () => act("stack_resolve_all", {});
     bar.appendChild(all);
   }
-  if (pendingRespondAt) {
-    const chip = document.createElement("div");
-    chip.className = "respondchip";
-    chip.innerHTML = `responding inside the sequence — the agent's planned items above unwind. Cast/push now, or `;
-    const cancel = document.createElement("a");
-    cancel.textContent = "cancel";
-    cancel.onclick = () => { pendingRespondAt = null; renderStack(); };
-    chip.appendChild(cancel);
-    bar.appendChild(chip);
-  }
   for (const item of [...state.stack].reverse()) bar.appendChild(stackItemEl(item));
 }
 
@@ -199,7 +183,6 @@ function stackItemEl(item, opts = {}) {
     "stackitem" +
     (top ? " top" : "") +
     (item.groupId ? " grouped" : "") +
-    (item.id === pendingRespondAt ? " respondat" : "") +
     (item.countered ? " countered" : "") +
     (opts.inChat ? " inchat " + (item.player === "you" ? "you" : "agent") : "");
   const who = item.player === "you" ? "you" : "agent";
@@ -237,7 +220,7 @@ function stackItemEl(item, opts = {}) {
   return d;
 }
 
-/** The action row for a stack item (Resolve/Counter/Take back/Respond here) — shared
+/** The action row for a stack item (Resolve/Counter/Take back) — shared
     by the Stack tab, the chat widgets and battlefield ghosts. Null if no actions. */
 function stackItemButtons(item) {
   const top = state.stack.length > 0 && state.stack[state.stack.length - 1].id === item.id;
@@ -267,10 +250,6 @@ function stackItemButtons(item) {
       item.countered ? "Remove the countered mark" : "Mark as countered — it stays on the stack until resolved (then fizzles)");
     if (idx >= 0 && idx < state.stack.length - 1 && state.stack.slice(idx).every((i) => i.player === "agent")) {
       mk("Resolve ▲", () => act("stack_resolve_all", {}), "Accept the agent's whole run — this item and everything above it resolve in proposal order");
-    }
-    if (idx >= 0 && idx < state.stack.length - 1) {
-      mk("Respond here", () => { pendingRespondAt = item.id; renderStack(); renderChat(); },
-        "Respond while THIS item is on the stack — the agent's planned items above it unwind (its committed triggers stay)");
     }
   } else {
     mk("Take back", () => act("stack_remove", { index: idx }), "Withdraw your own item — the card returns to your hand");
