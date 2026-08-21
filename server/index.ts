@@ -237,7 +237,7 @@ const server = Bun.serve({
 
     // static frontend
     const file = path === "/" ? "index.html" : path.slice(1);
-    if (/^[\w.-]+$/.test(file)) {
+    if (/^[\w.-]+(\/[\w.-]+)*$/.test(file) && !file.includes("..")) {
       const f = Bun.file(WEB_DIR + file);
       if (await f.exists()) return new Response(f);
     }
