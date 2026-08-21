@@ -570,7 +570,7 @@ function renderBattlefield(p) {
   // pixel-based layout: cards never overlap unless attached or dragged there
   const W = Math.max(bf.clientWidth, 400);
   const H = Math.max(bf.clientHeight, 200);
-  const CW = 92, CH = 128, GAP = 14;
+  const GAP = 14;
   const perRow = Math.max(1, Math.floor((W * 0.8) / (CW + GAP)));
 
   const posMap = {}; // id -> {left, top} px
@@ -713,6 +713,13 @@ function renderBattlefield(p) {
 }
 window.addEventListener("resize", () => render());
 
+// battlefield card layout-box size — CSS is the source of truth (--card-w/-h).
+// All battlefield positioning math uses these, NEVER a card's bounding rect:
+// transforms (tap rotate, lift bob) change the rect but not the layout box.
+const rootCS = getComputedStyle(document.documentElement);
+const CW = parseFloat(rootCS.getPropertyValue("--card-w")) || 92;
+const CH = parseFloat(rootCS.getPropertyValue("--card-h")) || 128;
+
 let draggingNow = false;
 let pendingRender = false;
 // cards whose first battlefield spot we've already persisted this game
@@ -721,18 +728,22 @@ const autoPlaced = new Set();
 function makeDraggable(el, c, bf, opts = {}) {
   el.addEventListener("pointerdown", (down) => {
     if (down.button !== 0) return;
-    const rect = el.getBoundingClientRect();
+    // ONE coordinate system: battlefield-local layout px, the numbers that
+    // live in style.left/top. The dragged element's own bounding rect is
+    // never read — it's the post-transform box, and a tapped (rotated) or
+    // bobbing card's rect disagrees with its layout box, which snaps.
     const bfRect = bf.getBoundingClientRect();
     // the table is one continuous surface: drag bounds span BOTH battlefields
     const otherRect = $(bf.id === "bf-you" ? "#bf-agent" : "#bf-you").getBoundingClientRect();
     const minY = Math.min(bfRect.top, otherRect.top) - bfRect.top;
-    const maxY = Math.max(bfRect.bottom, otherRect.bottom) - bfRect.top - rect.height;
-    const offX = down.clientX - rect.left;
-    const offY = down.clientY - rect.top;
-    // attachments ride along: collect the whole attach-chain under this card
-    // with their start positions; they get the same drag delta live
+    const maxY = Math.max(bfRect.bottom, otherRect.bottom) - bfRect.top - CH;
+    const maxX = bfRect.width - CW;
     const startLeft = parseFloat(el.style.left) || 0;
     const startTop = parseFloat(el.style.top) || 0;
+    let left = startLeft;
+    let top = startTop;
+    // attachments ride along: collect the whole attach-chain under this card
+    // with their start positions; they get the same drag delta live
     const kids = [];
     const collectKids = (parentId) => {
       for (const pl of ["you", "agent"]) {
@@ -756,11 +767,15 @@ function makeDraggable(el, c, bf, opts = {}) {
         el.classList.add("dragging");
         el.setPointerCapture?.(down.pointerId);
       }
-      el.style.left = Math.max(0, Math.min(bfRect.width - rect.width, mv.clientX - bfRect.left - offX)) + "px";
-      el.style.top = Math.max(minY, Math.min(maxY, mv.clientY - bfRect.top - offY)) + "px";
+      // pure delta on the layout box: start position + pointer travel.
+      // No transform can offset this — tapped cards drag identically.
+      left = Math.max(0, Math.min(maxX, startLeft + (mv.clientX - down.clientX)));
+      top = Math.max(minY, Math.min(maxY, startTop + (mv.clientY - down.clientY)));
+      el.style.left = left + "px";
+      el.style.top = top + "px";
       // the attach-chain follows with the same delta
-      const dx = (parseFloat(el.style.left) || 0) - startLeft;
-      const dy = (parseFloat(el.style.top) || 0) - startTop;
+      const dx = left - startLeft;
+      const dy = top - startTop;
       for (const k of kids) {
         k.el.style.left = k.left + dx + "px";
         k.el.style.top = k.top + dy + "px";
@@ -773,9 +788,11 @@ function makeDraggable(el, c, bf, opts = {}) {
         el.classList.remove("dragging");
         el.dataset.dragged = "1";
         draggingNow = false;
-        // drop onto another card = attach (that's how equip works)
-        const myRect = el.getBoundingClientRect();
-        const center = { x: myRect.left + myRect.width / 2, y: myRect.top + myRect.height / 2 };
+        // drop onto another card = attach (that's how equip works).
+        // Center from the layout box (rotation about the center can't move
+        // it); target rects are fine to read — they're only hit-tested,
+        // never written back into anyone's position.
+        const center = { x: bfRect.left + left + CW / 2, y: bfRect.top + top + CH / 2 };
         // attach-drop works across the whole table, either battlefield
         // (disabled for stack ghosts — they only pre-place their landing spot)
         const targetEl = opts.attach === false ? null : [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
@@ -792,9 +809,14 @@ function makeDraggable(el, c, bf, opts = {}) {
             c.attachedTo = null;
             await act("attach", { card: c.id, target: "" });
           }
-          const x = Math.max(0, Math.min(1, parseFloat(el.style.left) / Math.max(1, bfRect.width - rect.width)));
+          // normalize with the exact W/H/CW/CH formula render() lays out
+          // with, so the round-trip pos -> px -> pos is bit-exact and the
+          // server ack can't snap
+          const W = Math.max(bf.clientWidth, 400);
+          const H = Math.max(bf.clientHeight, 200);
+          const x = Math.max(0, Math.min(1, left / Math.max(1, W - CW)));
           // y stays relative to the own field but may cross the midline
-          const y = parseFloat(el.style.top) / Math.max(1, bfRect.height - rect.height);
+          const y = top / Math.max(1, H - CH);
           // optimistic: renders between drop and the server ack must not
           // snap the card back to its pre-drag spot
           c.pos = { x, y };
