@@ -5,3 +5,14 @@ state-backup-*.json
 games/
 mcp-[0-9]*.json
 electron/dist/
+
+# local-only tools (deck studio / swap, sound lab) — not part of the shared table app
+web/swap.html
+web/swap.css
+web/swap.js
+web/soundlab.html
+proposals/
+server/archidekt.ts
+server/cardsearch.ts
+server/deckstudio.ts
+tests/deckstudio.test.ts

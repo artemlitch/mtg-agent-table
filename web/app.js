@@ -766,6 +766,12 @@ window.addEventListener("resize", () => render());
 // everything else (empty field, panels, inputs).
 document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+// the deck studio is a local-only tool, not part of the shared app — show
+// its link only where the page actually exists
+fetch("/swap", { method: "HEAD" })
+  .then((r) => { if (!r.ok) $("#link-studio").style.display = "none"; })
+  .catch(() => {});
+
 // battlefield card layout-box size — CSS is the source of truth (--card-w/-h).
 // All battlefield positioning math uses these, NEVER a card's bounding rect:
 // transforms (tap rotate, lift bob) change the rect but not the layout box.
