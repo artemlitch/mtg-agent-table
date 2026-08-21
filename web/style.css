@@ -258,6 +258,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
 }
 .tcolhead { font: 700 8.5px/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
+.tcolhead::after { content: " ▾"; font-size: 8px; color: var(--dim); }
+.tcol.collapsed .tcolhead::after { content: " ▸"; color: var(--gold-hi); }
 .tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .tcol.collapsed .tlist { display: none; }
 .titem { cursor: pointer; border-radius: 5px; }
