@@ -8,6 +8,7 @@ export interface PersistedExtra {
   agent: AgentSnapshot | null;
   lastDecks: { you: number; agent: number } | null;
   history?: any[];
+  studio?: any;
 }
 
 export function serializeState(extra: PersistedExtra) {
@@ -20,6 +21,7 @@ export function serializeState(extra: PersistedExtra) {
       agent: extra.agent,
       lastDecks: extra.lastDecks,
       ...(extra.history ? { history: extra.history } : {}),
+      ...(extra.studio ? { studio: extra.studio } : {}),
     })
   );
 }
@@ -32,10 +34,18 @@ export function restoreState(snap: any): PersistedExtra {
   // DFC names follow the active face now — rewrite composite names in place
   for (const c of Object.values(game.cards) as any[]) {
     if (c.faces) c.name = c.faces[c.face ?? 0]?.name ?? c.name;
+    // P/T counters are one net quantity now — normalize legacy negatives
+    if (c.counters) {
+      const net = (c.counters["+1/+1"] || 0) - (c.counters["-1/-1"] || 0);
+      delete c.counters["+1/+1"];
+      delete c.counters["-1/-1"];
+      if (net > 0) c.counters["+1/+1"] = net;
+      else if (net < 0) c.counters["-1/-1"] = -net;
+    }
   }
   for (const p of Object.values(game.players)) (p.zones as any).stack ??= [];
   setNextCardId(snap.nextCardId ?? 1);
-  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [] };
+  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [], studio: snap.studio };
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

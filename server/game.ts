@@ -663,15 +663,28 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   counters(ctx, p) {
     const ids: string[] = Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
     const kind: string = p.kind || "+1/+1";
+    const pt = kind === "+1/+1" || kind === "-1/-1";
     const parts: string[] = [];
     for (const id of ids) {
       const c = getCard(id);
-      c.counters[kind] = p.set !== undefined ? p.set : (c.counters[kind] || 0) + (p.delta ?? 1);
-      // negatives are legal (-1/-1 territory); only an exact zero clears
-      if (c.counters[kind] === 0) delete c.counters[kind];
-      parts.push(`${publicDesc(c)} → ${c.counters[kind] || 0}`);
+      if (pt) {
+        // +1/+1 and -1/-1 are ONE net quantity — they annihilate (CR 704.5r).
+        // Stored under whichever kind the net actually is; never "+1/+1: -2".
+        const sign = kind === "-1/-1" ? -1 : 1;
+        let net = (c.counters["+1/+1"] || 0) - (c.counters["-1/-1"] || 0);
+        net = p.set !== undefined ? sign * p.set : net + sign * (p.delta ?? 1);
+        delete c.counters["+1/+1"];
+        delete c.counters["-1/-1"];
+        if (net > 0) c.counters["+1/+1"] = net;
+        else if (net < 0) c.counters["-1/-1"] = -net;
+        parts.push(`${publicDesc(c)} → ${net === 0 ? "no P/T counters" : net > 0 ? `${net} +1/+1` : `${-net} -1/-1`}`);
+      } else {
+        c.counters[kind] = p.set !== undefined ? p.set : (c.counters[kind] || 0) + (p.delta ?? 1);
+        if (c.counters[kind] === 0) delete c.counters[kind];
+        parts.push(`${publicDesc(c)} → ${c.counters[kind] || 0}`);
+      }
     }
-    addLog(ctx.actor, `${who(ctx.actor)} set ${kind} counters: ${parts.join(", ")}`);
+    addLog(ctx.actor, `${who(ctx.actor)} set ${pt ? "P/T" : kind} counters: ${parts.join(", ")}`);
     return { ok: true };
   },
 

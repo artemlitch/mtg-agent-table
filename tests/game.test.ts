@@ -737,16 +737,31 @@ describe("read_card and peek misuse", () => {
   });
 });
 
-describe("counters go negative", () => {
-  test("delta below zero keeps a negative count; exact zero clears", () => {
+describe("P/T counters are one net quantity (+1/+1 and -1/-1 annihilate)", () => {
+  test("going below zero stores -1/-1 counters, never a negative +1/+1", () => {
+    const c = seedCard("Ophiomancer", "you", "battlefield");
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: -2 });
+    expect(c.counters["-1/-1"]).toBe(2);
+    expect(c.counters["+1/+1"]).toBeUndefined();
+    expect(game.log.at(-1)!.text).toContain("2 -1/-1");
+  });
+
+  test("adding -1/-1 counters annihilates existing +1/+1 (CR 704.5r)", () => {
     const c = seedCard("Bear", "you", "battlefield");
-    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: -1 });
-    expect(c.counters["+1/+1"]).toBe(-1);
-    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: -1 });
-    expect(c.counters["+1/+1"]).toBe(-2);
     applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: 2 });
-    expect(c.counters["+1/+1"]).toBeUndefined(); // back to zero = cleared
+    applyAction("you", "counters", { card: c.id, kind: "-1/-1", delta: 3 });
+    expect(c.counters["+1/+1"]).toBeUndefined();
+    expect(c.counters["-1/-1"]).toBe(1);
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: 1 });
+    expect(c.counters["-1/-1"]).toBeUndefined(); // back to net zero
+    expect(c.counters["+1/+1"]).toBeUndefined();
+  });
+
+  test("other counter kinds are untouched by the net rule", () => {
+    const c = seedCard("Walker", "you", "battlefield");
     applyAction("you", "counters", { card: c.id, kind: "charge", set: 0 });
     expect(c.counters["charge"]).toBeUndefined();
+    applyAction("you", "counters", { card: c.id, kind: "loyalty", delta: 3 });
+    expect(c.counters["loyalty"]).toBe(3);
   });
 });
