@@ -1861,18 +1861,19 @@ function parseDeckRef(v) {
   return m ? m[1] : "";
 }
 
-// New-game overlay: fields start EMPTY; links to the currently loaded decks
-// are shown for reference. The overlay disappears once the decks load.
+// New-game overlay: fields come prefilled with the currently loaded decks so
+// a straight re-match is one click; type over them to switch decks.
 function openNewGame() {
   for (const side of ["you", "agent"]) {
-    $(`#deck-${side}`).value = "";
     const a = $(`#decklink-${side}`);
     const id = state?.lastDecks?.[side];
+    $(`#deck-${side}`).value = id ? `https://archidekt.com/decks/${id}` : "";
     a.textContent = id ? `current: archidekt.com/decks/${id}` : "";
     a.href = id ? `https://archidekt.com/decks/${id}` : "#";
   }
   $("#newgame-overlay").classList.remove("hidden");
   $("#deck-agent").focus();
+  $("#deck-agent").select();
 }
 
 function closeNewGame() {
