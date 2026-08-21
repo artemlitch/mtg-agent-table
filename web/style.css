@@ -239,7 +239,12 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu .mi.title { color: var(--dim); font-size: 11px; cursor: default; font-family: var(--font-fantasy); letter-spacing: 0.05em; }
 #menu .mi.title:hover { background: none; }
 
-#modal { position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68); display: flex; align-items: center; justify-content: center; }
+/* content sits high (not centered): the box and any side palette share the
+   same top edge, and nothing may extend below the viewport */
+#modal {
+  position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 6vh;
+}
 #modal-box {
   /* HARD RULE: modals are a fixed size — content (filtered cards etc.) never
      resizes the box */
@@ -251,9 +256,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 /* target palette hovering beside the ability modal */
-.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; max-height: 82vh; }
+.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; max-height: calc(94vh - 20px); }
 .tcol {
-  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: 78vh;
+  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: calc(94vh - 20px);
   border: 1px solid transparent; border-radius: 10px; padding: 5px;
   background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
 }
