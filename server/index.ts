@@ -7,11 +7,11 @@ import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist"
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
 
+import { STATE_FILE, GAMES_DIR } from "./datadir";
+
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
-const GAMES_DIR = new URL("../games/", import.meta.url).pathname;
-const STATE_FILE = process.env.STATE_FILE ?? new URL("../state.json", import.meta.url).pathname;
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
