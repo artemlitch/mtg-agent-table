@@ -374,8 +374,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 
 
-#turnbanner { white-space: nowrap; }
-#topbar { flex-wrap: wrap; }
+/* never wrap the topbar: the banner is the one flexible item and truncates
+   away; the bar clips as a backstop so it can't paint over the side panel */
+#topbar { overflow: hidden; }
+#topbar > * { flex-shrink: 0; }
+#turnbanner { white-space: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* the stack — lives in the side panel as its own tab; the pile is anchored to
    the bottom and grows upward (top of stack highest), like a real stack */
