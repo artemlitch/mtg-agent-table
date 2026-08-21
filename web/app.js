@@ -1389,7 +1389,8 @@ function abilityModal(c) {
 }
 
 function showZoneModal(p, zone) {
-  const cards = state.players[p].zones[zone];
+  // piles read newest-first: the last card added is the top of the pile
+  const cards = [...state.players[p].zones[zone]].reverse();
   const wrap = document.createElement("div");
   const grid = document.createElement("div");
   grid.className = "modalcards";
