@@ -1034,20 +1034,40 @@ function cardEl(c, opts = {}) {
       ? `<img src="${c.image}" alt="${c.name}" draggable="false">`
       : `<div class="textcard"><b>${c.name}</b><br>${c.mana || ""}<br>${c.typeLine || ""}<br>${(c.oracle || "").slice(0, 120)}${c.power !== undefined && c.power !== null ? `<div class="textpt">${c.power}/${c.toughness}</div>` : ""}</div>`;
     d.innerHTML = c.faceDown ? `<div class="facedown-known">${img}</div>` : img;
-    const badges = [];
-    // P/T counters have their own on-card chip; other kinds stay badges
+    const badgeWrap = document.createElement("div");
+    badgeWrap.className = "badges";
+    // P/T counters have their own on-card chip; other kinds are live badges —
+    // click adds one, right-click removes one
     for (const [k, v] of Object.entries(c.counters || {})) {
-      if (k !== "+1/+1" && k !== "-1/-1" && v) badges.push(`<span class="badge">${v} ${k}</span>`);
+      if (k === "+1/+1" || k === "-1/-1" || !v) continue;
+      const b = document.createElement("span");
+      b.className = "badge ctr";
+      b.textContent = `${v} ${k}`;
+      b.title = `${k} counters — click +1, right-click −1`;
+      b.onclick = (e) => {
+        e.stopPropagation();
+        act("counters", { card: c.id, kind: k, delta: 1 });
+      };
+      b.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        act("counters", { card: c.id, kind: k, delta: -1 });
+      };
+      badgeWrap.appendChild(b);
     }
-    if (c.attacking) badges.push(`<span class="badge att">⚔ ${c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}</span>`);
-    if (c.blocking) badges.push(`<span class="badge blk">🛡</span>`);
+    const statics = [];
+    if (c.attacking) statics.push(`<span class="badge att">⚔ ${c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}</span>`);
+    if (c.blocking) statics.push(`<span class="badge blk">🛡</span>`);
     if (c.under) {
       const t = cardById(c.under);
-      badges.push(`<span class="badge eq">↳ ${t && !t.hidden ? t.name.split(",")[0] : "?"}</span>`);
+      statics.push(`<span class="badge eq">↳ ${t && !t.hidden ? t.name.split(",")[0] : "?"}</span>`);
     }
-    if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
-    if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
-    if (c.isToken) d.innerHTML += `<span class="tokentag">token</span>`;
+    if (c.isCommander) statics.push(`<span class="badge">CMDR</span>`);
+    if (statics.length) badgeWrap.insertAdjacentHTML("beforeend", statics.join(""));
+    if (badgeWrap.childElementCount) d.appendChild(badgeWrap);
+    // insertAdjacentHTML from here on — `innerHTML +=` would re-parse the card
+    // and silently strip the click handlers installed above
+    if (c.isToken) d.insertAdjacentHTML("beforeend", `<span class="tokentag">token</span>`);
     // +1/+1 counter chip on the card: click +1, right-click −1 (negatives ok)
     if (c.zone === "battlefield") {
       const n = ((c.counters || {})["+1/+1"] || 0) - ((c.counters || {})["-1/-1"] || 0);
@@ -1068,7 +1088,7 @@ function cardEl(c, opts = {}) {
     }
     // explicit P/T override: drawn over the card's own P/T corner
     if (c.basePower !== undefined && c.zone === "battlefield") {
-      d.innerHTML += `<div class="ptbadge" title="printed ${c.basePower}/${c.baseToughness}">${c.power}/${c.toughness}</div>`;
+      d.insertAdjacentHTML("beforeend", `<div class="ptbadge" title="printed ${c.basePower}/${c.baseToughness}">${c.power}/${c.toughness}</div>`);
     }
     if ((c.faceCount ?? 1) > 1) {
       const flip = document.createElement("button");
