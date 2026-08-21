@@ -90,20 +90,26 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .handrow .card { width: 64px; height: 89px; }
 
-/* your hand: a centered fan of held cards, overflowing up onto the board */
-#hand-you.fan {
-  justify-content: center; align-items: flex-end;
+/* hands: centered fans of held cards, overflowing onto the board.
+   Yours arcs up from the bottom; the agent's mirrors down from the top. */
+.handrow.fan {
+  justify-content: center;
   overflow: visible; background: none; border: none;
-  min-height: 96px; padding: 0 8px 10px;
+  min-height: 96px;
 }
+.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); }
+.handrow.fan .card.fanned:hover { z-index: 99 !important; }
+#hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
 #hand-you.fan .card.fanned {
-  width: 76px; height: 106px; margin: -30px -11px 0;
+  margin: -30px -11px 0;
   transform-origin: 50% 130%;
   transform: rotate(var(--fan-rot)) translateY(var(--fan-y));
-  box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55);
 }
-#hand-you.fan .card.fanned:hover {
-  z-index: 99 !important;
+#hand-agent.fan { align-items: flex-start; padding: 10px 8px 0; }
+#hand-agent.fan .card.fanned {
+  margin: 0 -11px -30px;
+  transform-origin: 50% -30%;
+  transform: rotate(calc(var(--fan-rot) * -1)) translateY(calc(var(--fan-y) * -1));
 }
 
 .card { width: var(--card-w); height: var(--card-h); border-radius: 6px; position: relative; cursor: pointer; flex: none; transition: transform 0.15s; background: #222; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }

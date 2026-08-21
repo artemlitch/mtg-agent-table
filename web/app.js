@@ -525,17 +525,16 @@ function renderHand(p) {
   row.innerHTML = "";
   const cards = state.players[p].zones.hand;
   for (const c of cards) row.appendChild(cardEl(c));
-  // your hand fans out from the center like held cards, poking over the board
-  if (p === "you") {
-    row.classList.add("fan");
-    const mid = (cards.length - 1) / 2;
-    [...row.children].forEach((el, i) => {
-      el.classList.add("fanned");
-      el.style.setProperty("--fan-rot", `${(i - mid) * 4}deg`);
-      el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * 2.4}px`);
-      el.style.zIndex = i + 1;
-    });
-  }
+  // both hands fan from the center like held cards, poking over the board
+  // (the agent's mirrors downward from the top edge)
+  row.classList.add("fan");
+  const mid = (cards.length - 1) / 2;
+  [...row.children].forEach((el, i) => {
+    el.classList.add("fanned");
+    el.style.setProperty("--fan-rot", `${(i - mid) * 4}deg`);
+    el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * 2.4}px`);
+    el.style.zIndex = i + 1;
+  });
 }
 
 function typeCat(c) {
