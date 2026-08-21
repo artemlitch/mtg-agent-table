@@ -20,8 +20,11 @@
   --font-scroll: "IM Fell English", "Iowan Old Style", Georgia, serif;
 }
 * { box-sizing: border-box; margin: 0; }
-/* slim, translucent-gold scrollbars everywhere */
-* { scrollbar-width: thin; scrollbar-color: rgba(226, 179, 85, 0.35) transparent; }
+/* slim, translucent-gold scrollbars everywhere. NOTE: setting the standard
+   scrollbar-width makes Chrome IGNORE ::-webkit-scrollbar — Firefox only */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(226, 179, 85, 0.35) transparent; }
+}
 *::-webkit-scrollbar { width: 2px; height: 2px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: rgba(226, 179, 85, 0.35); border-radius: 1px; }
