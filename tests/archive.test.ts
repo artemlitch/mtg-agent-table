@@ -24,6 +24,6 @@ test("archiveGame writes json + md with result, decks and full log", async () =>
   expect(rec.decks.agent.id).toBe(2638949);
   expect(rec.log.length).toBeGreaterThan(0);
   const md = await Bun.file(base + ".md").text();
-  expect(md).toContain("ARTEM wins");
+  expect(md).toContain("PLAYER wins");
   expect(md).toContain("archidekt.com/decks/25457454");
 });

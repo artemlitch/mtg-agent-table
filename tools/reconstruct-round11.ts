@@ -95,7 +95,7 @@ game.turn = "agent";
 game.waitingOn = "agent";
 game.phase = "untap/upkeep";
 game.started = true;
-addLog("system", "Score: Artem 36 / Agent 24. Commander damage: 10 from Kotis. Round 11, Agent's turn.");
+addLog("system", "Score: Player 36 / Agent 24. Commander damage: 10 from Kotis. Round 11, Agent's turn.");
 addLog("system", "Agent: your session memory is intact. Please audit this reconstruction (especially your hand of 3) and fix anything via your tools, then take your turn.");
 
 const agentSnap = {

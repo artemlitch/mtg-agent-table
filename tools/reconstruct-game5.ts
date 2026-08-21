@@ -50,7 +50,7 @@ for (const p of ["you", "agent"] as const) {
   await act(p, "shuffle", { player: p });
 }
 
-// --- Artem's side: 36 life, 6 tapped lands, Marchesa + Crew + Cutthroat, Berserker in gy ---
+// --- Player's side: 36 life, 6 tapped lands, Marchesa + Crew + Cutthroat, Berserker in gy ---
 await act("you", "life", { player: "you", set: 36 });
 for (const land of ["Xander's Lounge", "Command Tower", "Mountain", "Graven Cairns", "Volrath's Stronghold", "Island"]) {
   await toBattlefield("you", land, { tapped: true });
@@ -64,7 +64,7 @@ await toBattlefield("you", "Zulaport Cutthroat");
   const id = await findInLibrary("you", "Scorn-Blade Berserker");
   await act("you", "move", { cards: [id], toZone: "graveyard", note: "reconstruction: sacked round 3" });
 }
-// known hand cards (last draw unknown — Artem will name it)
+// known hand cards (last draw unknown — Player will name it)
 for (const c of ["Agent of Treachery", "Scalding Tarn", "The Meathook Massacre", "Fiery Islet"]) {
   const id = await findInLibrary("you", c);
   await act("you", "move", { cards: [id], toZone: "hand", note: "reconstruction" });
@@ -94,14 +94,14 @@ for (const c of ["Reclamation Sage", "Valakut Awakening", "Khalni Ambush"]) {
 }
 await act("agent", "shuffle", { player: "agent" });
 
-// --- turn structure: round 6, Artem's turn-pass is live on the stack ---
+// --- turn structure: round 6, Player's turn-pass is live on the stack ---
 await act("you", "set_phase", { phase: "end" });
 {
   const st = await state();
   const top = st.stack[st.stack.length - 1];
   await act("agent", "stack_resolve", { item: top.id }); // phase resolves; round counter handled below
 }
-await act("you", "chat", { text: "— RECONSTRUCTION — state.json was truncated by a killed server (bug fixed: saves are atomic now). Board rebuilt from the agent session log through event [313]: round 6, my turn ending, 36 vs 35, Gatekeeper back with you (tapped, 1 counter) after the Crew borrowed it. My turn pass goes back on the stack now. Libraries reshuffled; my last-drawn card TBD — I'll add it when Artem names it. Flag anything that looks off." });
+await act("you", "chat", { text: "— RECONSTRUCTION — state.json was truncated by a killed server (bug fixed: saves are atomic now). Board rebuilt from the agent session log through event [313]: round 6, my turn ending, 36 vs 35, Gatekeeper back with you (tapped, 1 counter) after the Crew borrowed it. My turn pass goes back on the stack now. Libraries reshuffled; my last-drawn card TBD — I'll add it when Player names it. Flag anything that looks off." });
 await act("you", "set_turn", { player: "agent" });
 console.log("reconstructed; verify:");
 s = await state();

@@ -35,7 +35,7 @@ export async function archiveGame(g: any, dir: string, endedAtMs = Date.now()) {
   const s = summarizeGame(g);
   const stamp = new Date(endedAtMs).toISOString().slice(0, 16).replace("T", "-").replace(":", "");
   const base = `${dir}/${stamp}-${slug(s.decks.you.name)}-vs-${slug(s.decks.agent.name)}`;
-  // Artem's view of the log: what was public at the table, plus his private lines
+  // Player's view of the log: what was public at the table, plus their private lines
   const log = (g.log ?? []).map((e: any) => renderLogFor(e, "you"));
   await Bun.write(
     base + ".json",
@@ -48,8 +48,8 @@ export async function archiveGame(g: any, dir: string, endedAtMs = Date.now()) {
     ``,
     `- ended: ${new Date(endedAtMs).toISOString()}`,
     `- rounds: ${s.rounds}`,
-    `- result: ${s.winner ? (s.winner === "you" ? "ARTEM wins" : "AGENT wins") : "unfinished"} — ${s.life.you} vs ${s.life.agent}`,
-    `- decks: Artem ${deckLink(s.decks.you)} · Agent ${deckLink(s.decks.agent)}`,
+    `- result: ${s.winner ? (s.winner === "you" ? "PLAYER wins" : "AGENT wins") : "unfinished"} — ${s.life.you} vs ${s.life.agent}`,
+    `- decks: Player ${deckLink(s.decks.you)} · Agent ${deckLink(s.decks.agent)}`,
     ``,
     `## Log`,
     ``,

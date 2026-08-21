@@ -85,7 +85,7 @@ describe("casting onto the stack", () => {
   });
 
   test("text-only items (triggers/abilities) push and resolve", () => {
-    applyAction("agent", "stack_push", { text: "Gonti trigger — exile top of Artem's library" });
+    applyAction("agent", "stack_push", { text: "Gonti trigger — exile top of Player's library" });
     expect(game.stack.length).toBe(1);
     expect(game.stack[0].cardId).toBeNull();
     applyAction("you", "stack_resolve", {});

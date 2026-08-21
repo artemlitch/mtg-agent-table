@@ -74,7 +74,7 @@ describe("undo", () => {
 describe("undo reporting and history depth", () => {
   test("repeated undos report the real actions, not previous undo notices", () => {
     doAction("you", "life", { player: "you", delta: -1 });   // 39
-    addLog("system", "↩ Artem undid: something");            // a notice, not an action
+    addLog("system", "↩ Player undid: something");            // a notice, not an action
     doAction("you", "life", { player: "you", delta: -1 });   // 38
     const first = undoLast();
     expect(first).toContain("life is now 38");

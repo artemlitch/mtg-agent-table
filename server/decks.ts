@@ -246,7 +246,7 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
   }
   shuffleZone(player);
   const total = ps.zones.library.length + ps.zones.command.length;
-  addLog("system", `${player === "you" ? "Artem" : "Agent"} loaded "${deck.name}" (${total} cards)`);
+  addLog("system", `${player === "you" ? "Player" : "Agent"} loaded "${deck.name}" (${total} cards)`);
   // load-time invariant, no guessing: a deck with nothing commander-categorized
   // on Archidekt gets a LOUD warning instead of a silently empty command zone
   if (ps.zones.command.length === 0) {

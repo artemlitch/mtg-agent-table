@@ -42,7 +42,7 @@ describe("api basics", () => {
   test("serves the frontend", async () => {
     const res = await fetch(BASE + "/");
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("MTG Agent Table");
+    expect(await res.text()).toContain("MTG Battlefield");
   });
 
   test("rejects bad viewer", async () => {

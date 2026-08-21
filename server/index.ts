@@ -126,17 +126,17 @@ const server = Bun.serve({
         }
         saveSoon();
         broadcast({ type: "update", seq: game.seq });
-        // mid-window injection: anything Artem did/said while the agent was
+        // mid-window injection: anything Player did/said while the agent was
         // working rides back inside the agent's next tool result, so it can
         // factor the new information in BEFORE continuing its line of play
         if (actor === "agent" && agent.busy) {
           const fresh = game.log.filter((e) => e.seq > agent.lastSeenSeq && e.actor === "you");
           if (fresh.length) {
-            (result as any).NEW_FROM_ARTEM_WHILE_YOU_WERE_ACTING = fresh.map(
+            (result as any).NEW_FROM_PLAYER_WHILE_YOU_WERE_ACTING = fresh.map(
               (e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`
             );
             (result as any).note =
-              "Artem acted or spoke while you were working — read the entries above and factor them in before continuing.";
+              "Player acted or spoke while you were working — read the entries above and factor them in before continuing.";
             agent.lastSeenSeq = game.seq;
           }
         }

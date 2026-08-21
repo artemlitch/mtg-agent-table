@@ -87,7 +87,7 @@
   }
 
   // The sounds themselves, as data: each is a stack of tone/noise layers.
-  // Values tuned by Artem in the sound lab — the lab edits these objects in
+  // Values hand-tuned in the sound lab — the lab edits these objects in
   // place, so what you hear there is what the table plays.
   const SOUNDS = {
     stack: {
@@ -103,7 +103,7 @@
       layers: [{ kind: "tone", freq: 95, dur: 0.22, vol: 0.32, t: 0, type: "sine", slide: 48, verb: 0.24 }],
     },
     attack: {
-      desc: "attack declared — war drum (tuned by Artem)",
+      desc: "attack declared — war drum (hand-tuned)",
       layers: [
         { kind: "tone", freq: 41, dur: 0.86, vol: 0.555, t: 0, type: "triangle", slide: 174, verb: 0.82, atk: 0.013 },
         { kind: "tone", freq: 133, dur: 0.36, vol: 0.525, t: 0, type: "triangle", slide: 252, verb: 0.78, atk: 0.011 },

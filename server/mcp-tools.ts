@@ -16,7 +16,7 @@ const str = (description: string, enums?: string[]): Schema => ({ type: "string"
 const num = (description: string): Schema => ({ type: "number", description });
 const arr = (items: Schema, description: string): Schema => ({ type: "array", items, description });
 
-const PLAYER = str("which player", ["you", "agent"]); // "you" = Artem (the human), "agent" = you
+const PLAYER = str("which player", ["you", "agent"]); // "you" = Player (the human), "agent" = you
 const ZONE = str("zone", ["library", "hand", "battlefield", "graveyard", "exile", "command"]);
 
 interface ToolDef {
@@ -32,7 +32,7 @@ interface ToolDef {
 const TOOLS: Record<string, ToolDef> = {
   get_state: {
     description:
-      "Full table snapshot as you are allowed to see it: both battlefields, graveyards, exiles, command zones, life totals, YOUR hand (Artem's hand/library are hidden), zone counts, and the recent event log. Card ids in the snapshot are what every other tool takes.",
+      "Full table snapshot as you are allowed to see it: both battlefields, graveyards, exiles, command zones, life totals, YOUR hand (Player's hand/library are hidden), zone counts, and the recent event log. Card ids in the snapshot are what every other tool takes.",
     schema: obj({}),
     special: "state",
   },
@@ -59,21 +59,21 @@ const TOOLS: Record<string, ToolDef> = {
   },
   cast: {
     description:
-      "Cast a spell (goes on the stack; announce targets with say, then call done — Artem resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
+      "Cast a spell (goes on the stack; announce targets with say, then call done — Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
     schema: obj({
       card: str("card id"),
       note: str("short cast note, e.g. 'targeting Kotis'"),
       resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
-      respondAt: str("stack item id you are responding at (inside Artem's proposed sequence) — his retractable planned items above it unwind"),
+      respondAt: str("stack item id you are responding at (inside Player's proposed sequence) — their retractable planned items above it unwind"),
     }, ["card"]),
   },
   stack_push: {
-    description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Artem's library'). Then call done for responses. respondAt: when responding inside Artem's proposed sequence, the stack item id you are responding at — his retractable planned items above it unwind automatically.",
+    description: "Put a triggered or activated ability on the stack as a text item (e.g. 'Gonti trigger — exile top of Player's library'). Then call done for responses. respondAt: when responding inside Player's proposed sequence, the stack item id you are responding at — their retractable planned items above it unwind automatically.",
     schema: obj({ text: str("what the ability does (the HEADLINE for multi-part announcements)"), lines: arr(str("one part"), "multi-part announcements (combat damage): ONE entry per pairing/part — the table renders them as a table. ALWAYS use this instead of cramming pairings into text"), source: str("card id of the permanent this trigger/ability comes from — ALWAYS pass it when the ability belongs to a permanent (the table lifts that card visually)"), respondAt: str("stack item id you are responding at (inside a proposed sequence)") }, ["text"]),
   },
   stack_batch: {
     description:
-      "PREFERRED for busy turns: push a whole sequence as ONE call — an event plus ALL its triggers (CR: simultaneous triggers stack together before anyone gets priority), or a planned run of casts. Mark planned follow-up casts retractable:true; mandatory triggers are NOT retractable. Artem can accept everything with one resolve-all, or respond at any point — which retracts your retractable tail above that point (MTR shortcut rules: what came before stays committed). Then call done ONCE.",
+      "PREFERRED for busy turns: push a whole sequence as ONE call — an event plus ALL its triggers (CR: simultaneous triggers stack together before anyone gets priority), or a planned run of casts. Mark planned follow-up casts retractable:true; mandatory triggers are NOT retractable. Player can accept everything with one resolve-all, or respond at any point — which retracts your retractable tail above that point (MTR shortcut rules: what came before stays committed). Then call done ONCE.",
     schema: obj({
       items: arr(obj({
         card: str("card id to cast (omit for a text-only trigger/ability)"),
@@ -83,18 +83,18 @@ const TOOLS: Record<string, ToolDef> = {
         note: str("cast note, e.g. targets"),
         face: num("DFC face to cast (0 front / 1 back)"),
         resolveTo: str("destination override on resolve", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
-        retractable: { type: "boolean", description: "true = planned follow-up that unwinds if Artem responds below it" },
+        retractable: { type: "boolean", description: "true = planned follow-up that unwinds if Player responds below it" },
       }), "items bottom-first: the thing that happens first goes first"),
     }, ["items"]),
   },
   stack_resolve: {
     description:
-      "Resolve a stack item — any item, any time (default: top; pass item for a specific one). Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). A COUNTERED item resolves as a fizzle: the card goes to its owner's graveyard with no effect. Etiquette: give Artem a response window (done) before resolving your own spells.",
+      "Resolve a stack item — any item, any time (default: top; pass item for a specific one). Cards: permanents → battlefield, instants/sorceries → graveyard; 'to' overrides (e.g. exile). A COUNTERED item resolves as a fizzle: the card goes to its owner's graveyard with no effect. Etiquette: give Player a response window (done) before resolving your own spells.",
     schema: obj({ item: str("stack item id (default: top of stack)"), to: str("override destination zone", ["battlefield", "graveyard", "exile", "hand", "library"]) }),
   },
   stack_resolve_all: {
     description:
-      "Accept Artem's whole proposal in one call: resolves items top-down for as long as they are his (stops at your own items). Use this instead of many stack_resolve calls when you have no responses. group limits it to one proposed sequence.",
+      "Accept Player's whole proposal in one call: resolves items top-down for as long as they are theirs (stops at your own items). Use this instead of many stack_resolve calls when you have no responses. group limits it to one proposed sequence.",
     schema: obj({ group: str("only resolve items of this groupId") }),
   },
   stack_counter: {
@@ -116,7 +116,7 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ card: str("card id"), face: num("0 = front, 1 = back") }, ["card", "face"]),
   },
   tap: {
-    description: "Tap or untap battlefield cards (yours, or Artem's when an effect says so). tapped=false to untap.",
+    description: "Tap or untap battlefield cards (yours, or Player's when an effect says so). tapped=false to untap.",
     schema: obj({ cards: arr(str("card id"), "card ids"), tapped: { type: "boolean" } }, ["cards"]),
   },
   untap_all: { description: "Untap all of a player's permanents (start of turn).", schema: obj({ player: PLAYER }) },
@@ -150,7 +150,7 @@ const TOOLS: Record<string, ToolDef> = {
   },
   view_zone: {
     description:
-      "See every card in a zone: search your own library (then shuffle!), read a graveyard, or look at Artem's hand/library WHEN A GAME EFFECT ALLOWS IT (this is logged loudly — cite the effect with say).",
+      "See every card in a zone: search your own library (then shuffle!), read a graveyard, or look at Player's hand/library WHEN A GAME EFFECT ALLOWS IT (this is logged loudly — cite the effect with say).",
     schema: obj({ player: PLAYER, zone: ZONE }, ["player", "zone"]),
     leanCards: true,
   },
@@ -160,7 +160,7 @@ const TOOLS: Record<string, ToolDef> = {
     schema: obj({ card: str("card id") }, ["card"]),
   },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
-  set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Artem resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
+  set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Player resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
   attack: {
     description:
       "Declare attackers — goes ON THE STACK like everything else: pairs of {attacker: cardId, target: 'you'|'agent'|planeswalker cardId}. The defender resolves the item to lock attacks in (attackers tap then), or responds on top first. After declaring, call done.",
@@ -174,14 +174,14 @@ const TOOLS: Record<string, ToolDef> = {
   clear_combat: { description: "Clear all attack/block annotations after damage.", schema: obj({}) },
   roll: { description: "Roll a die.", schema: obj({ sides: num("sides, default 20") }) },
   flip: { description: "Flip a coin.", schema: obj({}) },
-  say: { description: "Say something to Artem in the chat (announcements, responses, banter).", schema: obj({ text: str("message") }, ["text"]), action: "chat" },
+  say: { description: "Say something to Player in the chat (announcements, responses, banter).", schema: obj({ text: str("message") }, ["text"]), action: "chat" },
   ask_user: {
-    description: "Ask Artem a blocking question (rules confusion, 'any responses?', clarify his action). His answer arrives in your next window.",
+    description: "Ask Player a blocking question (rules confusion, 'any responses?', clarify their action). Their answer arrives in your next window.",
     schema: obj({ question: str("the question") }, ["question"]),
   },
   done: {
     description:
-      "End your window and pass priority back to Artem. Call this to finish EVERY window (full turns AND reaction windows) unless you asked a blocking question. Also how you pass after putting something on the stack.",
+      "End your window and pass priority back to Player. Call this to finish EVERY window (full turns AND reaction windows) unless you asked a blocking question. Also how you pass after putting something on the stack.",
     schema: obj({}),
   },
 };

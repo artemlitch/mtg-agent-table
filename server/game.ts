@@ -315,13 +315,13 @@ export function renderLogFor(e: LogEntry, viewer: PlayerId) {
 // ---------------------------------------------------------------------------
 
 export function who(p: PlayerId) {
-  return p === "you" ? "Artem" : "Agent";
+  return p === "you" ? "Player" : "Agent";
 }
 
 /** Player ids are exactly "you" | "agent" — reject anything else loudly. */
 function asPlayer(v: any, field = "player"): PlayerId {
   if (v !== "you" && v !== "agent") {
-    throw new Error(`${field} must be "you" (Artem) or "agent", got ${JSON.stringify(v)}`);
+    throw new Error(`${field} must be "you" (Player) or "agent", got ${JSON.stringify(v)}`);
   }
   return v;
 }

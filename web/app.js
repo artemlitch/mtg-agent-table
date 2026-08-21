@@ -1748,7 +1748,7 @@ function renderChat() {
       const d = document.createElement("div");
       d.className = "msg " + (e.actor === "you" ? "you" : "agent");
       d.innerHTML = `<div class="mwho">${e.actor === "you" ? "You" : "Agent"}</div>`;
-      d.appendChild(document.createTextNode(e.text.replace(/^💬 (Artem|Agent): /, "").replace(/^❓ Agent asks: /, "❓ ")));
+      d.appendChild(document.createTextNode(e.text.replace(/^💬 (Player|Agent): /, "").replace(/^❓ Agent asks: /, "❓ ")));
       pane.appendChild(d);
     } else if (e.actor === "system") {
       const d = document.createElement("div");
