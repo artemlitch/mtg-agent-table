@@ -132,7 +132,7 @@ const TOOLS: Record<string, ToolDef> = {
       ["name"]
     ),
   },
-  attach: { description: "Attach card (equipment/aura) to target, or pass target '' to unattach.", schema: obj({ card: str("card id"), target: str("target card id or '' to unattach") }, ["card"]) },
+  tuck: { description: "Tuck card under another battlefield card, forming a pile (equipment/auras, or board tidying). The pile's top card is the handle and carries the pile when it moves. Pass under '' to pull a card out of its pile.", schema: obj({ card: str("card id"), under: str("card id to tuck under, or '' to pull out") }, ["card"]) },
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
   commander_damage: {
     description: "Track commander combat damage dealt to a player.",

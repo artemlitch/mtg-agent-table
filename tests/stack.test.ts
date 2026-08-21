@@ -1,17 +1,11 @@
 // The Magic stack: cast → stack zone, LIFO resolution, countering, triggers.
 import { describe, test, expect, beforeEach } from "bun:test";
-import { game, resetGameState, applyAction, viewFor, cardVisibleTo, newCardId, type Card, type PlayerId, type Zone } from "../server/game";
+import { game, resetGameState, applyAction, viewFor, cardVisibleTo, newCardId, makeCard, type Card, type PlayerId, type Zone } from "../server/game";
 
 function seedCard(name: string, owner: PlayerId, zone: Zone, extra: Partial<Card> = {}): Card {
-  const id = newCardId();
-  const card: Card = {
-    id, name, owner, controller: owner, zone,
-    tapped: false, faceDown: false, counters: {}, attachedTo: null,
-    isToken: false, isCommander: false, visibleTo: [], attacking: null, blocking: null,
-    typeLine: "Creature — Test", ...extra,
-  };
-  game.cards[id] = card;
-  game.players[extra.controller ?? owner].zones[zone].push(id);
+  const card = makeCard({ id: newCardId(), name, owner, controller: owner, zone, typeLine: "Creature — Test", ...extra });
+  game.cards[card.id] = card;
+  game.players[extra.controller ?? owner].zones[zone].push(card.id);
   return card;
 }
 

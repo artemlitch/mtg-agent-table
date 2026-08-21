@@ -34,6 +34,9 @@ export function restoreState(snap: any): PersistedExtra {
   // DFC names follow the active face now — rewrite composite names in place
   for (const c of Object.values(game.cards) as any[]) {
     if (c.faces) c.name = c.faces[c.face ?? 0]?.name ?? c.name;
+    // attach became board piles: rename the pointer
+    if (c.under === undefined) c.under = c.attachedTo ?? null;
+    delete c.attachedTo;
     // P/T counters are one net quantity now — normalize legacy negatives
     if (c.counters) {
       const net = (c.counters["+1/+1"] || 0) - (c.counters["-1/-1"] || 0);
@@ -42,6 +45,21 @@ export function restoreState(snap: any): PersistedExtra {
       if (net > 0) c.counters["+1/+1"] = net;
       else if (net < 0) c.counters["-1/-1"] = -net;
     }
+  }
+  // piles are linear chains — old attach fans (several cards on one target)
+  // chain up beneath each other instead; re-run until no rung holds two cards
+  for (let pass = 0; pass < 10; pass++) {
+    const byUnder: Record<string, any[]> = {};
+    for (const c of Object.values(game.cards) as any[]) {
+      if (!c.under) continue;
+      if (!game.cards[c.under]) { c.under = null; continue; } // dangling pointer
+      (byUnder[c.under] ??= []).push(c);
+    }
+    let fixed = false;
+    for (const list of Object.values(byUnder)) {
+      for (let i = 1; i < list.length; i++) { list[i].under = list[i - 1].id; fixed = true; }
+    }
+    if (!fixed) break;
   }
   for (const p of Object.values(game.players)) (p.zones as any).stack ??= [];
   setNextCardId(snap.nextCardId ?? 1);

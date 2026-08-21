@@ -8,6 +8,7 @@ import {
   applyAction,
   viewFor,
   newCardId,
+  makeCard,
   cardVisibleTo,
   renderLogFor,
   type Card,
@@ -21,27 +22,17 @@ function seedCard(
   zone: Zone,
   extra: Partial<Card> = {}
 ): Card {
-  const id = newCardId();
-  const card: Card = {
-    id,
+  const card = makeCard({
+    id: newCardId(),
     name,
     owner,
     controller: owner,
     zone,
-    tapped: false,
-    faceDown: false,
-    counters: {},
-    attachedTo: null,
-    isToken: false,
-    isCommander: false,
-    visibleTo: [],
-    attacking: null,
-    blocking: null,
     typeLine: "Creature — Test",
     ...extra,
-  };
-  game.cards[id] = card;
-  game.players[extra.controller ?? owner].zones[zone].push(id);
+  });
+  game.cards[card.id] = card;
+  game.players[extra.controller ?? owner].zones[zone].push(card.id);
   return card;
 }
 
@@ -175,14 +166,22 @@ describe("moves", () => {
     expect(game.players.you.zones.battlefield).toContain(c.id);
   });
 
-  test("moving off the battlefield resets tap/attach/combat state", () => {
+  test("moving off the battlefield resets tap/pile/combat state", () => {
     const c = seedCard("Sword", "you", "battlefield", { tapped: true });
     const t = seedCard("Bearer", "you", "battlefield");
-    c.attachedTo = t.id;
+    c.under = t.id;
     t.attacking = "agent";
     applyAction("you", "move", { card: c.id, toZone: "graveyard" });
     expect(c.tapped).toBe(false);
-    expect(c.attachedTo).toBe(null);
+    expect(c.under).toBe(null);
+  });
+
+  test("a pile closes the gap when a middle card leaves the battlefield", () => {
+    const top = seedCard("Top", "you", "battlefield");
+    const mid = seedCard("Mid", "you", "battlefield", { under: top.id });
+    const bot = seedCard("Bot", "you", "battlefield", { under: mid.id });
+    applyAction("you", "move", { card: mid.id, toZone: "graveyard" });
+    expect(bot.under).toBe(top.id);
   });
 
   test("tokens cease to exist when leaving the battlefield", () => {
@@ -200,7 +199,7 @@ describe("moves", () => {
   });
 });
 
-describe("tap, counters, attach", () => {
+describe("tap, counters, piles", () => {
   test("tap and untap_all", () => {
     const a = seedCard("A", "you", "battlefield");
     const b = seedCard("B", "you", "battlefield");
@@ -241,13 +240,59 @@ describe("tap, counters, attach", () => {
     expect(c.tapped).toBe(false);
   });
 
-  test("attach and unattach", () => {
+  test("tuck and pull out", () => {
     const eq = seedCard("Fireshrieker", "you", "battlefield");
     const cr = seedCard("Kotis", "you", "battlefield");
-    applyAction("you", "attach", { card: eq.id, target: cr.id });
-    expect(eq.attachedTo).toBe(cr.id);
-    applyAction("you", "attach", { card: eq.id, target: "" });
-    expect(eq.attachedTo).toBe(null);
+    applyAction("you", "tuck", { card: eq.id, under: cr.id });
+    expect(eq.under).toBe(cr.id);
+    applyAction("you", "tuck", { card: eq.id, under: "" });
+    expect(eq.under).toBe(null);
+  });
+
+  test("tucking onto a buried card slots in directly under the pile's top", () => {
+    const top = seedCard("Top", "you", "battlefield");
+    const old = seedCard("Old", "you", "battlefield", { under: top.id });
+    const nu = seedCard("New", "you", "battlefield");
+    // drop point is the buried card, but the pile is one thing: join under top
+    applyAction("you", "tuck", { card: nu.id, under: old.id });
+    expect(nu.under).toBe(top.id);
+    expect(old.under).toBe(nu.id); // displaced rung closes beneath the newcomer
+  });
+
+  test("a pile top tucked onto another pile brings its whole chain", () => {
+    const t1 = seedCard("Top1", "you", "battlefield");
+    const c1 = seedCard("Carried", "you", "battlefield", { under: t1.id });
+    const t2 = seedCard("Top2", "you", "battlefield");
+    const o2 = seedCard("Old2", "you", "battlefield", { under: t2.id });
+    applyAction("you", "tuck", { card: t1.id, under: t2.id });
+    // t2 on top, then t1's chain, then t2's old chain below it
+    expect(t1.under).toBe(t2.id);
+    expect(c1.under).toBe(t1.id);
+    expect(o2.under).toBe(c1.id);
+  });
+
+  test("a buried card tucked elsewhere leaves its pile alone", () => {
+    const top = seedCard("Top", "you", "battlefield");
+    const mid = seedCard("Mid", "you", "battlefield", { under: top.id });
+    const bot = seedCard("Bot", "you", "battlefield", { under: mid.id });
+    const other = seedCard("Other", "you", "battlefield");
+    applyAction("you", "tuck", { card: mid.id, under: other.id });
+    expect(mid.under).toBe(other.id);
+    expect(bot.under).toBe(top.id); // old pile closed the gap
+  });
+
+  test("tucking under your own pile or yourself throws", () => {
+    const top = seedCard("Top", "you", "battlefield");
+    const mid = seedCard("Mid", "you", "battlefield", { under: top.id });
+    expect(() => applyAction("you", "tuck", { card: top.id, under: mid.id })).toThrow();
+    expect(() => applyAction("you", "tuck", { card: top.id, under: top.id })).toThrow();
+  });
+
+  test("piles only exist on the battlefield", () => {
+    const h = seedCard("Handcard", "you", "hand");
+    const b = seedCard("Boardcard", "you", "battlefield");
+    expect(() => applyAction("you", "tuck", { card: h.id, under: b.id })).toThrow();
+    expect(() => applyAction("you", "tuck", { card: b.id, under: h.id })).toThrow();
   });
 });
 

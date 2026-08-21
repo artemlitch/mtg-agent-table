@@ -2,7 +2,7 @@
 
 const $ = (s) => document.querySelector(s);
 let state = null;
-let pendingAttach = null; // card id waiting for an attach target
+let pendingTuck = null; // card id waiting for a pile target (menu "Tuck under…")
 let brainEntries = [];
 let agentBusy = false;
 
@@ -552,8 +552,8 @@ function renderBattlefield(p) {
   bf.innerHTML = "";
   bf.classList.add("freeboard");
   const cards = state.players[p].zones.battlefield;
-  const attached = cards.filter((c) => c.attachedTo);
-  const free = cards.filter((c) => !c.attachedTo);
+  const buried = cards.filter((c) => c.under);
+  const free = cards.filter((c) => !c.under);
   // every free card claims a slot in its category — dragged cards keep theirs
   // as a HOLE, so moving one card never reflows its neighbors
   const autos = { creature: [], land: [], other: [] };
@@ -567,7 +567,7 @@ function renderBattlefield(p) {
       ? { creature: 0.12, land: 0.72, other: 0.05 }
       : { creature: 0.6, land: 0.02, other: 0.05 };
 
-  // pixel-based layout: cards never overlap unless attached or dragged there
+  // pixel-based layout: cards never overlap unless piled or dragged there
   const W = Math.max(bf.clientWidth, 400);
   const H = Math.max(bf.clientHeight, 200);
   const GAP = 14;
@@ -614,20 +614,32 @@ function renderBattlefield(p) {
     toSave.push({ card: c.id, x, y });
   }
   if (toSave.length && state.started) act("place", { positions: toSave });
-  // attached cards tuck under their target (chains collapse onto the root)
-  const byId = Object.fromEntries(cards.map((c) => [c.id, c]));
-  for (const c of attached) {
-    let target = byId[c.attachedTo];
-    let depth = 1;
-    while (target && target.attachedTo && byId[target.attachedTo] && depth < 5) {
-      target = byId[target.attachedTo];
+  // buried pile members cascade beneath their pile's top card, one visible
+  // strip per rung — the strip is the grab handle for pulling a card out
+  const PILE_DX = 15, PILE_DY = 26;
+  for (const c of buried) {
+    let top = c, depth = 0, guard = 0;
+    while (top.under && guard++ < 50) {
+      const t = cardById(top.under);
+      if (!t) break;
+      top = t;
       depth++;
     }
-    const base = target && posMap[target.id];
-    const siblings = attached.filter((a) => a.attachedTo === c.attachedTo);
-    const idx = siblings.indexOf(c);
+    let base = posMap[top.id];
+    // pile top on the other battlefield: anchor via its pos + container offset
+    if (!base && top.controller !== p && top.pos) {
+      const myRect = bf.getBoundingClientRect();
+      const otherBf = $(`#bf-${top.controller}`);
+      const oRect = otherBf.getBoundingClientRect();
+      const oW = Math.max(otherBf.clientWidth, 400);
+      const oH = Math.max(otherBf.clientHeight, 200);
+      base = {
+        left: top.pos.x * (oW - CW) + (oRect.left - myRect.left),
+        top: top.pos.y * (oH - CH) + (oRect.top - myRect.top),
+      };
+    }
     posMap[c.id] = base
-      ? { left: base.left + 16 * (idx + 1), top: base.top + 24 * (idx + 1), under: true }
+      ? { left: base.left + PILE_DX * depth, top: base.top + PILE_DY * depth, under: true, depth }
       : { left: W / 2, top: H / 2 };
   }
 
@@ -652,7 +664,13 @@ function renderBattlefield(p) {
       el.style.left = Math.max(0, Math.min(W - CW, pos.left)).toFixed(0) + "px";
       el.style.top = Math.max(0, Math.min(H - CH, pos.top)).toFixed(0) + "px";
     }
-    if (pos.under) el.classList.add("tucked");
+    // pile stacking order: top card highest, each rung below it one step lower
+    if (pos.under) {
+      el.classList.add("tucked");
+      el.style.zIndex = Math.max(1, 24 - pos.depth); // .dragging (30) still wins
+    } else if (cardBeneathOf(c.id)) {
+      el.style.zIndex = 25;
+    }
     const lift = lifts.get(c.id);
     if (lift) {
       el.classList.add("lifted");
@@ -688,7 +706,7 @@ function renderBattlefield(p) {
     const wrap = g.card.pos
       ? ghostEl(g.card, g, pos.left, pos.top)
       : ghostEl(g.card, g, clampX(pos.left), clampY(pos.top));
-    if (g.player === "you") makeDraggable(wrap, g.card, bf, { attach: false });
+    if (g.player === "you") makeDraggable(wrap, g.card, bf, { tuck: false });
     bf.appendChild(wrap);
   }
 
@@ -707,7 +725,7 @@ function renderBattlefield(p) {
       top = Math.max(0, top);
     }
     const wrap = ghostEl(g.card, g, left, top, { cls: "spell" });
-    if (g.player === "you") makeDraggable(wrap, g.card, bf, { attach: false });
+    if (g.player === "you") makeDraggable(wrap, g.card, bf, { tuck: false });
     bf.appendChild(wrap);
   });
 }
@@ -742,21 +760,15 @@ function makeDraggable(el, c, bf, opts = {}) {
     const startTop = parseFloat(el.style.top) || 0;
     let left = startLeft;
     let top = startTop;
-    // attachments ride along: collect the whole attach-chain under this card
-    // with their start positions; they get the same drag delta live
+    // dragging a pile's TOP card carries the whole pile (same delta, live);
+    // dragging a buried card pulls just that card out — no riders
     const kids = [];
-    const collectKids = (parentId) => {
-      for (const pl of ["you", "agent"]) {
-        for (const k of state.players[pl].zones.battlefield) {
-          if (k.attachedTo === parentId) {
-            const kel = document.querySelector(`.card.placed[data-card-id="${k.id}"]`);
-            if (kel) kids.push({ el: kel, left: parseFloat(kel.style.left) || 0, top: parseFloat(kel.style.top) || 0 });
-            collectKids(k.id);
-          }
-        }
+    if (opts.tuck !== false && !c.under) {
+      for (const k of pileChainBelow(c.id)) {
+        const kel = document.querySelector(`.card.placed[data-card-id="${k.id}"]`);
+        if (kel) kids.push({ el: kel, left: parseFloat(kel.style.left) || 0, top: parseFloat(kel.style.top) || 0 });
       }
-    };
-    if (opts.attach !== false) collectKids(c.id);
+    }
     const kidEls = new Set(kids.map((k) => k.el));
     let moved = false;
     const onMove = (mv) => {
@@ -773,7 +785,7 @@ function makeDraggable(el, c, bf, opts = {}) {
       top = Math.max(minY, Math.min(maxY, startTop + (mv.clientY - down.clientY)));
       el.style.left = left + "px";
       el.style.top = top + "px";
-      // the attach-chain follows with the same delta
+      // the carried pile follows with the same delta
       const dx = left - startLeft;
       const dy = top - startTop;
       for (const k of kids) {
@@ -788,26 +800,33 @@ function makeDraggable(el, c, bf, opts = {}) {
         el.classList.remove("dragging");
         el.dataset.dragged = "1";
         draggingNow = false;
-        // drop onto another card = attach (that's how equip works).
-        // Center from the layout box (rotation about the center can't move
-        // it); target rects are fine to read — they're only hit-tested,
-        // never written back into anyone's position.
+        // drop onto another card = tuck into its pile (equip, auras, board
+        // tidying — one gesture). Center from the layout box (rotation about
+        // the center can't move it); target rects are fine to read — they're
+        // only hit-tested, never written back into anyone's position.
         const center = { x: bfRect.left + left + CW / 2, y: bfRect.top + top + CH / 2 };
-        // attach-drop works across the whole table, either battlefield
+        // pile-drop works across the whole table, either battlefield
         // (disabled for stack ghosts — they only pre-place their landing spot)
-        const targetEl = opts.attach === false ? null : [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
-          // never attach a parent onto its own attachment (cycle)
+        const targetEl = opts.tuck === false ? null : [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
+          // never tuck a pile under its own members (cycle)
           if (o === el || kidEls.has(o) || !o.dataset.cardId) return false;
           const r = o.getBoundingClientRect();
           return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
         });
+        // optimistic pile edits mirror the server splice — no flash at ack
+        const spliceLocal = () => {
+          const b = cardBeneathOf(c.id);
+          if (b) b.under = c.under;
+          c.under = null;
+        };
         if (targetEl) {
-          c.attachedTo = targetEl.dataset.cardId; // optimistic — no flash back
-          await act("attach", { card: c.id, target: targetEl.dataset.cardId });
+          if (c.under) spliceLocal();
+          c.under = targetEl.dataset.cardId; // server re-anchors to the pile's top
+          await act("tuck", { card: c.id, under: targetEl.dataset.cardId });
         } else {
-          if (c.attachedTo) {
-            c.attachedTo = null;
-            await act("attach", { card: c.id, target: "" });
+          if (c.under) {
+            spliceLocal();
+            await act("tuck", { card: c.id, under: "" });
           }
           // normalize with the exact W/H/CW/CH formula render() lays out
           // with, so the round-trip pos -> px -> pos is bit-exact and the
@@ -840,13 +859,34 @@ function cardById(id) {
   return null;
 }
 
+// board piles: the card tucked directly beneath `id`, searching both fields
+// (piles may span controllers — your aura under the agent's creature)
+function cardBeneathOf(id) {
+  for (const p of ["you", "agent"])
+    for (const k of state.players[p].zones.battlefield)
+      if (k.under === id) return k;
+  return null;
+}
+
+// the chain hanging beneath `id`, top-down
+function pileChainBelow(id) {
+  const out = [];
+  let cur = cardBeneathOf(id);
+  let guard = 0;
+  while (cur && guard++ < 50) {
+    out.push(cur);
+    cur = cardBeneathOf(cur.id);
+  }
+  return out;
+}
+
 function cardEl(c, opts = {}) {
   const d = document.createElement("div");
   d.className = "card";
   if (c.tapped) d.classList.add("tapped");
   if (c.attacking) d.classList.add("attacking");
   if (c.blocking) d.classList.add("blocking");
-  if (pendingAttach === c.id) d.classList.add("attach-source");
+  if (pendingTuck === c.id) d.classList.add("tuck-source");
   if (opts.small) d.style.cssText = "width:100%;height:auto;aspect-ratio:0.72;";
 
   if (c.hidden) {
@@ -863,9 +903,9 @@ function cardEl(c, opts = {}) {
     }
     if (c.attacking) badges.push(`<span class="badge att">⚔ ${c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}</span>`);
     if (c.blocking) badges.push(`<span class="badge blk">🛡</span>`);
-    if (c.attachedTo) {
-      const t = cardById(c.attachedTo);
-      badges.push(`<span class="badge eq">→ ${t && !t.hidden ? t.name.split(",")[0] : "?"}</span>`);
+    if (c.under) {
+      const t = cardById(c.under);
+      badges.push(`<span class="badge eq">↳ ${t && !t.hidden ? t.name.split(",")[0] : "?"}</span>`);
     }
     if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
     if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
@@ -916,9 +956,9 @@ function cardEl(c, opts = {}) {
       return;
     }
     hidePreview();
-    if (pendingAttach && pendingAttach !== c.id) {
-      act("attach", { card: pendingAttach, target: c.id });
-      pendingAttach = null;
+    if (pendingTuck && pendingTuck !== c.id) {
+      act("tuck", { card: pendingTuck, under: c.id });
+      pendingTuck = null;
       render();
       return;
     }
@@ -1074,13 +1114,13 @@ function cardMenu(c, e) {
       items.push({ label: `✕ clear ${kind}`, fn: () => act("counters", { card: c.id, kind, set: 0 }) });
     }
     items.push({
-      label: "Attach to…",
+      label: "Tuck under… (pile)",
       fn: () => {
-        pendingAttach = c.id;
+        pendingTuck = c.id;
         render();
       },
     });
-    if (c.attachedTo) items.push({ label: "Unattach", fn: () => act("attach", { card: c.id, target: "" }) });
+    if (c.under) items.push({ label: "Pull out of pile", fn: () => act("tuck", { card: c.id, under: "" }) });
     if (c.isToken) {
       items.push({
         label: "🗑 Delete token",
@@ -1883,7 +1923,7 @@ let hoveredCard = null;
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    pendingAttach = null;
+    pendingTuck = null;
     closeMenu();
     closeModal();
     render();

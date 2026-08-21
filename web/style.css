@@ -127,7 +127,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   50% { transform: translateY(-6px); }
 }
 .card.blocking { outline: 2px solid var(--blue); outline-offset: 1px; }
-.card.attach-source { outline: 2px dashed var(--accent); }
+.card.tuck-source { outline: 2px dashed var(--accent); }
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
 .badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: 10px; padding: 0 4px; color: #ffd97a; }
 /* +1/+1 counter chip: left side, ~2/3 up; appears on hover, stays when set */

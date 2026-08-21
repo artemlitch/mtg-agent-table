@@ -39,6 +39,30 @@ describe("state serialization", () => {
     expect(Object.keys(game.cards)).not.toContain(fresh);
   });
 
+  test("legacy attachedTo migrates to under, fans linearize into chains", () => {
+    applyAction("you", "create_token", { name: "Bearer", n: 1 });
+    applyAction("you", "create_token", { name: "Sword", n: 1 });
+    applyAction("you", "create_token", { name: "Shield", n: 1 });
+    const [bearer, sword, shield] = [...game.players.you.zones.battlefield];
+    const snap = serializeState({ agent: null, lastDecks: null });
+    // rewrite the snapshot into the old shape: two cards attached to one target
+    for (const [id, tgt] of [[sword, bearer], [shield, bearer]] as const) {
+      const c = snap.game.cards[id];
+      delete c.under;
+      c.attachedTo = tgt;
+    }
+    delete snap.game.cards[bearer].under;
+    snap.game.cards[bearer].attachedTo = null;
+
+    resetGameState();
+    restoreState(snap);
+    const cards = game.cards as any;
+    expect(cards[sword].attachedTo).toBeUndefined();
+    // linear pile: bearer on top, the fan chained beneath it one per rung
+    expect(cards[sword].under).toBe(bearer);
+    expect(cards[shield].under).toBe(sword);
+  });
+
   test("agent runner state round-trips", () => {
     const a = new AgentRunner();
     a.sessionId = "sess-123";

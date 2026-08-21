@@ -38,7 +38,9 @@ export interface Card {
   tapped: boolean;
   faceDown: boolean;
   counters: Record<string, number>;
-  attachedTo: string | null;
+  // board piles (replaces "attach"): id of the card this one is tucked
+  // directly under. Chains are linear — one card per rung, any depth.
+  under: string | null;
   isToken: boolean;
   isCommander: boolean;
   // Extra visibility grants beyond what the zone implies (revealed hand cards,
@@ -122,7 +124,7 @@ export function makeCard(init: Pick<Card, "id" | "name" | "owner" | "controller"
     tapped: false,
     faceDown: false,
     counters: {},
-    attachedTo: null,
+    under: null,
     isToken: false,
     isCommander: false,
     visibleTo: [],
@@ -223,7 +225,7 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     tapped: card.tapped,
     faceDown: card.faceDown,
     counters: card.counters,
-    attachedTo: card.attachedTo,
+    under: card.under,
     isToken: card.isToken,
     isCommander: card.isCommander,
     attacking: card.attacking,
@@ -337,7 +339,21 @@ function removeFromZone(card: Card) {
 /** The ONE zone change: unlink from the old zone, rewrite the card's placement
  * fields, hand back the destination list so the caller picks the spot in it.
  * Visibility always resets — explicit grants are re-applied by the caller. */
+/** The card sitting directly beneath `card` in its pile, if any. */
+function cardBeneath(card: Card): Card | null {
+  for (const o of Object.values(game.cards)) if (o.under === card.id) return o;
+  return null;
+}
+
+/** Pull a card out of its pile alone: whatever sat beneath it closes the gap. */
+function spliceOutOfPile(card: Card) {
+  const below = cardBeneath(card);
+  if (below) below.under = card.under;
+  card.under = null;
+}
+
 function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
+  spliceOutOfPile(card);
   removeFromZone(card);
   card.zone = zone;
   card.controller = player;
@@ -584,7 +600,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
       if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
       const list = relocateCard(card, toZone, toPlayer);
-      card.attachedTo = null;
       card.attacking = null;
       card.blocking = null;
       if (toZone !== "battlefield") card.tapped = false;
@@ -750,16 +765,39 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, power: c.power, toughness: c.toughness };
   },
 
-  attach(ctx, p) {
+  // Board piles (replaces attach): tuck a card under another. Equip/auras and
+  // board tidying are the same gesture — the pile's top card is the handle.
+  tuck(ctx, p) {
     const c = getCard(p.card);
-    if (p.target === null || p.target === undefined || p.target === "") {
-      c.attachedTo = null;
-      addLog(ctx.actor, `${who(ctx.actor)} unattached ${publicDesc(c)}`);
-    } else {
-      const t = getCard(p.target);
-      c.attachedTo = t.id;
-      addLog(ctx.actor, `${who(ctx.actor)} attached ${publicDesc(c)} to ${publicDesc(t)}`);
+    if (p.under === null || p.under === undefined || p.under === "") {
+      if (c.under) {
+        spliceOutOfPile(c);
+        addLog(ctx.actor, `${who(ctx.actor)} pulled ${publicDesc(c)} out of its pile`);
+      }
+      return { ok: true };
     }
+    const t = getCard(p.under);
+    if (t.id === c.id) throw new Error("cannot tuck a card under itself");
+    if (t.zone !== "battlefield" || c.zone !== "battlefield") {
+      throw new Error("piles only exist on the battlefield");
+    }
+    // a buried card leaves its pile ALONE; a pile top brings its chain along
+    if (c.under) spliceOutOfPile(c);
+    // any drop point on a pile means the same thing: slot in under its top
+    let top = t;
+    while (top.under) top = getCard(top.under);
+    // tucking under your own pile (or yourself) would loop the chain
+    for (let x: Card | null = c; x; x = cardBeneath(x)) {
+      if (x.id === top.id) throw new Error(`${publicDesc(t)} is in ${publicDesc(c)}'s own pile`);
+    }
+    // c (and anything it carries) slides in directly beneath the top; the
+    // displaced rung reattaches beneath the bottom of what c brought
+    const prevSecond = cardBeneath(top);
+    let bottom = c;
+    for (let b = cardBeneath(bottom); b; b = cardBeneath(bottom)) bottom = b;
+    c.under = top.id;
+    if (prevSecond) prevSecond.under = bottom.id;
+    addLog(ctx.actor, `${who(ctx.actor)} tucked ${publicDesc(c)} under ${publicDesc(top)}`);
     return { ok: true };
   },
 
