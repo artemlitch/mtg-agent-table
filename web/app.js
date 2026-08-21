@@ -1239,6 +1239,9 @@ function targetPanel(input) {
     head.onclick = () => col.classList.toggle("collapsed");
     const list = document.createElement("div");
     list.className = "tlist";
+    // lands sink below everything else — they're rarely the target
+    const isLand = (c) => /\bland\b/i.test(c.typeLine || "") && !/\b(creature|instant|sorcery)\b/i.test(c.typeLine || "");
+    const sortLandsLast = (arr) => [...arr].sort((a, b) => Number(isLand(a)) - Number(isLand(b)));
     const add = (c) => {
       if (c.hidden || !c.name) return;
       const el = document.createElement("div");
@@ -1255,13 +1258,13 @@ function targetPanel(input) {
       };
       list.appendChild(el);
     };
-    cards.forEach(add);
+    sortLandsLast(cards).forEach(add);
     if (exileCards.some((c) => !c.hidden)) {
       const sub = document.createElement("div");
       sub.className = "tsub";
       sub.textContent = "exile";
       list.appendChild(sub);
-      exileCards.forEach(add);
+      sortLandsLast(exileCards).forEach(add);
     }
     col.append(head, list);
     panel.appendChild(col);
