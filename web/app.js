@@ -729,6 +729,24 @@ function makeDraggable(el, c, bf, opts = {}) {
     const maxY = Math.max(bfRect.bottom, otherRect.bottom) - bfRect.top - rect.height;
     const offX = down.clientX - rect.left;
     const offY = down.clientY - rect.top;
+    // attachments ride along: collect the whole attach-chain under this card
+    // with their start positions; they get the same drag delta live
+    const startLeft = parseFloat(el.style.left) || 0;
+    const startTop = parseFloat(el.style.top) || 0;
+    const kids = [];
+    const collectKids = (parentId) => {
+      for (const pl of ["you", "agent"]) {
+        for (const k of state.players[pl].zones.battlefield) {
+          if (k.attachedTo === parentId) {
+            const kel = document.querySelector(`.card.placed[data-card-id="${k.id}"]`);
+            if (kel) kids.push({ el: kel, left: parseFloat(kel.style.left) || 0, top: parseFloat(kel.style.top) || 0 });
+            collectKids(k.id);
+          }
+        }
+      }
+    };
+    if (opts.attach !== false) collectKids(c.id);
+    const kidEls = new Set(kids.map((k) => k.el));
     let moved = false;
     const onMove = (mv) => {
       if (!moved && Math.hypot(mv.clientX - down.clientX, mv.clientY - down.clientY) < 6) return;
@@ -740,6 +758,13 @@ function makeDraggable(el, c, bf, opts = {}) {
       }
       el.style.left = Math.max(0, Math.min(bfRect.width - rect.width, mv.clientX - bfRect.left - offX)) + "px";
       el.style.top = Math.max(minY, Math.min(maxY, mv.clientY - bfRect.top - offY)) + "px";
+      // the attach-chain follows with the same delta
+      const dx = (parseFloat(el.style.left) || 0) - startLeft;
+      const dy = (parseFloat(el.style.top) || 0) - startTop;
+      for (const k of kids) {
+        k.el.style.left = k.left + dx + "px";
+        k.el.style.top = k.top + dy + "px";
+      }
     };
     const onUp = async () => {
       el.removeEventListener("pointermove", onMove);
@@ -754,7 +779,8 @@ function makeDraggable(el, c, bf, opts = {}) {
         // attach-drop works across the whole table, either battlefield
         // (disabled for stack ghosts — they only pre-place their landing spot)
         const targetEl = opts.attach === false ? null : [...document.querySelectorAll(".battlefield .card.placed")].find((o) => {
-          if (o === el || !o.dataset.cardId) return false;
+          // never attach a parent onto its own attachment (cycle)
+          if (o === el || kidEls.has(o) || !o.dataset.cardId) return false;
           const r = o.getBoundingClientRect();
           return center.x >= r.left && center.x <= r.right && center.y >= r.top && center.y <= r.bottom;
         });
