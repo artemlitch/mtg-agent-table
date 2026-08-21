@@ -11,7 +11,7 @@ import { TOOLS, callTable } from "./mcp-tools";
 import { loadApiKey } from "./keystore";
 
 const API_URL = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
-const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5" };
+const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5", haiku: "claude-haiku-4-5-20251001" };
 const MAX_LOOP = 60; // tool-loop iterations per window — runaway backstop
 
 export interface BrainEntry {
@@ -38,6 +38,7 @@ export interface AgentSnapshot {
   brain: BrainEntry[];
   brainSeq: number;
   messages?: any[];
+  historyModel?: string;
   usage?: AgentUsage;
 }
 
@@ -57,6 +58,7 @@ export class AgentRunner {
   lastSeenSeq = 0;
   brain: BrainEntry[] = [];
   messages: any[] = [];
+  historyModel = ""; // resolved model id the stored history was produced by
   usage: AgentUsage = emptyUsage();
   private brainSeq = 0;
   private listeners: BrainListener[] = [];
@@ -80,6 +82,7 @@ export class AgentRunner {
       brain: this.brain,
       brainSeq: this.brainSeq,
       messages: this.messages,
+      historyModel: this.historyModel,
       usage: this.usage,
     };
   }
@@ -91,6 +94,7 @@ export class AgentRunner {
     this.brain = snap.brain ?? [];
     this.brainSeq = snap.brainSeq ?? (this.brain.at(-1)?.seq ?? 0);
     this.messages = snap.messages ?? [];
+    this.historyModel = snap.historyModel ?? "";
     this.usage = snap.usage ?? emptyUsage();
   }
 
@@ -101,6 +105,7 @@ export class AgentRunner {
     this.brain = [];
     this.brainSeq = 0;
     this.messages = [];
+    this.historyModel = "";
     this.usage = emptyUsage();
     this.pendingWake = false;
   }
@@ -192,6 +197,15 @@ export class AgentRunner {
     this.pendingWake = false;
     reason = this.pendingReason ?? reason;
     this.pendingReason = null;
+    // thinking-block signatures are model-specific: a mid-game model switch
+    // must strip them from the replayed history or the API rejects it
+    const resolved = MODELS[this.model] ?? this.model;
+    if (this.historyModel && this.historyModel !== resolved) {
+      this.messages = this.messages
+        .map((m) => (Array.isArray(m.content) ? { ...m, content: m.content.filter((b: any) => b.type !== "thinking" && b.type !== "redacted_thinking") } : m))
+        .filter((m) => !Array.isArray(m.content) || m.content.length > 0);
+    }
+    this.historyModel = resolved;
     const prompt = this.composeWakePrompt(reason);
     this.push("status", this.messages.length ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
     this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });

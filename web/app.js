@@ -1923,6 +1923,8 @@ function openNewGame() {
     a.textContent = id ? `current: archidekt.com/decks/${id}` : "";
     a.href = id ? `https://archidekt.com/decks/${id}` : "#";
   }
+  const sel = $("#ng-model");
+  if ([...sel.options].some((o) => o.value === state?.agentModel)) sel.value = state.agentModel;
   $("#newgame-overlay").classList.remove("hidden");
   $("#deck-agent").focus();
   $("#deck-agent").select();
@@ -1948,7 +1950,7 @@ $("#btn-loaddecks").onclick = async () => {
     const res = await fetch("/api/new_game", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ youDeck, agentDeck }),
+      body: JSON.stringify({ youDeck, agentDeck, model: $("#ng-model").value }),
     });
     const data = await res.json();
     if (!data.ok) alert("New game failed: " + data.error);

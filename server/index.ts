@@ -86,7 +86,10 @@ const server = Bun.serve({
         );
         delete view.lastDecks;
       }
-      if (viewer === "you" && !url.searchParams.get("lean")) view.keyConfigured = !!loadApiKey();
+      if (viewer === "you" && !url.searchParams.get("lean")) {
+        view.keyConfigured = !!loadApiKey();
+        view.agentModel = agent.model;
+      }
       return json(view);
     }
 

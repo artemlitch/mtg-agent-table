@@ -123,6 +123,37 @@ describe("agent transport", () => {
     }
   });
 
+  test("mid-game model switch strips thinking blocks from the replayed history", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
+    a.reset("SYSTEM");
+    modelScript = [
+      {
+        stop_reason: "end_turn",
+        usage: usage(),
+        content: [
+          { type: "thinking", thinking: "let me ponder", signature: "opus-sig" },
+          { type: "text", text: "pondered" },
+        ],
+      },
+    ];
+    await a.wake("window");
+    expect(a.historyModel).toBe("claude-opus-5");
+    expect(JSON.stringify(a.messages)).toContain("opus-sig");
+
+    a.model = "sonnet";
+    modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    modelRequests.length = 0;
+    await a.wake("window");
+    expect(a.historyModel).toBe("claude-sonnet-5");
+    // neither the stored history nor the wire request carries the old
+    // model's thinking blocks
+    expect(JSON.stringify(a.messages)).not.toContain("opus-sig");
+    expect(JSON.stringify(modelRequests[0].body.messages)).not.toContain("thinking");
+  });
+
   test("401 from Anthropic surfaces as a key error and closes the window", async () => {
     const bad = Bun.serve({
       port: 0,
