@@ -89,14 +89,31 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
     cards.push({
       name: entry.card.oracleCard.name,
       quantity: entry.quantity,
-      isCommander: primary === "Commander",
+      // any category containing "commander" counts ("Commander", "1 Commander"…)
+      isCommander: (entry.categories ?? []).some((cat: string) => /commander/i.test(cat)),
       uid: entry.card.uid ?? null,
       imageHash: entry.card.scryfallImageHash ?? null,
       oracle: entry.card.oracleCard,
       flippedDefault: !!entry.flippedDefault,
     });
   }
-  return { deckId, name: d.name, cards };
+  return applyCommanderFallback({ deckId, name: d.name, cards });
+}
+
+/** Sloppy decks never categorize their commander. Fallback: the legendary
+ * creature whose name matches the deck's name (deck "Teysa Karlov" → card
+ * Teysa Karlov). No match = genuinely no commander. */
+export function applyCommanderFallback(deck: LoadedDeck): LoadedDeck {
+  if (deck.cards.some((c) => c.isCommander)) return deck;
+  const dn = deck.name.toLowerCase();
+  const hit = deck.cards.find((c) => {
+    const o = c.oracle ?? {};
+    const legendary = (o.superTypes ?? []).includes("Legendary") && (o.types ?? []).includes("Creature");
+    const front = (o.faces?.[0]?.name ?? o.name ?? c.name).toLowerCase();
+    return legendary && (dn.includes(front) || front.includes(dn));
+  });
+  if (hit) hit.isCommander = true;
+  return deck;
 }
 
 interface ScryFace {
