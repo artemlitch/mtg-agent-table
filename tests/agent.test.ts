@@ -105,10 +105,11 @@ describe("agent transport", () => {
     expect(JSON.stringify(modelRequests[1].body.messages[0])).not.toContain("cache_control");
   });
 
-  test("no API key: wake refuses with a brain error, never calls the model", async () => {
+  test("no API key and no CLI: wake refuses with a brain error, never calls the model", async () => {
     const saved = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     process.env.ANTHROPIC_KEY_FILE = "/tmp/mtg-agent-nonexistent-key";
+    process.env.CLAUDE_BIN = "/tmp/mtg-agent-nonexistent-claude";
     try {
       const a = new AgentRunner();
       a.reset("SYSTEM");
@@ -120,6 +121,7 @@ describe("agent transport", () => {
     } finally {
       process.env.ANTHROPIC_API_KEY = saved;
       delete process.env.ANTHROPIC_KEY_FILE;
+      delete process.env.CLAUDE_BIN;
     }
   });
 

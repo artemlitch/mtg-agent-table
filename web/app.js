@@ -134,16 +134,45 @@ function render() {
 // ---------------------------------------------------------------------------
 
 function updateKeyUI() {
-  const configured = !!state?.keyConfigured;
-  const needsSetup = !configured && activeTab === "chat";
+  const transport = state?.agentTransport ?? "none";
+  const needsSetup = transport === "none" && activeTab === "chat";
   $("#keysetup").classList.toggle("hidden", !needsSetup);
   $("#pane-chat").classList.toggle("hidden", needsSetup || activeTab !== "chat");
   $("#composer").classList.toggle("hidden", needsSetup);
+  if (needsSetup) {
+    $("#cli-status").innerHTML = state?.cliInstalled
+      ? "Claude Code is installed. Log in once (run <b>claude</b> in Terminal), then:"
+      : "Not installed yet. In Terminal: <b>npm install -g @anthropic-ai/claude-code</b>,<br>then run <b>claude</b> once to log in, then:";
+    $("#btn-clitest").textContent = state?.cliInstalled ? "Test Claude Code" : "Check again";
+  }
   $("#brain-header").classList.toggle("hidden", activeTab !== "brain");
+  $("#brain-header .bh-label").textContent =
+    transport === "cli" ? "Opponent: Claude Code (subscription)" : transport === "api" ? "Opponent: API key" : "Opponent: not set up";
   const del = $("#btn-delkey");
-  del.disabled = !configured;
-  del.textContent = configured ? "Delete key" : "No key set";
+  del.disabled = !state?.keyConfigured;
+  del.textContent = state?.keyConfigured ? "Delete key" : "No key set";
 }
+
+$("#btn-clitest").onclick = async () => {
+  const btn = $("#btn-clitest");
+  $("#cli-error").textContent = "";
+  if (!state?.cliInstalled) {
+    // "Check again": just refetch state — the server re-probes the binary
+    await refresh();
+    if (!state?.cliInstalled) $("#cli-error").textContent = "still not finding the claude binary";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Asking Claude to say ok… (can take a minute)";
+  try {
+    const res = await fetch("/api/claude/test", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) $("#cli-error").textContent = data.error;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Test Claude Code";
+  }
+};
 
 $("#btn-savekey").onclick = async () => {
   const input = $("#key-input");

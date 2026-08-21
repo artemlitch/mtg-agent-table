@@ -24,3 +24,26 @@ export function deleteApiKey() {
     unlinkSync(KEY_FILE);
   } catch {}
 }
+
+// Claude Code CLI: a marker set by the one-time successful test call in the
+// setup screen — an installed-but-unauthed CLI must not count as a transport
+const CLI_MARKER = process.env.CLAUDE_CLI_MARKER ?? join(DATA_DIR, "claude-cli-ok");
+
+export function isCliVerified(): boolean {
+  try {
+    readFileSync(CLI_MARKER);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function setCliVerified() {
+  writeFileSync(CLI_MARKER, new Date().toISOString());
+}
+
+export function clearCliVerified() {
+  try {
+    unlinkSync(CLI_MARKER);
+  } catch {}
+}

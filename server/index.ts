@@ -6,7 +6,8 @@ import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
-import { loadApiKey, saveApiKey, deleteApiKey } from "./keystore";
+import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified } from "./keystore";
+import { resolveClaudeBin, transportChoice } from "./agent";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -89,6 +90,8 @@ const server = Bun.serve({
       if (viewer === "you" && !url.searchParams.get("lean")) {
         view.keyConfigured = !!loadApiKey();
         view.agentModel = agent.model;
+        view.agentTransport = transportChoice();
+        view.cliInstalled = !!resolveClaudeBin();
       }
       return json(view);
     }
@@ -128,6 +131,31 @@ const server = Bun.serve({
       deleteApiKey();
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true });
+    }
+
+    // one-time Claude Code check: run a real tiny -p call on the machine's
+    // own login; success marks the CLI as a usable transport
+    if (path === "/api/claude/test" && req.method === "POST") {
+      const bin = resolveClaudeBin();
+      if (!bin) return json({ ok: false, error: "claude binary not found — install Claude Code first" }, 400);
+      const proc = Bun.spawn([bin, "-p", "Reply with exactly: ok"], {
+        env: { ...process.env, CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined, ANTHROPIC_API_KEY: undefined } as any,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const timeout = setTimeout(() => proc.kill(), 90000);
+      const [out, err, code] = await Promise.all([
+        new Response(proc.stdout as ReadableStream).text(),
+        new Response(proc.stderr as ReadableStream).text(),
+        proc.exited,
+      ]);
+      clearTimeout(timeout);
+      if (code === 0 && out.trim()) {
+        setCliVerified();
+        broadcast({ type: "update", seq: game.seq });
+        return json({ ok: true });
+      }
+      return json({ ok: false, error: (err || out || `claude exited ${code}`).trim().slice(0, 400) }, 400);
     }
 
     if (path === "/api/action" && req.method === "POST") {

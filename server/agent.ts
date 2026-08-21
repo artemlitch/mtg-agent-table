@@ -1,18 +1,59 @@
-// Agent harness: drives the opponent through the Anthropic Messages API with
-// an in-process tool loop — no CLI, no MCP subprocess. The conversation
-// history lives here (persisted with the game), the system prompt and the
-// newest turn carry 1h-TTL cache breakpoints so a slow human-paced game stays
-// cheap, and tools dispatch through the same HTTP API as everything else so
-// redaction stays server-enforced. Auth: the user's own API key (keystore.ts).
-// Preemption aborts the in-flight request; completed tool calls stay applied.
+// Agent harness with two transports behind one interface:
+//
+//  - "cli": a persistent `claude -p` child on the machine owner's own Claude
+//    Code login (stream-json stdin/stdout, MCP tools via mcp-tools.ts,
+//    --resume across respawns). Zero marginal cost on a subscription. Used
+//    once a test call has verified the login (keystore marker).
+//  - "api": an in-process Messages API tool loop on a pasted API key
+//    (keystore.ts), with 1h-TTL cache breakpoints and per-game usage
+//    tracking. Used whenever a key is configured — pasting a key is an
+//    explicit choice that outranks the CLI.
+//
+// Wake windows, preemption, the brain panel, and persistence are shared.
+// Preemption aborts the in-flight API request or interrupts the CLI child;
+// completed tool calls stay applied either way.
 
+import { existsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { game, renderLogFor } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
-import { loadApiKey } from "./keystore";
+import { loadApiKey, isCliVerified } from "./keystore";
 
 const API_URL = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
 const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5", haiku: "claude-haiku-4-5-20251001" };
-const MAX_LOOP = 60; // tool-loop iterations per window — runaway backstop
+const MAX_LOOP = 60; // API tool-loop iterations per window — runaway backstop
+
+const PROJECT_DIR = new URL("..", import.meta.url).pathname;
+
+/** The claude binary, wherever this machine keeps it — Finder-launched apps
+ * have a bare PATH, so the well-known install locations are checked too. */
+export function resolveClaudeBin(): string | null {
+  if (process.env.CLAUDE_BIN) return existsSync(process.env.CLAUDE_BIN) ? process.env.CLAUDE_BIN : null;
+  const found = Bun.which("claude");
+  if (found) return found;
+  for (const p of [
+    join(homedir(), ".local/bin/claude"),
+    "/opt/homebrew/bin/claude",
+    "/usr/local/bin/claude",
+    join(homedir(), ".claude/local/claude"),
+  ]) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+export type Transport = "api" | "cli" | "none";
+
+/** Which transport a wake would use right now. A pasted key wins; the CLI
+ * needs a one-time verified test call (Chat tab) before it counts. */
+export function transportChoice(): Transport {
+  const forced = process.env.AGENT_TRANSPORT;
+  if (forced === "api" || forced === "cli") return forced;
+  if (loadApiKey()) return "api";
+  if (resolveClaudeBin() && isCliVerified()) return "cli";
+  return "none";
+}
 
 export interface BrainEntry {
   seq: number;
@@ -32,6 +73,7 @@ export interface AgentUsage {
 }
 
 export interface AgentSnapshot {
+  sessionId?: string | null;
   systemPrompt: string;
   model: string;
   lastSeenSeq: number;
@@ -45,6 +87,7 @@ export interface AgentSnapshot {
 const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 });
 
 export class AgentRunner {
+  sessionId: string | null = null; // cli transport conversation
   systemPrompt = "";
   model = "opus";
   // set by the server at boot — the agent's tools MUST talk to the instance
@@ -57,12 +100,13 @@ export class AgentRunner {
   pendingReason: "window" | null = null;
   lastSeenSeq = 0;
   brain: BrainEntry[] = [];
-  messages: any[] = [];
-  historyModel = ""; // resolved model id the stored history was produced by
+  messages: any[] = []; // api transport conversation
+  historyModel = ""; // resolved model id the api history was produced by
   usage: AgentUsage = emptyUsage();
   private brainSeq = 0;
   private listeners: BrainListener[] = [];
   private inflight: AbortController | null = null;
+  private proc: Bun.Subprocess | null = null;
 
   onBrain(fn: BrainListener) {
     this.listeners.push(fn);
@@ -76,6 +120,7 @@ export class AgentRunner {
 
   serialize(): AgentSnapshot {
     return {
+      sessionId: this.sessionId,
       systemPrompt: this.systemPrompt,
       model: this.model,
       lastSeenSeq: this.lastSeenSeq,
@@ -88,6 +133,7 @@ export class AgentRunner {
   }
 
   restore(snap: AgentSnapshot) {
+    this.sessionId = snap.sessionId ?? null;
     this.systemPrompt = snap.systemPrompt ?? "";
     this.model = snap.model ?? "opus";
     this.lastSeenSeq = snap.lastSeenSeq ?? 0;
@@ -100,6 +146,7 @@ export class AgentRunner {
 
   reset(systemPrompt: string) {
     this.kill();
+    this.sessionId = null;
     this.systemPrompt = systemPrompt;
     this.lastSeenSeq = 0;
     this.brain = [];
@@ -116,6 +163,13 @@ export class AgentRunner {
       this.inflight.abort();
       this.inflight = null;
     }
+    if (this.proc) {
+      this.expectExit = true;
+      try {
+        this.proc.kill();
+      } catch {}
+      this.proc = null;
+    }
     this.busy = false;
   }
 
@@ -128,7 +182,7 @@ export class AgentRunner {
   composeWakePrompt(reason: "window" | "react" = "window"): string {
     const events = this.newEventsText();
     this.lastSeenSeq = game.seq;
-    const header = this.messages.length
+    const header = this.messages.length || this.sessionId
       ? "New events at the table since your last window:"
       : "The game has started. Events so far:";
     const stackText = game.stack.length
@@ -171,12 +225,15 @@ export class AgentRunner {
   private preempted = false;
   private interruptNote = false;
   private expectAbort = false;
+  private expectExit = false;
+  private interruptWatchdog: ReturnType<typeof setTimeout> | null = null;
+  private stderrTail = "";
 
   async wake(reason: "window" | "react" = "window") {
     if (this.busy) {
-      // PREEMPT: new information arrived mid-thought — abort the in-flight
-      // request and rewake with the full picture. Completed tool calls and
-      // the transcript stay; only the unfinished model turn dies.
+      // PREEMPT: new information arrived mid-thought — cut the in-flight turn
+      // and rewake with the full picture. Completed actions and the
+      // transcript stay; only the unfinished thought dies.
       this.pendingWake = true;
       if (reason === "window") this.pendingReason = "window";
       this.preempted = true;
@@ -186,39 +243,74 @@ export class AgentRunner {
         this.expectAbort = true;
         this.inflight.abort();
       }
+      if (this.proc) {
+        try {
+          this.write({ type: "control_request", request_id: "int-" + Date.now(), request: { subtype: "interrupt" } });
+          if (!this.interruptWatchdog) {
+            this.interruptWatchdog = setTimeout(() => {
+              this.interruptWatchdog = null;
+              if (this.busy && this.preempted) {
+                this.expectExit = true;
+                try {
+                  this.proc?.kill();
+                } catch {}
+              }
+            }, 15000);
+          }
+        } catch {
+          this.expectExit = true;
+          try {
+            this.proc?.kill();
+          } catch {}
+        }
+      }
       return;
     }
-    const apiKey = loadApiKey();
-    if (!apiKey) {
-      this.push("error", "No Anthropic API key configured — paste one in the Chat tab to bring the agent to life.");
+    const transport = transportChoice();
+    if (transport === "none") {
+      this.push("error", "The agent has no brain yet — set up Claude Code or paste an API key in the Chat tab.");
       return;
     }
     this.busy = true;
     this.pendingWake = false;
     reason = this.pendingReason ?? reason;
     this.pendingReason = null;
-    // thinking-block signatures are model-specific: a mid-game model switch
-    // must strip them from the replayed history or the API rejects it
-    const resolved = MODELS[this.model] ?? this.model;
-    if (this.historyModel && this.historyModel !== resolved) {
-      this.messages = this.messages
-        .map((m) => (Array.isArray(m.content) ? { ...m, content: m.content.filter((b: any) => b.type !== "thinking" && b.type !== "redacted_thinking") } : m))
-        .filter((m) => !Array.isArray(m.content) || m.content.length > 0);
+    if (transport === "api") {
+      // thinking-block signatures are model-specific: a mid-game model switch
+      // must strip them from the replayed history or the API rejects it
+      const resolved = MODELS[this.model] ?? this.model;
+      if (this.historyModel && this.historyModel !== resolved) {
+        this.messages = this.messages
+          .map((m) => (Array.isArray(m.content) ? { ...m, content: m.content.filter((b: any) => b.type !== "thinking" && b.type !== "redacted_thinking") } : m))
+          .filter((m) => !Array.isArray(m.content) || m.content.length > 0);
+      }
+      this.historyModel = resolved;
     }
-    this.historyModel = resolved;
     const prompt = this.composeWakePrompt(reason);
-    this.push("status", this.messages.length ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
-    this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });
-    try {
-      await this.runTurn(apiKey);
-    } catch (e: any) {
-      this.push("error", `agent transport failed: ${e.message}`);
+    this.push("status", this.messages.length || this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
+    if (transport === "api") {
+      this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });
+      try {
+        await this.runApiTurn(loadApiKey()!);
+      } catch (e: any) {
+        this.push("error", `agent transport failed: ${e.message}`);
+      }
+      this.endTurn();
+    } else {
+      try {
+        this.ensureProc();
+        this.write({ type: "user", message: { role: "user", content: [{ type: "text", text: prompt }] } });
+      } catch (e: any) {
+        this.push("error", `agent transport failed: ${e.message}`);
+        this.busy = false;
+      }
     }
-    this.endTurn();
   }
 
+  // ───────────────────────── api transport ─────────────────────────
+
   /** The tool loop: call the model, apply its tool calls, repeat to end_turn. */
-  private async runTurn(apiKey: string) {
+  private async runApiTurn(apiKey: string) {
     for (let i = 0; i < MAX_LOOP; i++) {
       const res = await this.callModel(apiKey);
       if (res === "aborted") return;
@@ -329,8 +421,130 @@ export class AgentRunner {
     }
   }
 
-  /** A turn finished (end_turn, interrupt, or transport error). */
+  // ───────────────────────── cli transport ─────────────────────────
+
+  /** Spawn the persistent streaming child if it isn't running. */
+  private ensureProc() {
+    if (this.proc) return;
+    const bin = resolveClaudeBin();
+    if (!bin) throw new Error("claude binary not found");
+    // per-instance MCP config so the tools hit THIS server, not a hardcoded port
+    const port = new URL(this.tableUrl).port || "80";
+    const mcpConfigPath = PROJECT_DIR + `mcp-${port}.json`;
+    writeFileSync(
+      mcpConfigPath,
+      JSON.stringify({
+        mcpServers: {
+          table: { command: "bun", args: ["run", "server/mcp-tools.ts"], env: { TABLE_URL: this.tableUrl } },
+        },
+      })
+    );
+    const args = [
+      "-p",
+      "--input-format", "stream-json",
+      "--output-format", "stream-json",
+      "--verbose",
+      "--model", this.model,
+      "--mcp-config", mcpConfigPath,
+      "--allowedTools", "mcp__table",
+      "--append-system-prompt", this.systemPrompt,
+    ];
+    if (this.sessionId) args.push("--resume", this.sessionId);
+    const env = { ...process.env };
+    delete env.CLAUDECODE;
+    delete env.CLAUDE_CODE_ENTRYPOINT;
+    delete env.ANTHROPIC_API_KEY; // the CLI runs on the login, never a key
+    this.expectExit = false;
+    this.stderrTail = "";
+    this.proc = Bun.spawn([bin, ...args], {
+      cwd: PROJECT_DIR,
+      env,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    this.readLoop(this.proc);
+    this.drainStderr(this.proc);
+  }
+
+  private write(obj: any) {
+    if (!this.proc) throw new Error("agent process not running");
+    const sink = this.proc.stdin as any;
+    sink.write(JSON.stringify(obj) + "\n");
+    sink.flush();
+  }
+
+  /** Reads the child's event stream for its whole lifetime; handles death. */
+  private async readLoop(proc: Bun.Subprocess) {
+    try {
+      let buf = "";
+      for await (const chunk of proc.stdout as ReadableStream) {
+        buf += new TextDecoder().decode(chunk);
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (line) this.handleLine(line);
+        }
+      }
+    } catch {}
+    const code = await proc.exited;
+    if (this.proc !== proc) return; // superseded by kill()/reset()
+    this.proc = null;
+    if (!this.expectExit && code !== 0) {
+      this.push("error", `agent process died (${code}): ${this.stderrTail.slice(-400)} — respawning on next wake`);
+    }
+    this.expectExit = false;
+    if (this.busy) this.endTurn(); // died mid-turn: close out and maybe rewake
+  }
+
+  private async drainStderr(proc: Bun.Subprocess) {
+    try {
+      for await (const chunk of proc.stderr as ReadableStream) {
+        this.stderrTail = (this.stderrTail + new TextDecoder().decode(chunk)).slice(-2000);
+      }
+    } catch {}
+  }
+
+  private handleLine(line: string) {
+    let msg: any;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (msg.type === "system" && msg.subtype === "init") {
+      this.sessionId = msg.session_id;
+      return;
+    }
+    if (msg.type === "assistant") {
+      for (const block of msg.message?.content ?? []) {
+        if (block.type === "thinking" && block.thinking) this.push("thinking", block.thinking);
+        if (block.type === "text" && block.text?.trim()) this.push("text", block.text);
+        if (block.type === "tool_use") {
+          const name = String(block.name).replace(/^mcp__table__/, "");
+          this.push("tool", `${name} ${JSON.stringify(block.input ?? {})}`);
+        }
+      }
+      return;
+    }
+    if (msg.type === "result") {
+      // an interrupted turn reports error_during_execution — that's the
+      // preempt working, not a failure
+      if (msg.is_error && !this.preempted) this.push("error", `agent error: ${String(msg.result ?? msg.subtype).slice(0, 800)}`);
+      if (msg.session_id) this.sessionId = msg.session_id;
+      if (this.busy) this.endTurn();
+    }
+  }
+
+  // ───────────────────────── shared ─────────────────────────
+
+  /** A turn finished (end_turn/result event, interrupt, or death mid-turn). */
   private endTurn() {
+    if (this.interruptWatchdog) {
+      clearTimeout(this.interruptWatchdog);
+      this.interruptWatchdog = null;
+    }
     this.busy = false;
     this.push("status", "Agent window closed.");
     if (this.pendingWake) {
@@ -351,7 +565,6 @@ export class AgentRunner {
 }
 
 export const agent = new AgentRunner();
-
 export function buildSystemPrompt(agentDeckName: string, decklist: string[], userDeckName: string): string {
   return `You are an expert Magic: The Gathering player piloting a Commander deck at a friendly but competitive table. You are playing against Player, a human. This is a 1v1 Commander game, both players start at 40 life.
 
