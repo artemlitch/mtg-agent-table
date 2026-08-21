@@ -406,7 +406,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 #modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
-.badge.ctr { cursor: pointer; }
+/* the badges strip is click-transparent; live counter badges opt back in */
+.badge.ctr { pointer-events: auto; cursor: pointer; }
 .badge.ctr:hover { filter: brightness(1.35); }
 
 .askbox { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }

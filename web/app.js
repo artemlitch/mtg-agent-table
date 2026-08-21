@@ -1269,12 +1269,6 @@ function cardMenu(c, e) {
         act("counters", { card: c.id, kind, delta });
       },
     });
-    // existing custom counters: decrement or clear from the menu
-    for (const [kind, v] of Object.entries(c.counters || {})) {
-      if (kind === "+1/+1" || kind === "-1/-1" || !v) continue;
-      items.push({ label: `− ${kind} (${v})`, fn: () => act("counters", { card: c.id, kind, delta: -1 }) });
-      items.push({ label: `✕ clear ${kind}`, fn: () => act("counters", { card: c.id, kind, set: 0 }) });
-    }
     if (c.under) items.push({ label: "Pull out of pile", fn: () => act("tuck", { card: c.id, under: "" }) });
     if (c.isToken) {
       items.push({
