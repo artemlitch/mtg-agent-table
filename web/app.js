@@ -640,13 +640,28 @@ function renderHand(p) {
   const cards = state.players[p].zones.hand;
   for (const c of cards) row.appendChild(cardEl(c));
   // both hands fan from the center like held cards, poking over the board
-  // (the agent's mirrors downward from the top edge)
+  // (the agent's mirrors downward from the top edge). The fan flattens as the
+  // hand grows: the end card never tilts past 10° or sinks more than ~24px,
+  // and wide hands tighten their overlap instead of bleeding past the edges.
   row.classList.add("fan");
-  const mid = (cards.length - 1) / 2;
+  const n = cards.length;
+  const mid = (n - 1) / 2;
+  const rotStep = mid > 0 ? Math.min(4, 10 / mid) : 0;
+  const dipK = mid > 0 ? Math.min(2.4, 24 / (mid * mid)) : 0;
+  // the whole arc rides up so the dipped end cards stay inside the window
+  // (the bottom hand row only has ~4px of slack past its padding)
+  const yShift = Math.max(0, mid * mid * dipK - 4);
+  const CARD_W = 76;
+  let overlap = 22;
+  const avail = row.clientWidth - 16;
+  if (n > 1 && CARD_W + (n - 1) * (CARD_W - overlap) > avail) {
+    overlap = Math.min(CARD_W * 0.8, CARD_W - (avail - CARD_W) / (n - 1));
+  }
   [...row.children].forEach((el, i) => {
     el.classList.add("fanned");
-    el.style.setProperty("--fan-rot", `${(i - mid) * 4}deg`);
-    el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * 2.4}px`);
+    el.style.setProperty("--fan-rot", `${(i - mid) * rotStep}deg`);
+    el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * dipK - yShift}px`);
+    el.style.marginLeft = el.style.marginRight = `${-overlap / 2}px`;
     el.style.zIndex = i + 1;
   });
 }

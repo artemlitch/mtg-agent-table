@@ -138,7 +138,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   overflow: visible; background: none; border: none;
   min-height: 96px;
 }
-.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); }
+.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: none; }
 .handrow.fan .card.fanned:hover { z-index: 99 !important; }
 #hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
 #hand-you.fan .card.fanned {
