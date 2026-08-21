@@ -44,28 +44,15 @@ async function ensureServer() {
   throw new Error("server did not come up on :4780 — see " + LOG);
 }
 
-// frameless: hide the titlebar, pad the topbar past the traffic lights and
-// make it the drag region (controls opt back out)
-const SHELL_CSS = `
-  #topbar { padding-left: 84px !important; -webkit-app-region: drag; }
-  #topbar button, #topbar select, #topbar input, #topbar a, #topbar label { -webkit-app-region: no-drag; }
-`;
-
 function createWindow() {
   win = new BrowserWindow({
     width: 1680,
     height: 1050,
     minWidth: 1100,
     minHeight: 700,
-    title: "MTG Agent Table",
+    title: "MTG Battlefield",
     backgroundColor: "#0f0a06",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 14, y: 12 },
     webPreferences: { contextIsolation: true },
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.insertCSS(SHELL_CSS);
   });
 
   // same-origin pages (studio, soundlab) stay in the app; everything else

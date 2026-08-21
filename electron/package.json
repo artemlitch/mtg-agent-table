@@ -1,12 +1,12 @@
 {
-  "name": "mtg-agent-table-app",
-  "productName": "MTG Agent Table",
+  "name": "mtg-battlefield-app",
+  "productName": "MTG Battlefield",
   "version": "1.0.0",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-packager . 'MTG Agent Table' --platform=darwin --arch=arm64 --icon=icon.icns --overwrite --out=dist --ignore='^/dist$'"
+    "dist": "electron-packager . 'MTG Battlefield' --platform=darwin --arch=arm64 --icon=icon.icns --overwrite --out=dist --ignore='^/dist$'"
   },
   "devDependencies": {
     "electron": "^33.0.0",
