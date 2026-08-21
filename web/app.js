@@ -1278,6 +1278,7 @@ function cardMenu(c, e) {
     if (c.isCommander) items.push(moveItem("To command zone", c, { toZone: "command", toPlayer: owner }));
     if (c.controller === "agent") items.push(moveItem("😈 Steal — to MY battlefield", c, { toZone: "battlefield", toPlayer: "you", note: "control effect" }));
     if (c.controller === "you" && c.owner === "agent") items.push(moveItem("Return to agent's battlefield", c, { toZone: "battlefield", toPlayer: "agent" }));
+    if (c.controller === "you" && c.owner === "you") items.push(moveItem("🎁 Give to agent's battlefield", c, { toZone: "battlefield", toPlayer: "agent", note: "control effect" }));
   }
 
   if (c.zone === "command") {
