@@ -761,6 +761,11 @@ function renderBattlefield(p) {
 }
 window.addEventListener("resize", () => render());
 
+// feel like an app, not a website: the browser context menu never opens.
+// Cards/chips install their own contextmenu handlers first; this catches
+// everything else (empty field, panels, inputs).
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+
 // battlefield card layout-box size — CSS is the source of truth (--card-w/-h).
 // All battlefield positioning math uses these, NEVER a card's bounding rect:
 // transforms (tap rotate, lift bob) change the rect but not the layout box.
