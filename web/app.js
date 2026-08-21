@@ -1104,15 +1104,19 @@ function cardEl(c, opts = {}) {
 function showPreview(c, e) {
   const pv = $("#cardpreview");
   if ((c.faceCount ?? 1) > 1 && c.faces) {
-    // show every face side by side, active one highlighted
+    // active face first (leftmost) with a gold frame; every face fully opaque
+    const active = c.face ?? 0;
+    const order = [...c.faces.keys()].sort((a, b) => (a === active ? -1 : b === active ? 1 : a - b));
     pv.innerHTML =
       `<div class="pv-faces">` +
-      c.faces
-        .map((f, i) =>
-          f.image
-            ? `<img src="${f.image}" style="${i === (c.face ?? 0) ? "" : "opacity:0.55"}">`
-            : `<div class="pv-text"><b>${f.name}</b>\n${f.typeLine || ""}\n\n${f.oracle || ""}</div>`
-        )
+      order
+        .map((i) => {
+          const f = c.faces[i];
+          const cls = i === active ? "pv-active" : "";
+          return f.image
+            ? `<img class="${cls}" src="${f.image}">`
+            : `<div class="pv-text ${cls}"><b>${f.name}</b>\n${f.typeLine || ""}\n\n${f.oracle || ""}</div>`;
+        })
         .join("") +
       `</div>`;
   } else {

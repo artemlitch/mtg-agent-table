@@ -638,5 +638,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
 }
 .card .flipbtn:hover { background: rgba(216, 160, 61, 0.9); color: #14181c; }
-#cardpreview .pv-faces { display: flex; gap: 6px; }
+#cardpreview .pv-faces { display: flex; gap: 6px; align-items: flex-start; }
 #cardpreview .pv-faces img { width: 50%; }
+#cardpreview .pv-faces .pv-active { outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(226, 179, 85, 0.45); }
