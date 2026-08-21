@@ -109,6 +109,10 @@ export interface GameState {
   // token art/copy for this game's decks, keyed by lowercase token name —
   // built from Scryfall all_parts when the decks load
   tokenCatalog: Record<string, { name: string; image?: string; oracle?: string; typeLine?: string; power?: string; toughness?: string }>;
+  // card ids whose oracle text has actually been DELIVERED to the agent (state
+  // views, draw results, peeks, read_card) — cast refuses anything else, so
+  // "read the card before playing it" is enforced, not just prompted
+  agentSeen: Record<string, true>;
 }
 
 let nextCardId = 1;
@@ -156,7 +160,14 @@ export function newGameState(): GameState {
     waitingOn: "you",
     pendingQuestion: null,
     tokenCatalog: {},
+    agentSeen: {},
   };
+}
+
+/** Record that these cards' full text reached the agent's context. */
+export function markSeenByAgent(ids: (string | undefined)[]) {
+  const seen = (game.agentSeen ??= {});
+  for (const id of ids) if (id) seen[id] = true;
 }
 
 export const game: GameState = newGameState();
@@ -265,6 +276,10 @@ export function leanCard({ image, pos, faces, ...rest }: any) {
 
 /** Full table snapshot as one viewer is allowed to see it. */
 export function viewFor(viewer: PlayerId, logTail = 40) {
+  // a state view delivers full oracle text for the agent's castable zones
+  if (viewer === "agent") {
+    markSeenByAgent([...game.players.agent.zones.hand, ...game.players.agent.zones.command]);
+  }
   const players: any = {};
   for (const p of PLAYERS) {
     const ps = game.players[p];
@@ -539,19 +554,27 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   draw(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const n = Math.max(1, Math.min(20, Number(p.n ?? p.count ?? 1)));
-    const drawn: string[] = [];
+    const drawnCards: Card[] = [];
     for (let i = 0; i < n; i++) {
       const lib = game.players[player].zones.library;
       if (!lib.length) break;
       const card = game.cards[lib[0]];
       placeCard(card, "hand", player);
       card.tapped = false;
-      drawn.push(card.name);
+      drawnCards.push(card);
     }
+    const drawn = drawnCards.map((c) => c.name);
     addLog(ctx.actor, `${who(player)} drew ${drawn.length} card${drawn.length === 1 ? "" : "s"}`, {
       [player]: `${who(player)} drew: ${drawn.join(", ") || "(library empty)"}`,
     });
-    return { ok: true, drawn: player === ctx.actor ? drawn : drawn.length };
+    // your own draw returns the full cards (same shape as get_state), so the
+    // drawn cards are read the moment they hit your hand
+    if (player === "agent" && ctx.actor === "agent") markSeenByAgent(drawnCards.map((c) => c.id));
+    return {
+      ok: true,
+      drawn: player === ctx.actor ? drawn : drawn.length,
+      ...(player === ctx.actor ? { cards: drawnCards.map((c) => serializeCard(c, ctx.actor)) } : {}),
+    };
   },
 
   /**
@@ -842,6 +865,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   read_card(ctx, p) {
     const c = getCard(p.card ?? p.cardId);
     if (!cardVisibleTo(c, ctx.actor)) throw new Error(`${c.zone === "hand" || c.zone === "library" ? "that card is hidden from you" : "that card is face-down"} — read_card only shows cards you can legally see`);
+    if (ctx.actor === "agent") markSeenByAgent([c.id]);
     return { ok: true, card: serializeCard(c, ctx.actor) };
   },
 
@@ -854,6 +878,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const n = Math.max(1, Math.min(20, p.n ?? 1));
     const lib = game.players[player].zones.library;
     const cards = lib.slice(0, n).map((id) => serializeCard(game.cards[id], ctx.actor, { reveal: true }));
+    if (ctx.actor === "agent") markSeenByAgent(lib.slice(0, n));
     addLog(ctx.actor, `${who(ctx.actor)} looked at the top ${n} of ${who(player)}'s library`);
     return { ok: true, cards };
   },
@@ -883,6 +908,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const zone: Zone = p.zone;
     const list = game.players[player].zones[zone];
     const cards = list.map((id) => serializeCard(game.cards[id], ctx.actor, { reveal: true }));
+    if (ctx.actor === "agent") markSeenByAgent(list);
     if (zone === "library" || (zone === "hand" && player !== ctx.actor)) {
       addLog(ctx.actor, `${who(ctx.actor)} looked at ${who(player)}'s ${zone} (${list.length} cards)`);
     }
@@ -973,6 +999,13 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   cast(ctx, p) {
     if (p.respondAt) retractTailAbove(ctx.actor, p.respondAt);
     const card = resolveCardRef(p.card ?? p.cardId);
+    // "read the card before playing it" is enforced, not just prompted: the
+    // agent can only cast what has actually been delivered to its context
+    if (ctx.actor === "agent" && !(game.agentSeen ??= {})[card.id]) {
+      throw new Error(
+        `READ FIRST: ${card.name}'s oracle text has not been shown to you this game — call get_state (hand and command zone), read_card, or view_zone, then cast it`
+      );
+    }
     if (p.face !== undefined) applyFace(card, Number(p.face));
     // the effective type is the ACTIVE face's for DFCs: the explicit face
     // param, else whatever face the card is already flipped to (a card turned

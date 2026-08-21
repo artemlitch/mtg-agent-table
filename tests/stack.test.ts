@@ -6,6 +6,8 @@ function seedCard(name: string, owner: PlayerId, zone: Zone, extra: Partial<Card
   const card = makeCard({ id: newCardId(), name, owner, controller: owner, zone, typeLine: "Creature — Test", ...extra });
   game.cards[card.id] = card;
   game.players[extra.controller ?? owner].zones[zone].push(card.id);
+  // seeded cards skip the API — count them as read (see read-before-cast suite)
+  if ((extra.controller ?? owner) === "agent") game.agentSeen[card.id] = true;
   return card;
 }
 

@@ -37,8 +37,9 @@ export const TOOLS: Record<string, ToolDef> = {
     special: "state",
   },
   draw: {
-    description: "Draw N cards from your library into your hand. Returns the names privately.",
+    description: "Draw N cards from your library into your hand. Returns the drawn cards privately with their full oracle text — read it before you play them.",
     schema: obj({ n: num("how many (default 1)") }),
+    leanCards: true,
   },
   move: {
     description:

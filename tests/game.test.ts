@@ -33,6 +33,9 @@ function seedCard(
   });
   game.cards[card.id] = card;
   game.players[extra.controller ?? owner].zones[zone].push(card.id);
+  // seeded cards skip the API, so count them as read — the read-before-cast
+  // suite clears agentSeen explicitly to test the gate itself
+  if ((extra.controller ?? owner) === "agent") game.agentSeen[card.id] = true;
   return card;
 }
 
@@ -45,6 +48,43 @@ beforeEach(() => {
   resetGameState();
 });
 
+describe("read-before-cast enforcement (agent only)", () => {
+  test("the agent cannot cast a card it was never shown; a state view unlocks it", () => {
+    const c = seedCard("Mystery Bear", "agent", "hand");
+    game.agentSeen = {};
+    expect(() => applyAction("agent", "cast", { card: c.id })).toThrow(/READ FIRST/);
+    viewFor("agent");
+    const r = applyAction("agent", "cast", { card: c.id });
+    expect(r.ok).toBe(true);
+  });
+
+  test("the agent's own draw counts as reading the drawn cards", () => {
+    seedLibrary("agent", ["Drawn Bear"]);
+    const r = applyAction("agent", "draw", { n: 1 });
+    const id = game.players.agent.zones.hand[0];
+    expect(r.cards[0].name).toBe("Drawn Bear");
+    expect(applyAction("agent", "cast", { card: id }).ok).toBe(true);
+  });
+
+  test("read_card unlocks a single card", () => {
+    const c = seedCard("Fine Print", "agent", "hand");
+    game.agentSeen = {};
+    applyAction("agent", "read_card", { card: c.id });
+    expect(applyAction("agent", "cast", { card: c.id }).ok).toBe(true);
+  });
+
+  test("stack_batch card items are enforced too", () => {
+    const c = seedCard("Batched Bear", "agent", "hand");
+    game.agentSeen = {};
+    expect(() => applyAction("agent", "stack_batch", { items: [{ card: c.id }] })).toThrow(/READ FIRST/);
+  });
+
+  test("the human player is never gated", () => {
+    const c = seedCard("Your Bear", "you", "hand");
+    expect(applyAction("you", "cast", { card: c.id }).ok).toBe(true);
+  });
+});
+
 describe("drawing", () => {
   test("draw moves top cards to hand in order", () => {
     seedLibrary("you", ["A", "B", "C"]);
@@ -52,6 +92,18 @@ describe("drawing", () => {
     expect(r.drawn).toEqual(["A", "B"]);
     expect(game.players.you.zones.hand.length).toBe(2);
     expect(game.players.you.zones.library.length).toBe(1);
+  });
+
+  test("your own draw returns the full cards, like a state view", () => {
+    seedLibrary("you", ["A", "B"]);
+    const r = applyAction("you", "draw", { n: 2 });
+    expect(r.cards.map((c: any) => c.name)).toEqual(["A", "B"]);
+    expect(r.cards[0].typeLine).toBe("Creature — Test");
+    // drawing for the opponent leaks no card data
+    seedLibrary("agent", ["X"]);
+    const r2 = applyAction("you", "draw", { player: "agent", n: 1 });
+    expect(r2.cards).toBeUndefined();
+    expect(r2.drawn).toBe(1);
   });
 
   test("draw on empty library does not throw", () => {
