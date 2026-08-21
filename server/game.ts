@@ -1028,6 +1028,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
       return { ok: true, card: card.id, landPlay: true };
     }
+    // declared targets are PUBLIC stack information — resolve them before any
+    // mutation so a bad ref fails atomically, and bake them into the item text
+    const targetNames = (Array.isArray(p.targets) ? p.targets : []).map((t: string) =>
+      t === "you" || t === "agent" ? who(t as PlayerId) : publicDesc(getCard(t))
+    );
+    const targetText = targetNames.length ? ` ⟶ ${targetNames.join(", ")}` : "";
     // recasting something already on the stack drops its old item first
     if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
     placeCard(card, "stack", ctx.actor);
@@ -1035,12 +1041,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     card.tapped = false;
     pushStackItem(ctx.actor, {
       cardId: card.id,
-      text: p.note ? `${card.name} — ${p.note}` : card.name,
+      text: `${p.note ? `${card.name} — ${p.note}` : card.name}${targetText}`,
       ...(p.resolveTo ? { resolveTo: p.resolveTo as Zone } : {}),
       ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
     const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
-    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""} → on the stack`);
+    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`);
     return { ok: true, card: card.id, stackSize: game.stack.length };
   },
 

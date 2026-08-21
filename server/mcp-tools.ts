@@ -60,10 +60,11 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   cast: {
     description:
-      "Cast a spell (goes on the stack; announce targets with say, then call done — Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
+      "Cast a spell (goes on the stack; declare targets with the targets param — they render on the stack item — then call done so Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
     schema: obj({
       card: str("card id"),
-      note: str("short cast note, e.g. 'targeting Kotis'"),
+      targets: arr(str("card id, or 'you'/'agent' for a player"), "declared targets — ALWAYS pass them for targeted spells; they are shown on the stack item and in the log"),
+      note: str("short cast note for anything targets can't express, e.g. mode choices or X values"),
       face: num("double-faced cards: which face you are playing (0 front / 1 back)"),
       resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
       resolveToPlayer: str("who gets it on resolve, when not the caster", ["you", "agent"]),

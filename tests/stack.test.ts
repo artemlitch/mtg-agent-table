@@ -14,6 +14,25 @@ function seedCard(name: string, owner: PlayerId, zone: Zone, extra: Partial<Card
 beforeEach(() => resetGameState());
 
 describe("casting onto the stack", () => {
+  test("declared targets render on the stack item and in the log", () => {
+    const spell = seedCard("Path to Exile", "you", "hand", { typeLine: "Instant" });
+    const victim = seedCard("Sephiroth", "agent", "battlefield");
+    applyAction("you", "cast", { card: spell.id, targets: [victim.id] });
+    expect(game.stack[0].text).toContain("⟶ Sephiroth");
+    expect(game.log.at(-1)!.text).toContain("⟶ Sephiroth");
+    // player targets render too
+    const bolt = seedCard("Lava Spike", "you", "hand", { typeLine: "Sorcery" });
+    applyAction("you", "cast", { card: bolt.id, targets: ["agent"] });
+    expect(game.stack[1].text).toContain("⟶ Agent");
+  });
+
+  test("a bad target ref fails before the card moves anywhere", () => {
+    const spell = seedCard("Doom Blade", "you", "hand", { typeLine: "Instant" });
+    expect(() => applyAction("you", "cast", { card: spell.id, targets: ["c999"] })).toThrow();
+    expect(spell.zone).toBe("hand");
+    expect(game.stack.length).toBe(0);
+  });
+
   test("cast moves the card to the stack, publicly visible, and records a stack item", () => {
     const c = seedCard("Counterspell", "agent", "hand", { typeLine: "Instant" });
     applyAction("agent", "cast", { card: c.id });
