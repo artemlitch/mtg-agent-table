@@ -213,6 +213,14 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .pile:hover { background: linear-gradient(#241f33, #241f33) padding-box, var(--chrome) border-box; }
 .pile .pname { font: 600 10px/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
 .pile .pcount { font-weight: 700; font-size: 15px; font-family: var(--font-fantasy); }
+/* tiny face-up fan of the pile's most recent cards; clipped, never scrolls */
+.pile .pstrip { display: flex; margin-top: 4px; height: 42px; overflow: hidden; }
+.pile .pstrip .mini {
+  width: 30px; height: 42px; flex: none; position: relative; border-radius: 3px;
+  object-fit: cover; box-shadow: 1px 0 3px rgba(0, 0, 0, 0.65); background: #1d1929;
+}
+.pile .pstrip .mini + .mini { margin-left: -12px; }
+.pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: 700 12px var(--font-fantasy); color: var(--dim); }
 .lifebox {
   border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; text-align: center;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;

@@ -454,12 +454,42 @@ function deckEl(p) {
   return wrap;
 }
 
-function pile(label, count, onClick) {
+function pile(label, count, cards, onClick) {
   const d = document.createElement("div");
   d.className = "pile";
   d.innerHTML = `<div class="pname">${label}</div><div class="pcount">${count}</div>`;
+  // the last few cards, newest first, fanned tiny and face up — newest on top
+  const recent = cards.slice(-5).reverse();
+  if (recent.length) {
+    const strip = document.createElement("div");
+    strip.className = "pstrip";
+    recent.forEach((c, i) => {
+      let mini;
+      if (c.hidden || c.faceDown) {
+        mini = document.createElement("img");
+        mini.src = "card-back.jpg";
+      } else if (c.image) {
+        mini = document.createElement("img");
+        mini.src = c.image;
+      } else {
+        mini = document.createElement("div");
+        mini.className = "minitext";
+        mini.textContent = c.name?.[0] ?? "?";
+      }
+      mini.classList.add("mini");
+      mini.style.zIndex = recent.length - i;
+      if (!c.hidden) {
+        mini.onmouseenter = (e) => showPreview(c, e);
+        mini.onmousemove = (e) => positionPreview(e);
+        mini.onmouseleave = hidePreview;
+      }
+      strip.appendChild(mini);
+    });
+    d.appendChild(strip);
+  }
   d.onclick = (e) => {
     e.stopPropagation();
+    hidePreview();
     onClick(e);
   };
   return d;
@@ -475,8 +505,8 @@ function renderRail(p) {
   // so each element sits at the same distance from the midline on both sides
   rail.appendChild(lifeBox(p));
   rail.appendChild(deckEl(p));
-  rail.appendChild(pile("Graveyard", ps.counts.graveyard, () => showZoneModal(p, "graveyard")));
-  rail.appendChild(pile("Exile", ps.counts.exile, () => showZoneModal(p, "exile")));
+  rail.appendChild(pile("Graveyard", ps.counts.graveyard, ps.zones.graveyard, () => showZoneModal(p, "graveyard")));
+  rail.appendChild(pile("Exile", ps.counts.exile, ps.zones.exile, () => showZoneModal(p, "exile")));
 
   for (const c of ps.zones.command) {
     const el = cardEl(c, { small: true });
