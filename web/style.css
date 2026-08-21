@@ -250,6 +250,22 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 12px 44px rgba(0, 0, 0, 0.8), 0 0 24px rgba(216, 160, 61, 0.12);
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+/* target palette hovering beside the ability modal */
+.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; max-height: 82vh; }
+.tcol {
+  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: 78vh;
+  border: 1px solid transparent; border-radius: 10px; padding: 5px;
+  background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
+}
+.tcolhead { font: 700 8.5px/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
+.tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.tcol.collapsed .tlist { display: none; }
+.titem { cursor: pointer; border-radius: 5px; }
+.titem img { width: 100%; border-radius: 5px; display: block; }
+.titem span { display: block; font-size: 9px; padding: 3px; }
+.titem:hover { outline: 2px solid var(--accent); }
+.tsub { font: 600 8px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
+
 /* compact modals size to content — the fixed-size rule is for card browsers */
 #modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; }
 

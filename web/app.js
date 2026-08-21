@@ -1192,6 +1192,7 @@ function libraryMenu(p, e) {
 
 function openModal(title, bodyEl, opts = {}) {
   const box = $("#modal-box");
+  $("#modal .targetpanel")?.remove(); // stale palette from a previous modal
   // card browsers are fixed-size (hard rule); compact modals size to content
   box.classList.toggle("compact", !!opts.compact);
   box.style.setProperty("--cardsize", (localStorage.getItem("cardsize") || 170) + "px");
@@ -1211,7 +1212,61 @@ function openModal(title, bodyEl, opts = {}) {
 }
 function closeModal() {
   $("#modal").classList.add("hidden");
+  $("#modal .targetpanel")?.remove();
   hidePreview();
+}
+
+/** Floating target palette beside the ability modal: every legal target,
+    click to insert [Card Name] into the input at the cursor. */
+function targetPanel(input) {
+  const P = state.players;
+  const cols = [
+    ["My field", P.you.zones.battlefield, false, []],
+    ["Agent field", P.agent.zones.battlefield, false, []],
+    ["My hand", P.you.zones.hand, false, []],
+    ["My graveyard", [...P.you.zones.graveyard].reverse(), true, [...P.you.zones.exile].reverse()],
+    ["Agent graveyard", [...P.agent.zones.graveyard].reverse(), true, [...P.agent.zones.exile].reverse()],
+  ];
+  const panel = document.createElement("div");
+  panel.className = "targetpanel";
+  for (const [title, cards, collapsed, exileCards] of cols) {
+    const col = document.createElement("div");
+    col.className = "tcol" + (collapsed ? " collapsed" : "");
+    const head = document.createElement("div");
+    head.className = "tcolhead";
+    head.textContent = title;
+    head.title = "Toggle";
+    head.onclick = () => col.classList.toggle("collapsed");
+    const list = document.createElement("div");
+    list.className = "tlist";
+    const add = (c) => {
+      if (c.hidden || !c.name) return;
+      const el = document.createElement("div");
+      el.className = "titem";
+      el.innerHTML = c.image ? `<img src="${c.image}" alt="">` : `<span>${c.name}</span>`;
+      el.onmouseenter = (e) => showPreview(c, e);
+      el.onmousemove = (e) => positionPreview(e);
+      el.onmouseleave = hidePreview;
+      el.onclick = () => {
+        const s = input.selectionStart ?? input.value.length;
+        const e2 = input.selectionEnd ?? s;
+        input.setRangeText(`[${c.name}]`, s, e2, "end");
+        input.focus();
+      };
+      list.appendChild(el);
+    };
+    cards.forEach(add);
+    if (exileCards.some((c) => !c.hidden)) {
+      const sub = document.createElement("div");
+      sub.className = "tsub";
+      sub.textContent = "exile";
+      list.appendChild(sub);
+      exileCards.forEach(add);
+    }
+    col.append(head, list);
+    panel.appendChild(col);
+  }
+  return panel;
 }
 $("#modal").addEventListener("click", (e) => {
   if (e.target.id === "modal") closeModal();
@@ -1410,6 +1465,8 @@ function abilityModal(c) {
   col.append(input, btnRow);
   wrap.appendChild(col);
   openModal(`⚡ ${c.hidden ? "Hidden card" : c.name}`, wrap, { compact: true });
+  // target palette floats beside the modal, outside the box
+  $("#modal").appendChild(targetPanel(input));
   setTimeout(() => input.focus(), 0);
 }
 
