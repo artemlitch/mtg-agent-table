@@ -19,7 +19,7 @@ const arr = (items: Schema, description: string): Schema => ({ type: "array", it
 const PLAYER = str("which player", ["you", "agent"]); // "you" = Player (the human), "agent" = you
 const ZONE = str("zone", ["library", "hand", "battlefield", "graveyard", "exile", "command"]);
 
-interface ToolDef {
+export interface ToolDef {
   description: string;
   schema: Schema;
   action?: string; // /api/action type; defaults to tool name
@@ -29,7 +29,7 @@ interface ToolDef {
   leanCards?: boolean;
 }
 
-const TOOLS: Record<string, ToolDef> = {
+export const TOOLS: Record<string, ToolDef> = {
   get_state: {
     description:
       "Full table snapshot as you are allowed to see it: both battlefields, graveyards, exiles, command zones, life totals, YOUR hand (Player's hand/library are hidden), zone counts, and the recent event log. Card ids in the snapshot are what every other tool takes.",
@@ -186,15 +186,15 @@ const TOOLS: Record<string, ToolDef> = {
   },
 };
 
-async function callTable(tool: string, args: any): Promise<string> {
+export async function callTable(tool: string, args: any, tableUrl: string = TABLE_URL): Promise<string> {
   const def = TOOLS[tool];
   if (def.special === "state") {
     // lean: no hidden library/hand stubs, no image urls — the full view is
     // ~77KB and the CLI offloads it to a file the model then greps by hand
-    const res = await fetch(`${TABLE_URL}/api/state?viewer=agent&lean=1`);
+    const res = await fetch(`${tableUrl}/api/state?viewer=agent&lean=1`);
     return await res.text();
   }
-  const res = await fetch(`${TABLE_URL}/api/action`, {
+  const res = await fetch(`${tableUrl}/api/action`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor: "agent", type: def.action ?? tool, params: args ?? {} }),
@@ -258,18 +258,22 @@ async function handle(msg: any) {
   if (id !== undefined) replyError(id, `unknown method ${method}`);
 }
 
-let buf = "";
-process.stdin.on("data", (chunk: Buffer) => {
-  buf += chunk.toString();
-  let nl;
-  while ((nl = buf.indexOf("\n")) >= 0) {
-    const line = buf.slice(0, nl).trim();
-    buf = buf.slice(nl + 1);
-    if (!line) continue;
-    try {
-      handle(JSON.parse(line));
-    } catch (e) {
-      // ignore malformed lines
+// the stdio loop only runs when this file IS the MCP server process — the
+// in-process agent transport imports TOOLS/callTable without touching stdin
+if (import.meta.main) {
+  let buf = "";
+  process.stdin.on("data", (chunk: Buffer) => {
+    buf += chunk.toString();
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try {
+        handle(JSON.parse(line));
+      } catch (e) {
+        // ignore malformed lines
+      }
     }
-  }
-});
+  });
+}

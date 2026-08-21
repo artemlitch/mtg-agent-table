@@ -282,6 +282,23 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #question { padding: 0 10px; color: #ffd97a; font-size: 12px; }
 #question:not(:empty) { padding: 6px 10px; background: #33290f; }
 #composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
+
+/* API-key setup takes the chat pane's place until a key is stored */
+#keysetup { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+#keysetup.hidden { display: none; }
+.keybox { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 260px; text-align: center; }
+.keytitle { font: 700 14px/1.4 var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+.keybox input { width: 100%; padding: 10px; font-size: 13px; text-align: center; }
+#key-error { color: var(--red); font-size: 12px; min-height: 15px; }
+.keyhint { color: var(--dim); font-size: 11.5px; line-height: 1.5; }
+#brain-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 6px 10px;
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+}
+#brain-header.hidden { display: none; }
+#brain-header .bh-label { color: var(--dim); font: 600 11px/1 var(--font-fantasy); letter-spacing: 0.08em; }
+#brain-header button { padding: 4px 10px; font-size: 11px; }
+#brain-header button:disabled { opacity: 0.45; cursor: default; }
 #composer input { flex: 1; padding: 11px 10px; font-size: 13.5px; }
 
 #menu {

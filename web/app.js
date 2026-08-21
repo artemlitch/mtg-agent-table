@@ -124,8 +124,60 @@ function render() {
   renderLog();
   renderNoBlocks();
   processSounds();
+  updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
 }
+
+// ---------------------------------------------------------------------------
+// Anthropic API key: without one, the Chat tab becomes a centered paste
+// screen; the Agent tab always carries a header with the delete button.
+// ---------------------------------------------------------------------------
+
+function updateKeyUI() {
+  const configured = !!state?.keyConfigured;
+  const needsSetup = !configured && activeTab === "chat";
+  $("#keysetup").classList.toggle("hidden", !needsSetup);
+  $("#pane-chat").classList.toggle("hidden", needsSetup || activeTab !== "chat");
+  $("#composer").classList.toggle("hidden", needsSetup);
+  $("#brain-header").classList.toggle("hidden", activeTab !== "brain");
+  const del = $("#btn-delkey");
+  del.disabled = !configured;
+  del.textContent = configured ? "Delete key" : "No key set";
+}
+
+$("#btn-savekey").onclick = async () => {
+  const input = $("#key-input");
+  const key = input.value.trim();
+  if (!key) return;
+  const btn = $("#btn-savekey");
+  btn.disabled = true;
+  btn.textContent = "Checking…";
+  $("#key-error").textContent = "";
+  try {
+    const res = await fetch("/api/key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      $("#key-error").textContent = data.error;
+      return;
+    }
+    input.value = "";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Save";
+  }
+};
+$("#key-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#btn-savekey").click();
+});
+
+$("#btn-delkey").onclick = async () => {
+  if (!confirm("Delete the stored API key? The agent stops until a new one is pasted.")) return;
+  await fetch("/api/key", { method: "DELETE" });
+};
 
 // one-click decline when locked-in attackers are pointing at you and you have
 // no blocks declared — the standoff killer
@@ -1958,6 +2010,7 @@ function switchTab(name) {
   // land at the newest entry when it opens
   const pane = $(`#pane-${name}`);
   pane.scrollTop = pane.scrollHeight;
+  updateKeyUI();
 }
 document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => switchTab(b.dataset.tab);

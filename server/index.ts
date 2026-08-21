@@ -6,6 +6,7 @@ import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
+import { loadApiKey, saveApiKey, deleteApiKey } from "./keystore";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -85,11 +86,45 @@ const server = Bun.serve({
         );
         delete view.lastDecks;
       }
+      if (viewer === "you" && !url.searchParams.get("lean")) view.keyConfigured = !!loadApiKey();
       return json(view);
     }
 
     if (path === "/api/brain") {
-      return json({ entries: agent.brain, busy: agent.busy });
+      return json({ entries: agent.brain, busy: agent.busy, usage: agent.usage });
+    }
+
+    // Anthropic API key: pasted in the UI, stored server-side (0600 file in
+    // the data dir). The key itself is never sent back to the client.
+    if (path === "/api/key" && req.method === "GET") {
+      return json({ configured: !!loadApiKey() });
+    }
+    if (path === "/api/key" && req.method === "POST") {
+      let body: any = {};
+      try {
+        body = await req.json();
+      } catch {}
+      const key = String(body.key ?? "").trim();
+      if (!key.startsWith("sk-ant-") || key.length < 20) {
+        return json({ ok: false, error: "that doesn't look like an Anthropic API key (sk-ant-…)" }, 400);
+      }
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/models", {
+          headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+        });
+        if (res.status === 401 || res.status === 403) return json({ ok: false, error: "Anthropic rejected that key" }, 400);
+        if (!res.ok) return json({ ok: false, error: `could not validate key (HTTP ${res.status})` }, 502);
+      } catch {
+        return json({ ok: false, error: "could not reach Anthropic to validate the key" }, 502);
+      }
+      saveApiKey(key);
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true });
+    }
+    if (path === "/api/key" && req.method === "DELETE") {
+      deleteApiKey();
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true });
     }
 
     if (path === "/api/action" && req.method === "POST") {

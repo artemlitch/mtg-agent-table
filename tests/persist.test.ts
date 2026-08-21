@@ -65,17 +65,18 @@ describe("state serialization", () => {
 
   test("agent runner state round-trips", () => {
     const a = new AgentRunner();
-    a.sessionId = "sess-123";
     a.systemPrompt = "you are gonti";
     a.model = "opus";
     a.lastSeenSeq = 42;
+    a.messages = [{ role: "user", content: [{ type: "text", text: "the game has started" }] }];
     a.push("text", "I am thinking");
     const snap = serializeState({ agent: a.serialize(), lastDecks: null });
 
     const b = new AgentRunner();
     const extra = restoreState(JSON.parse(JSON.stringify(snap)));
     b.restore(extra.agent!);
-    expect(b.sessionId).toBe("sess-123");
+    expect(b.messages.length).toBe(1);
+    expect(b.messages[0].content[0].text).toBe("the game has started");
     expect(b.systemPrompt).toBe("you are gonti");
     expect(b.lastSeenSeq).toBe(42);
     expect(b.brain.at(-1)!.text).toBe("I am thinking");

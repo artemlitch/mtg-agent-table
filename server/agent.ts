@@ -1,12 +1,18 @@
-// Agent harness: drives an Opus pilot through ONE persistent `claude` CLI
-// process per game (-p with stream-json input/output). Wakes are user messages
-// written to its stdin — no per-wake spawn, and the prompt cache stays hot, so
-// time-to-first-output is model latency instead of cold-start. Preemption
-// sends the interrupt control message. If the child dies, the next wake
-// respawns it with --resume (sessionId is persisted). Tools: mcp-tools.ts.
+// Agent harness: drives the opponent through the Anthropic Messages API with
+// an in-process tool loop — no CLI, no MCP subprocess. The conversation
+// history lives here (persisted with the game), the system prompt and the
+// newest turn carry 1h-TTL cache breakpoints so a slow human-paced game stays
+// cheap, and tools dispatch through the same HTTP API as everything else so
+// redaction stays server-enforced. Auth: the user's own API key (keystore.ts).
+// Preemption aborts the in-flight request; completed tool calls stay applied.
 
-import { writeFileSync } from "node:fs";
-import { game, viewFor, renderLogFor } from "./game";
+import { game, renderLogFor } from "./game";
+import { TOOLS, callTable } from "./mcp-tools";
+import { loadApiKey } from "./keystore";
+
+const API_URL = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
+const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5" };
+const MAX_LOOP = 60; // tool-loop iterations per window — runaway backstop
 
 export interface BrainEntry {
   seq: number;
@@ -17,33 +23,44 @@ export interface BrainEntry {
 
 type BrainListener = (e: BrainEntry) => void;
 
+export interface AgentUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  calls: number;
+}
+
 export interface AgentSnapshot {
-  sessionId: string | null;
   systemPrompt: string;
   model: string;
   lastSeenSeq: number;
   brain: BrainEntry[];
   brainSeq: number;
+  messages?: any[];
+  usage?: AgentUsage;
 }
 
-const PROJECT_DIR = new URL("..", import.meta.url).pathname;
+const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 });
 
 export class AgentRunner {
-  sessionId: string | null = null;
   systemPrompt = "";
   model = "opus";
   // set by the server at boot — the agent's tools MUST talk to the instance
   // that spawned it (a hardcoded url once let a sandbox agent act on the
   // live table)
   tableUrl = "http://localhost:4780";
+  apiUrl = API_URL;
   busy = false;
   pendingWake = false;
   pendingReason: "window" | null = null;
   lastSeenSeq = 0;
   brain: BrainEntry[] = [];
+  messages: any[] = [];
+  usage: AgentUsage = emptyUsage();
   private brainSeq = 0;
   private listeners: BrainListener[] = [];
-  private proc: Bun.Subprocess | null = null;
+  private inflight: AbortController | null = null;
 
   onBrain(fn: BrainListener) {
     this.listeners.push(fn);
@@ -57,41 +74,42 @@ export class AgentRunner {
 
   serialize(): AgentSnapshot {
     return {
-      sessionId: this.sessionId,
       systemPrompt: this.systemPrompt,
       model: this.model,
       lastSeenSeq: this.lastSeenSeq,
       brain: this.brain,
       brainSeq: this.brainSeq,
+      messages: this.messages,
+      usage: this.usage,
     };
   }
 
   restore(snap: AgentSnapshot) {
-    this.sessionId = snap.sessionId ?? null;
     this.systemPrompt = snap.systemPrompt ?? "";
     this.model = snap.model ?? "opus";
     this.lastSeenSeq = snap.lastSeenSeq ?? 0;
     this.brain = snap.brain ?? [];
     this.brainSeq = snap.brainSeq ?? (this.brain.at(-1)?.seq ?? 0);
+    this.messages = snap.messages ?? [];
+    this.usage = snap.usage ?? emptyUsage();
   }
 
   reset(systemPrompt: string) {
     this.kill();
-    this.sessionId = null;
     this.systemPrompt = systemPrompt;
     this.lastSeenSeq = 0;
     this.brain = [];
     this.brainSeq = 0;
+    this.messages = [];
+    this.usage = emptyUsage();
     this.pendingWake = false;
   }
 
   kill() {
-    if (this.proc) {
-      this.expectExit = true;
-      try {
-        this.proc.kill();
-      } catch {}
-      this.proc = null;
+    if (this.inflight) {
+      this.expectAbort = true;
+      this.inflight.abort();
+      this.inflight = null;
     }
     this.busy = false;
   }
@@ -105,7 +123,7 @@ export class AgentRunner {
   composeWakePrompt(reason: "window" | "react" = "window"): string {
     const events = this.newEventsText();
     this.lastSeenSeq = game.seq;
-    const header = this.sessionId
+    const header = this.messages.length
       ? "New events at the table since your last window:"
       : "The game has started. Events so far:";
     const stackText = game.stack.length
@@ -147,40 +165,27 @@ export class AgentRunner {
 
   private preempted = false;
   private interruptNote = false;
-  private expectExit = false;
-  private interruptWatchdog: ReturnType<typeof setTimeout> | null = null;
-  private stderrTail = "";
+  private expectAbort = false;
 
   async wake(reason: "window" | "react" = "window") {
     if (this.busy) {
-      // PREEMPT: new information arrived mid-thought — interrupt the in-flight
-      // turn (the process survives, warm) and rewake with the full picture.
-      // Completed actions and the transcript stay; only the unfinished
-      // thought dies. Watchdog hard-kills if the interrupt goes unanswered.
+      // PREEMPT: new information arrived mid-thought — abort the in-flight
+      // request and rewake with the full picture. Completed tool calls and
+      // the transcript stay; only the unfinished model turn dies.
       this.pendingWake = true;
       if (reason === "window") this.pendingReason = "window";
       this.preempted = true;
       this.interruptNote = true;
       this.push("status", "⟳ Interrupted — restarting with the new information…");
-      try {
-        this.write({ type: "control_request", request_id: "int-" + Date.now(), request: { subtype: "interrupt" } });
-        if (!this.interruptWatchdog) {
-          this.interruptWatchdog = setTimeout(() => {
-            this.interruptWatchdog = null;
-            if (this.busy && this.preempted) {
-              this.expectExit = true;
-              try {
-                this.proc?.kill();
-              } catch {}
-            }
-          }, 15000);
-        }
-      } catch {
-        this.expectExit = true;
-        try {
-          this.proc?.kill();
-        } catch {}
+      if (this.inflight) {
+        this.expectAbort = true;
+        this.inflight.abort();
       }
+      return;
+    }
+    const apiKey = loadApiKey();
+    if (!apiKey) {
+      this.push("error", "No Anthropic API key configured — paste one in the Chat tab to bring the agent to life.");
       return;
     }
     this.busy = true;
@@ -188,103 +193,130 @@ export class AgentRunner {
     reason = this.pendingReason ?? reason;
     this.pendingReason = null;
     const prompt = this.composeWakePrompt(reason);
-    this.push("status", this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
+    this.push("status", this.messages.length ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
+    this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });
     try {
-      this.ensureProc();
-      this.write({ type: "user", message: { role: "user", content: [{ type: "text", text: prompt }] } });
+      await this.runTurn(apiKey);
     } catch (e: any) {
       this.push("error", `agent transport failed: ${e.message}`);
-      this.busy = false;
     }
+    this.endTurn();
   }
 
-  /** Spawn the persistent streaming child if it isn't running. */
-  private ensureProc() {
-    if (this.proc) return;
-    // per-instance MCP config so the tools hit THIS server, not a hardcoded port
-    const port = new URL(this.tableUrl).port || "80";
-    const mcpConfigPath = PROJECT_DIR + `mcp-${port}.json`;
-    writeFileSync(
-      mcpConfigPath,
-      JSON.stringify({
-        mcpServers: {
-          table: { command: "bun", args: ["run", "server/mcp-tools.ts"], env: { TABLE_URL: this.tableUrl } },
-        },
-      })
-    );
-    const args = [
-      "-p",
-      "--input-format", "stream-json",
-      "--output-format", "stream-json",
-      "--verbose",
-      "--model", this.model,
-      "--mcp-config", mcpConfigPath,
-      "--allowedTools", "mcp__table",
-      "--append-system-prompt", this.systemPrompt,
-    ];
-    if (this.sessionId) args.push("--resume", this.sessionId);
-    const env = { ...process.env };
-    delete env.CLAUDECODE;
-    delete env.CLAUDE_CODE_ENTRYPOINT;
-    delete env.ANTHROPIC_API_KEY;
-    this.expectExit = false;
-    this.stderrTail = "";
-    this.proc = Bun.spawn(["claude", ...args], {
-      cwd: PROJECT_DIR,
-      env,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    this.readLoop(this.proc);
-    this.drainStderr(this.proc);
-  }
+  /** The tool loop: call the model, apply its tool calls, repeat to end_turn. */
+  private async runTurn(apiKey: string) {
+    for (let i = 0; i < MAX_LOOP; i++) {
+      const res = await this.callModel(apiKey);
+      if (res === "aborted") return;
+      if (res === null) return; // hard error, already pushed
+      this.usage.calls++;
+      const u = res.usage ?? {};
+      this.usage.input += u.input_tokens ?? 0;
+      this.usage.output += u.output_tokens ?? 0;
+      this.usage.cacheRead += u.cache_read_input_tokens ?? 0;
+      this.usage.cacheWrite += u.cache_creation_input_tokens ?? 0;
 
-  private write(obj: any) {
-    if (!this.proc) throw new Error("agent process not running");
-    const sink = this.proc.stdin as any;
-    sink.write(JSON.stringify(obj) + "\n");
-    sink.flush();
-  }
+      const content = res.content ?? [];
+      // the full content array (thinking blocks included, signatures intact)
+      // must be replayed as the assistant message for the loop to continue
+      this.messages.push({ role: "assistant", content });
 
-  /** Reads the child's event stream for its whole lifetime; handles death. */
-  private async readLoop(proc: Bun.Subprocess) {
-    try {
-      let buf = "";
-      for await (const chunk of proc.stdout as ReadableStream) {
-        buf += new TextDecoder().decode(chunk);
-        let nl;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (line) this.handleLine(line);
+      const toolUses: any[] = [];
+      for (const block of content) {
+        if (block.type === "thinking" && block.thinking) this.push("thinking", block.thinking);
+        if (block.type === "text" && block.text?.trim()) this.push("text", block.text);
+        if (block.type === "tool_use") {
+          toolUses.push(block);
+          this.push("tool", `${block.name} ${JSON.stringify(block.input ?? {})}`);
         }
       }
-    } catch {}
-    const code = await proc.exited;
-    if (this.proc !== proc) return; // superseded by kill()/reset()
-    this.proc = null;
-    if (!this.expectExit && code !== 0) {
-      this.push("error", `agent process died (${code}): ${this.stderrTail.slice(-400)} — respawning on next wake`);
-    }
-    this.expectExit = false;
-    if (this.busy) this.endTurn(); // died mid-turn: close out and maybe rewake
-  }
 
-  private async drainStderr(proc: Bun.Subprocess) {
-    try {
-      for await (const chunk of proc.stderr as ReadableStream) {
-        this.stderrTail = (this.stderrTail + new TextDecoder().decode(chunk)).slice(-2000);
+      if (res.stop_reason !== "tool_use" || toolUses.length === 0) {
+        if (res.stop_reason === "max_tokens") this.push("error", "agent hit the response length limit mid-thought — waking again may help");
+        return;
       }
-    } catch {}
+
+      const results: any[] = [];
+      for (const t of toolUses) {
+        let text: string;
+        let isError = false;
+        try {
+          text = await callTable(t.name, t.input ?? {}, this.tableUrl);
+          try {
+            const parsed = JSON.parse(text);
+            isError = parsed?.ok === false || !!parsed?.error;
+          } catch {}
+        } catch (e: any) {
+          text = `table server error: ${e.message}`;
+          isError = true;
+        }
+        results.push({ type: "tool_result", tool_use_id: t.id, content: text, ...(isError ? { is_error: true } : {}) });
+      }
+      this.messages.push({ role: "user", content: results });
+      if (this.preempted) return; // interrupted between iterations
+    }
+    this.push("error", `agent tool loop hit the ${MAX_LOOP}-iteration backstop — window closed`);
   }
 
-  /** A turn finished (result event, interrupt, or child death mid-turn). */
-  private endTurn() {
-    if (this.interruptWatchdog) {
-      clearTimeout(this.interruptWatchdog);
-      this.interruptWatchdog = null;
+  /** One Messages API call. Returns the response, "aborted", or null on error. */
+  private async callModel(apiKey: string): Promise<any> {
+    // cache breakpoints ride on the wire only, never into stored history:
+    // system prompt + the newest turn, both 1h TTL (a human turn between
+    // wakes routinely outlives the default 5m window)
+    const cc = { cache_control: { type: "ephemeral", ttl: "1h" } };
+    const wire = this.messages.map((m, i) => {
+      if (i !== this.messages.length - 1 || !Array.isArray(m.content) || m.content.length === 0) return m;
+      const content = m.content.map((b: any, j: number) => (j === m.content.length - 1 ? { ...b, ...cc } : b));
+      return { ...m, content };
+    });
+    const body = {
+      model: MODELS[this.model] ?? this.model,
+      max_tokens: 8192,
+      system: [{ type: "text", text: this.systemPrompt, ...cc }],
+      tools: Object.entries(TOOLS).map(([name, def]) => ({ name, description: def.description, input_schema: def.schema })),
+      messages: wire,
+    };
+    const ctl = new AbortController();
+    this.inflight = ctl;
+    this.expectAbort = false;
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const res = await fetch(`${this.apiUrl}/v1/messages`, {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "extended-cache-ttl-2025-04-11",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: ctl.signal,
+        });
+        if (res.ok) return await res.json();
+        const errText = (await res.text()).slice(0, 600);
+        if (res.status === 401 || res.status === 403) {
+          this.push("error", "Anthropic rejected the API key — delete it in the Agent tab and paste a fresh one.");
+          return null;
+        }
+        if ((res.status === 429 || res.status === 529 || res.status >= 500) && attempt < 3) {
+          const delay = [2000, 5000, 12000][attempt];
+          this.push("status", `Anthropic returned ${res.status} — retrying in ${delay / 1000}s…`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        this.push("error", `Anthropic API error ${res.status}: ${errText}`);
+        return null;
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError" || this.expectAbort) return "aborted";
+      throw e;
+    } finally {
+      if (this.inflight === ctl) this.inflight = null;
     }
+  }
+
+  /** A turn finished (end_turn, interrupt, or transport error). */
+  private endTurn() {
     this.busy = false;
     this.push("status", "Agent window closed.");
     if (this.pendingWake) {
@@ -301,37 +333,6 @@ export class AgentRunner {
       }
     }
     this.preempted = false;
-  }
-
-  private handleLine(line: string) {
-    let msg: any;
-    try {
-      msg = JSON.parse(line);
-    } catch {
-      return;
-    }
-    if (msg.type === "system" && msg.subtype === "init") {
-      this.sessionId = msg.session_id;
-      return;
-    }
-    if (msg.type === "assistant") {
-      for (const block of msg.message?.content ?? []) {
-        if (block.type === "thinking" && block.thinking) this.push("thinking", block.thinking);
-        if (block.type === "text" && block.text?.trim()) this.push("text", block.text);
-        if (block.type === "tool_use") {
-          const name = String(block.name).replace(/^mcp__table__/, "");
-          this.push("tool", `${name} ${JSON.stringify(block.input ?? {})}`);
-        }
-      }
-      return;
-    }
-    if (msg.type === "result") {
-      // an interrupted turn reports error_during_execution — that's the
-      // preempt working, not a failure
-      if (msg.is_error && !this.preempted) this.push("error", `agent error: ${String(msg.result ?? msg.subtype).slice(0, 800)}`);
-      if (msg.session_id) this.sessionId = msg.session_id;
-      if (this.busy) this.endTurn();
-    }
   }
 }
 

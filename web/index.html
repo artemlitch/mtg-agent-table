@@ -70,10 +70,23 @@
       <button data-tab="brain">Agent</button>
       <button data-tab="log">Log</button>
     </div>
+    <div id="brain-header" class="hidden">
+      <span class="bh-label">Claude API key</span>
+      <button id="btn-delkey">Delete key</button>
+    </div>
     <div class="tabpane hidden" id="pane-stack"></div>
     <div class="tabpane" id="pane-chat"></div>
     <div class="tabpane hidden" id="pane-brain"></div>
     <div class="tabpane hidden" id="pane-log"></div>
+    <div id="keysetup" class="hidden">
+      <div class="keybox">
+        <div class="keytitle">Paste your Anthropic API key</div>
+        <input id="key-input" type="password" placeholder="sk-ant-…" autocomplete="off">
+        <button id="btn-savekey">Save</button>
+        <div id="key-error"></div>
+        <div class="keyhint">Powers the agent opponent, billed to your own Anthropic account.<br>Stored only on this machine — delete it any time from the Agent tab.</div>
+      </div>
+    </div>
     <div id="question"></div>
     <div id="composer">
       <input id="chat-input" placeholder="Say something to the agent…">
