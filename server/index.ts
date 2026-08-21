@@ -168,7 +168,7 @@ const server = Bun.serve({
     if (path === "/api/undo" && req.method === "POST") {
       const undone = undoLast();
       if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);
-      addLog("system", `↩ Artem undid: ${undone}`);
+      addLog("system", `↩ Player undid: ${undone}`);
       saveSoon();
       broadcast({ type: "update", seq: game.seq });
       // deliberately NOT waking the agent: it would act immediately and pile
@@ -220,7 +220,7 @@ const server = Bun.serve({
         applyAction("agent", "draw", { player: "agent", n: 7 });
         game.started = true;
         game.waitingOn = "you";
-        addLog("system", "Opening hands drawn. Artem goes first (no draw on turn 1).");
+        addLog("system", "Opening hands drawn. Player goes first (no draw on turn 1).");
 
         const decklist = theirs.cards.flatMap((c) => Array(1).fill(c.isCommander ? `${c.name} (COMMANDER)` : c.name));
         agent.reset(buildSystemPrompt(theirs.name, decklist, yours.name));
