@@ -538,6 +538,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .card .liftpanel .sibtns { display: flex; gap: 3px; }
 .card .liftpanel .sibtns button { font-size: 9px; padding: 1px 6px; }
+/* a tapped card rotates, its stack panel must not: counter-rotate about the
+   CARD's center (half a card-height above the panel), which exactly cancels
+   the parent's 90° and leaves the panel upright below the card */
+.card.tapped .liftpanel {
+  transform: translateX(-50%) rotate(-90deg);
+  transform-origin: 50% calc(-1 * (var(--card-h) / 2 + 5px));
+}
 /* spells mid-cast: brighter than resolving-permanent ghosts, arcane violet cast */
 .card.ghost.spell {
   opacity: 0.85; filter: none;
