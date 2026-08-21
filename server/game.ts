@@ -667,7 +667,8 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     for (const id of ids) {
       const c = getCard(id);
       c.counters[kind] = p.set !== undefined ? p.set : (c.counters[kind] || 0) + (p.delta ?? 1);
-      if (c.counters[kind] <= 0) delete c.counters[kind];
+      // negatives are legal (-1/-1 territory); only an exact zero clears
+      if (c.counters[kind] === 0) delete c.counters[kind];
       parts.push(`${publicDesc(c)} → ${c.counters[kind] || 0}`);
     }
     addLog(ctx.actor, `${who(ctx.actor)} set ${kind} counters: ${parts.join(", ")}`);

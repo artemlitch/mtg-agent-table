@@ -736,3 +736,17 @@ describe("read_card and peek misuse", () => {
     expect(() => applyAction("agent", "peek", { card: "c1" })).toThrow(/read_card/);
   });
 });
+
+describe("counters go negative", () => {
+  test("delta below zero keeps a negative count; exact zero clears", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: -1 });
+    expect(c.counters["+1/+1"]).toBe(-1);
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: -1 });
+    expect(c.counters["+1/+1"]).toBe(-2);
+    applyAction("you", "counters", { card: c.id, kind: "+1/+1", delta: 2 });
+    expect(c.counters["+1/+1"]).toBeUndefined(); // back to zero = cleared
+    applyAction("you", "counters", { card: c.id, kind: "charge", set: 0 });
+    expect(c.counters["charge"]).toBeUndefined();
+  });
+});
