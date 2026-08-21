@@ -97,8 +97,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
 }
 .setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
-#link-studio { color: var(--dim); text-decoration: none; font: 600 11px/1 var(--font-fantasy); letter-spacing: 0.05em; margin-left: 6px; }
-#link-studio:hover { color: var(--gold-hi); }
 #turnbanner { font: 700 14px/1.4 var(--font-fantasy); letter-spacing: 0.04em; color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35); }
 .phasebtns { margin-left: auto; display: flex; gap: 4px; }
 .phasebtns button { padding: 3px 8px; font-size: 10.5px; }
