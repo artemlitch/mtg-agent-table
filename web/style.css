@@ -406,6 +406,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 #modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
+.askbox { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+.askbox input { padding: 9px 10px; font-size: 13.5px; }
+.askrow { display: flex; gap: 8px; justify-content: flex-end; }
 
 #cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; }
 #cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8); }

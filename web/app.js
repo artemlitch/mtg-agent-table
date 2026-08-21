@@ -1230,8 +1230,8 @@ function cardMenu(c, e) {
     if (c.power !== undefined && c.power !== null) {
       items.push({
         label: `⚔ Set P/T… (now ${c.power}/${c.toughness})`,
-        fn: () => {
-          const v = prompt(`P/T for ${c.name} (e.g. 4/4 — empty resets to printed):`, `${c.power}/${c.toughness}`);
+        fn: async () => {
+          const v = await askText(`P/T for ${c.name} (e.g. 4/4 — empty resets to printed)`, `${c.power}/${c.toughness}`);
           if (v === null) return;
           const m = v.match(/^\s*([^/\s]+)\s*\/\s*([^/\s]+)\s*$/);
           if (!v.trim()) act("set_pt", { card: c.id });
@@ -1242,10 +1242,10 @@ function cardMenu(c, e) {
     }
     items.push({
       label: "Other counter…",
-      fn: () => {
-        const kind = prompt("Counter kind (e.g. loyalty, charge):");
+      fn: async () => {
+        const kind = await askText("Counter kind (e.g. loyalty, charge)");
         if (!kind) return;
-        const delta = Number(prompt("Delta:", "1") || 1);
+        const delta = Number((await askText("Delta", "1")) || 1);
         act("counters", { card: c.id, kind, delta });
       },
     });
@@ -1255,13 +1255,6 @@ function cardMenu(c, e) {
       items.push({ label: `− ${kind} (${v})`, fn: () => act("counters", { card: c.id, kind, delta: -1 }) });
       items.push({ label: `✕ clear ${kind}`, fn: () => act("counters", { card: c.id, kind, set: 0 }) });
     }
-    items.push({
-      label: "Tuck under… (pile)",
-      fn: () => {
-        pendingTuck = c.id;
-        render();
-      },
-    });
     if (c.under) items.push({ label: "Pull out of pile", fn: () => act("tuck", { card: c.id, under: "" }) });
     if (c.isToken) {
       items.push({
@@ -1290,8 +1283,8 @@ function cardMenu(c, e) {
     // token copy of any visible card (clone effects, Scarab God eternalize, …)
     items.push({
       label: "🪞 Copy as token",
-      fn: () => {
-        const n = Number(prompt(`Token copies of ${c.name}:`, "1") || 0);
+      fn: async () => {
+        const n = Number((await askText(`Token copies of ${c.name}`, "1")) || 0);
         if (n <= 0) return;
         const face = c.faces?.[c.face ?? 0] ?? {};
         const pick = (k) => face[k] ?? c[k];
@@ -1353,15 +1346,15 @@ function libraryMenu(p, e) {
     });
     items.push({
       label: "Draw N…",
-      fn: () => {
-        const n = Number(prompt("Draw how many?", "1") || 0);
+      fn: async () => {
+        const n = Number((await askText("Draw how many?", "1")) || 0);
         if (n > 0) act("draw", { n });
       },
     });
     items.push({
       label: "Scry / peek N…",
       fn: async () => {
-        const n = Number(prompt("Look at how many?", "3") || 0);
+        const n = Number((await askText("Look at how many?", "3")) || 0);
         if (n > 0) {
           const r = await act("peek", { player: p, n });
           if (r.ok) peekModal(p, r.cards);
@@ -1385,7 +1378,7 @@ function libraryMenu(p, e) {
     items.push({
       label: "😈 Look at top N…",
       fn: async () => {
-        const n = Number(prompt("Look at how many?", "1") || 0);
+        const n = Number((await askText("Look at how many?", "1")) || 0);
         if (n > 0) {
           const r = await act("peek", { player: p, n });
           if (r.ok) peekModal(p, r.cards);
@@ -1408,7 +1401,7 @@ function libraryMenu(p, e) {
   items.push({
     label: "Mill N…",
     fn: async () => {
-      const n = Number(prompt("Mill how many?", "3") || 0);
+      const n = Number((await askText("Mill how many?", "3")) || 0);
       for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" });
     },
   });
@@ -1444,6 +1437,46 @@ function closeModal() {
   $("#modal").classList.add("hidden");
   $("#modal .targetpanel")?.remove();
   hidePreview();
+  if (askResolve) {
+    askResolve(null);
+    askResolve = null;
+  }
+}
+
+// In-app replacement for window.prompt — Electron doesn't support prompt(),
+// so every "how many? / which kind?" question goes through this tiny modal.
+// Resolves the entered string, or null on cancel/Esc/✕.
+let askResolve = null;
+function askText(title, def = "") {
+  return new Promise((resolve) => {
+    askResolve = resolve;
+    const body = document.createElement("div");
+    body.className = "askbox";
+    const input = document.createElement("input");
+    input.value = def ?? "";
+    const ok = document.createElement("button");
+    ok.textContent = "OK";
+    ok.onclick = () => {
+      askResolve = null;
+      resolve(input.value);
+      closeModal();
+    };
+    const cancel = document.createElement("button");
+    cancel.textContent = "Cancel";
+    cancel.onclick = closeModal;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") ok.click();
+    });
+    const row = document.createElement("div");
+    row.className = "askrow";
+    row.append(ok, cancel);
+    body.append(input, row);
+    openModal(title, body, { compact: true });
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+  });
 }
 
 /** Floating target palette beside the ability modal: every legal target,
@@ -1920,8 +1953,8 @@ function tokenModal() {
   const grid = document.createElement("div");
   grid.className = "modalcards";
   if (!cat.length) grid.textContent = "(no tokens came with the decks — make a custom one below)";
-  const create = (params) => {
-    const n = Number(prompt("How many?", "1") || 0);
+  const create = async (params) => {
+    const n = Number((await askText("How many?", "1")) || 0);
     if (n > 0) act("create_token", { ...params, n, player: "you" }).then(closeModal);
   };
   for (const t of cat) {
