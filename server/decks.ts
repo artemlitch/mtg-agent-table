@@ -97,23 +97,7 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
       flippedDefault: !!entry.flippedDefault,
     });
   }
-  return applyCommanderFallback({ deckId, name: d.name, cards });
-}
-
-/** Sloppy decks never categorize their commander. Fallback: the legendary
- * creature whose name matches the deck's name (deck "Teysa Karlov" → card
- * Teysa Karlov). No match = genuinely no commander. */
-export function applyCommanderFallback(deck: LoadedDeck): LoadedDeck {
-  if (deck.cards.some((c) => c.isCommander)) return deck;
-  const dn = deck.name.toLowerCase();
-  const hit = deck.cards.find((c) => {
-    const o = c.oracle ?? {};
-    const legendary = (o.superTypes ?? []).includes("Legendary") && (o.types ?? []).includes("Creature");
-    const front = (o.faces?.[0]?.name ?? o.name ?? c.name).toLowerCase();
-    return legendary && (dn.includes(front) || front.includes(dn));
-  });
-  if (hit) hit.isCommander = true;
-  return deck;
+  return { deckId, name: d.name, cards };
 }
 
 interface ScryFace {
@@ -230,6 +214,14 @@ export async function loadPlayerDeck(player: PlayerId, deckId: number) {
   shuffleZone(player);
   const total = ps.zones.library.length + ps.zones.command.length;
   addLog("system", `${player === "you" ? "Artem" : "Agent"} loaded "${deck.name}" (${total} cards)`);
+  // load-time invariant, no guessing: a deck with nothing commander-categorized
+  // on Archidekt gets a LOUD warning instead of a silently empty command zone
+  if (ps.zones.command.length === 0) {
+    addLog(
+      "system",
+      `⚠ "${deck.name}" has no card categorized as Commander on Archidekt — the command zone is empty. Move the commander there manually (card menu → To command zone).`
+    );
+  }
   return deck;
 }
 

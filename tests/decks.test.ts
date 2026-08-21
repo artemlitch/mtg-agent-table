@@ -173,29 +173,8 @@ describe("commander detection", () => {
     uid: null, imageHash: null, flippedDefault: false,
     oracle: { name, superTypes: ["Legendary"], types: ["Creature"], subTypes: [], ...extra },
   });
-  test("numbered commander categories count", () => {
+  test("numbered commander categories count ('1 Commander' etc.)", () => {
     expect(spec("Teysa Karlov", ["1 Commander"]).isCommander).toBe(true);
-  });
-  test("fallback: deck named after its uncategorized legendary creature", async () => {
-    const { applyCommanderFallback } = await import("../server/decks");
-    const deck = {
-      deckId: 1, name: "Teysa Karlov",
-      cards: [
-        spec("Plains", [], { superTypes: [], types: ["Land"] }),
-        spec("Teysa Karlov", ["1 Tokens"]),
-      ],
-    };
-    applyCommanderFallback(deck as any);
-    expect(deck.cards[1].isCommander).toBe(true);
-    expect(deck.cards[0].isCommander).toBe(false);
-  });
-  test("fallback does nothing when a commander is already flagged", async () => {
-    const { applyCommanderFallback } = await import("../server/decks");
-    const deck = {
-      deckId: 1, name: "some deck name",
-      cards: [spec("Marchesa, the Black Rose", ["Commander"]), spec("Other Legend", ["Utility"])],
-    };
-    applyCommanderFallback(deck as any);
-    expect(deck.cards[1].isCommander).toBe(false);
+    expect(spec("Teysa Karlov", ["1 Tokens"]).isCommander).toBe(false);
   });
 });
