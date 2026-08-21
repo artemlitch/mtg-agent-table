@@ -156,6 +156,33 @@ describe("agent transport", () => {
     expect(JSON.stringify(modelRequests[0].body.messages)).not.toContain("thinking");
   });
 
+  test("calling done ends the window — the loop must not offer another model call", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
+    a.reset("SYSTEM");
+    modelScript = [
+      {
+        stop_reason: "tool_use",
+        usage: usage(),
+        content: [
+          { type: "text", text: "passing" },
+          { type: "tool_use", id: "tu_d", name: "done", input: {} },
+        ],
+      },
+      // if the loop leaks past done, it consumes this and the count betrays it
+      { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "SHOULD NOT RUN" }] },
+    ];
+    modelRequests.length = 0;
+    await a.wake("window");
+    expect(modelRequests.length).toBe(1);
+    expect(a.busy).toBe(false);
+    // history still closes with the done tool_result
+    expect(a.messages.at(-1).content[0].type).toBe("tool_result");
+    modelScript = [];
+  });
+
   test("custom provider: wins priority, uses the provider model, sends no anthropic-only fields", async () => {
     process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-provider.json";
     const { saveProvider, deleteProvider } = await import("../server/keystore");

@@ -377,6 +377,10 @@ export class AgentRunner {
         results.push({ type: "tool_result", tool_use_id: t.id, content: text, ...(isError ? { is_error: true } : {}) });
       }
       this.messages.push({ role: "user", content: results });
+      // done/ask_user END the window — in the CLI transport the result event
+      // closes it, but here they are ordinary tool calls, and without this a
+      // model happily keeps acting into windows it already passed
+      if (toolUses.some((t) => t.name === "done" || t.name === "ask_user")) return;
       if (this.preempted) return; // interrupted between iterations
     }
     this.push("error", `agent tool loop hit the ${MAX_LOOP}-iteration backstop — window closed`);
