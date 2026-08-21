@@ -777,6 +777,9 @@ function makeDraggable(el, c, bf, opts = {}) {
         moved = true;
         draggingNow = true;
         el.classList.add("dragging");
+        // riders track per-frame: the placed-card left/top glide transition
+        // would make them trail the handle by 180ms
+        for (const k of kids) k.el.style.transition = "none";
         el.setPointerCapture?.(down.pointerId);
       }
       // pure delta on the layout box: start position + pointer travel.
@@ -798,6 +801,7 @@ function makeDraggable(el, c, bf, opts = {}) {
       el.removeEventListener("pointerup", onUp);
       if (moved) {
         el.classList.remove("dragging");
+        for (const k of kids) k.el.style.transition = "";
         el.dataset.dragged = "1";
         draggingNow = false;
         // drop onto another card = tuck into its pile (equip, auras, board
