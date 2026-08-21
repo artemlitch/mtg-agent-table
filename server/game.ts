@@ -700,7 +700,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   counters(ctx, p) {
     const ids: string[] = Array.isArray(p.cards) && p.cards.length ? p.cards : [p.card ?? p.cardId];
-    const kind: string = p.kind || "+1/+1";
+    // never silently default the kind — a mis-named param once turned three
+    // charge-counter bumps into +1/+1 bumps. Common aliases are accepted.
+    const kind: string = p.kind ?? p.type ?? p.counterKind ?? p.counter;
+    if (!kind) throw new Error(`counters requires kind (e.g. "+1/+1", "charge", "loyalty")`);
     const pt = kind === "+1/+1" || kind === "-1/-1";
     const parts: string[] = [];
     for (const id of ids) {
@@ -827,6 +830,9 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   life(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
     const ps = game.players[player];
+    // no silent no-ops: a life call with neither field would log a life line
+    // while changing nothing
+    if (typeof p.set !== "number" && typeof p.delta !== "number") throw new Error("life requires delta or set");
     if (typeof p.set === "number") ps.life = p.set;
     else ps.life += p.delta ?? 0;
     addLog(ctx.actor, `${who(player)}'s life is now ${ps.life}`);

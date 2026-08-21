@@ -64,7 +64,9 @@ export const TOOLS: Record<string, ToolDef> = {
     schema: obj({
       card: str("card id"),
       note: str("short cast note, e.g. 'targeting Kotis'"),
+      face: num("double-faced cards: which face you are playing (0 front / 1 back)"),
       resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
+      resolveToPlayer: str("who gets it on resolve, when not the caster", ["you", "agent"]),
       respondAt: str("stack item id you are responding at (inside Player's proposed sequence) — their retractable planned items above it unwind"),
     }, ["card"]),
   },
@@ -122,14 +124,14 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   untap_all: { description: "Untap all of a player's permanents (start of turn).", schema: obj({ player: PLAYER }) },
   counters: {
-    description: "Add/remove counters on one or many cards at once. kind e.g. '+1/+1', 'loyalty', 'charge'. delta may be negative.",
-    schema: obj({ cards: arr(str("card id"), "cards to change together"), card: str("single card id"), kind: str("counter kind"), delta: num("change") }),
+    description: "Add/remove counters on one or many cards at once. kind is REQUIRED, e.g. '+1/+1', 'loyalty', 'charge'. delta may be negative; set overrides to an absolute count.",
+    schema: obj({ cards: arr(str("card id"), "cards to change together"), card: str("single card id"), kind: str("counter kind"), delta: num("change"), set: num("absolute count (instead of delta)") }, ["kind"]),
   },
   create_token: {
     description:
       "Create N token permanents under a player's control. Art and text come from your deck's own token printings when available (else Scryfall). ALWAYS pass power/toughness/typeLine/oracle too — if no art exists the table renders a text placeholder with exactly the copy you give, so a missing P/T means a blank token.",
     schema: obj(
-      { name: str("token name, e.g. 'Treasure'"), n: num("count"), player: PLAYER, power: str("power"), toughness: str("toughness"), typeLine: str("type line, e.g. 'Token Creature — Elemental'"), oracle: str("token rules text, e.g. 'Haste'") },
+      { name: str("token name, e.g. 'Treasure'"), n: num("count"), player: PLAYER, power: str("power"), toughness: str("toughness"), typeLine: str("type line, e.g. 'Token Creature — Elemental'"), oracle: str("token rules text, e.g. 'Haste'"), tapped: { type: "boolean", description: "token enters tapped" } },
       ["name"]
     ),
   },
@@ -187,8 +189,27 @@ export const TOOLS: Record<string, ToolDef> = {
   },
 };
 
+/** No soft assumptions: arguments that don't fit the tool's schema fail
+ * loudly with a message the model can act on — an unknown key once turned
+ * three charge-counter bumps into silent +1/+1 bumps. */
+export function validateArgs(tool: string, args: any): string | null {
+  const schema = TOOLS[tool]?.schema ?? {};
+  const props = schema.properties ?? {};
+  const a = args ?? {};
+  if (typeof a !== "object" || Array.isArray(a)) return "arguments must be a JSON object";
+  const unknown = Object.keys(a).filter((k) => !(k in props));
+  if (unknown.length) {
+    return `unknown parameter${unknown.length > 1 ? "s" : ""} ${unknown.map((k) => `"${k}"`).join(", ")} — ${tool} takes: ${Object.keys(props).join(", ") || "(no parameters)"}`;
+  }
+  const missing = (schema.required ?? []).filter((k: string) => a[k] === undefined);
+  if (missing.length) return `missing required parameter${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`;
+  return null;
+}
+
 export async function callTable(tool: string, args: any, tableUrl: string = TABLE_URL): Promise<string> {
   const def = TOOLS[tool];
+  const invalid = validateArgs(tool, args);
+  if (invalid) return JSON.stringify({ ok: false, error: `${tool}: ${invalid}` });
   if (def.special === "state") {
     // lean: no hidden library/hand stubs, no image urls — the full view is
     // ~77KB and the CLI offloads it to a file the model then greps by hand

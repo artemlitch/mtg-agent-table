@@ -48,6 +48,21 @@ beforeEach(() => {
   resetGameState();
 });
 
+describe("counters param strictness", () => {
+  test("missing kind fails loudly instead of silently becoming +1/+1", () => {
+    const c = seedCard("Sephiroth", "you", "battlefield");
+    expect(() => applyAction("you", "counters", { card: c.id, delta: 1 })).toThrow(/requires kind/);
+    expect(c.counters["+1/+1"]).toBeUndefined();
+  });
+
+  test("type is accepted as an alias for kind", () => {
+    const c = seedCard("Sephiroth", "you", "battlefield");
+    applyAction("you", "counters", { card: c.id, type: "charge", delta: 2 });
+    expect(c.counters.charge).toBe(2);
+    expect(c.counters["+1/+1"]).toBeUndefined();
+  });
+});
+
 describe("read-before-cast enforcement (agent only)", () => {
   test("the agent cannot cast a card it was never shown; a state view unlocks it", () => {
     const c = seedCard("Mystery Bear", "agent", "hand");
