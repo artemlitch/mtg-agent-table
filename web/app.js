@@ -457,7 +457,7 @@ function deckEl(p) {
 function pile(label, count, cards, onClick) {
   const d = document.createElement("div");
   d.className = "pile";
-  d.innerHTML = `<div class="pname">${label}</div><div class="pcount">${count}</div>`;
+  d.innerHTML = `<div class="phead"><span class="pname">${label}</span><span class="pcount">${count}</span></div>`;
   // the last few cards, newest first, fanned tiny and face up — newest on top
   const recent = cards.slice(-5).reverse();
   if (recent.length) {

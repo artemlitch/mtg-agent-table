@@ -211,8 +211,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
 }
 .pile:hover { background: linear-gradient(#241f33, #241f33) padding-box, var(--chrome) border-box; }
+.pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: 600 10px/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
-.pile .pcount { font-weight: 700; font-size: 15px; font-family: var(--font-fantasy); }
+.pile .pcount { font-weight: 700; font-size: 14px; font-family: var(--font-fantasy); }
 /* tiny face-up fan of the pile's most recent cards; clipped, never scrolls */
 .pile .pstrip { display: flex; margin-top: 4px; height: 42px; overflow: hidden; }
 .pile .pstrip .mini {
