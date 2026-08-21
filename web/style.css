@@ -20,6 +20,12 @@
   --font-scroll: "IM Fell English", "Iowan Old Style", Georgia, serif;
 }
 * { box-sizing: border-box; margin: 0; }
+/* slim, translucent-gold scrollbars everywhere */
+* { scrollbar-width: thin; scrollbar-color: rgba(226, 179, 85, 0.35) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(226, 179, 85, 0.35); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(226, 179, 85, 0.6); }
 body {
   background:
     radial-gradient(1100px 700px at 50% 38%, rgba(64, 46, 110, 0.22), transparent 70%),
