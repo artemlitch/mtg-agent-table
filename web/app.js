@@ -828,7 +828,7 @@ function cardEl(c, opts = {}) {
       const n = (c.counters || {})["+1/+1"] || 0;
       const ctr = document.createElement("button");
       ctr.className = "ctrbtn" + (n > 0 ? " has" : n < 0 ? " has neg" : "");
-      ctr.textContent = n > 0 ? `+${n}/+${n}` : n < 0 ? `${n}/${n}` : "+";
+      ctr.textContent = n > 0 ? `+${n}/+${n}` : n < 0 ? `${n}/${n}` : "0/0";
       ctr.title = "+1/+1 counters — click to add, right-click to remove";
       ctr.onclick = (e) => {
         e.stopPropagation();
