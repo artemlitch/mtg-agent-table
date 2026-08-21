@@ -178,3 +178,34 @@ describe("commander detection", () => {
     expect(spec("Teysa Karlov", ["1 Tokens"]).isCommander).toBe(false);
   });
 });
+
+describe("custom cards (separate archidekt array)", () => {
+  // modeled on the real customCards entry that carried a deck's commander
+  const customTeysa = {
+    name: "Teysa Karlov",
+    quantity: 1,
+    isCommander: true, // categories: ["Commander"]
+    uid: null,
+    imageHash: null,
+    imageUrl: "https://storage.googleapis.com/topdekt-user/images/uploads/56/teysa.png",
+    flippedDefault: false,
+    oracle: {
+      name: "Teysa Karlov",
+      manaCost: "{2}{W}{B}",
+      power: "2",
+      toughness: "4",
+      text: "If a creature dying causes a triggered ability...",
+      superTypes: ["Legendary"],
+      types: ["Creature"],
+      subTypes: ["Human", "Advisor"],
+    },
+  };
+  test("custom card builds with uploaded art and assembled type line", () => {
+    const c = buildCardInfo(customTeysa as any);
+    expect(c.name).toBe("Teysa Karlov");
+    expect(c.image).toContain("topdekt-user");
+    expect(c.typeLine).toBe("Legendary Creature — Human Advisor");
+    expect(c.power).toBe("2");
+    expect(c.oracle).toContain("triggered ability");
+  });
+});

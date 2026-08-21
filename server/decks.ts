@@ -18,7 +18,8 @@ interface DeckCardSpec {
   isCommander: boolean;
   uid: string | null; // scryfall printing uuid — the printing chosen on Archidekt
   imageHash: string | null;
-  oracle: any; // archidekt oracleCard
+  imageUrl?: string | null; // custom cards: uploaded art, used verbatim
+  oracle: any; // archidekt oracleCard (or one synthesized from a custom card)
   flippedDefault: boolean;
 }
 
@@ -52,7 +53,7 @@ export function buildCardInfo(spec: DeckCardSpec) {
     o.faces?.length
       ? o.faces.map((f: any, i: number) => ({
           name: f.name,
-          image: cdnImg(spec.uid, spec.imageHash, i > 0 && BACK_IMAGE_LAYOUTS.test(o.layout ?? "") ? "back" : "front"),
+          image: f.imageUrl ?? cdnImg(spec.uid, spec.imageHash, i > 0 && BACK_IMAGE_LAYOUTS.test(o.layout ?? "") ? "back" : "front"),
           oracle: f.text || undefined,
           mana: f.manaCost || undefined,
           typeLine: typeLineOf(f),
@@ -64,7 +65,7 @@ export function buildCardInfo(spec: DeckCardSpec) {
   return {
     // a DFC's name is its ACTIVE face's name — never the composite "A // B"
     name: faces?.[face]?.name ?? o.name ?? spec.name,
-    image: faces?.[face]?.image ?? cdnImg(spec.uid, spec.imageHash),
+    image: faces?.[face]?.image ?? spec.imageUrl ?? cdnImg(spec.uid, spec.imageHash),
     oracle: o.text || faces?.map((f: any) => `${f.name}: ${f.oracle ?? ""}`).join("\n// ") || undefined,
     mana: o.manaCost || faces?.[0]?.mana || undefined,
     typeLine: faces ? faces.map((f: any) => f.typeLine).join(" // ") : typeLineOf(o),
@@ -94,6 +95,38 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
       uid: entry.card.uid ?? null,
       imageHash: entry.card.scryfallImageHash ?? null,
       oracle: entry.card.oracleCard,
+      flippedDefault: !!entry.flippedDefault,
+    });
+  }
+  // CUSTOM cards ride in a separate top-level array with their own field
+  // shape (front*/back*, types as space-separated strings, uploaded art).
+  // A deck's commander can live here — this one bit us.
+  const words = (s: any) => String(s ?? "").split(" ").filter(Boolean);
+  const customSide = (c: any, side: "front" | "back") => ({
+    name: c[`${side}Name`],
+    manaCost: c[`${side}ManaCost`],
+    power: c[`${side}Power`],
+    toughness: c[`${side}Toughness`],
+    text: c[`${side}Text`],
+    superTypes: words(c[`${side}SuperTypes`]),
+    types: words(c[`${side}Types`]),
+    subTypes: words(c[`${side}SubTypes`]),
+    imageUrl: c[`${side}ImageUrl`],
+  });
+  for (const entry of d.customCards ?? []) {
+    const primary = (entry.categories ?? [])[0];
+    if (primary && included.has(primary) && !included.get(primary)) continue;
+    const c = entry.card ?? {};
+    const front = customSide(c, "front");
+    const faces = c.hasBack ? [front, customSide(c, "back")] : undefined;
+    cards.push({
+      name: front.name ?? "Custom Card",
+      quantity: entry.quantity ?? 1,
+      isCommander: (entry.categories ?? []).some((cat: string) => /commander/i.test(cat)),
+      uid: null,
+      imageHash: null,
+      imageUrl: c.frontImageUrl ?? null,
+      oracle: { ...front, ...(faces ? { faces, layout: "transform" } : {}) },
       flippedDefault: !!entry.flippedDefault,
     });
   }
