@@ -147,7 +147,10 @@ function updateKeyUI() {
   }
   $("#brain-header").classList.toggle("hidden", activeTab !== "brain");
   $("#brain-header .bh-label").textContent =
-    transport === "cli" ? "Opponent: Claude Code (subscription)" : transport === "api" ? "Opponent: API key" : "Opponent: not set up";
+    transport === "cli" ? "Opponent: Claude Code (subscription)"
+    : transport === "api" ? "Opponent: API key"
+    : transport === "custom" ? "Opponent: custom provider"
+    : "Opponent: not set up";
   const del = $("#btn-delkey");
   del.disabled = !state?.keyConfigured;
   del.textContent = state?.keyConfigured ? "Delete key" : "No key set";

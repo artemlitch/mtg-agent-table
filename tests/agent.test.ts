@@ -156,6 +156,34 @@ describe("agent transport", () => {
     expect(JSON.stringify(modelRequests[0].body.messages)).not.toContain("thinking");
   });
 
+  test("custom provider: wins priority, uses the provider model, sends no anthropic-only fields", async () => {
+    process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-provider.json";
+    const { saveProvider, deleteProvider } = await import("../server/keystore");
+    const { transportChoice } = await import("../server/agent");
+    try {
+      saveProvider({ baseUrl: `http://localhost:${fakeAnthropic.port}`, apiKey: "sk-deepseek-test", model: "deepseek-v4-flash" });
+      // ANTHROPIC_API_KEY is set for this whole file — the provider must outrank it
+      expect(transportChoice()).toBe("custom");
+      resetGameState();
+      const a = new AgentRunner();
+      a.tableUrl = `http://localhost:${fakeTable.port}`;
+      a.reset("SYSTEM");
+      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from deepseek" }] }];
+      modelRequests.length = 0;
+      await a.wake("window");
+      const req = modelRequests[0];
+      expect(req.body.model).toBe("deepseek-v4-flash");
+      expect(req.headers["x-api-key"]).toBe("sk-deepseek-test");
+      expect(req.headers["anthropic-beta"]).toBeUndefined();
+      expect(JSON.stringify(req.body)).not.toContain("cache_control");
+      expect(a.brain.some((e) => e.kind === "text" && e.text.includes("hello from deepseek"))).toBe(true);
+      expect(a.historyModel).toBe("deepseek-v4-flash");
+    } finally {
+      deleteProvider();
+      delete process.env.PROVIDER_FILE;
+    }
+  });
+
   test("401 from Anthropic surfaces as a key error and closes the window", async () => {
     const bad = Bun.serve({
       port: 0,

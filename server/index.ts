@@ -6,7 +6,7 @@ import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
-import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified } from "./keystore";
+import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
@@ -129,6 +129,33 @@ const server = Bun.serve({
     }
     if (path === "/api/key" && req.method === "DELETE") {
       deleteApiKey();
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true });
+    }
+
+    // custom provider: any Anthropic-Messages-compatible endpoint (DeepSeek's
+    // /anthropic skin, OpenRouter, llama.cpp, LM Studio…). Configuring one
+    // outranks every other transport; the key never returns to the client.
+    if (path === "/api/provider" && req.method === "GET") {
+      const p = loadProvider();
+      return json(p ? { configured: true, baseUrl: p.baseUrl, model: p.model } : { configured: false });
+    }
+    if (path === "/api/provider" && req.method === "POST") {
+      let body: any = {};
+      try {
+        body = await req.json();
+      } catch {}
+      const baseUrl = String(body.baseUrl ?? "").trim().replace(/\/$/, "");
+      const apiKey = String(body.apiKey ?? "").trim();
+      const model = String(body.model ?? "").trim();
+      if (!/^https?:\/\//.test(baseUrl)) return json({ ok: false, error: "baseUrl must be an http(s) URL" }, 400);
+      if (!apiKey || !model) return json({ ok: false, error: "apiKey and model are required" }, 400);
+      saveProvider({ baseUrl, apiKey, model });
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true });
+    }
+    if (path === "/api/provider" && req.method === "DELETE") {
+      deleteProvider();
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true });
     }

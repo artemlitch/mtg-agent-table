@@ -18,7 +18,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { game, renderLogFor } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
-import { loadApiKey, isCliVerified } from "./keystore";
+import { loadApiKey, isCliVerified, loadProvider } from "./keystore";
 
 const API_URL = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
 const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5", haiku: "claude-haiku-4-5-20251001" };
@@ -43,16 +43,28 @@ export function resolveClaudeBin(): string | null {
   return null;
 }
 
-export type Transport = "api" | "cli" | "none";
+export type Transport = "api" | "cli" | "custom" | "none";
 
-/** Which transport a wake would use right now. A pasted key wins; the CLI
- * needs a one-time verified test call (Chat tab) before it counts. */
+/** Which transport a wake would use right now. A configured custom provider
+ * wins, then a pasted Anthropic key; the CLI needs a one-time verified test
+ * call (Chat tab) before it counts. */
 export function transportChoice(): Transport {
   const forced = process.env.AGENT_TRANSPORT;
   if (forced === "api" || forced === "cli") return forced;
+  if (loadProvider()) return "custom";
   if (loadApiKey()) return "api";
   if (resolveClaudeBin() && isCliVerified()) return "cli";
   return "none";
+}
+
+/** Where a model-API wake goes: a custom provider verbatim, or Anthropic with
+ * the game's model alias resolved. `anthropic` gates the fields only
+ * api.anthropic.com understands (cache_control, the beta header). */
+interface Endpoint {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  anthropic: boolean;
 }
 
 export interface BrainEntry {
@@ -275,23 +287,29 @@ export class AgentRunner {
     this.pendingWake = false;
     reason = this.pendingReason ?? reason;
     this.pendingReason = null;
-    if (transport === "api") {
+    const provider = transport === "custom" ? loadProvider() : null;
+    const endpoint: Endpoint | null =
+      transport === "custom" && provider
+        ? { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model, anthropic: provider.baseUrl.startsWith("https://api.anthropic.com") }
+        : transport === "api"
+          ? { baseUrl: this.apiUrl, apiKey: loadApiKey()!, model: MODELS[this.model] ?? this.model, anthropic: true }
+          : null;
+    if (endpoint) {
       // thinking-block signatures are model-specific: a mid-game model switch
       // must strip them from the replayed history or the API rejects it
-      const resolved = MODELS[this.model] ?? this.model;
-      if (this.historyModel && this.historyModel !== resolved) {
+      if (this.historyModel && this.historyModel !== endpoint.model) {
         this.messages = this.messages
           .map((m) => (Array.isArray(m.content) ? { ...m, content: m.content.filter((b: any) => b.type !== "thinking" && b.type !== "redacted_thinking") } : m))
           .filter((m) => !Array.isArray(m.content) || m.content.length > 0);
       }
-      this.historyModel = resolved;
+      this.historyModel = endpoint.model;
     }
     const prompt = this.composeWakePrompt(reason);
     this.push("status", this.messages.length || this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
-    if (transport === "api") {
+    if (endpoint) {
       this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });
       try {
-        await this.runApiTurn(loadApiKey()!);
+        await this.runApiTurn(endpoint);
       } catch (e: any) {
         this.push("error", `agent transport failed: ${e.message}`);
       }
@@ -310,9 +328,9 @@ export class AgentRunner {
   // ───────────────────────── api transport ─────────────────────────
 
   /** The tool loop: call the model, apply its tool calls, repeat to end_turn. */
-  private async runApiTurn(apiKey: string) {
+  private async runApiTurn(endpoint: Endpoint) {
     for (let i = 0; i < MAX_LOOP; i++) {
-      const res = await this.callModel(apiKey);
+      const res = await this.callModel(endpoint);
       if (res === "aborted") return;
       if (res === null) return; // hard error, already pushed
       this.usage.calls++;
@@ -365,52 +383,58 @@ export class AgentRunner {
   }
 
   /** One Messages API call. Returns the response, "aborted", or null on error. */
-  private async callModel(apiKey: string): Promise<any> {
+  private async callModel(endpoint: Endpoint): Promise<any> {
     // cache breakpoints ride on the wire only, never into stored history:
     // system prompt + the newest turn, both 1h TTL (a human turn between
-    // wakes routinely outlives the default 5m window)
-    const cc = { cache_control: { type: "ephemeral", ttl: "1h" } };
-    const wire = this.messages.map((m, i) => {
-      if (i !== this.messages.length - 1 || !Array.isArray(m.content) || m.content.length === 0) return m;
-      const content = m.content.map((b: any, j: number) => (j === m.content.length - 1 ? { ...b, ...cc } : b));
-      return { ...m, content };
-    });
+    // wakes routinely outlives the default 5m window). Anthropic-only —
+    // other Messages-compatible servers cache their own way (or ignore it),
+    // and the strictest ones reject unknown fields.
+    const cc = endpoint.anthropic ? { cache_control: { type: "ephemeral", ttl: "1h" } } : {};
+    const wire = !endpoint.anthropic
+      ? this.messages
+      : this.messages.map((m, i) => {
+          if (i !== this.messages.length - 1 || !Array.isArray(m.content) || m.content.length === 0) return m;
+          const content = m.content.map((b: any, j: number) => (j === m.content.length - 1 ? { ...b, ...cc } : b));
+          return { ...m, content };
+        });
     const body = {
-      model: MODELS[this.model] ?? this.model,
+      model: endpoint.model,
       max_tokens: 8192,
       system: [{ type: "text", text: this.systemPrompt, ...cc }],
       tools: Object.entries(TOOLS).map(([name, def]) => ({ name, description: def.description, input_schema: def.schema })),
       messages: wire,
     };
+    const headers: Record<string, string> = {
+      "x-api-key": endpoint.apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    };
+    if (endpoint.anthropic) headers["anthropic-beta"] = "extended-cache-ttl-2025-04-11";
+    const who = endpoint.anthropic ? "Anthropic" : new URL(endpoint.baseUrl).hostname;
     const ctl = new AbortController();
     this.inflight = ctl;
     this.expectAbort = false;
     try {
       for (let attempt = 0; ; attempt++) {
-        const res = await fetch(`${this.apiUrl}/v1/messages`, {
+        const res = await fetch(`${endpoint.baseUrl}/v1/messages`, {
           method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-beta": "extended-cache-ttl-2025-04-11",
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify(body),
           signal: ctl.signal,
         });
         if (res.ok) return await res.json();
         const errText = (await res.text()).slice(0, 600);
         if (res.status === 401 || res.status === 403) {
-          this.push("error", "Anthropic rejected the API key — delete it in the Agent tab and paste a fresh one.");
+          this.push("error", `${who} rejected the API key — check the agent setup and try a fresh key.`);
           return null;
         }
         if ((res.status === 429 || res.status === 529 || res.status >= 500) && attempt < 3) {
           const delay = [2000, 5000, 12000][attempt];
-          this.push("status", `Anthropic returned ${res.status} — retrying in ${delay / 1000}s…`);
+          this.push("status", `${who} returned ${res.status} — retrying in ${delay / 1000}s…`);
           await new Promise((r) => setTimeout(r, delay));
           continue;
         }
-        this.push("error", `Anthropic API error ${res.status}: ${errText}`);
+        this.push("error", `${who} API error ${res.status}: ${errText}`);
         return null;
       }
     } catch (e: any) {
