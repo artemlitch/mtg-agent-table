@@ -1,4 +1,8 @@
-// Deck loading: Archidekt (public read, no auth) + Scryfall hydration.
+// Deck loading: Archidekt is the source of truth for CARDS — oracle text,
+// faces, types, and the CHOSEN printing's art (uid + scryfallImageHash give
+// the Scryfall CDN file directly, no API call). Scryfall's API is used only
+// for what Archidekt cannot supply: token cards (all_parts) and ad-hoc
+// create_token lookups.
 
 import { game, newCardId, makeCard, shuffleZone, addLog, type PlayerId } from "./game";
 
@@ -12,12 +16,62 @@ interface DeckCardSpec {
   name: string;
   quantity: number;
   isCommander: boolean;
+  uid: string | null; // scryfall printing uuid — the printing chosen on Archidekt
+  imageHash: string | null;
+  oracle: any; // archidekt oracleCard
+  flippedDefault: boolean;
 }
 
 export interface LoadedDeck {
   deckId: number;
   name: string;
   cards: DeckCardSpec[];
+}
+
+/** The chosen printing's image straight off the Scryfall CDN — no API. */
+export function cdnImg(uid: string | null, hash: string | null, side: "front" | "back" = "front"): string | undefined {
+  if (!uid) return undefined;
+  return `https://cards.scryfall.io/normal/${side}/${uid[0]}/${uid[1]}/${uid}.jpg${hash ? `?${hash}` : ""}`;
+}
+
+/** "Legendary Creature — God" from Archidekt's type arrays. */
+function typeLineOf(o: any): string | undefined {
+  const main = [...(o?.superTypes ?? []), ...(o?.types ?? [])].join(" ");
+  const sub = (o?.subTypes ?? []).join(" ");
+  const line = sub ? `${main} — ${sub}` : main;
+  return line || undefined;
+}
+
+// layouts whose second face has its own art on the CDN's back/ path
+const BACK_IMAGE_LAYOUTS = /^(modal_dfc|transform|double_faced_token|reversible_card|meld)$/;
+
+/** The ONE mapping from an Archidekt deck entry to our card fields. Pure. */
+export function buildCardInfo(spec: DeckCardSpec) {
+  const o = spec.oracle ?? {};
+  const faces =
+    o.faces?.length
+      ? o.faces.map((f: any, i: number) => ({
+          name: f.name,
+          image: cdnImg(spec.uid, spec.imageHash, i > 0 && BACK_IMAGE_LAYOUTS.test(o.layout ?? "") ? "back" : "front"),
+          oracle: f.text || undefined,
+          mana: f.manaCost || undefined,
+          typeLine: typeLineOf(f),
+          power: f.power || undefined,
+          toughness: f.toughness || undefined,
+        }))
+      : undefined;
+  const face = spec.flippedDefault && faces ? 1 : 0;
+  return {
+    // a DFC's name is its ACTIVE face's name — never the composite "A // B"
+    name: faces?.[face]?.name ?? o.name ?? spec.name,
+    image: faces?.[face]?.image ?? cdnImg(spec.uid, spec.imageHash),
+    oracle: o.text || faces?.map((f: any) => `${f.name}: ${f.oracle ?? ""}`).join("\n// ") || undefined,
+    mana: o.manaCost || faces?.[0]?.mana || undefined,
+    typeLine: faces ? faces.map((f: any) => f.typeLine).join(" // ") : typeLineOf(o),
+    power: o.power || undefined,
+    toughness: o.toughness || undefined,
+    ...(faces ? { faces, face } : {}),
+  };
 }
 
 export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
@@ -32,11 +86,14 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
   for (const entry of d.cards) {
     const primary = (entry.categories ?? [])[0];
     if (primary && included.has(primary) && !included.get(primary)) continue; // maybeboard etc.
-    const name = entry.card.oracleCard.name;
     cards.push({
-      name,
+      name: entry.card.oracleCard.name,
       quantity: entry.quantity,
       isCommander: primary === "Commander",
+      uid: entry.card.uid ?? null,
+      imageHash: entry.card.scryfallImageHash ?? null,
+      oracle: entry.card.oracleCard,
+      flippedDefault: !!entry.flippedDefault,
     });
   }
   return { deckId, name: d.name, cards };
@@ -86,6 +143,28 @@ export function pickTokenFace(c: any, name: string): ScryFace {
   return scryFace(match ?? c, c);
 }
 
+/** One Scryfall collection sweep over the deck's printings, solely to harvest
+ * all_parts token references — the one thing Archidekt cannot supply. */
+export async function harvestTokenParts(uids: string[]): Promise<Map<string, string>> {
+  const parts = new Map<string, string>();
+  const unique = [...new Set(uids.filter(Boolean))];
+  for (let i = 0; i < unique.length; i += 75) {
+    const res = await fetch("https://api.scryfall.com/cards/collection", {
+      method: "POST",
+      headers: SCRYFALL_HEADERS,
+      body: JSON.stringify({ identifiers: unique.slice(i, i + 75).map((id) => ({ id })) }),
+    });
+    if (!res.ok) break;
+    const data: any = await res.json();
+    for (const c of data.data ?? []) {
+      for (const part of c.all_parts ?? []) {
+        if (part.component === "token" && !parts.has(part.name)) parts.set(part.name, part.uri);
+      }
+    }
+  }
+  return parts;
+}
+
 /** Fetch full token cards for all_parts references and key them by lowercase token name. */
 export async function buildTokenCatalog(parts: Map<string, string>): Promise<Record<string, ScryFace>> {
   const out: Record<string, ScryFace> = {};
@@ -102,87 +181,26 @@ export async function buildTokenCatalog(parts: Map<string, string>): Promise<Rec
   return out;
 }
 
-export async function hydrateScryfall(
-  names: string[],
-  tokenParts?: Map<string, string>
-): Promise<Map<string, ScryCard>> {
-  const out = new Map<string, ScryCard>();
-  const unique = [...new Set(names)];
-  for (let i = 0; i < unique.length; i += 75) {
-    const batch = unique.slice(i, i + 75);
-    const res = await fetch("https://api.scryfall.com/cards/collection", {
-      method: "POST",
-      headers: SCRYFALL_HEADERS,
-      // collection matches front-face names, not "A // B" composites
-      body: JSON.stringify({ identifiers: batch.map((name) => ({ name: name.split(" // ")[0] })) }),
-    });
-    if (!res.ok) throw new Error(`scryfall collection: HTTP ${res.status} ${await res.text()}`);
-    const data: any = await res.json();
-    for (const c of data.data) {
-      if (tokenParts) {
-        for (const part of c.all_parts ?? []) {
-          if (part.component === "token" && !tokenParts.has(part.name)) {
-            tokenParts.set(part.name, part.uri);
-          }
-        }
-      }
-      const face = c.card_faces?.[0];
-      // two-faced cards: keep every face with its own art and text
-      const faces: ScryFace[] | undefined = c.card_faces?.length
-        ? c.card_faces.map((f: any) => ({
-            ...scryFace(f),
-            // transforming DFCs have per-face art; split/adventure cards share one image
-            image: f.image_uris?.normal ?? c.image_uris?.normal,
-          }))
-        : undefined;
-      out.set((c.name as string).toLowerCase(), {
-        ...scryFace(c, face),
-        // the whole card keeps the composite "A // B" type line and, when the
-        // printing has no single oracle text, both faces' text joined
-        typeLine: c.type_line,
-        oracle: c.oracle_text ?? c.card_faces?.map((f: any) => `${f.name}: ${f.oracle_text}`).join("\n// "),
-        ...(faces ? { faces } : {}),
-      });
-    }
-    for (const nf of data.not_found ?? []) console.error("scryfall not found:", nf);
-  }
-  return out;
-}
-
-function lookup(scry: Map<string, ScryCard>, name: string): ScryCard {
-  const hit =
-    scry.get(name.toLowerCase()) ??
-    // archidekt gives front-face names for DFCs; scryfall returns "Front // Back"
-    [...scry.values()].find((c) => c.name.toLowerCase().startsWith(name.toLowerCase() + " //"));
-  return hit ?? { name };
-}
-
 export async function loadPlayerDeck(player: PlayerId, deckId: number) {
   const deck = await fetchArchidektDeck(deckId);
-  const tokenParts = new Map<string, string>();
-  const scry = await hydrateScryfall(deck.cards.map((c) => c.name), tokenParts);
-  // the deck's own token printings become this game's token art/copy
-  Object.assign(game.tokenCatalog, await buildTokenCatalog(tokenParts));
+  // token art/copy for this game's decks — the only Scryfall API involvement
+  try {
+    const tokenParts = await harvestTokenParts(deck.cards.map((c) => c.uid!));
+    Object.assign(game.tokenCatalog, await buildTokenCatalog(tokenParts));
+  } catch (e: any) {
+    console.error("token catalog failed (game continues):", e.message);
+  }
   const ps = game.players[player];
   ps.deckName = deck.name;
   ps.deckId = deckId;
 
   for (const spec of deck.cards) {
-    const info = lookup(scry, spec.name);
+    const info = buildCardInfo(spec);
     for (let i = 0; i < spec.quantity; i++) {
       const id = newCardId();
       const card = makeCard({
         id,
-        // a DFC's name is its ACTIVE face's name (front at load) — never the
-        // composite "A // B"; the composite survives only inside faces[]
-        name: info.faces?.[0]?.name ?? info.name ?? spec.name,
-        image: info.image,
-        oracle: info.oracle,
-        mana: info.mana,
-        typeLine: info.typeLine,
-        power: info.power,
-        toughness: info.toughness,
-        ...(info.faces ? { faces: info.faces, face: 0 } : {}),
+        ...info,
         owner: player,
         controller: player,
         zone: spec.isCommander ? "command" : "library",
