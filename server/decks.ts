@@ -77,7 +77,7 @@ export function buildCardInfo(spec: DeckCardSpec) {
 
 export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
   const res = await fetch(`https://archidekt.com/api/decks/${deckId}/`, {
-    headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+    headers: { Accept: "application/json", "User-Agent": "MTG-Battlefield/1.0" },
   });
   if (!res.ok) throw new Error(`archidekt deck ${deckId}: HTTP ${res.status}`);
   const d: any = await res.json();
