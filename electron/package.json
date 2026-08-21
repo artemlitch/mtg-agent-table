@@ -5,9 +5,11 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-packager . 'MTG Agent Table' --platform=darwin --arch=arm64 --icon=icon.icns --overwrite --out=dist --ignore='^/dist$'"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-packager": "^17.1.2"
   }
 }
