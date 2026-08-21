@@ -1953,6 +1953,10 @@ function switchTab(name) {
   const stackMode = name === "stack";
   $("#chat-input").placeholder = stackMode ? "Announce a trigger/ability onto the stack…" : "Say something to the agent…";
   $("#btn-send").textContent = stackMode ? "⚡ Stack" : "Send";
+  // a pane hidden with display:none can't hold a scroll position — always
+  // land at the newest entry when it opens
+  const pane = $(`#pane-${name}`);
+  pane.scrollTop = pane.scrollHeight;
 }
 document.querySelectorAll("#tabs button").forEach((b) => {
   b.onclick = () => switchTab(b.dataset.tab);
