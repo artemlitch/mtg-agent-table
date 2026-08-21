@@ -810,7 +810,10 @@ function cardEl(c, opts = {}) {
       : `<div class="textcard"><b>${c.name}</b><br>${c.mana || ""}<br>${c.typeLine || ""}<br>${(c.oracle || "").slice(0, 120)}${c.power !== undefined && c.power !== null ? `<div class="textpt">${c.power}/${c.toughness}</div>` : ""}</div>`;
     d.innerHTML = c.faceDown ? `<div class="facedown-known">${img}</div>` : img;
     const badges = [];
-    for (const [k, v] of Object.entries(c.counters || {})) badges.push(`<span class="badge">${v} ${k}</span>`);
+    // +1/+1 counters have their own on-card chip; other kinds stay badges
+    for (const [k, v] of Object.entries(c.counters || {})) {
+      if (k !== "+1/+1" && v) badges.push(`<span class="badge">${v} ${k}</span>`);
+    }
     if (c.attacking) badges.push(`<span class="badge att">⚔ ${c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}</span>`);
     if (c.blocking) badges.push(`<span class="badge blk">🛡</span>`);
     if (c.attachedTo) {
@@ -820,6 +823,24 @@ function cardEl(c, opts = {}) {
     if (c.isCommander) badges.push(`<span class="badge">CMDR</span>`);
     if (badges.length) d.innerHTML += `<div class="badges">${badges.join("")}</div>`;
     if (c.isToken) d.innerHTML += `<span class="tokentag">token</span>`;
+    // +1/+1 counter chip on the card: click +1, right-click −1 (negatives ok)
+    if (c.zone === "battlefield") {
+      const n = (c.counters || {})["+1/+1"] || 0;
+      const ctr = document.createElement("button");
+      ctr.className = "ctrbtn" + (n > 0 ? " has" : n < 0 ? " has neg" : "");
+      ctr.textContent = n > 0 ? `+${n}` : n < 0 ? `${n}` : "+";
+      ctr.title = "+1/+1 counters — click to add, right-click to remove";
+      ctr.onclick = (e) => {
+        e.stopPropagation();
+        act("counters", { card: c.id, kind: "+1/+1", delta: 1 });
+      };
+      ctr.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        act("counters", { card: c.id, kind: "+1/+1", delta: -1 });
+      };
+      d.appendChild(ctr);
+    }
     // explicit P/T override: drawn over the card's own P/T corner
     if (c.basePower !== undefined && c.zone === "battlefield") {
       d.innerHTML += `<div class="ptbadge" title="printed ${c.basePower}/${c.baseToughness}">${c.power}/${c.toughness}</div>`;
@@ -990,8 +1011,6 @@ function cardMenu(c, e) {
         },
       });
     }
-    items.push({ label: "+1/+1 counter +", fn: () => act("counters", { card: c.id, kind: "+1/+1", delta: 1 }) });
-    items.push({ label: "+1/+1 counter −", fn: () => act("counters", { card: c.id, kind: "+1/+1", delta: -1 }) });
     items.push({
       label: "Other counter…",
       fn: () => {

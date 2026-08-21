@@ -54,6 +54,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
 }
 .setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
+#link-studio { color: var(--dim); text-decoration: none; font: 600 11px/1 var(--font-fantasy); letter-spacing: 0.05em; margin-left: 6px; }
+#link-studio:hover { color: var(--gold-hi); }
 #turnbanner { font: 700 14px/1.4 var(--font-fantasy); letter-spacing: 0.04em; color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35); }
 .phasebtns { margin-left: auto; display: flex; gap: 4px; }
 .phasebtns button { padding: 3px 8px; font-size: 10.5px; }
@@ -122,6 +124,24 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .card.attach-source { outline: 2px dashed var(--accent); }
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
 .badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: 10px; padding: 0 4px; color: #ffd97a; }
+/* +1/+1 counter chip: left side, ~2/3 up; appears on hover, stays when set */
+.card .ctrbtn {
+  position: absolute; left: 2px; top: 30%; z-index: 5;
+  min-width: 22px; height: 22px; border-radius: 11px; padding: 0 4px;
+  font: 800 11px/20px var(--font-fantasy); text-align: center;
+  opacity: 0; transition: opacity 0.12s;
+}
+.card:hover .ctrbtn { opacity: 1; }
+.card .ctrbtn.has {
+  opacity: 1;
+  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+  color: #2a1c04;
+}
+.card .ctrbtn.neg {
+  background: linear-gradient(180deg, #e08a7a, #a03c30) padding-box, var(--chrome) border-box;
+  color: #2a0a06;
+}
+
 .tokentag {
   position: absolute; top: 2px; right: 2px; z-index: 4; pointer-events: none;
   background: rgba(0, 0, 0, 0.8); border-radius: 4px; padding: 0 4px;
