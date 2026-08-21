@@ -243,7 +243,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
    same top edge, and nothing may extend below the viewport */
 #modal {
   position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68);
-  display: flex; align-items: flex-start; justify-content: center; padding-top: 6vh;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh;
 }
 #modal-box {
   /* HARD RULE: modals are a fixed size — content (filtered cards etc.) never
@@ -256,9 +256,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 /* target palette hovering beside the ability modal */
-.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; max-height: calc(94vh - 20px); }
+.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; margin-top: 10vh; max-height: calc(78vh - 20px); }
 .tcol {
-  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: calc(94vh - 20px);
+  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: calc(82vh - 20px);
   border: 1px solid transparent; border-radius: 10px; padding: 5px;
   background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
 }
@@ -274,7 +274,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .tsub { font: 600 8px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
 
 /* compact modals size to content — the fixed-size rule is for card browsers */
-#modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; }
+#modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; margin-top: 10vh; }
 
 /* ability-to-stack modal: card left, input as tall as the card, send below */
 .abilitymodal { display: flex; gap: 12px; align-items: stretch; }
