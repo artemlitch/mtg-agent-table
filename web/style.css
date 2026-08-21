@@ -126,9 +126,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: 10px; padding: 0 4px; color: #ffd97a; }
 /* +1/+1 counter chip: left side, ~2/3 up; appears on hover, stays when set */
 .card .ctrbtn {
-  position: absolute; left: 2px; top: 30%; z-index: 5;
-  min-width: 22px; height: 22px; border-radius: 11px; padding: 0 4px;
-  font: 800 11px/20px var(--font-fantasy); text-align: center;
+  /* bottom-right, hovering just above the printed P/T box */
+  position: absolute; right: 2px; bottom: 18px; z-index: 5;
+  min-width: 18px; height: 16px; border-radius: 8px; padding: 0 5px;
+  font: 800 9px/14px var(--font-fantasy); text-align: center; letter-spacing: 0.02em;
   opacity: 0; transition: opacity 0.12s;
 }
 .card:hover .ctrbtn { opacity: 1; }
