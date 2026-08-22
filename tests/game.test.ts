@@ -86,12 +86,21 @@ describe("owner zones (CR 404.1)", () => {
     expect(game.players.agent.zones.graveyard).not.toContain(c.id);
   });
 
-  test("an explicit wrong toPlayer is coerced to the owner for graveyard/library/command", () => {
-    for (const zone of ["graveyard", "library", "command"] as const) {
+  test("an explicit wrong toPlayer is coerced to the owner for graveyard/exile/library/command", () => {
+    for (const zone of ["graveyard", "exile", "library", "command"] as const) {
       const c = seedCard("Bear-" + zone, "you", "battlefield");
       applyAction("agent", "move", { card: c.id, toZone: zone, toPlayer: "agent" });
       expect(game.players.you.zones[zone]).toContain(c.id);
     }
+  });
+
+  test("exile resolving off the stack is the owner's exile too", () => {
+    const c = seedCard("Their Relic", "agent", "graveyard");
+    applyAction("you", "cast", { card: c.id, resolveTo: "exile", resolveToPlayer: "you" });
+    const item = game.stack[game.stack.length - 1];
+    applyAction("agent", "stack_resolve", { item: item.id }); // the opponent resolves your item
+    expect(game.players.agent.zones.exile).toContain(c.id);
+    expect(game.players.you.zones.exile).not.toContain(c.id);
   });
 
   test("hand is the deliberate exception: it defaults to the owner but honours an explicit thief", () => {

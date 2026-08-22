@@ -2529,27 +2529,20 @@ function showZoneModal(p, zone) {
         grid.appendChild(d);
         continue;
       }
-      // leaving a graveyard/exile is a game action — it goes ON THE STACK
-      // (cast with a declared destination; the agent resolves or responds)
-      const viaStack = (key) =>
-        destButton(
-          key,
-          c,
-          ({ toZone, toPlayer }) =>
-            act("cast", {
-              card: c.id,
-              resolveTo: toZone,
-              ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
-              note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${toZone}`,
-            }).then(closeModal),
-          " ⚡"
-        );
+      // Only PLAYING a card uses the stack. Every other row is bookkeeping
+      // for an effect that has already resolved, so it just moves the card.
+      const move = (params) => act("move", { card: c.id, ...params });
       grid.appendChild(
         modalCardEl(c, [
-          viaStack("hand"),
-          viaStack("myBattlefield"),
-          viaStack("ownerBattlefield"),
-          viaStack(zone === "exile" ? "graveyard" : "exile"),
+          [
+            "Play ⚡",
+            () => act("cast", { card: c.id, note: `played from ${zone}` }).then(closeModal),
+          ],
+          destButton("myBattlefield", c, move),
+          // same row twice when you own the card
+          ...(c.owner === "you" ? [] : [destButton("ownerBattlefield", c, move)]),
+          destButton("hand", c, move),
+          destButton(zone === "exile" ? "graveyard" : "exile", c, move),
         ])
       );
     }
