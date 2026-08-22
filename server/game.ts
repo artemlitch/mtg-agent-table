@@ -577,8 +577,10 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
   const tl = card.typeLine ?? "";
   const isSpell = /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
   const toZone: Zone = (p.to as Zone) ?? item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
-  const toPlayer: PlayerId =
-    p.toPlayer === undefined
+  const resolveOwnerZone = toZone === "graveyard" || toZone === "hand" || toZone === "library" || toZone === "command";
+  const toPlayer: PlayerId = resolveOwnerZone
+    ? card.owner // CR 404.1: these zones are the owner's, whatever was passed
+    : p.toPlayer === undefined
       ? item.resolveToPlayer ?? (toZone === "battlefield" ? card.controller : card.owner)
       : asPlayer(p.toPlayer, "toPlayer");
   placeCard(card, toZone, toPlayer);
@@ -677,7 +679,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       else if (fromZone === "battlefield" && toZone !== "battlefield") leftBf++;
       if (toZone === "battlefield" && fromZone !== "battlefield") enteredBf++;
       const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
-      const toPlayer: PlayerId = p.toPlayer === undefined ? card.controller : asPlayer(p.toPlayer, "toPlayer");
+      // graveyards, hands, libraries and command zones belong to the card's
+      // OWNER (CR 404.1) — no exceptions, so a controller default or an
+      // explicit wrong toPlayer is coerced (a stolen creature dying once
+      // landed in the thief's graveyard)
+      const ownerZone = toZone === "graveyard" || toZone === "hand" || toZone === "library" || toZone === "command";
+      const toPlayer: PlayerId = ownerZone
+        ? card.owner
+        : p.toPlayer === undefined
+          ? card.controller
+          : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
 
       if (fromZone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);

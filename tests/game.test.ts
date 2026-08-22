@@ -48,6 +48,30 @@ beforeEach(() => {
   resetGameState();
 });
 
+describe("owner zones (CR 404.1)", () => {
+  test("a stolen creature dying goes to its OWNER's graveyard, not the thief's", () => {
+    const c = seedCard("Stormdrake", "you", "battlefield", { controller: "agent" });
+    const r = applyAction("agent", "move", { card: c.id, toZone: "graveyard" });
+    expect(r.ok).toBe(true);
+    expect(game.players.you.zones.graveyard).toContain(c.id);
+    expect(game.players.agent.zones.graveyard).not.toContain(c.id);
+  });
+
+  test("an explicit wrong toPlayer is coerced to the owner for graveyard/hand/library", () => {
+    for (const zone of ["graveyard", "hand", "library"] as const) {
+      const c = seedCard("Bear-" + zone, "you", "battlefield");
+      applyAction("agent", "move", { card: c.id, toZone: zone, toPlayer: "agent" });
+      expect(game.players.you.zones[zone]).toContain(c.id);
+    }
+  });
+
+  test("battlefield keeps controller semantics (steals still work)", () => {
+    const c = seedCard("Bear", "agent", "battlefield");
+    applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "you", note: "control effect" });
+    expect(game.players.you.zones.battlefield).toContain(c.id);
+  });
+});
+
 describe("trigger hints", () => {
   test("casting a card with trigger text returns the trigger lines", () => {
     const c = seedCard("Bastion", "you", "hand", {
