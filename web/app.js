@@ -241,6 +241,18 @@ const ICONS = {
   passTurn: "fa-forward",
   skip: "fa-forward-fast",
   mulligan: "fa-recycle",
+  cast: "fa-wand-sparkles",
+  counters: "fa-plus-minus",
+  token: "fa-star",
+  copy: "fa-clone",
+  pile: "fa-layer-group",
+  steal: "fa-hand-sparkles",
+  give: "fa-gift",
+  command: "fa-crown",
+  ability: "fa-bolt",
+  flip: "fa-rotate",
+  trash: "fa-trash",
+  bullet: "fa-angle-right",
   search: "fa-magnifying-glass",
   scry: "fa-layer-group",
   surveil: "fa-binoculars",
@@ -1622,20 +1634,60 @@ function hidePreview() {
 // Menus
 // ---------------------------------------------------------------------------
 
+// Menu rows speak the library panel's language: a coloured icon, and the
+// plate and rim arriving on hover. Icon and tone are matched from the label
+// — presentation only, first match wins, anything unmatched stays neutral.
+const MENU_LOOK = [
+  // undoing beats the thing being undone: "Remove attacker" is a trash, not
+  // a sword. Same for the other specific-before-general pairs below.
+  [/delete|remove|cancel|clear/i, "trash", "mill"],
+  [/ability/i, "ability", "scry"],
+  [/copy/i, "copy", "surveil"],
+  [/attack|combat/i, "combat", "exile"],
+  [/block/i, "noBlocks", "scry"],
+  [/untap/i, "untap", "mulligan"],
+  [/^tap\b/i, "tap", "mulligan"],
+  [/play |cast|→ stack/i, "cast", "surveil"],
+  [/graveyard|discard|mill/i, "mill", "mill"],
+  [/exile/i, "exile", "exile"],
+  [/token/i, "token", "draw"],
+  [/steal|take/i, "steal", "exile"],
+  [/give|return/i, "give", "draw"],
+  [/command/i, "command", "reveal"],
+  [/hand/i, "draw", "draw"],
+  [/library|top of|bottom of/i, "scry", "scry"],
+  [/face-down|face-up|flip|show /i, "flip", "surveil"],
+  [/reveal/i, "reveal", "reveal"],
+  [/counter|p\/t/i, "counters", "scry"],
+  [/pile/i, "pile", "mill"],
+];
+/** Labels used to carry their own emoji; the icon says it now. */
+const stripGlyph = (s) => String(s).replace(/^[^\p{L}\p{N}(]+/u, "").trim();
+
 function openMenu(items, e) {
   const m = $("#menu");
   m.className = ""; // the library panel restyles this container — reset it
   m.innerHTML = "";
   for (const it of items) {
-    const d = document.createElement("div");
-    d.className = "mi" + (it.sep ? " sep" : "") + (it.title ? " title" : "");
-    d.textContent = it.label;
-    if (!it.title)
-      d.onclick = () => {
-        closeMenu();
-        it.fn();
-      };
-    m.appendChild(d);
+    if (it.title) {
+      const d = document.createElement("div");
+      d.className = "mi title";
+      d.textContent = stripGlyph(it.label);
+      m.appendChild(d);
+      continue;
+    }
+    const [, icon, tone] = MENU_LOOK.find(([re]) => re.test(it.label)) ?? [];
+    const b = document.createElement("button");
+    b.className = `mi a-${tone ?? "neutral"}` + (it.sep ? " sep" : "");
+    const label = document.createElement("span");
+    label.className = "mi-label";
+    label.textContent = stripGlyph(it.label);
+    b.append(iconEl(icon ?? "bullet"), label);
+    b.onclick = () => {
+      closeMenu();
+      it.fn();
+    };
+    m.appendChild(b);
   }
   m.classList.remove("hidden");
   const x = Math.min(e.clientX, window.innerWidth - 200);

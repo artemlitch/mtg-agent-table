@@ -370,11 +370,46 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); padding: 4px; max-height: 70vh; overflow-y: auto;
 }
-#menu .mi { padding: 5px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
-#menu .mi:hover { background: #3a2f1a; }
-#menu .mi.sep { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 6px; }
-#menu .mi.title { color: var(--dim); font-size: 11px; cursor: default; font-family: var(--font-fantasy); letter-spacing: 0.05em; }
-#menu .mi.title:hover { background: none; }
+/* card-menu rows: flat until hovered, then the same plate the panel wears —
+   a long list would be noisy with every row plated at rest */
+#menu .mi {
+  position: relative; display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 5px 9px; border-radius: 8px; cursor: pointer; white-space: nowrap; text-align: left;
+  font: 600 11px/1.45 var(--font-ui); letter-spacing: 0.01em;
+  color: var(--text); background: none; border: 1px solid transparent; box-shadow: none;
+  transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+}
+#menu .mi .ico { font-size: 11px; width: 13px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
+#menu .mi-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#menu .mi:hover {
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 22%, #241d31),
+      color-mix(in srgb, var(--c) 9%, #171220)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 60%, #8a5f1d),
+      #f8e7a0 32%,
+      color-mix(in srgb, var(--c) 75%, #b07d26) 64%,
+      #eecf7a 88%,
+      color-mix(in srgb, var(--c) 60%, #8a5f1d)) border-box;
+  box-shadow: 0 0 9px color-mix(in srgb, var(--c) 28%, transparent);
+}
+/* hairline above a separated row — a pseudo-element, so it never fights the
+   transparent border the hover rim uses */
+#menu .mi.sep { margin-top: 7px; }
+#menu .mi.sep::before {
+  content: ""; position: absolute; left: 6px; right: 6px; top: -4px; height: 1px;
+  background: linear-gradient(90deg, transparent, #8a6420, transparent);
+}
+#menu .mi.title {
+  display: block; color: var(--accent); font: 700 10px/1 var(--font-fantasy);
+  letter-spacing: 0.16em; text-transform: uppercase; text-align: center;
+  padding: 3px 2px 5px; margin-bottom: 3px; cursor: default;
+  text-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+}
+#menu .mi.title:hover { background: none; box-shadow: none; color: var(--accent); }
 
 /* ── library panel: laid out, not a list ── */
 /* --c is the per-action colour; this is the fallback for anything unclassed */
@@ -429,19 +464,21 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .lp-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #menu.libpanel .ico { font-size: 11px; color: var(--c); flex: none; }
 
-/* one colour per action, borrowed from the five mana colours */
-#menu.libpanel .a-draw { --c: #63b878; }    /* green — cards into hand */
-#menu.libpanel .a-exile { --c: #d4553f; }   /* red — burn it out of the game */
-#menu.libpanel .a-mill { --c: #9c8fa8; }    /* black — smoky grey-violet */
-#menu.libpanel .a-scry { --c: #5ea8dd; }    /* blue — looking ahead */
-#menu.libpanel .a-surveil { --c: #a17ccc; } /* dimir violet, blue's darker cousin */
-#menu.libpanel .a-reveal { --c: #f0e6cd; }  /* white — shown to everyone */
-#menu.libpanel .a-mulligan { --c: #d4823f; }
+/* one colour per action, borrowed from the five mana colours. Shared by the
+   library panel and the card menus. */
+#menu .a-draw { --c: #63b878; }    /* green — cards into hand */
+#menu .a-exile { --c: #d4553f; }   /* red — burn it out of the game */
+#menu .a-mill { --c: #9c8fa8; }    /* black — smoky grey-violet */
+#menu .a-scry { --c: #5ea8dd; }    /* blue — looking ahead */
+#menu .a-surveil { --c: #a17ccc; } /* dimir violet, blue's darker cousin */
+#menu .a-reveal { --c: #f0e6cd; }  /* white — shown to everyone */
+#menu .a-mulligan { --c: #d4823f; }
+#menu .a-neutral { --c: #8a8496; }
 /* housekeeping, not a play: no colour at all */
-#menu.libpanel .a-search,
-#menu.libpanel .a-shuffle { --c: #8a8496; opacity: 0.78; }
-#menu.libpanel .a-search:hover,
-#menu.libpanel .a-shuffle:hover { opacity: 1; }
+#menu .a-search,
+#menu .a-shuffle { --c: #8a8496; opacity: 0.78; }
+#menu .a-search:hover,
+#menu .a-shuffle:hover { opacity: 1; }
 /* search and reveal are slimmer than the tiles they sit between */
 #menu.libpanel .lp-wide { padding-top: 5px; padding-bottom: 5px; }
 
