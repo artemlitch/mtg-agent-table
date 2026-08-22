@@ -588,7 +588,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
    column too, so half a rail-width of offset lines it up with the cards */
 #nextaction {
   position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 45;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: center;
 }
 #nextaction.hidden { display: none; }
 /* satellites hover around the primary without displacing it: the row centres
@@ -645,9 +645,12 @@ body.unfocused .na-key { display: none; }
   padding: 4px 12px; font-size: 11.5px; font-style: italic; color: var(--dim);
   background: rgba(15, 10, 6, 0.72); border-radius: 10px;
 }
+/* hangs below the primary, out of flow: appearing must not resize the
+   centred container and shove the main button upward */
 #na-skip {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
   display: flex; flex-direction: column; align-items: center; gap: 0;
-  padding: 1px 8px; font-size: 10px; letter-spacing: 0.04em;
+  padding: 1px 8px; font-size: 10px; letter-spacing: 0.04em; white-space: nowrap;
   background: none; border: none; color: var(--dim); opacity: 0.5;
 }
 #na-skip .na-key { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; }
