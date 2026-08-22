@@ -2,7 +2,7 @@
 // agent's conversation can't be unwound, so undo leaves the agent untouched
 // and it learns about the rewind from the ↩ log entry.
 
-import { game, getNextCardId, setNextCardId } from "./game";
+import { game, getNextCardId, homePos, setNextCardId } from "./game";
 import { serializeState, restoreState } from "./persist";
 
 let history: any[] = [];
@@ -27,13 +27,35 @@ const snapshot = () => serializeState({ agent: null, lastDecks: null });
 const lastAction = () =>
   [...game.log].reverse().find((e) => !/^[↩↪]/.test(e.text))?.text ?? "(unknown action)";
 
-/** Restore a snapshot, keeping counters monotonic so nothing later collides. */
+/** Restore a snapshot, keeping counters monotonic so nothing later collides,
+ *  and leaving every card where it currently sits.
+ *
+ *  Position is not part of the game. Sliding a card around the table makes no
+ *  undo step (place is cosmetic), so no undo step is allowed to slide one
+ *  either — otherwise rewinding an unrelated action drags the whole board
+ *  back to an arrangement nobody asked for. The snapshot decides what is
+ *  where in the RULES sense; the table keeps its own layout. */
 function restore(snap: any) {
   const seqBefore = game.seq;
   const idBefore = getNextCardId();
+  const layout = new Map<string, { x: number; y: number }>();
+  for (const [id, c] of Object.entries(game.cards)) if (c.pos) layout.set(id, c.pos);
+
   restoreState(snap);
   game.seq = Math.max(game.seq, seqBefore);
   setNextCardId(Math.max(getNextCardId(), idBefore));
+
+  for (const c of Object.values(game.cards)) {
+    // the invariant relocateCard keeps: on the table means it has a spot,
+    // anywhere else means it has none
+    if (c.zone !== "battlefield" && c.zone !== "stack") {
+      c.pos = null;
+      continue;
+    }
+    // a card that was already out keeps where you put it; one the rewind
+    // brought back has only the snapshot's spot, or needs a fresh one
+    c.pos = layout.get(c.id) ?? c.pos ?? homePos(c.controller, c);
+  }
 }
 
 export function recordSnapshot() {

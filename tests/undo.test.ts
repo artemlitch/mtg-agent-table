@@ -1,6 +1,6 @@
 // Undo: per-action snapshots, state rewind, monotonic seq, log notice.
 import { describe, test, expect, beforeEach } from "vitest";
-import { game, resetGameState, applyAction, addLog, getNextCardId } from "../server/game";
+import { game, resetGameState, applyAction, addLog, getNextCardId, makeCard, newCardId, homePos } from "../server/game";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, historySize } from "../server/history";
 
 function doAction(actor: "you" | "agent", type: string, params: any = {}) {
@@ -16,6 +16,53 @@ function doAction(actor: "you" | "agent", type: string, params: any = {}) {
 beforeEach(() => {
   resetGameState();
   clearHistory();
+});
+
+describe("undo leaves the table's layout alone", () => {
+  // sliding a card around makes no undo step, so no undo step may slide one:
+  // rewinding an unrelated action must not drag the board back to an old
+  // arrangement.
+  // a restore rebuilds every card object, so the id is the only durable
+  // handle — re-read through it rather than holding the card
+  const bear = () => {
+    const c = makeCard({ id: newCardId(), name: "Bear", owner: "you", controller: "you", zone: "hand", typeLine: "Creature — Bear" });
+    game.cards[c.id] = c;
+    game.players.you.zones.hand.push(c.id);
+    return c.id;
+  };
+
+  test("a card keeps where you put it when an unrelated action is undone", () => {
+    const id = bear();
+    doAction("you", "move", { card: id, toZone: "battlefield" });
+    applyAction("you", "place", { positions: [{ card: id, x: 0.8, y: 0.7 }] }); // cosmetic: no snapshot
+    doAction("you", "life", { player: "you", delta: -5 });
+
+    undoLast();
+    expect(game.players.you.life).toBe(40);
+    expect(game.cards[id].pos).toEqual({ x: 0.8, y: 0.7 });
+  });
+
+  test("undoing the move that put it there takes its position with it", () => {
+    const id = bear();
+    doAction("you", "move", { card: id, toZone: "battlefield" });
+    applyAction("you", "place", { positions: [{ card: id, x: 0.8, y: 0.7 }] });
+
+    undoLast();
+    expect(game.cards[id].zone).toBe("hand");
+    // off the table is off the coordinate system
+    expect(game.cards[id].pos).toBeNull();
+  });
+
+  test("a card the rewind brings back onto the table always has a spot", () => {
+    const id = bear();
+    doAction("you", "move", { card: id, toZone: "battlefield" });
+    doAction("you", "move", { card: id, toZone: "graveyard" });
+    expect(game.cards[id].pos).toBeNull();
+
+    undoLast();
+    expect(game.cards[id].zone).toBe("battlefield");
+    expect(game.cards[id].pos).toEqual(homePos("you", game.cards[id]));
+  });
 });
 
 describe("undo", () => {
