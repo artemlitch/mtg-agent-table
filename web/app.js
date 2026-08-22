@@ -123,6 +123,7 @@ function render() {
   renderChat();
   renderLog();
   renderNoBlocks();
+  renderTurnPass();
   processSounds();
   updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
@@ -214,6 +215,16 @@ $("#btn-delkey").onclick = async () => {
 // one-click decline when locked-in attackers are pointing at you and you have
 // no blocks declared — the standoff killer
 let noBlocksDeclaredFor = null;
+
+// the agent's turn pass waiting on top of the stack: resolving it is how your
+// turn starts, so it gets the same floating one-click prompt as "no blocks"
+function renderTurnPass() {
+  const btn = $("#btn-turnpass");
+  const top = state.stack?.length ? state.stack[state.stack.length - 1] : null;
+  const show = !!top && !!top.turnPassTo && top.player === "agent";
+  btn.classList.toggle("hidden", !show);
+  if (show) btn.onclick = () => act("stack_resolve", { item: top.id });
+}
 
 function renderNoBlocks() {
   const btn = $("#btn-noblocks");
@@ -702,16 +713,22 @@ function renderBattlefield(p) {
   const GAP = 14;
   const perRow = Math.max(1, Math.floor((W * 0.8) / (CW + GAP)));
 
+  // your lands hug the bottom edge, clearing the hand fan that pokes up over
+  // the board (~32px); further rows stack UPWARD so they can never slide
+  // under the hand. The agent's sit at its own top edge, rows going down.
+  const HAND_CLEAR = 36;
+  const yourLandTop = H - CH - HAND_CLEAR;
+
   const posMap = {}; // id -> {left, top} px
   const slotFor = (cat, i) => {
     if (cat === "other") {
       const col = Math.floor(i / 3);
       return { left: W - CW - 10 - col * (CW + 10), top: regions.other * (H - CH) + (i % 3) * (CH * 0.45) };
     }
-    return {
-      left: 8 + (i % perRow) * (CW + GAP),
-      top: regions[cat] * (H - CH) + Math.floor(i / perRow) * (CH * 0.55),
-    };
+    const left = 8 + (i % perRow) * (CW + GAP);
+    const row = Math.floor(i / perRow);
+    if (cat === "land" && p === "you") return { left, top: Math.max(0, yourLandTop - row * (CH * 0.55)) };
+    return { left, top: regions[cat] * (H - CH) + row * (CH * 0.55) };
   };
   const collides = (s) =>
     Object.values(posMap).some((p) => Math.abs(p.left - s.left) < CW * 0.55 && Math.abs(p.top - s.top) < CH * 0.55);

@@ -555,8 +555,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .tokencustom .tclabel { width: 100%; color: var(--accent); font: 600 11px/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
 .tokencustom input { width: 170px; }
 
-/* combat: one-click block decline, floating just under the midline */
-#btn-noblocks {
+/* combat: one-click block decline, floating just under the midline —
+   the turn-pass prompt shares the spot (they can't both be pending) */
+#btn-noblocks,
+#btn-turnpass {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 45;
   padding: 6px 16px; font-size: 12px;
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;

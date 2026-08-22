@@ -359,6 +359,8 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       lines: item.lines,
       // structured combat declaration — the client marks declared attackers
       attackPairs: item.apply?.type === "attack" ? item.apply.pairs : undefined,
+      // turn pass: the client floats a one-click "take your turn" prompt
+      turnPassTo: item.apply?.type === "turn" ? item.apply.player : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
     })),
     log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
