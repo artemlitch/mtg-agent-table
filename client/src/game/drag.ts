@@ -130,7 +130,11 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
         ...(card.zone === "battlefield" && !card.under ? pileChainBelow(card.id).map((c) => c.id) : []),
       ]);
       regions = snapshotRegions();
-      others = snapshotCards(carriedIds);
+      // an unresolved card is not a pile you can tuck under — it is a spell
+      // waiting to happen, and the server refuses ("piles only exist on the
+      // battlefield"). Leaving it out of the candidates means the ring never
+      // offers the drop in the first place: the card just lands on the felt.
+      others = snapshotCards(carriedIds).filter((o) => !o.el.classList.contains("unresolved"));
       const felt = document.getElementById("felt")?.getBoundingClientRect();
       origin = { x: felt?.left ?? 0, y: felt?.top ?? 0 };
       if (onFelt) {

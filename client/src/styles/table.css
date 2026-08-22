@@ -147,13 +147,24 @@ body.dragging .cmdzone .card { pointer-events: none; }
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
 }
 
-/* Furniture, under the cards. These sit above the bare felt and each other
-   in the obvious order; every one of them is below #cardlayer. The gold line
-   is the lowest of all — it is a marking painted ON the table, so a card
-   crossing the midline covers it the way a real one would. */
+/* Furniture, in the obvious order. The gold line is the lowest of all — it is
+   a marking painted ON the table, so a card crossing the midline covers it
+   the way a real one would.
+
+   The two places you HOLD cards sit above #cardlayer (46) instead of below
+   it: your hand and the command zones are in front of the table, not on it,
+   and a card lying near the edge of the board must not overlap the cards you
+   are holding. A card being carried still passes over both — .placed.dragging
+   is 60 and .draglift is 80. */
 #midline { z-index: 0; }
 .rail { position: relative; z-index: 10; }
-.handrow.fan { position: relative; z-index: 12; }
+.handrow.fan { position: relative; z-index: 48; }
+/* ...except while a card is in the air. #cardlayer is a stacking context, so
+   the carried card cannot climb out of it on its own z-index — the layer has
+   to rise as a whole, or a card dragged toward your hand would slide behind
+   it. Cards at rest are held out of the hands by the resting band, so this
+   only shows on the command zones, and only for the length of the drag. */
+body.dragging #cardlayer { z-index: 49; }
 
 /* Drop targets, while a card is in the air. Every one of them is outlined
    for the whole drag — dotted, so it reads as "you could put it here" — and
@@ -232,7 +243,7 @@ body.dragging .cmdzone { transition: outline-color 0.5s ease, background-color 0
   --cmd-scale: 0.8;
   --cmd-card-w: calc(var(--hand-card-w) * var(--cmd-scale));
   --cmd-card-h: calc(var(--hand-card-h) * var(--cmd-scale));
-  position: absolute; left: 12px; bottom: 12px; z-index: 45;
+  position: absolute; left: 12px; bottom: 12px; z-index: 48;
   padding: 5px; border-radius: 9px;
   display: flex; gap: 4px;
   border: 1px solid transparent;
