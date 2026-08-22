@@ -281,7 +281,7 @@ const NEXT_ACTION_STEPS = [
   {
     id: "lock-their-attack",
     when: (c) => c.top?.player === "agent" && !!c.top.attackPairs,
-    step: (c) => ({ label: "⚔ Lock in their attack", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
+    step: (c) => ({ label: "⚔ Go to damage", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
   },
   {
     id: "resolve-all",
@@ -358,7 +358,7 @@ const NEXT_ACTION_STEPS = [
     when: (c) => c.phase === "combat",
     step: () => ({
       label: "▶ Main phase 2",
-      title: "right-click a creature to attack instead",
+      title: "tap [e] a creature to attack instead",
       skip: true,
       fn: () => act("set_phase", { phase: "main 2" }),
     }),
