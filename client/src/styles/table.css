@@ -57,9 +57,11 @@
   transition: border-color 0.25s ease, background 0.25s ease;
 }
 .pile::after {
-  /* the panel purple part-way to black — dark enough to read against the rail,
-     not so dark it becomes a hole */
-  --pile-lip: color-mix(in srgb, var(--panel2) 35%, #000);
+  /* the panel purple part-way to black. Darkness is the pair of this mix and
+     the opacity below — both moved to land the composite over the rail at half
+     the previous value, while keeping a purple cast rather than going flat
+     black. */
+  --pile-lip: color-mix(in srgb, var(--panel2) 15%, #000);
   content: ""; position: absolute; left: -25%; right: -25%; bottom: -144%;
   /* 160% tall, sunk 144% — 16% of the box shows, which is a tenth of the ellipse */
   height: 160%; border-radius: 50%; pointer-events: none;
@@ -67,7 +69,7 @@
   /* the crest of an ellipse is a hard line however soft the gradient is —
      blur is what turns it into an edge rather than an arc drawn on the rail */
   filter: blur(7px);
-  opacity: 0.7; transition: opacity 0.25s ease;
+  opacity: 0.86; transition: opacity 0.25s ease;
 }
 /* the plate used to carry the hover; a hairline rim does it now */
 .pile:hover { border-color: rgba(226, 179, 85, 0.4); background: rgba(226, 179, 85, 0.04); }
