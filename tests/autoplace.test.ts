@@ -1,5 +1,73 @@
 import { describe, expect, it } from "vitest";
-import { freeSpot, GAP, type Box } from "../client/src/game/autoplace";
+import { freeSpot, GAP, homeSpot, type Box } from "../client/src/game/autoplace";
+import { typeCat } from "../client/src/game/rules";
+import type { Card, PlayerId } from "../client/src/types";
+
+const asCard = (typeLine: string, extra: Partial<Card> = {}) => ({ typeLine, ...extra }) as Card;
+const home = (typeLine: string, p: PlayerId = "you") => homeSpot(p, typeCat(asCard(typeLine)));
+
+describe("where a card heads for", () => {
+  it("files a card by what it is", () => {
+    expect(typeCat(asCard("Basic Land — Forest"))).toBe("land");
+    expect(typeCat(asCard("Creature — Bear"))).toBe("creature");
+    expect(typeCat(asCard("Instant"))).toBe("spell");
+    expect(typeCat(asCard("Sorcery"))).toBe("spell");
+    expect(typeCat(asCard("Artifact"))).toBe("other");
+    expect(typeCat(asCard("Enchantment"))).toBe("other");
+    // an artifact creature is a creature: the creature row wins
+    expect(typeCat(asCard("Artifact Creature — Golem"))).toBe("creature");
+  });
+
+  it("files a double-faced card under the face it is showing", () => {
+    const dfc = asCard("Creature — Werewolf", {
+      faces: [{ name: "Front", typeLine: "Creature — Werewolf" }, { name: "Back", typeLine: "Land" }] as any,
+      face: 1,
+    });
+    expect(typeCat(dfc)).toBe("land");
+  });
+
+  it("keeps the old board's convention: lands low, creatures forward, the rest to the side", () => {
+    const land = home("Basic Land — Forest");
+    const creature = home("Creature — Bear");
+    const artifact = home("Artifact");
+    const enchantment = home("Enchantment");
+
+    // lands along your own edge, below everything else on your side, and the
+    // row starts at the left edge itself — nothing sits to the left of it
+    expect(land.y).toBeGreaterThan(creature.y);
+    expect(land.x).toBe(0);
+    // creatures forward, toward the midline (y 0.5 puts a card's CENTRE there)
+    expect(creature.y).toBeGreaterThan(0.5);
+    expect(creature.y).toBeLessThan(0.6);
+    expect(creature.x).toBeLessThan(0.1);
+    // artifacts and enchantments share the side column, off to the right
+    expect(artifact).toEqual(enchantment);
+    expect(artifact.x).toBeGreaterThan(0.9);
+  });
+
+  it("hovers a spell at a casting spot rather than in a permanent row", () => {
+    const bolt = home("Instant");
+    const bear = home("Creature — Bear");
+    expect(bolt).not.toEqual(bear);
+    // same row as the creatures, but centred instead of hard left
+    expect(bolt.x).toBe(0.5);
+    expect(bolt.x).toBeGreaterThan(bear.x);
+    expect(bolt.y).toBe(bear.y);
+  });
+
+  it("mirrors the agent's half about the midline", () => {
+    expect(home("Creature — Bear", "agent").y).toBeLessThan(0.5);
+    expect(home("Basic Land — Island", "agent").y).toBeLessThan(home("Creature — Bear", "agent").y);
+    // same column, opposite side
+    expect(home("Artifact", "agent").x).toBe(home("Artifact").x);
+  });
+
+  it("hands out a copy, so a caller cannot edit the map", () => {
+    const a = home("Artifact");
+    a.x = 0.1;
+    expect(home("Artifact").x).toBeGreaterThan(0.9);
+  });
+});
 
 const W = 100;
 const H = 140;

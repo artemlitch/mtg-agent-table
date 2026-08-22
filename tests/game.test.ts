@@ -13,7 +13,6 @@ import {
   renderLogFor,
   triggerLines,
   leanCard,
-  homePos,
   transcript,
   type Card,
   type PlayerId,
@@ -740,110 +739,55 @@ describe("batch actions", () => {
 });
 
 describe("the table surface", () => {
-  test("a card reaching the battlefield takes its controller's home corner", () => {
+  test("a card reaching the battlefield arrives unplaced", () => {
+    // where it should go is a question about the felt, and nothing here can
+    // see the felt — the client answers it (client/src/game/settle.ts)
     const c = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
     applyAction("you", "cast", { card: c.id });
     expect(c.zone).toBe("battlefield");
-    expect(c.pos).toEqual(homePos("you", c));
-  });
-
-  test("home is a corner per seat: the agent's at the top of the table, yours at the bottom", () => {
-    const mine = seedCard("Mine", "you", "hand");
-    const theirs = seedCard("Theirs", "agent", "hand");
-    applyAction("you", "move", { card: mine.id, toZone: "battlefield" });
-    applyAction("agent", "move", { card: theirs.id, toZone: "battlefield" });
-    expect(mine.pos).toEqual(homePos("you", mine));
-    expect(theirs.pos).toEqual(homePos("agent", theirs));
-    // one space, both halves: y alone says which side a card is on
-    expect(theirs.pos!.y).toBeLessThan(0.5);
-    expect(mine.pos!.y).toBeGreaterThan(0.5);
-  });
-
-  test("a card's first spot follows the old board's convention, by what it is", () => {
-    const kind = (name: string, typeLine: string, p: PlayerId = "you") => {
-      const c = seedCard(name, p, "hand", { typeLine });
-      applyAction(p, "move", { card: c.id, toZone: "battlefield" });
-      return c.pos!;
-    };
-    const land = kind("Forest", "Basic Land — Forest");
-    const creature = kind("Bear", "Creature — Bear");
-    const artifact = kind("Sol Ring", "Artifact");
-    const enchantment = kind("Ghostly Prison", "Enchantment");
-
-    // lands along your own edge, below everything else on your side, and the
-    // row starts at the left edge itself — nothing sits to the left of it
-    expect(land.y).toBeGreaterThan(creature.y);
-    expect(land.x).toBe(0);
-    // creatures forward, toward the midline (y 0.5 puts a card's CENTRE there)
-    expect(creature.y).toBeGreaterThan(0.5);
-    expect(creature.y).toBeLessThan(0.6);
-    // artifacts and enchantments share the side column, off to the right
-    expect(artifact).toEqual(enchantment);
-    expect(artifact.x).toBeGreaterThan(0.9);
-    expect(creature.x).toBeLessThan(0.1);
-
-    // and the agent's half mirrors all of it
-    const theirLand = kind("Island", "Basic Land — Island", "agent");
-    const theirCreature = kind("Bird", "Creature — Bird", "agent");
-    expect(theirLand.y).toBeLessThan(theirCreature.y);
-    expect(theirCreature.y).toBeLessThan(0.5);
-  });
-
-  test("a double-faced card files under the face it is showing", () => {
-    const c = seedCard("Vesuva", "you", "hand", {
-      typeLine: "Creature — Werewolf",
-      faces: [
-        { name: "Front", typeLine: "Creature — Werewolf" },
-        { name: "Back", typeLine: "Land" },
-      ] as any,
-      face: 1,
-    });
-    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
-    expect(c.pos).toEqual(homePos("you", c));
-    expect(c.pos!.y).toBe(1); // the land row, not the creature row
-  });
-
-  test("a home spot is flagged as nobody's choice, so the client may tidy it", () => {
-    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
-    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
-    expect(c.posAuto).toBe(true);
-    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
-    expect(c.posAuto).toBe(false);
-  });
-
-  test("a spot somebody chose survives the trip through the stack", () => {
-    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
-    applyAction("you", "cast", { card: c.id });
-    expect(c.zone).toBe("stack");
-    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
-    applyAction("agent", "stack_resolve", {});
-    expect(c.zone).toBe("battlefield");
-    expect(c.pos).toEqual({ x: 0.3, y: 0.7 });
-    expect(c.posAuto).toBe(false);
-  });
-
-  test("a card leaving the table is nobody's choice either", () => {
-    const c = seedCard("Bear", "you", "battlefield");
-    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
-    applyAction("you", "move", { card: c.id, toZone: "graveyard" });
     expect(c.pos).toBe(null);
-    expect(c.posAuto).toBe(false);
   });
 
-  test("a token arrives unchosen like anything else", () => {
+  test("a token arrives unplaced too", () => {
     const r = applyAction("you", "create_token", { name: "Treasure", typeLine: "Artifact — Treasure", n: 2 });
     const [first, second] = (r.ids as string[]).map((id) => game.cards[id]);
-    expect(first.posAuto).toBe(true);
-    expect(first.pos).toEqual(homePos("you", first));
+    expect(first.pos ?? null).toBe(null);
     // the second is tucked under the first: the pile's anchor owns the spot
     expect(second.under).toBe(first.id);
   });
 
-  test("the view carries the flag, or the client cannot act on it", () => {
+  test("a placed card stays placed while it stays on the table", () => {
     const c = seedCard("Bear", "you", "battlefield");
-    c.posAuto = true;
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    applyAction("you", "tap", { cards: [c.id] });
+    applyAction("you", "untap", { cards: [c.id] });
+    expect(c.pos).toEqual({ x: 0.3, y: 0.7 });
+  });
+
+  test("a spot chosen on the stack survives the resolution", () => {
+    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("stack");
+    expect(c.pos).toBe(null);
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("battlefield");
+    expect(c.pos).toEqual({ x: 0.3, y: 0.7 });
+  });
+
+  test("a card leaving the table loses its spot, and comes back unplaced", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    applyAction("you", "move", { card: c.id, toZone: "graveyard" });
+    expect(c.pos).toBe(null);
+    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
+    expect(c.pos).toBe(null);
+  });
+
+  test("the view carries a null spot as null, not as a made-up one", () => {
+    const c = seedCard("Bear", "you", "battlefield");
     const seen = viewFor("you").players.you.zones.battlefield.find((x: any) => x.id === c.id);
-    expect(seen.posAuto).toBe(true);
+    expect(seen.pos).toBe(null);
   });
 
   test("place moves cards without logging — it is not a game action", () => {
@@ -885,73 +829,45 @@ describe("the table surface", () => {
     const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: c.id });
     expect(c.zone).toBe("stack");
-    // the stack is on the table, so it already has a spot like anything else
-    expect(c.pos).toEqual(homePos("you", c));
+    expect(c.pos).toBe(null);
     applyAction("you", "place", { positions: [{ card: c.id, x: 0.4, y: 0.7 }] });
     applyAction("agent", "stack_resolve", {});
     expect(c.zone).toBe("battlefield");
     expect(c.pos).toEqual({ x: 0.4, y: 0.7 });
   });
 
-  test("an unresolved card nobody placed resolves where it was already sitting", () => {
+  test("a card resolving carries whatever spot it had on the stack, including none", () => {
     const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: c.id });
-    const hovering = { ...c.pos! };
     applyAction("agent", "stack_resolve", {});
-    expect(c.pos).toEqual(hovering);
-    expect(c.pos).toEqual(homePos("you", c));
+    expect(c.zone).toBe("battlefield");
+    expect(c.pos).toBe(null);
   });
 
-  test("tokens get a starting spot too, filed by what the token is", () => {
-    applyAction("you", "create_token", { name: "Treasure", typeLine: "Token Artifact — Treasure", n: 2 });
-    applyAction("you", "create_token", { name: "Soldier", typeLine: "Token Creature — Soldier", power: "1", toughness: "1" });
-    const bf = game.players.you.zones.battlefield.map((id) => game.cards[id]);
-    const treasure = bf.find((c) => c.name === "Treasure")!;
-    const soldier = bf.find((c) => c.name === "Soldier")!;
-    // a token never passes through relocateCard, so this is the path that
-    // used to leave it with no position at all
-    expect(treasure.pos).toEqual(homePos("you", treasure));
-    expect(soldier.pos).toEqual(homePos("you", soldier));
-    // an artifact token belongs in the right-hand column, a creature forward
-    expect(treasure.pos!.x).toBeGreaterThan(0.9);
-    expect(soldier.pos!.x).toBeLessThan(0.1);
-  });
-
-  test("an instant hovers at a casting spot, not in a permanent row", () => {
+  test("a spell carries no position into the graveyard", () => {
     const bolt = seedCard("Lightning Bolt", "you", "hand", { typeLine: "Instant" });
-    const bear = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: bolt.id });
-    applyAction("you", "cast", { card: bear.id });
-    // different kinds of card go to different places on the table
-    expect(bolt.pos).not.toEqual(bear.pos);
-    // top centre of your half, up against the midline. y 0.5 puts a card's
-    // CENTRE on the midline, so just over it is just inside your own half.
-    expect(bolt.pos!.x).toBe(0.5);
-    expect(bolt.pos!.y).toBeGreaterThan(0.5);
-    expect(bolt.pos!.y).toBeLessThan(0.65);
-    // same row as the creatures, but centred instead of hard left
-    expect(bolt.pos!.x).toBeGreaterThan(bear.pos!.x);
-    // and it carries no position into the graveyard
+    applyAction("you", "place", { positions: [{ card: bolt.id, x: 0.5, y: 0.55 }] });
     applyAction("agent", "stack_resolve", { item: game.stack[0].id });
     expect(bolt.zone).toBe("graveyard");
     expect(bolt.pos).toBeNull();
   });
 
-  test("leaving the battlefield drops the position; coming back re-homes it", () => {
+  test("leaving the battlefield drops the position; coming back arrives unplaced", () => {
     const c = seedCard("C", "you", "battlefield");
     applyAction("you", "place", { positions: [{ card: c.id, x: 0.6, y: 0.7 }] });
     applyAction("you", "move", { card: c.id, toZone: "graveyard" });
     expect(c.pos).toBeNull();
     applyAction("you", "move", { card: c.id, toZone: "battlefield" });
-    expect(c.pos).toEqual(homePos("you", c));
+    expect(c.pos).toBeNull();
   });
 
-  test("changing controller re-homes the card onto its new side", () => {
+  test("changing controller unplaces the card, so it is re-placed on its new side", () => {
     const c = seedCard("Stolen", "agent", "battlefield");
     applyAction("agent", "place", { positions: [{ card: c.id, x: 0.5, y: 0.2 }] });
     applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "you" });
     expect(c.controller).toBe("you");
-    expect(c.pos).toEqual(homePos("you", c));
+    expect(c.pos).toBeNull();
   });
 
   test("the agent sees positions — it shares the surface and places its own cards", () => {

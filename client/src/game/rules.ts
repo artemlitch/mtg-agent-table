@@ -6,8 +6,15 @@ import { act } from "../api";
 import { cardById, gameView } from "../store/game";
 import type { Card, PlayerId, StackItem } from "../types";
 
-export function typeCat(c: Card): "creature" | "land" | "other" {
-  const t = (c.typeLine || "").toLowerCase();
+export type TypeCat = "creature" | "land" | "spell" | "other";
+
+/** Which row a card belongs in. A DFC is whichever face it is showing.
+ *  Instants and sorceries are checked first: they never rest on the
+ *  battlefield at all, so they get a casting spot near the midline rather
+ *  than a place in one of the permanent rows. */
+export function typeCat(c: Card): TypeCat {
+  const t = (c.faces?.[c.face ?? 0]?.typeLine ?? c.typeLine ?? "").toLowerCase();
+  if (/\b(instant|sorcery)\b/.test(t)) return "spell";
   if (t.includes("creature")) return "creature";
   if (t.includes("land")) return "land";
   return "other"; // artifacts, enchantments, planeswalkers → side column

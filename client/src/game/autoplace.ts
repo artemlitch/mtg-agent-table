@@ -6,9 +6,45 @@
 // out of that, so rearranging the table by hand cannot desynchronise
 // anything: the next card simply looks again.
 //
-// Everything in this file is a pure function of the numbers passed in. It
-// knows nothing about cards, the DOM, the store or the server — see
-// settle.ts for the part that does.
+// Everything in this file is a pure function of its arguments. It knows
+// nothing about the DOM, the store or the server — see settle.ts for the
+// part that does. The type imports are erased, so this stays loadable
+// anywhere.
+import type { PlayerId } from "../types";
+import type { TypeCat } from "./rules";
+
+/** Where a card of each kind heads for when it reaches the table. Only ever a
+ *  starting point: the search below moves off it if it is taken, and once a
+ *  card has a spot nothing consults this again.
+ *
+ *  The convention is the one the old board laid out by hand — lands in a row
+ *  along your own edge, creatures forward toward the midline, artifacts and
+ *  enchantments off to one side — in table coordinates.
+ *
+ *  A note on y: it is a fraction of the PLACEABLE span (board height minus a
+ *  card), which puts a card's CENTRE at the midline when y is 0.5. So "just
+ *  inside my half" is a little over 0.5, not a little under 1. y of 0 and 1
+ *  mean flush against the far edges; a card is held clear of the hands that
+ *  overlap those edges, so a land at y=1 rests on top of your hand rather
+ *  than behind it. */
+const HOME: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
+  you: {
+    creature: { x: 0.02, y: 0.59 }, // top left of your half
+    spell: { x: 0.5, y: 0.59 }, //    top centre, up against the midline
+    other: { x: 0.97, y: 0.73 }, //   the right-hand column
+    land: { x: 0, y: 1 }, //          the land row, flush above your hand
+  },
+  // the agent's half mirrors yours about the midline: same x, y flipped, so
+  // its creatures also come forward and its lands also sit on its own edge
+  agent: {
+    creature: { x: 0.02, y: 0.41 },
+    spell: { x: 0.5, y: 0.41 },
+    other: { x: 0.97, y: 0.27 },
+    land: { x: 0, y: 0 },
+  },
+};
+
+export const homeSpot = (player: PlayerId, cat: TypeCat) => ({ ...HOME[player][cat] });
 
 export interface Box {
   left: number;

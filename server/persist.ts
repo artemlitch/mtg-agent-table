@@ -53,6 +53,9 @@ export function restoreState(snap: any): PersistedExtra {
     // attach became board piles: rename the pointer
     if (c.under === undefined) c.under = c.attachedTo ?? null;
     delete c.attachedTo;
+    // positions were briefly flagged as server defaults; the client decides
+    // from pos alone now
+    delete c.posAuto;
     // P/T counters are one net quantity now — normalize legacy negatives
     if (c.counters) {
       const net = (c.counters["+1/+1"] || 0) - (c.counters["-1/-1"] || 0);

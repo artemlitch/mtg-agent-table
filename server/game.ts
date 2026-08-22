@@ -53,60 +53,13 @@ export interface Card {
   // yours, so the midline is ~0.5. ONE space for both halves — which half a
   // card is in is read off y, not off who controls it. Battlefield only;
   // null everywhere else.
+  // Null until somebody places the card. Nothing here invents one: where a
+  // card should go is a question about the felt — how wide a card is in that
+  // window, what is already lying there, which way a row grows — and none of
+  // that is knowable from here. A card on the table with a null pos is a card
+  // waiting for the client to place it, which it does before the next paint.
   pos?: { x: number; y: number } | null;
-  // True while pos is only the default for the card's type — nobody has
-  // chosen where this card sits. The client tidies these: it knows how big a
-  // card is on screen and what else is already on the felt, and the server
-  // knows neither. Any explicit placement clears it.
-  posAuto?: boolean;
 }
-
-/** Where a card FIRST lands, by what it is. Only an initial value: it is
- *  written into pos like any other position, and the moment anybody drags
- *  the card it is overwritten and never consulted again.
- *
- *  The convention is the one the old board laid out by hand — lands in a row
- *  along your own edge, creatures forward toward the midline, artifacts and
- *  enchantments off to one side — expressed in table coordinates.
- *
- *  A note on y: it is a fraction of the PLACEABLE span (board height minus a
- *  card), which puts a card's CENTRE at the midline when y is 0.5. So "just
- *  inside my half" is a little over 0.5, not a little under 1. y of 0 and 1
- *  mean flush against the far edges; the client holds a card off the hands
- *  that overlap those edges, so a land at y=1 rests exactly on top of your
- *  hand rather than behind it. */
-const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
-  you: {
-    creature: { x: 0.02, y: 0.59 }, // top left of your half
-    spell: { x: 0.5, y: 0.59 }, //    top centre, up against the midline
-    other: { x: 0.97, y: 0.73 }, //   the right-hand column
-    land: { x: 0, y: 1 }, //          the land row, flush above your hand
-  },
-  // the agent's half mirrors yours about the midline: same x, y flipped, so
-  // its creatures also come forward and its lands also sit on its own edge
-  agent: {
-    creature: { x: 0.02, y: 0.41 },
-    spell: { x: 0.5, y: 0.41 },
-    other: { x: 0.97, y: 0.27 },
-    land: { x: 0, y: 0 },
-  },
-};
-
-type TypeCat = "creature" | "land" | "spell" | "other";
-
-/** Which row a card belongs in. A DFC is whichever face it is showing.
- *  Instants and sorceries are checked first: they never rest on the
- *  battlefield at all, so they get a casting spot near the midline rather
- *  than a place in one of the permanent rows. */
-function typeCat(card: Card): TypeCat {
-  const t = (card.faces?.[card.face ?? 0]?.typeLine ?? card.typeLine ?? "").toLowerCase();
-  if (/\b(instant|sorcery)\b/.test(t)) return "spell";
-  if (t.includes("creature")) return "creature";
-  if (t.includes("land")) return "land";
-  return "other";
-}
-
-export const homePos = (player: PlayerId, card: Card) => ({ ...DEFAULT_POS[player][typeCat(card)] });
 
 /** Table coordinates are fractions; anything else is off the table. NaN lands
  *  at 0 rather than poisoning the card's position. */
@@ -390,7 +343,6 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     attacking: card.attacking,
     blocking: card.blocking,
     pos: card.pos ?? null,
-    posAuto: !!card.posAuto,
   };
   if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
   // a DFC always presents as its ACTIVE face — the composite name never shows
@@ -532,10 +484,11 @@ function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
   // get one and everywhere else clears it — the client never invents a spot.
   // A card resolving off the stack keeps the one it was already sitting at,
   // which is what makes a creature resolve exactly where it was hovering.
-  const onTable = zone === "battlefield" || zone === "stack";
-  const kept = from === "stack" && card.pos;
-  card.pos = onTable ? (kept ? card.pos! : homePos(player, card)) : null;
-  card.posAuto = onTable && !kept;
+  // A card resolving off the stack keeps the spot it was already sitting at,
+  // which is what makes a creature resolve exactly where it was hovering.
+  // Everything else arrives unplaced.
+  const keepsItsSpot = from === "stack" && (zone === "battlefield" || zone === "stack") && card.pos;
+  card.pos = keepsItsSpot ? card.pos! : null;
   return game.players[player].zones[zone];
 }
 
@@ -970,12 +923,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         tapped: !!p.tapped,
         isToken: true,
       });
-      // a token arrives on the battlefield without passing through
-      // relocateCard, so it needs its starting spot handed to it directly —
-      // it is a card on the table like any other. A token artifact files in
-      // the right-hand column, a token creature comes forward.
-      token.pos = homePos(player, token);
-      token.posAuto = true;
       game.cards[id] = token;
       game.players[player].zones.battlefield.push(id);
       // a batch is ONE object on the table, not n of them scattered across it:
@@ -1530,7 +1477,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         throw new Error(`${c.name} is in ${c.zone} — only cards on the table (battlefield or stack) have a position`);
       }
       c.pos = { x: clamp01(Number(at.x)), y: clamp01(Number(at.y)) };
-      c.posAuto = false; // somebody chose this one
       moved.push(c.id);
     }
     return { ok: true, placed: moved.length };

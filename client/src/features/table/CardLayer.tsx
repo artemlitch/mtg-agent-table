@@ -16,7 +16,7 @@ import { CardEl } from "../../components/Card";
 import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
-import { settleAutoPlaced } from "../../game/settle";
+import { settleUnplaced } from "../../game/settle";
 import { PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -50,12 +50,12 @@ export function CardLayer() {
     };
   }, []);
 
-  // Anything that reached the table without a chosen spot gets one here,
-  // after the cards are in the DOM (their rects are what the search reads)
-  // but before the browser paints, so nothing is ever seen at the default
-  // spot it is about to leave.
+  // Anything that reached the table without a spot gets one here, after the
+  // cards already out are in the DOM — their rects are what the search reads
+  // — and before the browser paints, so a new card's first frame is the one
+  // that has it in the right place.
   useLayoutEffect(() => {
-    if (measured && settleAutoPlaced()) bump((n) => n + 1);
+    if (measured && settleUnplaced()) bump((n) => n + 1);
   });
 
   // the fonts and art land after first paint and can change the hand's height,
@@ -99,7 +99,11 @@ export function CardLayer() {
  *  put it in is where it resolves — it just cannot be tapped, because
  *  tapping is not an action it has yet. */
 function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: StackItem }) {
-  const { left, top, depth } = anchorOf(c);
+  const anchor = anchorOf(c);
+  // not placed yet: it gets a spot in this same commit, before the frame is
+  // painted, so it appears where it belongs rather than sliding there
+  if (!anchor) return null;
+  const { left, top, depth } = anchor;
   const mine = item ? item.player === "you" : c.controller === "you";
   const spell = item && resolveZoneOf(item) !== "battlefield";
   // "tuckover" is not in this list on purpose: the drag paints it straight
@@ -156,8 +160,10 @@ function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: 
 }
 
 /** Walk up the pile to the card that actually owns a position, and count the
- *  rungs on the way so the cascade knows how far down this card hangs. */
-function anchorOf(c: Card): { left: number; top: number; depth: number } {
+ *  rungs on the way so the cascade knows how far down this card hangs.
+ *  Null means the card has not been placed yet — settleUnplaced() is about
+ *  to give it a spot, and until it does there is nowhere honest to draw it. */
+function anchorOf(c: Card): { left: number; top: number; depth: number } | null {
   let top: Card = c;
   let depth = 0;
   let guard = 0;
@@ -170,9 +176,8 @@ function anchorOf(c: Card): { left: number; top: number; depth: number } {
   // a position you just dropped the card at outranks the one in the view: the
   // server has not answered yet, and the card must not flick back meanwhile
   const claimed = useGame.getState().pendingPos.get(top.id);
-  // every card on the table has a position — the server gives one to anything
-  // that reaches the battlefield or the stack. The centre is a bug marker.
-  const pos = claimed ?? top.pos ?? { x: 0.5, y: 0.5 };
+  const pos = claimed ?? top.pos;
+  if (!pos) return null;
   const at = posToPx(pos);
   const out = { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
   traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "MISSING", depth);

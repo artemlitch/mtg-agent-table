@@ -2,7 +2,7 @@
 // agent's conversation can't be unwound, so undo leaves the agent untouched
 // and it learns about the rewind from the ↩ log entry.
 
-import { game, getNextCardId, homePos, setNextCardId } from "./game";
+import { game, getNextCardId, setNextCardId } from "./game";
 import { serializeState, restoreState } from "./persist";
 
 let history: any[] = [];
@@ -59,8 +59,9 @@ function restore(snap: any) {
       continue;
     }
     // a card that was already out keeps where you put it; one the rewind
-    // brought back has only the snapshot's spot, or needs a fresh one
-    c.pos = layout.get(c.id) ?? c.pos ?? homePos(c.controller, c);
+    // brought back has the snapshot's spot, or none yet and the client will
+    // place it
+    c.pos = layout.get(c.id) ?? c.pos ?? null;
   }
 }
 

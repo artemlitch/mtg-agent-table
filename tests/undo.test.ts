@@ -1,6 +1,6 @@
 // Undo: per-action snapshots, state rewind, monotonic seq, log notice.
 import { describe, test, expect, beforeEach } from "vitest";
-import { game, resetGameState, applyAction, addLog, getNextCardId, makeCard, newCardId, homePos } from "../server/game";
+import { game, resetGameState, applyAction, addLog, getNextCardId, makeCard, newCardId } from "../server/game";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, historySize } from "../server/history";
 
 function doAction(actor: "you" | "agent", type: string, params: any = {}) {
@@ -53,7 +53,18 @@ describe("undo leaves the table's layout alone", () => {
     expect(game.cards[id].pos).toBeNull();
   });
 
-  test("a card the rewind brings back onto the table always has a spot", () => {
+  test("a rewind leaves the layout alone — where you put a card is not a move", () => {
+    const id = bear();
+    doAction("you", "move", { card: id, toZone: "battlefield" });
+    doAction("you", "place", { positions: [{ card: id, x: 0.42, y: 0.66 }] });
+    doAction("you", "life", { player: "you", delta: -3 });
+
+    undoLast();
+    expect(game.players.you.life).toBe(40);
+    expect(game.cards[id].pos).toEqual({ x: 0.42, y: 0.66 });
+  });
+
+  test("a card the rewind brings back onto the table comes back unplaced", () => {
     const id = bear();
     doAction("you", "move", { card: id, toZone: "battlefield" });
     doAction("you", "move", { card: id, toZone: "graveyard" });
@@ -61,7 +72,7 @@ describe("undo leaves the table's layout alone", () => {
 
     undoLast();
     expect(game.cards[id].zone).toBe("battlefield");
-    expect(game.cards[id].pos).toEqual(homePos("you", game.cards[id]));
+    expect(game.cards[id].pos).toBeNull();
   });
 });
 
