@@ -27,6 +27,14 @@ button:hover {
   background: linear-gradient(180deg, #2d2640, #1b1626) padding-box, var(--chrome) border-box;
   color: var(--gold-hi); box-shadow: 0 0 9px rgba(226, 179, 85, 0.28);
 }
+/* The quiet variant: no plate, no rim, no glow — only the text reacts. It has
+   to switch them off on hover as well as at rest, because button:hover above
+   sets a background and a shadow of its own and a subtle button that lights up
+   like a plate is not subtle. */
+button.ghost,
+button.ghost:hover {
+  background: none; border-color: transparent; box-shadow: none;
+}
 button.accent {
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
   color: #2a1c04; text-shadow: 0 1px 0 rgba(255, 240, 190, 0.4);

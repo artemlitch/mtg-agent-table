@@ -108,7 +108,9 @@ function DeckPile({ p }: { p: PlayerId }) {
         <div className="deckcount">{count}</div>
         {p === "you" && (
           <button
-            className="drawbtn"
+            /* the same gold plate as End turn — the two buttons you actually
+               press every turn should look like each other */
+            className="drawbtn accent"
             onClick={(e) => {
               e.stopPropagation();
               void act("draw", { n: 1 });

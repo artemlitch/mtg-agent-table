@@ -19,7 +19,7 @@ export function NextAction() {
     <div id="nextaction">
       <div className="na-row">
         <div className="na-undowrap">
-          <button id="na-undo" data-tip="Undo" data-tip-keys="⌘,Z" onClick={() => void undoLastAction()}>
+          <button id="na-undo" className="ghost" data-tip="Undo" data-tip-keys="⌘,Z" onClick={() => void undoLastAction()}>
             <Icon name="undo" />
           </button>
         </div>
@@ -43,7 +43,7 @@ export function NextAction() {
         {/* redo only exists while a rewind is still un-branched */}
         {view.canRedo && (
           <div className="na-redowrap">
-            <button id="na-redo" data-tip="Redo" data-tip-keys="⌘,⇧,Z" onClick={() => void redoLastAction()}>
+            <button id="na-redo" className="ghost" data-tip="Redo" data-tip-keys="⌘,⇧,Z" onClick={() => void redoLastAction()}>
               <Icon name="redo" />
             </button>
           </div>
@@ -51,7 +51,7 @@ export function NextAction() {
       </div>
 
       {a.skip && (
-        <button id="na-skip" onClick={() => void passTurnToAgent()}>
+        <button id="na-skip" className="ghost" onClick={() => void passTurnToAgent()}>
           <span>
             <Icon name="skip" /> skip to pass turn
           </span>
