@@ -80,7 +80,7 @@ const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> =
     creature: { x: 0.02, y: 0.59 }, // top left of your half
     spell: { x: 0.5, y: 0.59 }, //    top centre, up against the midline
     other: { x: 0.97, y: 0.73 }, //   the right-hand column
-    land: { x: 0.12, y: 1 }, //       the land row, flush above your hand
+    land: { x: 0, y: 1 }, //          the land row, flush above your hand
   },
   // the agent's half mirrors yours about the midline: same x, y flipped, so
   // its creatures also come forward and its lands also sit on its own edge
@@ -88,7 +88,7 @@ const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> =
     creature: { x: 0.02, y: 0.41 },
     spell: { x: 0.5, y: 0.41 },
     other: { x: 0.97, y: 0.27 },
-    land: { x: 0.12, y: 0 },
+    land: { x: 0, y: 0 },
   },
 };
 

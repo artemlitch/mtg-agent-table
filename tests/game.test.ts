@@ -770,8 +770,10 @@ describe("the table surface", () => {
     const artifact = kind("Sol Ring", "Artifact");
     const enchantment = kind("Ghostly Prison", "Enchantment");
 
-    // lands along your own edge, below everything else on your side
+    // lands along your own edge, below everything else on your side, and the
+    // row starts at the left edge itself — nothing sits to the left of it
     expect(land.y).toBeGreaterThan(creature.y);
+    expect(land.x).toBe(0);
     // creatures forward, toward the midline (y 0.5 puts a card's CENTRE there)
     expect(creature.y).toBeGreaterThan(0.5);
     expect(creature.y).toBeLessThan(0.6);
