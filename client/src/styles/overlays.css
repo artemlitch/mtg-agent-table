@@ -51,20 +51,39 @@ body.unfocused .na-key { display: none; }
   position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 45;
   display: flex; flex-direction: column; align-items: center;
 }
-/* satellites hover around the primary without displacing it: the row centres
-   on the primary alone, everything else is taken out of flow */
+/* Satellites hover around the primary without displacing it: they are taken
+   out of flow, so the row's width is the primary's width alone and the whole
+   block stays centred on the playmat however many satellites are showing.
+   bottom: 0 sits them on the primary's bottom edge rather than its middle —
+   the primary grows taller when it carries a sub-line, and a centred satellite
+   would drift with it. */
 .na-row { position: relative; display: flex; align-items: center; justify-content: center; }
-.na-undowrap { position: absolute; right: 100%; margin-right: 6px; }
-.na-redowrap { position: absolute; left: 100%; margin-left: 6px; }
+.na-undowrap { position: absolute; right: 100%; bottom: 0; margin-right: 6px; }
+.na-redowrap { position: absolute; left: 100%; bottom: 0; margin-left: 6px; }
 /* the satellites read like the skip line below the prompt, not like controls:
    no plate, grey, and only the ink brightens on hover */
 #na-undo,
 #na-redo {
-  display: flex; align-items: center; justify-content: center;
+  /* the box stays 26px so it is still worth aiming at, but the glyph sits at
+     the bottom of it: what should line up with the primary's edge is the ink,
+     not the hit target it floats in */
+  position: relative;
+  display: flex; align-items: flex-end; justify-content: center;
   width: 26px; height: 26px; padding: 0; font-size: var(--fs-body); line-height: 1;
   color: var(--dim); opacity: 0.5;
 }
-#na-undo .ico { font-size: var(--fs-note); line-height: 1; }
+/* The glyph is small and sits in a corner of the prompt, so the target it
+   answers to is bigger than the box it is drawn in — an absolute pseudo takes
+   no layout, so nothing moves. It stops short on the side facing the primary:
+   these are positioned and would otherwise paint over the primary's edge and
+   swallow clicks meant for it. */
+#na-undo::before,
+#na-redo::before { content: ""; position: absolute; }
+#na-undo::before { inset: -13px 4px -13px -15px; }
+#na-redo::before { inset: -13px -15px -13px 4px; }
+/* the last pixel is the button's own (transparent) bottom border — the ink
+   has to clear it to sit on the primary's edge */
+#na-undo .ico, #na-redo .ico { font-size: var(--fs-note); line-height: 1; margin-bottom: -1px; }
 #na-undo:hover, #na-redo:hover { opacity: 1; color: var(--accent); }
 /* the card being resolved rides inside the button, on the left; hovering it
    still opens the full-size preview */

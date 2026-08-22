@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { redoLastAction, undoLastAction } from "../../api";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
@@ -13,6 +14,7 @@ export function NextAction() {
   const ctx = nextActionContext(view);
   const rule = NEXT_ACTION_STEPS.find((r) => r.when(ctx));
   const a = rule ? rule.step(ctx) : null;
+  const size = useSizeTransition();
   if (!a) return null;
 
   return (
@@ -27,7 +29,7 @@ export function NextAction() {
         {a.hint ? (
           <div id="na-hint">{a.hint}</div>
         ) : (
-          <button id="na-primary" title={a.title || ""} onClick={a.fn}>
+          <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} />}
             <span className="na-text">
               <span className="na-label">
@@ -60,4 +62,42 @@ export function NextAction() {
       )}
     </div>
   );
+}
+
+/** The prompt's label changes length constantly — "Draw 1" one tap, "Resolve
+ *  all (3)" the next — and an auto-sized box just snaps to the new width.
+ *  CSS cannot transition that on its own: the computed width is `auto` before
+ *  and after, so no transition ever fires. So pin the old size, force a
+ *  reflow, then animate to the new one and hand the box back to `auto`. All of
+ *  it before paint, so the pinned frame is never shown.
+ */
+function useSizeTransition() {
+  const ref = useRef<HTMLButtonElement>(null);
+  const prev = useRef<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      prev.current = null;
+      return;
+    }
+    const to = { w: el.offsetWidth, h: el.offsetHeight };
+    const from = prev.current;
+    prev.current = to;
+    if (!from || (from.w === to.w && from.h === to.h)) return;
+    el.style.transition = "none";
+    el.style.width = `${from.w}px`;
+    el.style.height = `${from.h}px`;
+    void el.offsetWidth; // flush, or the browser coalesces both sizes into one
+    el.style.transition = "width 0.22s ease, height 0.22s ease";
+    el.style.width = `${to.w}px`;
+    el.style.height = `${to.h}px`;
+    const release = () => {
+      el.style.transition = "";
+      el.style.width = "";
+      el.style.height = "";
+    };
+    const t = window.setTimeout(release, 240);
+    return () => window.clearTimeout(t);
+  });
+  return ref;
 }

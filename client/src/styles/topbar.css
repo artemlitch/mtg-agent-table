@@ -6,8 +6,10 @@
   border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
 }
 /* never wrap the topbar: the banner is the one flexible item and truncates
-   away; the bar clips as a backstop so it can't paint over the side panel */
-#topbar { overflow: hidden; }
+   away; the bar clips as a backstop so it can't paint over the side panel.
+   The stacking context is what the agent's hand tucks under — its cards ride
+   up past the top of the felt and this bar has to cover them. */
+#topbar { overflow: hidden; position: relative; z-index: 50; }
 #topbar > * { flex-shrink: 0; }
 .setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
 #turnbanner {

@@ -125,9 +125,17 @@
   transform: rotate(var(--fan-rot)) translateY(var(--fan-y));
 }
 #hand-you.fan .card.fanned:hover { transform: rotate(var(--fan-rot)) translateY(var(--fan-y)) scale(1.06); }
-#hand-agent.fan { align-items: flex-start; padding: 10px 8px 0; }
+/* the agent's hand is card backs — it does not need to be read, only counted,
+   so it hangs half a card deep and the top half tucks up behind the topbar
+   (which is raised above it in base.css). Both margins are half a card: the
+   top one lifts it under the bar, the bottom one takes the hidden half back
+   out of the layout, so the strip costs exactly the half you can see. */
+#hand-agent.fan {
+  align-items: flex-start; padding: 0 8px;
+  min-height: calc(var(--hand-card-h) * 0.5);
+}
 #hand-agent.fan .card.fanned {
-  margin: 0 -11px -30px;
+  margin: calc(var(--hand-card-h) * -0.5) -11px calc(var(--hand-card-h) * -0.5);
   transform-origin: 50% -30%;
   transform: rotate(calc(var(--fan-rot) * -1)) translateY(calc(var(--fan-y) * -1));
 }
