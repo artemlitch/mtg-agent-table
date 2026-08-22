@@ -392,7 +392,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: var(--fw-heading) var(--fs-body) var(--font-fantasy); color: var(--dim); }
 .lifebox {
   border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; text-align: center;
-  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+  background: var(--panel2);
 }
 .lifebox .life { font-size: var(--fs-huge); font-family: var(--font-fantasy); }
 .cmdmg { font-size: var(--fs-micro); color: var(--red); margin-top: 3px; }
