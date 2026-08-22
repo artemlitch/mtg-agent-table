@@ -130,6 +130,7 @@ function render() {
   processSounds();
   updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
+  modalRefresh?.(); // an open zone browser follows the pile it is showing
 }
 
 // ---------------------------------------------------------------------------
@@ -2149,7 +2150,11 @@ function applyCardSize(n = perRow()) {
 }
 window.addEventListener("resize", () => applyCardSize());
 
+/** A card browser that mirrors a live zone registers its redraw here. */
+let modalRefresh = null;
+
 function openModal(title, bodyEl, opts = {}) {
+  modalRefresh = null; // a new modal owns the slot
   const box = $("#modal-box");
   $("#modal .targetpanel")?.remove(); // stale palette from a previous modal
   // card browsers are fixed-size (hard rule); compact modals size to content
@@ -2175,6 +2180,7 @@ function openModal(title, bodyEl, opts = {}) {
   applyCardSize(); // needs the box laid out, so after it is shown
 }
 function closeModal() {
+  modalRefresh = null;
   $("#modal").classList.add("hidden");
   $("#modal .targetpanel")?.remove();
   hidePreview();
@@ -2513,11 +2519,21 @@ function abilityModal(c) {
 }
 
 function showZoneModal(p, zone) {
-  // piles read newest-first: the last card added is the top of the pile
-  const cards = [...state.players[p].zones[zone]].reverse();
   const grid = document.createElement("div");
   grid.className = "modalcards";
-  const renderGrid = () => {
+  // The window is a view of the pile, not a snapshot of it: exiling a card
+  // must take it out of the graveyard you are looking at. Redrawn whenever the
+  // pile changes — including changes the agent makes — and skipped otherwise,
+  // so the poll doesn't rebuild the grid under your cursor.
+  let sig = null;
+  const renderGrid = (force) => {
+    // piles read newest-first: the last card added is the top of the pile
+    const cards = [...state.players[p].zones[zone]].reverse();
+    const ids = cards.map((c) => c.id).join(",");
+    if (!force && ids === sig) return;
+    sig = ids;
+    const title = $("#modal-box h3");
+    if (title) title.textContent = `${p === "you" ? "Your" : "Agent's"} ${zone} (${cards.length})`;
     grid.innerHTML = "";
     const shown = cards.filter(fb.predicate);
     if (!shown.length) grid.textContent = cards.length ? "(no matches)" : "(empty)";
@@ -2531,7 +2547,9 @@ function showZoneModal(p, zone) {
       }
       // Only PLAYING a card uses the stack. Every other row is bookkeeping
       // for an effect that has already resolved, so it just moves the card.
-      const move = (params) => act("move", { card: c.id, ...params });
+      // refresh rather than wait for the next poll — the card should leave the
+      // pile the moment you send it somewhere
+      const move = (params) => act("move", { card: c.id, ...params }).then(refresh);
       grid.appendChild(
         modalCardEl(c, [
           [
@@ -2547,9 +2565,12 @@ function showZoneModal(p, zone) {
       );
     }
   };
-  const fb = filterBar(() => renderGrid());
-  renderGrid();
-  openModal(`${p === "you" ? "Your" : "Agent's"} ${zone} (${cards.length})`, grid, { header: fb.el });
+  const fb = filterBar(() => renderGrid(true));
+  renderGrid(true);
+  openModal(`${p === "you" ? "Your" : "Agent's"} ${zone} (${state.players[p].zones[zone].length})`, grid, {
+    header: fb.el,
+  });
+  modalRefresh = renderGrid;
 }
 
 function peekModal(p, cards) {
