@@ -164,7 +164,7 @@
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 /* the dial number is large, so it carries a heavier weight than its label */
-#menu.libpanel .lp-count { font: var(--fw-dial) var(--fs-next)/1 var(--font-action); color: var(--c); position: relative; z-index: 1; }
+#menu.libpanel .lp-count { font: var(--fw-dial) var(--fs-dial)/1 var(--font-action); color: var(--c); position: relative; z-index: 1; }
 #menu.libpanel .lp-step {
   position: absolute; left: 50%; transform: translateX(-50%);
   font: var(--fw-dial) var(--fs-tiny)/1 var(--font-action); color: var(--c);

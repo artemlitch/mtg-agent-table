@@ -21,7 +21,7 @@
   padding: 5px 9px; border-radius: 7px;
   background: rgba(15, 10, 6, 0.95); border: 1px solid rgba(226, 179, 85, 0.35);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
-  font: var(--fw-label) var(--fs-note)/1.35 var(--font-fantasy); letter-spacing: 0.06em;
+  font: var(--fw-label) var(--fs-micro)/1.35 var(--font-fantasy); letter-spacing: 0.06em;
   color: var(--gold-hi);
   animation: previewIn 0.12s ease-out;
 }
@@ -34,10 +34,10 @@
   min-width: 13px; padding: 1.5px 5px;
   border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 4px;
   background: rgba(226, 179, 85, 0.05);
-  font: var(--fw-label) var(--fs-tiny)/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
+  font: var(--fw-label) var(--fs-nano)/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--dim);
 }
-.keyplus { font-size: var(--fs-tiny); color: var(--dim); opacity: 0.5; }
+.keyplus { font-size: var(--fs-nano); color: var(--dim); opacity: 0.5; }
 /* keyboard affordances are only meaningful while this window has focus */
 body.unfocused .na-key { display: none; }
 

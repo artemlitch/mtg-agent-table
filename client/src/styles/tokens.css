@@ -79,13 +79,15 @@
      size of its own. Re-declaring --fs-base on any element re-derives the
      whole scale for its subtree — see #pane-chat, which keeps the old size. */
   --fs-base: 13px;
-  --fs-tiny:  calc(var(--fs-base) * 0.73); /* card badges, keycaps */
-  --fs-micro: calc(var(--fs-base) * 0.8);
+  --fs-nano:  calc(var(--fs-base) * 0.65); /* keycaps — the quietest text there is */
+  --fs-tiny:  calc(var(--fs-base) * 0.73); /* card badges */
+  --fs-micro: calc(var(--fs-base) * 0.8);  /* tooltips */
   --fs-note:  calc(var(--fs-base) * 0.87); /* dense chrome: counts, tags */
   --fs-body:  var(--fs-base);              /* chat, logs, card text */
   --fs-label: calc(var(--fs-base) * 1.13); /* buttons, menu rows, inputs */
+  --fs-next:  calc(var(--fs-base) * 1.2);  /* the centred next action */
   --fs-action:calc(var(--fs-base) * 1.27); /* the top row of a menu */
-  --fs-next:  calc(var(--fs-base) * 1.4);  /* the centred next action */
+  --fs-dial:  calc(var(--fs-base) * 1.4);  /* the library panel's counter */
   --fs-title: calc(var(--fs-base) * 1.6);  /* deck counts, overlay titles */
   --fs-huge:  calc(var(--fs-base) * 1.87); /* life totals */
   /* Cinzel carries weight well and is the only face we take above regular;
