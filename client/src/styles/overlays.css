@@ -29,10 +29,12 @@
 
 /* keycaps: one component for every shortcut hint */
 .na-key { display: inline-flex; align-items: center; gap: 3px; line-height: 1; }
+/* the cap shrinks with its glyph — a small letter in the old box read as a
+   chip with a typo in it */
 .keycap {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 13px; padding: 1.5px 5px;
-  border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 4px;
+  min-width: 10px; padding: 1px 4px;
+  border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 3px;
   background: rgba(226, 179, 85, 0.05);
   font: var(--fw-label) var(--fs-nano)/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--dim);
