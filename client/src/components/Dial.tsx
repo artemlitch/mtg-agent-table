@@ -43,7 +43,15 @@ export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, 
     const b = box.current?.getBoundingClientRect();
     const f = field.current?.getBoundingClientRect();
     if (b && f) setEdge(Math.round(f.top - b.top));
-  }, [editable]);
+    // Focused here rather than through React's autoFocus attribute: that only
+    // fires on the very first mount, and this dial arrives inside a modal that
+    // may be swapping its body rather than mounting fresh. Selecting too, so
+    // the first digit replaces the default instead of appending to it.
+    if (autoFocus && field.current) {
+      field.current.focus();
+      field.current.select();
+    }
+  }, [editable, autoFocus]);
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
 
   // Takes a number, never the event: a synthetic event is only valid inside
@@ -80,7 +88,6 @@ export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, 
           ref={field}
           className="dial-count"
           inputMode="numeric"
-          autoFocus={autoFocus}
           value={String(value)}
           onClick={(e) => e.stopPropagation()}
           onFocus={(e) => e.currentTarget.select()}
