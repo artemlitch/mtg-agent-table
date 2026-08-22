@@ -58,9 +58,9 @@ export interface Spot {
   top: number;
 }
 
-/** Air kept clear around every card on the felt. Two cards butted edge to
- *  edge read as a pile; this is enough to read as two cards. */
-export const GAP = 8;
+/** Air kept clear around every card on the felt — just enough that two cards
+ *  side by side read as two cards rather than a pile. */
+export const GAP = 2;
 
 const right = (b: Box) => b.left + b.width;
 const bottom = (b: Box) => b.top + b.height;

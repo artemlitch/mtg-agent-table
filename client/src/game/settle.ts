@@ -15,6 +15,7 @@ import type { Card } from "../types";
 import { freeSpot, homeSpot, type Box, type Spot } from "./autoplace";
 import { dlog, pt } from "./debug";
 import { stackCardsOf, typeCat } from "./rules";
+import type { GameView, PlayerId } from "../types";
 import { CH, CW, placeRect, posToPx, pxToPos, snapshotCards } from "./table";
 
 /** Place every card on the table that has no position yet.
@@ -43,20 +44,28 @@ export function settleUnplaced(): boolean {
 
   const w = CW();
   const h = CH();
+  // A card makes room for its controller's cards and nobody else's. The two
+  // creature rows both crowd the midline, so at most window heights they sit
+  // a few pixels apart — near enough that the agent's row would read as
+  // blocking yours and push your creature onto their side of the table. You
+  // arrange your half, they arrange theirs.
+  //
   // Only the top of a pile counts as occupying its space: the cards tucked
   // under it are the same object on the table, not separate obstacles.
-  const mine = new Set(waiting.map((c) => c.id));
-  const occupied: Box[] = snapshotCards(mine)
+  const waitingIds = new Set(waiting.map((c) => c.id));
+  const held = controllers(view);
+  const occupied = snapshotCards(waitingIds)
     .filter((c) => !c.el.classList.contains("tucked"))
-    .map((c) => c.rect);
+    .map((c) => ({ by: held.get(c.id), ...c.rect }));
 
   for (const c of waiting) {
     const cat = typeCat(c);
     const home = posToPx(homeSpot(c.controller, cat));
-    const at: Spot = freeSpot(home, occupied, w, h, bounds);
+    const rivals: Box[] = occupied.filter((b) => b.by === c.controller);
+    const at: Spot = freeSpot(home, rivals, w, h, bounds);
     // the rest of this batch has to see it — the DOM will not know until the
     // next paint, and four tokens must not all take the same spot
-    occupied.push({ left: at.left, top: at.top, width: w, height: h });
+    occupied.push({ by: c.controller, left: at.left, top: at.top, width: w, height: h });
     const pos = pxToPos(at.left, at.top);
     dlog(`settle ${c.name}(${c.id})`, {
       as: cat,
@@ -64,10 +73,21 @@ export function settleUnplaced(): boolean {
       spot: `${Math.round(at.left)},${Math.round(at.top)}`,
       moved: at.left !== home.left || at.top !== home.top ? `${Math.round(at.left - home.left)},${Math.round(at.top - home.top)}` : "no",
       pos: pt(pos),
-      past: occupied.length - 1,
+      past: rivals.length,
     });
     useGame.getState().expectPos(c.id, pos);
     void act("place", { positions: [{ card: c.id, x: pos.x, y: pos.y }] });
   }
   return true;
+}
+
+/** Who controls each card drawn on the felt. The rects come from the DOM,
+ *  which knows nothing about seats. */
+function controllers(view: GameView): Map<string, PlayerId> {
+  const by = new Map<string, PlayerId>();
+  for (const p of ["you", "agent"] as const) {
+    for (const c of view.players[p].zones.battlefield) by.set(c.id, c.controller ?? p);
+    for (const it of stackCardsOf(p)) if (it.card) by.set(it.card.id, p);
+  }
+  return by;
 }
