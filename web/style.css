@@ -191,6 +191,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .card.handghost.overboard { transform: rotate(0deg) scale(1.03); box-shadow: 0 18px 34px rgba(0, 0, 0, 0.7), 0 0 18px rgba(226, 179, 85, 0.55); }
 .card.beingdragged { opacity: 0.3; }
+/* freshly dropped under the cursor: no hover styling until the pointer has
+   left it once (the JS preview is gated on the same class) */
+.card.nohover:hover .ctrbtn { opacity: 0; }
+#hand-you.fan .card.fanned.nohover:hover { transform: rotate(var(--fan-rot)) translateY(var(--fan-y)); }
 
 /* the strip that takes a board card back to hand, shown only mid-drag */
 #handzone {

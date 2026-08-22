@@ -1183,6 +1183,8 @@ function makeDraggable(el, c, bf, opts = {}) {
         el.classList.remove("dragging");
         for (const k of kids) k.el.style.transition = "";
         el.dataset.dragged = "1";
+        guardClicks();
+        noHoverCardId = c.id;
         draggingNow = false;
         hideHandZone();
         // dropped on the strip over your hand → the card goes back to hand
@@ -1270,6 +1272,20 @@ function pileChainBelow(id) {
   return out;
 }
 
+// A release always fires a click. The element the drag started on carries a
+// data-dragged flag, but after a hand drop that element is gone and the click
+// can land on the freshly rendered board card — which would tap the card you
+// just played. So drags also close this short window, and any card click
+// inside it is swallowed.
+let clickGuardUntil = 0;
+const guardClicks = () => { clickGuardUntil = Date.now() + 350; };
+
+// The card you just dropped sits under a stationary cursor, so it would come
+// up already hovered — preview open, chips showing. It stays inert until the
+// pointer actually leaves it once. Held by id, since every render rebuilds
+// the element.
+let noHoverCardId = null;
+
 // ── dragging a card out of your hand ──────────────────────────────────────
 // Hand cards sit in a flex row, so there is no left/top to move: the drag
 // carries a fixed-position clone under the cursor and the original dims in
@@ -1306,7 +1322,9 @@ function makeHandDraggable(el, c) {
       if (!ghost) return;
       ghost.remove();
       el.classList.remove("beingdragged");
-      el.dataset.dragged = "1"; // the release also fires a click — swallow it
+      el.dataset.dragged = "1";
+      guardClicks();
+      noHoverCardId = c.id;
       draggingNow = false;
       hideHandZone();
       const bfEl = $("#bf-you");
@@ -1428,15 +1446,15 @@ function cardEl(c, opts = {}) {
       };
       d.appendChild(flip);
     }
-    d.onmouseenter = (e) => showPreview(c, e);
-    d.onmousemove = (e) => positionPreview(e);
+    d.onmouseenter = (e) => { if (!d.classList.contains("nohover")) showPreview(c, e); };
+    d.onmousemove = (e) => { if (!d.classList.contains("nohover")) positionPreview(e); };
     d.onmouseleave = hidePreview;
   }
   d.onclick = (e) => {
     e.stopPropagation();
-    // a drag's release fires a click — swallow it, so moving a card never
-    // also taps it
-    if (d.dataset.dragged) {
+    // a drag's release fires a click — swallow it, so moving or playing a
+    // card never also taps it or opens its menu
+    if (d.dataset.dragged || Date.now() < clickGuardUntil) {
       delete d.dataset.dragged;
       return;
     }
@@ -1466,6 +1484,14 @@ function cardEl(c, opts = {}) {
   // hover target for keybinds (E = tap)
   d.addEventListener("mouseenter", () => { hoveredCard = c; });
   d.addEventListener("mouseleave", () => { if (hoveredCard && hoveredCard.id === c.id) hoveredCard = null; });
+  // just dropped under the cursor: inert until the pointer leaves it once
+  if (c.id === noHoverCardId) {
+    d.classList.add("nohover");
+    d.addEventListener("mouseleave", () => {
+      if (noHoverCardId === c.id) noHoverCardId = null;
+      d.classList.remove("nohover");
+    }, { once: true });
+  }
   return d;
 }
 
