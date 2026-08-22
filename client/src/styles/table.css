@@ -130,11 +130,15 @@
 
 /* ── the command zone ── */
 /* A lit socket in the corner of your own half, mirrored into the agent's. The
-   card inside is sized like a card in hand — it is a card you hold, not one
-   you have played. */
+   card inside is sized off a card in hand — it is a card you hold, not one you
+   have played — and then taken down by --cmd-scale, the one dial for the whole
+   widget. */
 .cmdzone {
+  --cmd-scale: 0.8;
+  --cmd-card-w: calc(var(--hand-card-w) * var(--cmd-scale));
+  --cmd-card-h: calc(var(--hand-card-h) * var(--cmd-scale));
   position: absolute; left: 12px; bottom: 12px; z-index: 45;
-  padding: 6px; border-radius: 11px;
+  padding: 5px; border-radius: 9px;
   display: flex; gap: 4px;
   border: 1px solid transparent;
   background: linear-gradient(rgba(14, 10, 6, 0.9), rgba(20, 14, 8, 0.9)) padding-box, var(--chrome) border-box;
@@ -144,12 +148,10 @@
 /* the agent's mirrors across the midline, into the top corner of its board */
 .cmdzone.theirs { bottom: auto; top: 12px; }
 /* an empty socket still holds its shape — it is the drop target for the way back */
-.cmdzone .cmdslot { display: flex; gap: 4px; min-width: var(--hand-card-w); min-height: var(--hand-card-h); border-radius: 6px; }
-.cmdzone .cmdslot:empty {
-  border: 1px dashed rgba(226, 179, 85, 0.35);
-  background: repeating-linear-gradient(135deg, rgba(226, 179, 85, 0.05) 0 5px, transparent 5px 11px);
-}
-.cmdzone .card.cmdcard { width: var(--hand-card-w); height: var(--hand-card-h); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
+.cmdzone .cmdslot { display: flex; gap: 4px; min-width: var(--cmd-card-w); min-height: var(--cmd-card-h); border-radius: 5px; }
+/* just the outline — a hatch fill in here read as texture on the card */
+.cmdzone .cmdslot:empty { border: 1px dashed rgba(226, 179, 85, 0.35); }
+.cmdzone .card.cmdcard { width: var(--cmd-card-w); height: var(--cmd-card-h); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
 
 /* The nebula behind the card: four soft blobs, each drifting on its own clock
    and fading in and out as it goes, so the light gathers and disperses like a
@@ -159,7 +161,7 @@
    timing are per-blob variables, so a fifth blob is one more rule.
    Peaks top out at 0.1: this is weather behind a card, not a light show. */
 .cmdzone .cmdcloud {
-  position: absolute; inset: 1px; border-radius: 10px; overflow: hidden;
+  position: absolute; inset: 1px; border-radius: 8px; overflow: hidden;
   pointer-events: none; z-index: 0;
 }
 .cmdzone .cmdcloud span {
