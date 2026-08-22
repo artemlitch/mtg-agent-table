@@ -155,32 +155,13 @@ body.dragging .cmdzone .card { pointer-events: none; }
 .rail { position: relative; z-index: 10; }
 .handrow.fan { position: relative; z-index: 12; }
 
-/* ── drop targets, in two tiers ──
-   `offered`  every place the carried card could go, lit the whole time it is
-              in the air, so you can see the choices before you go looking
-   `armed`    the one it would land in if you let go right now
-
-   Outline rather than border: these are flex containers and a border would
-   resize them the instant a drag started. */
-.handrow.fan.offered,
-.pile.offered,
-.cmdzone.offered {
-  outline: 1.5px dashed rgba(226, 179, 85, 0.55);
-  outline-offset: -2px;
-  background-color: rgba(226, 179, 85, 0.06);
-}
+/* armed drop targets: the region under the carried card says so */
 .handrow.fan.armed,
-.pile.armed,
-.cmdzone.armed {
-  outline: 2px solid var(--gold-hi);
-  outline-offset: -2px;
-  background-color: rgba(226, 179, 85, 0.16);
+.pile.armed {
+  border-color: var(--gold-hi);
+  background: rgba(226, 179, 85, 0.14);
+  box-shadow: 0 0 16px rgba(240, 208, 120, 0.45);
 }
-.handrow.fan.armed,
-.pile.armed { box-shadow: 0 0 16px rgba(240, 208, 120, 0.45); }
-/* the pile and the socket bring their own radius; the hand row has none, so
-   the outline needs one or it draws as a hard rectangle across the table */
-.handrow.fan.offered,
 .handrow.fan.armed { border-radius: 10px; }
 
 /* ── hands ── */
