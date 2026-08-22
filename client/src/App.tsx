@@ -59,9 +59,6 @@ export function App() {
                 <Rail p="you" />
                 <div className="boardwrap">
                   <Battlefield p="you" />
-                  <div id="handzone" className="hidden">
-                    <span>↩ back to hand</span>
-                  </div>
                   <Hand p="you" />
                   <CommandZone p="you" />
                   <button id="btn-token" title="Create a token" onClick={openTokenModal}>

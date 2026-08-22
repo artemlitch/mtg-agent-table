@@ -1,12 +1,5 @@
 // The server's view of the table, mirrored into a store. The server is the
-// only source of truth: nothing here invents game state. Two exceptions, both
-// about not flickering while the network catches up:
-//
-//   pendingPos / pendingUnder — a card you just dropped keeps the spot you put
-//     it in until the server's view agrees, so an unrelated poll landing in
-//     between can't snap it back.
-//   dragging — while a pointer is down on a card, incoming views park in
-//     `parked` and land the moment the drag ends.
+// only source of truth: nothing here invents game state.
 import { create } from "zustand";
 import type { BrainEntry, Card, GameView, PlayerId } from "../types";
 
@@ -14,65 +7,19 @@ interface GameStore {
   view: GameView | null;
   brain: BrainEntry[];
   agentBusy: boolean;
-  dragging: boolean;
-  /** a view that arrived mid-drag, waiting for the pointer to come up */
-  parked: GameView | null;
-  pendingPos: Map<string, { x: number; y: number }>;
-  pendingUnder: Map<string, string | null>;
 
   applyView(v: GameView): void;
-  setDragging(on: boolean): void;
   setBrain(entries: BrainEntry[], busy: boolean): void;
   pushBrain(entry: BrainEntry, busy: boolean): void;
-  /** claim a card's position locally until the server reports the same one */
-  expectPos(id: string, pos: { x: number; y: number }): void;
-  expectUnder(id: string, under: string | null): void;
 }
 
-const samePos = (a: Card["pos"], b: { x: number; y: number }) =>
-  !!a && Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
-
-/** Overwrite the incoming view with anything still in flight, and forget the
- *  claims the server has caught up with. Mutates the fresh view in place — it
- *  was just parsed from JSON and nothing else holds a reference to it. */
-function reconcile(v: GameView, pendingPos: Map<string, { x: number; y: number }>, pendingUnder: Map<string, string | null>) {
-  if (!pendingPos.size && !pendingUnder.size) return v;
-  for (const p of ["you", "agent"] as PlayerId[]) {
-    for (const c of v.players[p].zones.battlefield) {
-      const pos = pendingPos.get(c.id);
-      if (pos) {
-        if (samePos(c.pos, pos)) pendingPos.delete(c.id);
-        else c.pos = pos;
-      }
-      if (pendingUnder.has(c.id)) {
-        const under = pendingUnder.get(c.id) ?? null;
-        if ((c.under ?? null) === under) pendingUnder.delete(c.id);
-        else c.under = under;
-      }
-    }
-  }
-  return v;
-}
-
-export const useGame = create<GameStore>((set, get) => ({
+export const useGame = create<GameStore>((set) => ({
   view: null,
   brain: [],
   agentBusy: false,
-  dragging: false,
-  parked: null,
-  pendingPos: new Map(),
-  pendingUnder: new Map(),
 
   applyView(v) {
-    const { dragging, pendingPos, pendingUnder } = get();
-    if (dragging) return set({ parked: v });
-    set({ view: reconcile(v, pendingPos, pendingUnder), parked: null });
-  },
-
-  setDragging(on) {
-    if (on) return set({ dragging: true });
-    const { parked, pendingPos, pendingUnder } = get();
-    set(parked ? { dragging: false, view: reconcile(parked, pendingPos, pendingUnder), parked: null } : { dragging: false });
+    set({ view: v });
   },
 
   setBrain(brain, agentBusy) {
@@ -80,13 +27,6 @@ export const useGame = create<GameStore>((set, get) => ({
   },
   pushBrain(entry, agentBusy) {
     set((s) => ({ brain: [...s.brain, entry], agentBusy }));
-  },
-
-  expectPos(id, pos) {
-    get().pendingPos.set(id, pos);
-  },
-  expectUnder(id, under) {
-    get().pendingUnder.set(id, under);
   },
 }));
 

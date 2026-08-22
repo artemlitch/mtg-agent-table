@@ -29,7 +29,6 @@ export interface Card {
   isCommander: boolean;
   attacking: string | null;
   blocking: string | null;
-  pos?: { x: number; y: number } | null;
   hidden?: boolean;
 
   name?: string;

@@ -5,7 +5,6 @@
 // the edges.
 import { useEffect, useRef, useState } from "react";
 import { CardEl } from "../../components/Card";
-import { startCastDrag } from "../../game/castDrag";
 import { HAND_W } from "../../game/interaction";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
@@ -53,7 +52,6 @@ export function Hand({ p }: { p: PlayerId }) {
               zIndex: i + 1,
             } as React.CSSProperties
           }
-          onPointerDown={p === "you" && !c.hidden ? (e) => startCastDrag(e, c) : undefined}
         />
       ))}
     </div>

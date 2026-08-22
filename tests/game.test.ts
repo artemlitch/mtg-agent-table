@@ -734,35 +734,6 @@ describe("batch actions", () => {
   });
 });
 
-describe("board placement (drag positions)", () => {
-  test("place sets fractional positions without logging (cosmetic, no agent wake)", () => {
-    const a = seedCard("A", "you", "battlefield");
-    const b = seedCard("B", "you", "battlefield");
-    const before = game.log.length;
-    applyAction("you", "place", { positions: [{ card: a.id, x: 0.25, y: 0.8 }, { card: b.id, x: 0.5, y: 0.1 }] });
-    expect(a.pos).toEqual({ x: 0.25, y: 0.8 });
-    expect(b.pos).toEqual({ x: 0.5, y: 0.1 });
-    expect(game.log.length).toBe(before);
-  });
-
-  test("x clamps to 0..1; y may cross the midline within the table bounds", () => {
-    const c = seedCard("C", "you", "battlefield");
-    applyAction("you", "place", { positions: [{ card: c.id, x: 7, y: -3 }] });
-    expect(c.pos).toEqual({ x: 1, y: -1.25 });
-    applyAction("you", "place", { positions: [{ card: c.id, x: 0.5, y: -0.6 }] });
-    expect(c.pos).toEqual({ x: 0.5, y: -0.6 });
-    applyAction("you", "move", { card: c.id, toZone: "graveyard" });
-    expect(c.pos).toBeNull();
-  });
-
-  test("pos survives the redacted view", () => {
-    const c = seedCard("C", "you", "battlefield");
-    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.6 }] });
-    const v = viewFor("agent");
-    expect(v.players.you.zones.battlefield[0].pos).toEqual({ x: 0.3, y: 0.6 });
-  });
-});
-
 describe("batch move with top: refs", () => {
   test("repeated top:player refs take successive cards, not the same one twice", () => {
     seedLibrary("agent", ["First", "Second", "Third"]);

@@ -207,9 +207,8 @@ const server = Bun.serve({
             body.params = { ...body.params, image: info.image, oracle: body.params.oracle ?? info.oracle, typeLine: body.params.typeLine ?? info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
-        const cosmetic = body.type === "place";
         // chat is conversation, not a game action — it never becomes an undo step
-        const undoable = !cosmetic && body.type !== "chat";
+        const undoable = body.type !== "chat";
         if (undoable) recordSnapshot();
         let result;
         try {
@@ -242,7 +241,7 @@ const server = Bun.serve({
         // - reaction window on stack traffic and combat during YOUR turn
         // - everything else (draws, taps, life, moves, phases) just lands in
         //   the log and is seen at the agent's next wake
-        if (actor === "you" && game.started && !cosmetic) {
+        if (actor === "you" && game.started) {
           const REACTIVE = new Set([
             "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
             "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",

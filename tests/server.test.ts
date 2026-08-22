@@ -129,7 +129,6 @@ test("lean state view drops hidden library/hand stubs and image urls", async () 
     for (const z of Object.values<any>(p.zones))
       for (const c of z) {
         expect(c.image).toBeUndefined();
-        expect(c.pos).toBeUndefined();
       }
   }
   // counts still tell the agent how big the hidden zones are

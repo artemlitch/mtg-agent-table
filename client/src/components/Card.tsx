@@ -1,7 +1,7 @@
-import { useEffect, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode, type Ref } from "react";
+import { type CSSProperties, type ReactNode, type Ref } from "react";
 import { act } from "../api";
 import { cardMenu } from "../features/menus/cardMenu";
-import { noHover, swallowClick, trackHover } from "../game/interaction";
+import { trackHover } from "../game/interaction";
 import { cardById } from "../store/game";
 import { menuOpen, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
@@ -15,7 +15,6 @@ export interface CardElProps {
   /** rail-sized: fills its column instead of the fixed board size */
   small?: boolean;
   elRef?: Ref<HTMLDivElement>;
-  onPointerDown?: (e: RPointerEvent<HTMLDivElement>) => void;
   /** ghosts open the Stack tab rather than the card menu */
   onClick?: (e: React.MouseEvent) => void;
   /** the stack panel that rides below a lifted card */
@@ -25,30 +24,16 @@ export interface CardElProps {
 /** THE card. One element, every state as a class: tapped, attacking, ghost,
  *  lifted, tucked, face-down. Used in hands, on the board, in the rail and on
  *  the stack — the geometry never changes, only the classes. */
-export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, children }: CardElProps) {
-  // just dropped under the cursor: inert until the pointer leaves it once
-  const [inert, setInert] = useState(false);
-  useEffect(() => {
-    if (noHover.id === c.id && !inert) setInert(true);
-  });
-
+export function CardEl({ card: c, className = "", style, small, elRef, onClick, children }: CardElProps) {
   const pendingTuck = useUI((s) => s.pendingTuck);
-  const classes = [
-    "card",
-    c.tapped && "tapped",
-    c.attacking && "attacking",
-    c.blocking && "blocking",
-    pendingTuck === c.id && "tuck-source",
-    inert && "nohover",
-    className,
-  ]
+  const classes = ["card", c.tapped && "tapped", c.attacking && "attacking", c.blocking && "blocking", pendingTuck === c.id && "tuck-source", className]
     .filter(Boolean)
     .join(" ");
 
   const smallStyle: CSSProperties | undefined = small ? { width: "100%", height: "auto", aspectRatio: "0.72" } : undefined;
-  // hover does three things at once: raise the preview, remember the card for
-  // the E keybind, and let a just-dropped card wake up when the pointer leaves
-  const preview = c.hidden || inert ? null : previewProps(c);
+  // hover does two things at once: raise the preview, and remember the card for
+  // the E keybind
+  const preview = c.hidden ? null : previewProps(c);
   const track = trackHover(c);
   const hover = {
     onMouseEnter: (e: React.MouseEvent) => {
@@ -59,19 +44,12 @@ export function CardEl({ card: c, className = "", style, small, elRef, onPointer
     onMouseLeave: () => {
       preview?.onMouseLeave();
       track.onMouseLeave();
-      if (noHover.id === c.id) {
-        noHover.id = null;
-        setInert(false);
-      }
     },
   };
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onClick) return onClick(e);
-    // a drag's release fires a click — swallow it, so moving or playing a card
-    // never also taps it or opens its menu
-    if (swallowClick(c.id)) return;
     // a menu is up: this click dismisses it rather than acting on the card
     if (menuOpen()) return ui().closeMenu();
     ui().hidePreview();
@@ -92,7 +70,6 @@ export function CardEl({ card: c, className = "", style, small, elRef, onPointer
       className={classes}
       style={{ ...smallStyle, ...style }}
       data-card-id={c.id}
-      onPointerDown={onPointerDown}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();

@@ -48,8 +48,6 @@ export interface Card {
   visibleTo: PlayerId[];
   attacking: string | null; // defender description ("you", "agent", or a card id)
   blocking: string | null;  // attacker card id
-  // cosmetic drag position on the battlefield, fractional 0..1; null = auto-layout
-  pos?: { x: number; y: number } | null;
 }
 
 export interface PlayerState {
@@ -291,7 +289,6 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     isCommander: card.isCommander,
     attacking: card.attacking,
     blocking: card.blocking,
-    pos: card.pos ?? null,
   };
   if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
   // a DFC always presents as its ACTIVE face — the composite name never shows
@@ -317,10 +314,10 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
 }
 
 /** The agent-facing trim of an already-serialized card: the same card, minus
- * the fields that exist for human eyes only — art urls (on the card and on each
- * face) and the cosmetic board position. Not a second card shape: a transport
- * trim, applied by the lean state view and by the granted peeks. */
-export function leanCard({ image, pos, faces, ...rest }: any) {
+ * the fields that exist for human eyes only — the art urls, on the card and on
+ * each face. Not a second card shape: a transport trim, applied by the lean
+ * state view and by the granted peeks. */
+export function leanCard({ image, faces, ...rest }: any) {
   return { ...rest, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
 }
 
@@ -710,7 +707,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.attacking = null;
       card.blocking = null;
       if (toZone !== "battlefield") card.tapped = false;
-      card.pos = null;
       // visibility reset by relocateCard, then explicit grants apply
       card.faceDown = !!p.faceDown;
       if (p.revealTo === "all") card.visibleTo = [...PLAYERS];
@@ -1398,19 +1394,6 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, { [ctx.actor]: detail });
     }
     return { ok: true, face, name: c.name };
-  },
-
-  /** Cosmetic drag placement — no log entry, callers must not snapshot/wake for this. */
-  place(ctx, p) {
-    const positions: { card: string; x: number; y: number }[] = p.positions ?? [];
-    for (const pos of positions) {
-      const c = getCard(pos.card);
-      // y is relative to the controller's half but may cross the midline into
-      // the other half (the table is one continuous surface): <0 is up beyond
-      // the own field's top edge, >1 down beyond its bottom
-      c.pos = { x: Math.max(0, Math.min(1, Number(pos.x))), y: Math.max(-1.25, Math.min(2.25, Number(pos.y))) };
-    }
-    return { ok: true };
   },
 
   roll(ctx, p) {
