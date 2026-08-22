@@ -16,7 +16,7 @@ import { freeSpot, homeSpot, type Box, type Spot } from "./autoplace";
 import { dlog, pt } from "./debug";
 import { stackCardsOf, typeCat } from "./rules";
 import type { GameView, PlayerId } from "../types";
-import { CH, CW, placeRect, posToPx, pxToPos, snapshotCards } from "./table";
+import { CH, CW, placeRect, posToPx, pxToPos } from "./table";
 
 /** Place every card on the table that has no position yet.
  *
@@ -44,27 +44,21 @@ export function settleUnplaced(): boolean {
 
   const w = CW();
   const h = CH();
-  // A card makes room for its controller's cards and nobody else's. The two
-  // creature rows both crowd the midline, so at most window heights they sit
-  // a few pixels apart — near enough that the agent's row would read as
-  // blocking yours and push your creature onto their side of the table. You
-  // arrange your half, they arrange theirs.
-  //
-  // Only the top of a pile counts as occupying its space: the cards tucked
-  // under it are the same object on the table, not separate obstacles.
   const waitingIds = new Set(waiting.map((c) => c.id));
-  const held = controllers(view);
-  const occupied = snapshotCards(waitingIds)
-    .filter((c) => !c.el.classList.contains("tucked"))
-    .map((c) => ({ by: held.get(c.id), ...c.rect }));
+  const occupied = occupiedBoxes(view, waitingIds, pendingPos, w, h);
 
   for (const c of waiting) {
     const cat = typeCat(c);
     const home = posToPx(homeSpot(c.controller, cat));
+    // A card makes room for its controller's cards and nobody else's. Both
+    // creature rows crowd the midline, so at most window heights they sit a
+    // few pixels apart — near enough that the agent's row would read as
+    // blocking yours and push your creature onto their side of the table.
+    // You arrange your half, they arrange theirs.
     const rivals: Box[] = occupied.filter((b) => b.by === c.controller);
     const at: Spot = freeSpot(home, rivals, w, h, bounds);
-    // the rest of this batch has to see it — the DOM will not know until the
-    // next paint, and four tokens must not all take the same spot
+    // the rest of this batch has to see it — four tokens must not all take
+    // the same spot
     occupied.push({ by: c.controller, left: at.left, top: at.top, width: w, height: h });
     const pos = pxToPos(at.left, at.top);
     dlog(`settle ${c.name}(${c.id})`, {
@@ -81,13 +75,35 @@ export function settleUnplaced(): boolean {
   return true;
 }
 
-/** Who controls each card drawn on the felt. The rects come from the DOM,
- *  which knows nothing about seats. */
-function controllers(view: GameView): Map<string, PlayerId> {
-  const by = new Map<string, PlayerId>();
+/** Every card already on the felt, as the box it occupies and who holds it.
+ *
+ *  Worked out from the positions, never measured off the screen. An element's
+ *  rect is where the card is being DRAWN, and a card drawn is a card being
+ *  animated: an unresolved one bobs by up to 11px, a card that just moved is
+ *  still gliding to its spot. Lining a new card up with any of that puts it
+ *  level with a moment rather than with its neighbour. */
+function occupiedBoxes(
+  view: GameView,
+  skip: Set<string>,
+  claims: Map<string, { x: number; y: number }>,
+  w: number,
+  h: number
+): OwnedBox[] {
+  const boxes: OwnedBox[] = [];
+  const add = (c: Card, by: PlayerId) => {
+    // a tucked card is not its own obstacle: the pile's anchor owns the space
+    if (skip.has(c.id) || c.under) return;
+    const pos = claims.get(c.id) ?? c.pos;
+    if (!pos) return;
+    boxes.push({ by, ...posToPx(pos), width: w, height: h });
+  };
   for (const p of ["you", "agent"] as const) {
-    for (const c of view.players[p].zones.battlefield) by.set(c.id, c.controller ?? p);
-    for (const it of stackCardsOf(p)) if (it.card) by.set(it.card.id, p);
+    for (const c of view.players[p].zones.battlefield) add(c, c.controller ?? p);
+    for (const it of stackCardsOf(p)) if (it.card) add(it.card, p);
   }
-  return by;
+  return boxes;
+}
+
+interface OwnedBox extends Box {
+  by: PlayerId;
 }
