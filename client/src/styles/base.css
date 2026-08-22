@@ -66,6 +66,41 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 .hidden { display: none !important; }
 
+/* ── the pointer is a promise ──────────────────────────────────────────────
+   Anything that responds to a click says so. Listed here rather than left to
+   each component, because "I added an onClick and forgot the cursor" is the
+   only way this ever goes wrong, and it goes wrong silently. If you give
+   something a click handler, it belongs in this list or it wears .card,
+   button or one of the others already here. */
+button,
+[role="button"],
+a[href],
+summary,
+input[type="range"],
+input[type="checkbox"],
+input[type="radio"],
+.card,
+.pile,
+.deckpile,
+.modalcard,
+.titem,
+.tcolhead,
+.peek-line,
+.msg.stackmsg,
+.trigchip,
+.dial,
+.dial .dial-count { cursor: pointer; }
+/* a button that cannot be pressed must not claim it can */
+button:disabled { cursor: default; }
+/* real prose fields keep the I-beam — the dial's numeral is not one of them */
+input:not([type]),
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea { cursor: text; }
+.dial .dial-count { cursor: pointer; }
+
 #app { display: flex; height: 100vh; }
 #table { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 /* leather playmat: SVG turbulence does the work — a coarse mottle layer for

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 // The struck-coin counter. It started life inside the library panel's tiles
 // and is now its own component, because the shape is general: a number you
@@ -11,8 +11,11 @@ import { useRef, useState } from "react";
 // Two variants:
 //   plain      — the whole dial steps, split down the middle. Small target, so
 //                it wants the biggest zones it can get.
-//   editable   — the middle is a text field you can type into, so the arrows
-//                give it room and take only the outer quarters. The signs show
+//   editable   — the middle is a text field you can type into, so the step
+//                zones are everything ABOVE and BELOW that field. They are
+//                measured off the field itself rather than set to a fraction:
+//                what you aim at is "not on the number", and the eye judges
+//                that against the number, not against the coin. The signs show
 //                at rest here: on a dial you are meant to type into, the fact
 //                that it also steps has to be visible.
 
@@ -29,7 +32,18 @@ export interface DialProps {
 
 export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, autoFocus }: DialProps) {
   const box = useRef<HTMLSpanElement>(null);
+  const field = useRef<HTMLInputElement>(null);
   const [armed, setArmed] = useState<"up" | "down" | null>(null);
+  // how deep the step zone runs from each end — the gap between the coin's
+  // edge and the field's. The shading reads it so the lit area is exactly the
+  // area that acts.
+  const [edge, setEdge] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!editable) return;
+    const b = box.current?.getBoundingClientRect();
+    const f = field.current?.getBoundingClientRect();
+    if (b && f) setEdge(Math.round(f.top - b.top));
+  }, [editable]);
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
 
   // Takes a number, never the event: a synthetic event is only valid inside
@@ -37,17 +51,20 @@ export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, 
   const zoneAt = (clientY: number): "up" | "down" | null => {
     const r = box.current?.getBoundingClientRect();
     if (!r) return null;
-    const edge = editable ? 0.25 : 0.5;
-    const y = (clientY - r.top) / r.height;
-    if (y < edge) return "up";
-    if (y > 1 - edge) return "down";
-    return null;
+    if (editable) {
+      // anything off the field, either way, is a step
+      const f = field.current?.getBoundingClientRect();
+      if (!f) return null;
+      return clientY < f.top ? "up" : clientY > f.bottom ? "down" : null;
+    }
+    return clientY < r.top + r.height / 2 ? "up" : "down";
   };
 
   return (
     <span
       ref={box}
       className={`dial${editable ? " editable" : ""}${armed ? ` step-${armed}` : ""}`}
+      style={edge === null ? undefined : ({ "--dial-edge": `${edge}px` } as React.CSSProperties)}
       onMouseMove={(e) => setArmed(zoneAt(e.clientY))}
       onMouseLeave={() => setArmed(null)}
       onClick={(e) => {
@@ -60,6 +77,7 @@ export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, 
       <span className={`dial-step up${armed === "up" ? " armed" : ""}`}>+</span>
       {editable ? (
         <input
+          ref={field}
           className="dial-count"
           inputMode="numeric"
           autoFocus={autoFocus}

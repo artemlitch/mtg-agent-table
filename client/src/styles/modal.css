@@ -32,6 +32,13 @@
 /* a one-question box has no reason to hang from the top as well */
 #modal:has(> #modal-box.centred) { align-items: center; padding-top: 0; }
 #modal-box.centred { margin-top: 0; }
+/* a modal is furniture, not a document — dragging across it should not paint
+   a text selection over the title and the buttons */
+#modal-box { user-select: none; }
+/* every field, the dial's included: an unselectable input takes focus but
+   refuses the caret, so it would need a second click before you could type.
+   The dial hides its selection by painting it transparent instead. */
+#modal-box input, #modal-box textarea { user-select: text; }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 #modal-box .modalhead { flex: none; }
 #modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
