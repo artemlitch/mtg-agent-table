@@ -1948,7 +1948,14 @@ function libraryMenu(p, e) {
       })
     );
   }
-  // draw leads, paired with reveal — both tiles, counters and all
+  m.append(
+    button("lp-wide", "Search", "search", async () => {
+      const r = await act("view_zone", { player: p, zone: "library" });
+      if (r.ok) searchModal(p, r.cards);
+    })
+  );
+
+  // draw leads the tiles, paired with reveal — counters and all
   const pair = document.createElement("div");
   pair.className = "lp-grid";
   if (mine) pair.append(button("lp-tile", "Draw", "draw", (n) => act("draw", { n }), true));
@@ -1965,13 +1972,6 @@ function libraryMenu(p, e) {
     )
   );
   m.append(pair);
-
-  m.append(
-    button("lp-wide", "Search", "search", async () => {
-      const r = await act("view_zone", { player: p, zone: "library" });
-      if (r.ok) searchModal(p, r.cards);
-    })
-  );
 
   const grid = document.createElement("div");
   grid.className = "lp-grid";
