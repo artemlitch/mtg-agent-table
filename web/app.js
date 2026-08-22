@@ -267,7 +267,7 @@ const ICONS = {
   facedown: "gi-invisible",
   toHand: "gi-card-pickup",
   top: "gi-up-card",
-  bottom: "gi-plain-arrow gi-rot180",
+  bottom: "gi-plain-arrow", // game-icons' plain-arrow points down; rot180 is the up one
   library: "gi-book-pile",
   secret: "gi-hood",
   block: "gi-shield",
@@ -275,8 +275,8 @@ const ICONS = {
   cancel: "gi-cancel",
   cancelAttack: "gi-sword-break",
   battlefield: "gi-empty-chessboard",
-  caret: "gi-plain-arrow gi-rot180",
-  caretUp: "gi-plain-arrow",
+  caret: "gi-plain-arrow",
+  caretUp: "gi-plain-arrow gi-rot180",
   // card types, for the search filter
   anyType: "gi-circle",
   creature: "gi-dragon-head",
