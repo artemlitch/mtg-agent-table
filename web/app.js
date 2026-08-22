@@ -1859,10 +1859,14 @@ function libraryMenu(p, e) {
         const top = topHalf(ev);
         up.classList.toggle("armed", top);
         down.classList.toggle("armed", !top);
+        // shade the half of the button the click will act on
+        b.classList.toggle("step-up", top);
+        b.classList.toggle("step-down", !top);
       };
       stepper.onmouseleave = () => {
         up.classList.remove("armed");
         down.classList.remove("armed");
+        b.classList.remove("step-up", "step-down");
       };
       b.append(stepper);
     }
