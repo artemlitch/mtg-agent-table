@@ -201,6 +201,27 @@
 }
 /* the card sits in front of the weather */
 .cmdzone .cmdslot { position: relative; z-index: 1; }
+
+/* the commander tax, on the corner of the socket it applies to. Struck like
+   the library panel's dial, and unlit at zero — nothing is owed yet, but the
+   stepper still has to be there to click. */
+.cmdzone .cmdtax {
+  position: absolute; right: -7px; bottom: -7px; z-index: 2;
+  min-width: 21px; height: 21px; padding: 0 4px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: var(--fw-dial) var(--fs-note)/1 var(--font-action); letter-spacing: 0;
+  color: var(--dim);
+  border: 1px solid transparent;
+  background: radial-gradient(circle at 50% 32%, #241d31, #100c17) padding-box, var(--chrome-dim) border-box;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+.cmdzone .cmdtax.owed {
+  color: var(--gold-hi);
+  background: radial-gradient(circle at 50% 32%, #3a2c12, #17110a) padding-box, var(--chrome) border-box;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 9px rgba(226, 179, 85, 0.4);
+}
+.cmdzone .cmdtax:hover { color: var(--gold-hi); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 12px rgba(240, 208, 120, 0.7); }
 /* dragging a commander over it: the socket lights up and the cloud thickens */
 .cmdzone.armed { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
 .cmdzone.armed .cmdcloud span { filter: blur(8px) brightness(1.5); }

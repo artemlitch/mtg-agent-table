@@ -55,6 +55,10 @@ export interface Card {
 export interface PlayerState {
   life: number;
   commanderDamage: Record<string, number>; // key: commander card name
+  // the {2}-per-previous-cast surcharge on casting a commander out of the
+  // command zone. Bookkeeping, not enforcement: nothing checks it, both seats
+  // read it, and either may correct it.
+  commanderTax: number;
   zones: Record<Zone, string[]>; // ordered card ids; library[0] = TOP
   deckName?: string;
   deckId?: number;
@@ -142,6 +146,7 @@ export function emptyPlayer(): PlayerState {
   return {
     life: 40,
     commanderDamage: {},
+    commanderTax: 0,
     zones: { library: [], hand: [], battlefield: [], graveyard: [], exile: [], command: [], stack: [] },
   };
 }
@@ -331,6 +336,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
     players[p] = {
       life: ps.life,
       commanderDamage: ps.commanderDamage,
+      commanderTax: ps.commanderTax ?? 0,
       deckName: ps.deckName,
       counts: Object.fromEntries(ZONES.map((z) => [z, ps.zones[z].length])),
       zones: Object.fromEntries(
@@ -938,6 +944,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     else ps.life += p.delta ?? 0;
     addLog(ctx.actor, `${who(player)}'s life is now ${ps.life}`);
     return { ok: true, life: ps.life };
+  },
+
+  commander_tax(ctx, p) {
+    const player = asPlayer(p.player, "player");
+    const ps = game.players[player];
+    if (typeof p.set === "number") ps.commanderTax = Math.max(0, p.set);
+    else if (typeof p.delta === "number") ps.commanderTax = Math.max(0, (ps.commanderTax ?? 0) + p.delta);
+    else throw new Error("commander_tax requires a numeric delta or set");
+    addLog(ctx.actor, `${who(player)}'s commander tax is now ${ps.commanderTax}`);
+    return { ok: true, commanderTax: ps.commanderTax };
   },
 
   commander_damage(ctx, p) {

@@ -5,6 +5,7 @@
 //
 // The socket stays drawn when it is empty — it has to be a visible drop target
 // for the way back, and an empty command zone is information too.
+import { act } from "../../api";
 import { CardEl } from "../../components/Card";
 import { startCastDrag } from "../../game/castDrag";
 import { useGame } from "../../store/game";
@@ -12,6 +13,7 @@ import type { PlayerId } from "../../types";
 
 export function CommandZone({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.command);
+  const tax = useGame((s) => s.view!.players[p].commanderTax) ?? 0;
   const mine = p === "you";
   return (
     <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-tip="Command zone">
@@ -32,6 +34,24 @@ export function CommandZone({ p }: { p: PlayerId }) {
           />
         ))}
       </div>
+      {/* the {2}-per-previous-cast surcharge. Both seats keep it by hand — the
+          agent has the same counter through the commander_tax tool — so it is
+          a plain stepper, not a derived number. */}
+      <button
+        className={`cmdtax${tax > 0 ? " owed" : ""}`}
+        data-tip={`Commander tax\nclick +2, right-click −2`}
+        onClick={(e) => {
+          e.stopPropagation();
+          void act("commander_tax", { player: p, delta: 2 });
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          void act("commander_tax", { player: p, delta: -2 });
+        }}
+      >
+        {tax}
+      </button>
     </div>
   );
 }

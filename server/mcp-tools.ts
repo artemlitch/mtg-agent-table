@@ -146,6 +146,11 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   tuck: { description: "Tuck card under another battlefield card, forming a pile (equipment/auras, or board tidying). The pile's top card is the handle and carries the pile when it moves. Pass under '' to pull a card out of its pile.", schema: obj({ card: str("card id"), under: str("card id to tuck under, or '' to pull out") }, ["card"]) },
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
+  commander_tax: {
+    description:
+      "Read/adjust a player's commander tax — the {2}-per-previous-cast surcharge on casting a commander out of the command zone. The current value for both players is on every get_state as players.<id>.commanderTax. Bump it by 2 (delta) each time that player casts their commander; use set to correct it.",
+    schema: obj({ player: PLAYER, delta: num("change, normally +2 per cast"), set: num("absolute value") }, ["player"]),
+  },
   commander_damage: {
     description: "Track commander combat damage dealt to a player.",
     schema: obj({ to: PLAYER, commander: str("the commander — card id or name"), delta: num("damage dealt") }, ["to", "commander", "delta"]),

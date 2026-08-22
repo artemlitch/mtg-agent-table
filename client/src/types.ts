@@ -72,6 +72,8 @@ export interface LogEntry {
 export interface PlayerView {
   life: number;
   commanderDamage: Record<string, number>;
+  /** the {2}-per-previous-cast surcharge, tracked not enforced */
+  commanderTax: number;
   deckName?: string;
   counts: Record<Zone, number>;
   zones: Record<Zone, Card[]>;
