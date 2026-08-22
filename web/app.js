@@ -1591,7 +1591,11 @@ function cardEl(c, opts = {}) {
 // Card preview on hover
 // ---------------------------------------------------------------------------
 
+/** With a menu open, hovering cards behind it must not raise previews. */
+const menuOpen = () => !$("#menu").classList.contains("hidden");
+
 function showPreview(c, e) {
+  if (menuOpen()) return;
   const pv = $("#cardpreview");
   if ((c.faceCount ?? 1) > 1 && c.faces) {
     // active face first (leftmost) with a gold frame; every face fully opaque
@@ -1617,12 +1621,17 @@ function showPreview(c, e) {
   pv.classList.remove("hidden");
   positionPreview(e);
 }
+// everything that hangs off the cursor — the hover preview, both menus —
+// sits the same distance from it
+const CURSOR_GAP = { x: 18, y: 12 };
+
 function positionPreview(e) {
+  if (menuOpen()) return;
   const pv = $("#cardpreview");
   const wide = pv.querySelector(".pv-faces");
   pv.style.width = wide ? "440px" : "260px";
-  const x = Math.min(e.clientX + 18, window.innerWidth - (wide ? 460 : 280));
-  const y = Math.min(e.clientY + 12, window.innerHeight - 380);
+  const x = Math.min(e.clientX + CURSOR_GAP.x, window.innerWidth - (wide ? 460 : 280));
+  const y = Math.min(e.clientY + CURSOR_GAP.y, window.innerHeight - 380);
   pv.style.left = x + "px";
   pv.style.top = Math.max(6, y) + "px";
 }
@@ -1690,8 +1699,8 @@ function openMenu(items, e) {
     m.appendChild(b);
   }
   m.classList.remove("hidden");
-  const x = Math.min(e.clientX, window.innerWidth - 200);
-  const y = Math.min(e.clientY, window.innerHeight - m.offsetHeight - 10);
+  const x = Math.min(e.clientX + CURSOR_GAP.x, window.innerWidth - 200);
+  const y = Math.min(e.clientY + CURSOR_GAP.y, window.innerHeight - m.offsetHeight - 10);
   m.style.left = x + "px";
   m.style.top = Math.max(4, y) + "px";
 }
@@ -1984,8 +1993,8 @@ function libraryMenu(p, e) {
   m.append(grid, button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p })));
 
   m.classList.remove("hidden");
-  const x = Math.min(e.clientX, window.innerWidth - 250);
-  const y = Math.min(e.clientY, window.innerHeight - m.offsetHeight - 10);
+  const x = Math.min(e.clientX + CURSOR_GAP.x, window.innerWidth - 250);
+  const y = Math.min(e.clientY + CURSOR_GAP.y, window.innerHeight - m.offsetHeight - 10);
   m.style.left = x + "px";
   m.style.top = Math.max(4, y) + "px";
 }
