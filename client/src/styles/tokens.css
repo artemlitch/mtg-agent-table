@@ -1,0 +1,105 @@
+/* The design system: the faces, the type scale, the palette. Every other
+   sheet in this folder spends these and states no raw value of its own. */
+
+/* local fonts (SIL OFL, licenses in public/fonts/) — no network dependency */
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/fonts/cinzel-var.woff2") format("woff2");
+}
+/* font #2, for every label and control: a humanist sans with some warmth to
+   it, and light enough not to shout next to Cinzel */
+@font-face {
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/alegreyasans-300.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/alegreyasans-400.woff2") format("woff2");
+}
+@font-face {
+  /* only the library-panel dial asks for this — see .lp-count */
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/alegreyasans-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IM Fell English";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/imfell-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IM Fell English";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/imfell-italic.woff2") format("woff2");
+}
+
+:root {
+  --bg: #0b0a12;
+  --panel: #151220;
+  --panel2: #1d1929;
+  --line: #6e5322;
+  --text: #dfd9e8;
+  --dim: #9a8fae;
+  --accent: #e2b355;
+  --red: #d05555;
+  --blue: #5b8fd0;
+  --green: #59a86c;
+  --card-w: 92px;
+  --card-h: 128px;
+  /* the side rails flank the playmat; anything that wants to line up with the
+     cards has to discount them */
+  --rail-w: 130px;
+  --gold-hi: #f8e7a0;
+  --gold-dk: #6e4a14;
+  /* metallic band gradient used for every "chrome" border */
+  --chrome: linear-gradient(155deg, #8a5f1d 0%, #f8e7a0 22%, #b07d26 45%, #6e4a14 62%, #eecf7a 82%, #8a5f1d 100%);
+  --chrome-dim: linear-gradient(155deg, #5c4116 0%, #a68a4c 25%, #6e5322 50%, #4a350f 65%, #97783a 85%, #5c4116 100%);
+  --font-fantasy: "Cinzel", "Palatino", "Times New Roman", serif;
+  /* controls read as UI, not as chrome — buttons and labels use this everywhere */
+  --font-ui: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-scroll: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  /* ── type scale ────────────────────────────────────────────────────────
+     One dial. Every size in the sheet is a multiple of --fs-base, so the
+     whole app grows or shrinks from this line; no rule below states a pixel
+     size of its own. */
+  --fs-base: 15px;
+  --fs-tiny:  calc(var(--fs-base) * 0.73); /* card badges, keycaps */
+  --fs-micro: calc(var(--fs-base) * 0.8);
+  --fs-note:  calc(var(--fs-base) * 0.87); /* dense chrome: counts, tags */
+  --fs-body:  var(--fs-base);              /* chat, logs, card text */
+  --fs-label: calc(var(--fs-base) * 1.13); /* buttons, menu rows, inputs */
+  --fs-action:calc(var(--fs-base) * 1.27); /* the top row of a menu */
+  --fs-next:  calc(var(--fs-base) * 1.4);  /* the centred next action */
+  --fs-title: calc(var(--fs-base) * 1.6);  /* deck counts, overlay titles */
+  --fs-huge:  calc(var(--fs-base) * 1.87); /* life totals */
+  /* Cinzel carries weight well and is the only face we take above regular;
+     the sans stays at 400 everywhere */
+  --fw-heavy: 800;   /* life totals, the loudest numbers */
+  --fw-heading: 700; /* titles and banners */
+  --fw-label: 600;   /* small-caps labels in Cinzel */
+  --fw-ui: 400;      /* everything in the sans */
+  /* interactive things — buttons, menu rows, dropdowns — share one role: the
+     sans, at regular. Cinzel was tried here and read as costume */
+  --font-action: var(--font-ui);
+  --fw-action: 400;
+  --fw-dial: 500;    /* the library panel's counter, big enough to carry it */
+  /* the centred next action is its own role, and NOT the menu's: it is large,
+     so it needs the weight to match or Cinzel goes spindly at size */
+  --font-next: var(--font-fantasy);
+  --fw-next: 700;
+}

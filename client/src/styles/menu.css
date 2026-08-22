@@ -1,0 +1,207 @@
+/* The menu: ONE component. Every right-click, every card in a browser, and
+   every dropdown opens this same plate. The library panel is the same
+   container laid out as a grid instead of a list. */
+
+#menu {
+  /* above #modal (60): card browsers open this same menu */
+  position: fixed; z-index: 65; border: 1px solid transparent; border-radius: 8px; min-width: 170px;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); padding: 4px; max-height: 70vh; overflow-y: auto;
+  transform-origin: top left; animation: menuIn 0.13s ease-out;
+}
+/* card-menu rows: flat until hovered, then the same plate the panel wears —
+   a long list would be noisy with every row plated at rest */
+#menu .mi {
+  position: relative; display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 5px 9px; border-radius: 8px; cursor: pointer; white-space: nowrap; text-align: left;
+  font: var(--fw-action) var(--fs-label)/1.4 var(--font-action); letter-spacing: 0.01em;
+  color: var(--text); background: none; border: 1px solid transparent; box-shadow: none;
+  transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+}
+/* game-icons are drawings, not glyphs — they need a little more room than a
+   font icon to stay readable */
+#menu .mi .ico { font-size: var(--fs-label); width: 18px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
+#menu .mi-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#menu .mi:hover {
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 22%, #241d31),
+      color-mix(in srgb, var(--c) 9%, #171220)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 60%, #8a5f1d),
+      #f8e7a0 32%,
+      color-mix(in srgb, var(--c) 75%, #b07d26) 64%,
+      #eecf7a 88%,
+      color-mix(in srgb, var(--c) 60%, #8a5f1d)) border-box;
+  box-shadow: 0 0 9px color-mix(in srgb, var(--c) 28%, transparent);
+}
+/* the first action carries the plate at rest and a little more size */
+#menu .mi.primary {
+  font-size: var(--fs-action); padding: 8px 10px; margin-bottom: 2px;
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 16%, #211a2c),
+      color-mix(in srgb, var(--c) 7%, #141019)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 55%, #4a350f),
+      color-mix(in srgb, var(--c) 95%, #f8e7a0) 28%,
+      color-mix(in srgb, var(--c) 70%, #6e4a14) 62%,
+      color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
+      color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
+}
+#menu .mi.primary .ico { font-size: var(--fs-action); width: 20px; }
+#menu .mi-keys { margin-left: auto; padding-left: 8px; flex: none; }
+/* the option a dropdown is currently set to */
+#menu .mi.on { color: var(--gold-hi); background: rgba(226, 179, 85, 0.09); }
+
+/* hairline above a separated row — a pseudo-element, so it never fights the
+   transparent border the hover rim uses */
+#menu .mi.sep { margin-top: 7px; }
+#menu .mi.sep::before {
+  content: ""; position: absolute; left: 6px; right: 6px; top: -4px; height: 1px;
+  background: linear-gradient(90deg, transparent, #8a6420, transparent);
+}
+#menu .mi.title {
+  display: block; color: var(--accent); font: var(--fw-heading) var(--fs-micro)/1 var(--font-fantasy);
+  letter-spacing: 0.16em; text-transform: uppercase; text-align: center;
+  padding: 3px 2px 5px; margin-bottom: 3px; cursor: default;
+  text-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+}
+#menu .mi.title:hover { background: none; box-shadow: none; color: var(--accent); }
+
+/* one colour per action, borrowed from the five mana colours. Shared by the
+   library panel and the card menus. */
+#menu .a-draw { --c: #63b878; }    /* green — cards into hand */
+#menu .a-exile { --c: #d4553f; }   /* red — burn it out of the game */
+#menu .a-mill { --c: #9c8fa8; }    /* black — smoky grey-violet */
+#menu .a-scry { --c: #5ea8dd; }    /* blue — looking ahead */
+#menu .a-surveil { --c: #a17ccc; } /* dimir violet, blue's darker cousin */
+#menu .a-reveal { --c: #f0e6cd; }  /* white — shown to everyone */
+#menu .a-mulligan { --c: #d4823f; }
+#menu .a-neutral { --c: #8a8496; }
+/* housekeeping, not a play: no colour at all */
+#menu .a-search,
+#menu .a-shuffle { --c: #8a8496; opacity: 0.78; }
+#menu .a-search:hover,
+#menu .a-shuffle:hover { opacity: 1; }
+
+/* ── library panel: laid out, not a list ── */
+/* --c is the per-action colour; this is the fallback for anything unclassed */
+#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 290px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
+#menu.libpanel .lp-title {
+  color: var(--accent); font: var(--fw-heading) var(--fs-micro)/1 var(--font-fantasy);
+  letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 2px 4px;
+  text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+  margin-bottom: 2px;
+}
+#menu.libpanel .lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+/* dressed like the rest of the table: the panel's own dark plate under a
+   metallic rim, tinted with the action's colour rather than flat-outlined.
+   Nothing may grow past the button box — a flex item defaults to
+   min-width:auto, which is what pushed the tile rows over. */
+#menu.libpanel button {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 0; padding: 7px 8px; border-radius: 9px;
+  font: var(--fw-action) var(--fs-label)/1.3 var(--font-action); letter-spacing: 0.02em; text-align: center;
+  color: var(--c);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 15%, #211a2c),
+      color-mix(in srgb, var(--c) 6%, #141019)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 55%, #4a350f),
+      color-mix(in srgb, var(--c) 95%, #f8e7a0) 28%,
+      color-mix(in srgb, var(--c) 70%, #6e4a14) 62%,
+      color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
+      color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* ease in and out of the lit state instead of snapping */
+  transition: background 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+}
+#menu.libpanel button:hover {
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 28%, #241d31),
+      color-mix(in srgb, var(--c) 12%, #171220)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 70%, #8a5f1d),
+      #f8e7a0 30%,
+      color-mix(in srgb, var(--c) 80%, #b07d26) 60%,
+      #eecf7a 88%,
+      color-mix(in srgb, var(--c) 70%, #8a5f1d)) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px color-mix(in srgb, var(--c) 35%, transparent);
+}
+#menu.libpanel .lp-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#menu.libpanel .ico { font-size: var(--fs-label); color: var(--c); flex: none; }
+/* search and reveal are slimmer than the tiles they sit between */
+#menu.libpanel .lp-wide { padding-top: 5px; padding-bottom: 5px; }
+#menu.libpanel .lp-head { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
+/* tiles stack: icon and label on one line, the dial under them */
+#menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
+
+/* the counter is a big round dial that doubles as the stepper: the + and −
+   live inside it, top and bottom, and arm as the pointer crosses the middle.
+   The dial is a struck coin: dark well, metallic rim, numeral in the
+   action's colour. Cursor stays the button's own — this is part of a button. */
+#menu.libpanel .lp-stepper {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; flex: none; border-radius: 50%; overflow: hidden;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 22%, #1b1626), #100c17) padding-box,
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--c) 60%, #4a350f),
+      color-mix(in srgb, var(--c) 90%, #f8e7a0) 35%,
+      color-mix(in srgb, var(--c) 65%, #6e4a14) 70%,
+      color-mix(in srgb, var(--c) 85%, #eecf7a)) border-box;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+/* the dial number is large, so it carries a heavier weight than its label */
+#menu.libpanel .lp-count { font: var(--fw-dial) var(--fs-next)/1 var(--font-action); color: var(--c); position: relative; z-index: 1; }
+#menu.libpanel .lp-step {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font: var(--fw-dial) var(--fs-tiny)/1 var(--font-action); color: var(--c);
+  opacity: 0; transition: opacity 0.3s ease;
+}
+#menu.libpanel .lp-step.up { top: -9px; }
+#menu.libpanel .lp-step.down { bottom: -9px; }
+#menu.libpanel .lp-step.armed { opacity: 1; }
+/* pointing at the dial shades the half of the DIAL the click will act on */
+#menu.libpanel .lp-stepper::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%;
+  background: color-mix(in srgb, var(--c) 34%, transparent);
+  opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+}
+#menu.libpanel .lp-stepper.step-up::before { opacity: 1; }
+#menu.libpanel .lp-stepper.step-down::before { top: 50%; opacity: 1; }
+
+/* pointer on the dial = the click adjusts the count, not the action, so the
+   button drops its own hover styling and only the dial reacts. Declared
+   after :hover so it wins on source order. */
+#menu.libpanel button.on-dial:hover {
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 15%, #211a2c),
+      color-mix(in srgb, var(--c) 6%, #141019)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 55%, #4a350f),
+      color-mix(in srgb, var(--c) 95%, #f8e7a0) 28%,
+      color-mix(in srgb, var(--c) 70%, #6e4a14) 62%,
+      color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
+      color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* our select: a plate whose list is the card menu */
+.dropdown { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; }
+.dropdown .dd-label { min-width: 62px; text-align: left; }
+.dropdown .ico { font-size: var(--fs-note); color: var(--dim); }
+.dropdown:hover .ico { color: var(--accent); }

@@ -1,0 +1,109 @@
+/* Things that float over everything: the hover preview, the one tooltip
+   layer, keycaps, and the centred next action. */
+
+/* fades in on every show */
+#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; animation: previewIn 0.1s ease-out; }
+#cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8); }
+#cardpreview .pv-text {
+  border: 1px solid transparent; border-radius: 8px; padding: 8px; font-size: var(--fs-body); white-space: pre-wrap;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
+}
+#cardpreview .pv-faces { display: flex; gap: 6px; align-items: flex-start; }
+#cardpreview .pv-faces img { width: 50%; }
+#cardpreview .pv-faces .pv-active { outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(226, 179, 85, 0.45); }
+
+/* The app's ONE tooltip: fixed to the viewport and above every other layer,
+   so nothing that scrolls can clip it and nothing painted later can cover it.
+   Never a sibling of the thing it describes — see components/Tooltip.tsx. */
+#tooltip {
+  position: fixed; z-index: 200; pointer-events: none; max-width: 280px;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  padding: 5px 9px; border-radius: 7px;
+  background: rgba(15, 10, 6, 0.95); border: 1px solid rgba(226, 179, 85, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  font: var(--fw-label) var(--fs-note)/1.35 var(--font-fantasy); letter-spacing: 0.06em;
+  color: var(--gold-hi);
+  animation: previewIn 0.12s ease-out;
+}
+#tooltip .tt-row + .tt-row { color: var(--text); letter-spacing: 0.02em; }
+
+/* keycaps: one component for every shortcut hint */
+.na-key { display: inline-flex; align-items: center; gap: 3px; line-height: 1; }
+.keycap {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 13px; padding: 1.5px 5px;
+  border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 4px;
+  background: rgba(226, 179, 85, 0.05);
+  font: var(--fw-label) var(--fs-tiny)/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim);
+}
+.keyplus { font-size: var(--fs-tiny); color: var(--dim); opacity: 0.5; }
+/* keyboard affordances are only meaningful while this window has focus */
+body.unfocused .na-key { display: none; }
+
+/* the next-action prompt: one always-present "most obvious tap", floating
+   just under the midline, with a faded skip-to-pass-turn beneath it.
+   Straddles the midline, centred on the PLAYMAT — the midline spans the rail
+   column too, so half a rail-width of offset lines it up with the cards */
+#nextaction {
+  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 45;
+  display: flex; flex-direction: column; align-items: center;
+}
+/* satellites hover around the primary without displacing it: the row centres
+   on the primary alone, everything else is taken out of flow */
+.na-row { position: relative; display: flex; align-items: center; justify-content: center; }
+.na-undowrap { position: absolute; right: 100%; margin-right: 6px; }
+.na-redowrap { position: absolute; left: 100%; margin-left: 6px; }
+#na-undo,
+#na-redo {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; font-size: var(--fs-body); line-height: 1; opacity: 0.5;
+}
+#na-undo .ico { font-size: var(--fs-note); line-height: 1; }
+#na-undo:hover, #na-redo:hover { opacity: 1; color: var(--accent); }
+/* the card being resolved rides inside the button, on the left; hovering it
+   still opens the full-size preview */
+#na-card {
+  width: 40px; border-radius: 3px; display: block; flex: none;
+  border: 1px solid rgba(226, 179, 85, 0.45);
+}
+/* opaque, in the leather's own brown so it reads as part of the table: the
+   playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
+   composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
+   non-final background layer is a parse error */
+#na-primary {
+  display: flex; flex-direction: row; align-items: center; gap: 9px; letter-spacing: 0.05em;
+  padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
+  background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
+  color: var(--gold-hi);
+  /* every action breathes, so the eye always lands on the thing to press */
+  animation: noblockspulse 2s infinite ease-in-out;
+}
+#na-primary:hover { background: rgb(52, 34, 16); border-color: var(--gold-hi); }
+#na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* the stack item's own words, under the action */
+#na-primary .na-sub {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
+}
+#na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
+#na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
+#na-hint {
+  padding: 4px 12px; font-size: var(--fs-note); font-style: italic; color: var(--dim);
+  background: rgba(15, 10, 6, 0.72); border-radius: 10px;
+}
+/* hangs below the primary, out of flow: appearing must not resize the
+   centred container and shove the main button upward */
+#na-skip {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 1px 8px; font-size: var(--fs-note); letter-spacing: 0.04em; white-space: nowrap;
+  background: none; border: none; color: var(--dim); opacity: 0.5;
+  font-family: var(--font-fantasy);
+}
+#na-skip .ico { font-size: var(--fs-micro); margin-right: 2px; }
+#na-skip:hover { opacity: 1; color: var(--accent); }
+@keyframes noblockspulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(240, 208, 120, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(240, 208, 120, 0.9); }
+}

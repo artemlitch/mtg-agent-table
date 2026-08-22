@@ -1,0 +1,93 @@
+/* Reset, the two bare controls every component inherits from, and the shell
+   the table and the side panel sit in. */
+
+* { box-sizing: border-box; margin: 0; }
+/* slim, translucent-gold scrollbars everywhere. NOTE: setting the standard
+   scrollbar-width makes Chrome IGNORE ::-webkit-scrollbar — Firefox only */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(226, 179, 85, 0.35) transparent; }
+}
+*::-webkit-scrollbar { width: 2px; height: 2px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(226, 179, 85, 0.35); border-radius: 1px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(226, 179, 85, 0.6); }
+body {
+  background:
+    radial-gradient(1100px 700px at 50% 38%, rgba(64, 46, 110, 0.22), transparent 70%),
+    radial-gradient(900px 600px at 50% 105%, rgba(180, 130, 40, 0.10), transparent 65%),
+    var(--bg);
+  color: var(--text); font: var(--fw-ui) var(--fs-body)/1.45 var(--font-ui); overflow: hidden;
+}
+button {
+  border: 1px solid transparent; border-radius: 7px; padding: 4px 11px; cursor: pointer;
+  background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box;
+  color: #e6d8ae; font: var(--fw-action) var(--fs-label)/1.5 var(--font-action); letter-spacing: 0.03em;
+}
+button:hover {
+  background: linear-gradient(180deg, #2d2640, #1b1626) padding-box, var(--chrome) border-box;
+  color: var(--gold-hi); box-shadow: 0 0 9px rgba(226, 179, 85, 0.28);
+}
+button.accent {
+  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+  color: #2a1c04; text-shadow: 0 1px 0 rgba(255, 240, 190, 0.4);
+}
+button.accent:hover { color: #1a1000; box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
+input {
+  border: 1px solid transparent; border-radius: 7px; padding: 4px 8px; font: inherit; color: var(--text);
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+}
+input:focus { outline: none; background: linear-gradient(#221d30, #221d30) padding-box, var(--chrome) border-box; }
+
+.hidden { display: none !important; }
+
+#app { display: flex; height: 100vh; }
+#table { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+/* leather playmat: SVG turbulence does the work — a coarse mottle layer for
+   worn patches, a fine grain layer, over a deep umber base with a vignette */
+#table {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.32'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='700' height='700'%3E%3Cfilter id='m' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0114286 0.0142857' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)' opacity='0.28'/%3E%3C/svg%3E"),
+    radial-gradient(115% 90% at 50% 46%, rgba(43, 27, 14, 0.8), rgba(19, 12, 7, 0.94) 78%, rgba(9, 6, 3, 0.98) 100%),
+    #0f0a06;
+  background-blend-mode: overlay, soft-light, normal, normal;
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.55);
+}
+/* everything below the topbar; the glow measures itself against this rather
+   than a hardcoded topbar height */
+#felt { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* combat: the leather takes a red pulse. Quick to arrive, slow to leave, and
+   click-through — the middle stays clear so it never washes out cards. Inset
+   past the rail column so it stays on the playmat and off the navy UI */
+#combatglow {
+  position: absolute; inset: 0 0 0 var(--rail-w); z-index: 40; pointer-events: none;
+  opacity: 0; transition: opacity 2.2s ease;
+  box-shadow: inset 0 0 22px 3px rgba(208, 60, 50, 0.2);
+}
+#combatglow.on { opacity: 1; transition: opacity 0.7s ease; animation: combatpulse 3.2s ease-in-out infinite; }
+/* half the reach of the first pass, fainter, and a narrower swing between the
+   two ends so it breathes rather than throbs */
+@keyframes combatpulse {
+  0%, 100% { box-shadow: inset 0 0 20px 2px rgba(208, 60, 50, 0.18); }
+  50% { box-shadow: inset 0 0 32px 6px rgba(214, 64, 52, 0.32); }
+}
+
+/* Anything mounted fresh replays its animation, so the fades below need no
+   JS: appearing is enough. */
+@keyframes menuIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes veilIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes boxIn {
+  from { opacity: 0; transform: scale(0.985) translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes previewIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

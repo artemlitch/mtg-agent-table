@@ -1,0 +1,74 @@
+/* The bar over the table: whose turn it is on the left, the turn as a route
+   of dots on the right, and the new-game overlay it opens. */
+
+#topbar {
+  display: flex; align-items: center; gap: 14px; padding: 6px 10px; background: var(--panel);
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
+}
+/* never wrap the topbar: the banner is the one flexible item and truncates
+   away; the bar clips as a backstop so it can't paint over the side panel */
+#topbar { overflow: hidden; }
+#topbar > * { flex-shrink: 0; }
+.setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
+#turnbanner {
+  font: var(--fw-heading) var(--fs-label)/1.4 var(--font-fantasy); letter-spacing: 0.04em;
+  color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35);
+  white-space: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.phasebtns { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.phasebtns button { padding: 3px 8px; font-size: var(--fs-note); }
+/* undo / redo are a pair of glyphs; a spent redo greys out rather than moving */
+#btn-undo, #btn-redo { display: flex; align-items: center; justify-content: center; width: 28px; padding: 3px 0; }
+#btn-redo:disabled { opacity: 0.3; cursor: default; }
+#btn-redo:disabled:hover { background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box; color: #e6d8ae; box-shadow: none; }
+
+/* the turn as a route: dots on a line, the current stop lit and named */
+#phasetrack { display: flex; align-items: center; }
+#phasetrack .pt-line { width: 16px; height: 1px; background: rgba(226, 179, 85, 0.22); transition: background 0.3s ease; }
+#phasetrack .pt-line.done { background: rgba(226, 179, 85, 0.6); }
+#phasetrack .pt-node {
+  display: inline-flex; align-items: center; padding: 3px 5px;
+  background: none; border: none; box-shadow: none; border-radius: 999px;
+}
+#phasetrack .pt-node:hover { background: none; box-shadow: none; }
+#phasetrack .pt-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  border: 1.5px solid rgba(226, 179, 85, 0.45); background: transparent;
+  transition: width 0.3s ease, height 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+#phasetrack .pt-node:hover .pt-dot { border-color: var(--gold-hi); }
+#phasetrack .pt-node.done .pt-dot { background: rgba(226, 179, 85, 0.5); border-color: rgba(226, 179, 85, 0.5); }
+#phasetrack .pt-node.now .pt-dot {
+  width: 11px; height: 11px; background: var(--gold-hi); border-color: var(--gold-hi);
+  box-shadow: 0 0 10px rgba(240, 208, 120, 0.8);
+}
+/* only the lit stop is spelled out; the rest are dots with a tooltip */
+#phasetrack .pt-name {
+  max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
+  font: var(--fw-label) var(--fs-note)/1 var(--font-fantasy); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--gold-hi);
+  transition: max-width 0.3s ease, opacity 0.3s ease;
+}
+#phasetrack .pt-node.now .pt-name { max-width: 90px; opacity: 1; padding-left: 7px; }
+
+#newgame-overlay {
+  position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; gap: 12px; z-index: 60;
+  border: 1px solid transparent; border-radius: 14px;
+  background: linear-gradient(180deg, #1c1729, #131020) padding-box, var(--chrome) border-box;
+  padding: 20px 24px; min-width: 380px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 28px rgba(216, 160, 61, 0.15);
+}
+#newgame-overlay .ngtitle { color: var(--accent); font: var(--fw-heading) var(--fs-action)/1.4 var(--font-fantasy); letter-spacing: 0.1em; text-align: center; text-shadow: 0 0 14px rgba(226, 179, 85, 0.4); }
+#newgame-overlay .ngrow { display: flex; flex-direction: column; gap: 3px; }
+#newgame-overlay .ngrow label { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); }
+#newgame-overlay .ngrow input { font-size: var(--fs-body); padding: 6px 8px; }
+#newgame-overlay .ngrow a { font-size: var(--fs-micro); color: var(--dim); text-decoration: underline; min-height: 12px; }
+#newgame-overlay .dropdown { align-self: flex-start; padding: 6px 10px; font-size: var(--fs-body); }
+#newgame-overlay .dropdown .dd-label { min-width: 130px; }
+#newgame-overlay .ngbtns { display: flex; gap: 8px; justify-content: center; }
+#newgame-overlay .ngbtns button { font-size: var(--fs-note); padding: 5px 14px; }
+#btn-loaddecks {
+  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+  color: #2a1c04; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
+}

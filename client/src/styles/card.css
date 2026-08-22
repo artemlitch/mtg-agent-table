@@ -1,0 +1,146 @@
+/* One card, everywhere it appears: in a hand, on the board, on the stack as a
+   ghost, and as a face-down back. Every state is a class on the same element. */
+
+.card { width: var(--card-w); height: var(--card-h); border-radius: 6px; position: relative; cursor: pointer; flex: none; transition: transform 0.15s; background: #222; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
+.card img { width: 100%; height: 100%; border-radius: 6px; display: block; object-fit: cover; }
+.card.tapped { transform: rotate(90deg); margin: 0 18px; }
+.card.attacking { outline: 2px solid var(--red); outline-offset: 1px; }
+/* declared attacker, not yet locked in: slight hover + red glow */
+.card.declaring {
+  outline: 2px solid var(--red); outline-offset: 1px;
+  animation: declarebob 2.2s ease-in-out infinite;
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), 0 0 16px rgba(208, 85, 85, 0.55);
+}
+@keyframes declarebob {
+  0%, 100% { transform: translateY(-3px); }
+  50% { transform: translateY(-6px); }
+}
+.card.blocking { outline: 2px solid var(--blue); outline-offset: 1px; }
+.card.tuck-source { outline: 2px dashed var(--accent); }
+
+/* dragging out of hand: a clone rides the cursor while the real card dims in
+   the fan, since a flex child has no left/top of its own to move */
+.card.handghost {
+  position: fixed; z-index: 80; pointer-events: none; margin: 0;
+  transform: rotate(-3deg); opacity: 0.92;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.7);
+}
+.card.handghost.overboard { transform: rotate(0deg) scale(1.03); box-shadow: 0 18px 34px rgba(0, 0, 0, 0.7), 0 0 18px rgba(226, 179, 85, 0.55); }
+.card.beingdragged { opacity: 0.3; }
+/* freshly dropped under the cursor: no hover styling until the pointer has
+   left it once (the JS preview is gated on the same class) */
+.card.nohover:hover .ctrbtn { opacity: 0; }
+#hand-you.fan .card.fanned.nohover:hover { transform: rotate(var(--fan-rot)) translateY(var(--fan-y)); }
+
+.card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
+.badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: var(--fs-micro); padding: 0 4px; color: #ffd97a; }
+.badge.att { color: #ff9c9c; }
+.badge.blk { color: #9cc4ff; }
+.badge.eq { color: #a8e6b0; }
+/* the badges strip is click-transparent; live counter badges opt back in.
+   Hover grows the hit target — these are tiny and get clicked mid-game. */
+.badge.ctr { pointer-events: auto; cursor: pointer; transition: transform 0.1s; }
+.badge.ctr:hover { filter: brightness(1.35); transform: scale(1.45); }
+
+/* +1/+1 counter chip: appears on hover, stays when set */
+.card .ctrbtn {
+  /* bottom-right, hovering just above the printed P/T box */
+  position: absolute; right: 2px; bottom: 18px; z-index: 5;
+  min-width: 18px; height: 16px; border-radius: 8px; padding: 0 5px;
+  font: var(--fw-heavy) var(--fs-tiny)/14px var(--font-fantasy); text-align: center; letter-spacing: 0.02em;
+  opacity: 0; transition: transform 0.1s, opacity 0.15s;
+}
+.card:hover .ctrbtn { opacity: 1; }
+.card .ctrbtn:hover { transform: scale(1.35); }
+.card .ctrbtn.has {
+  opacity: 1;
+  background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+  color: #2a1c04;
+}
+.card .ctrbtn.neg {
+  background: linear-gradient(180deg, #e08a7a, #a03c30) padding-box, var(--chrome) border-box;
+  color: #2a0a06;
+}
+
+.tokentag {
+  position: absolute; top: 2px; right: 2px; z-index: 4; pointer-events: none;
+  background: rgba(0, 0, 0, 0.8); border-radius: 4px; padding: 0 4px;
+  font: var(--fw-label) var(--fs-tiny)/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase;
+}
+/* explicit P/T override drawn over the card's own P/T corner */
+.ptbadge {
+  position: absolute; bottom: 2px; right: 2px; z-index: 4; pointer-events: none;
+  border: 1px solid transparent; border-radius: 4px;
+  padding: 0 4px; font: var(--fw-heavy) var(--fs-body)/1.5 var(--font-fantasy); color: #ffd97a;
+  background: linear-gradient(rgba(12, 9, 4, 0.94), rgba(12, 9, 4, 0.94)) padding-box, var(--chrome) border-box;
+}
+
+.cardback { width: 100%; height: 100%; border-radius: 6px; display: block; object-fit: cover; }
+.facedown-known { position: absolute; inset: 0; border-radius: 6px; }
+.facedown-known img { opacity: 0.75; }
+.facedown-known::after { content: "face-down"; position: absolute; top: 2px; left: 2px; background: rgba(0, 0, 0, 0.8); font-size: var(--fs-tiny); padding: 0 3px; border-radius: 3px; color: var(--dim); }
+.textcard {
+  width: 100%; height: 100%; border-radius: 6px; padding: 4px; font-size: var(--fs-micro); overflow: hidden; position: relative;
+  border: 1px solid transparent;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+}
+.textcard .textpt { position: absolute; bottom: 2px; right: 4px; font-size: var(--fs-body); background: var(--panel2); padding: 0 2px; }
+
+/* two-faced cards */
+.card .flipbtn {
+  position: absolute; top: 3px; right: 3px; z-index: 5;
+  background: rgba(0, 0, 0, 0.75); color: #ffd97a; border: 1px solid rgba(255, 217, 122, 0.5);
+  border-radius: 50%; width: 20px; height: 20px; font-size: var(--fs-note); line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+}
+.card .flipbtn:hover { background: rgba(216, 160, 61, 0.9); color: #14181c; }
+
+/* ghost = THE card in its on-the-stack presentation: same .card.placed
+   element and drag geometry as any board card, styled as a state */
+.card.ghost {
+  opacity: 0.55; filter: saturate(0.75); z-index: 6;
+  outline: 1.5px dashed var(--accent); outline-offset: 2px;
+  animation: ghostbob 2.6s ease-in-out infinite;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 16px rgba(226, 179, 85, 0.25);
+}
+.card.ghost.dragging { animation: none; }
+@keyframes ghostbob {
+  0%, 100% { transform: translateY(-5px); }
+  50% { transform: translateY(-11px); }
+}
+/* spells mid-cast: brighter than resolving-permanent ghosts, arcane violet cast */
+.card.ghost.spell {
+  opacity: 0.85; filter: none;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 20px rgba(140, 100, 220, 0.45);
+}
+.card.ghost.countered { filter: grayscale(0.75); opacity: 0.4 !important; animation: none; }
+.card.ghost.countered::after {
+  content: "COUNTERED"; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-18deg);
+  font: var(--fw-heavy) var(--fs-note)/1.4 var(--font-fantasy); letter-spacing: 0.1em; color: var(--red);
+  background: rgba(10, 6, 6, 0.85); border: 1px solid var(--red); border-radius: 4px; padding: 1px 6px;
+}
+/* a trigger on the stack lifts its REAL battlefield card — a state, not a copy */
+.card.lifted {
+  outline: 1.5px solid var(--accent); outline-offset: 2px; z-index: 6;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(226, 179, 85, 0.35);
+}
+.card.lifted:not(.tapped) { animation: ghostbob 2.6s ease-in-out infinite; }
+.card .liftpanel {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 5px;
+  display: flex; flex-direction: column; gap: 3px; align-items: center;
+  width: max-content; max-width: 190px; z-index: 7;
+}
+.card .liftpanel .sibtns { display: flex; gap: 3px; }
+.card .liftpanel .sibtns button { font-size: var(--fs-tiny); padding: 1px 6px; }
+/* a tapped card rotates, its stack panel must not: counter-rotate about the
+   CARD's center (half a card-height above the panel), which exactly cancels
+   the parent's 90° and leaves the panel upright below the card */
+.card.tapped .liftpanel {
+  transform: translateX(-50%) rotate(-90deg);
+  transform-origin: 50% calc(-1 * (var(--card-h) / 2 + 5px));
+}
+.trigchip {
+  max-width: 170px; border: 1px solid transparent; border-radius: 6px;
+  padding: 3px 7px; font-size: var(--fs-micro); color: var(--text); text-align: center;
+  background: linear-gradient(rgba(12, 9, 4, 0.93), rgba(12, 9, 4, 0.93)) padding-box, var(--chrome-dim) border-box;
+}

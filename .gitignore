@@ -5,3 +5,4 @@ state-backup-*.json
 games/
 mcp-[0-9]*.json
 electron/dist/
+web/

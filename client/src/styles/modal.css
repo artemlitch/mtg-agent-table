@@ -1,0 +1,122 @@
+/* Modals and the card browsers that live in them: a fixed-size box with a
+   fixed head and one scrolling grid of cards under it. */
+
+/* content sits high (not centered): the box and any side palette share the
+   same top edge, and nothing may extend below the viewport */
+#modal {
+  position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh;
+  animation: veilIn 0.16s ease-out;
+}
+#modal-box {
+  /* HARD RULE: modals are a fixed size — content (filtered cards etc.) never
+     resizes the box */
+  border: 1px solid transparent; border-radius: 10px; padding: 14px;
+  width: min(1100px, 85vw); height: 82vh; overflow: visible;
+  position: relative; display: flex; flex-direction: column;
+  background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome) border-box;
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.8), 0 0 24px rgba(216, 160, 61, 0.12);
+  animation: boxIn 0.18s ease-out;
+}
+/* compact modals size to content — the fixed-size rule is for card browsers */
+#modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; margin-top: 10vh; }
+#modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+#modal-box .modalhead { flex: none; }
+#modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
+/* floating close X on the box corner; content scrolls in an inner wrapper */
+.modalx {
+  position: absolute; top: -11px; left: -11px; z-index: 5;
+  width: 28px; height: 28px; border-radius: 50%; padding: 0; font-size: var(--fs-body);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* padding so a hovered card's outline isn't clipped by the scroll edge */
+.modalcards { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px; }
+/* the whole card is the button — its actions live in the click menu */
+.modalcard { width: var(--cardsize, 170px); cursor: pointer; }
+.modalcard img { width: 100%; border-radius: 6px; transition: outline-color 0.2s ease, box-shadow 0.2s ease; outline: 1.5px solid transparent; outline-offset: 1px; }
+.modalcard:hover img { outline-color: var(--accent); box-shadow: 0 0 14px rgba(216, 160, 61, 0.25); }
+.modalcard.bottomed img { opacity: 0.4; }
+.modalcard.bottomed::after { content: "→ bottom"; color: var(--accent); font: var(--fw-label) var(--fs-micro)/1.5 var(--font-fantasy); }
+
+/* filter bar shared by zone modals and library search — one line */
+.filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.filterbar .namein { width: 100%; }
+.filterbar .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filterbar .numf { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.filterbar .numlabel { font: var(--fw-action) var(--fs-label)/1.5 var(--font-action); letter-spacing: 0.02em; color: var(--dim); }
+.filterbar .numin { width: 52px; padding: 3px 5px; font: var(--fw-ui) var(--fs-label) var(--font-ui); }
+/* the native number spinner can't be themed — hidden, ours sits beside it */
+.filterbar .numin::-webkit-inner-spin-button,
+.filterbar .numin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.filterbar .spin { display: inline-flex; flex-direction: column; gap: 1px; }
+.filterbar .spinb {
+  --c: var(--accent);
+  width: 16px; height: 11px; padding: 0; border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); background: rgba(255, 255, 255, 0.04); border: 1px solid transparent; box-shadow: none;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.filterbar .spinb .ico { font-size: var(--fs-micro); }
+.filterbar .spinb:hover { color: var(--accent); background: rgba(226, 179, 85, 0.16); }
+/* ≥ / ≤ has two states, so the plate flips in place instead of dropping a list */
+.filterbar .opbtn { width: 26px; padding: 3px 0; font: var(--fw-ui) var(--fs-action)/1 var(--font-ui); color: var(--accent); }
+/* mana pips: the real symbols (Scryfall SVGs, served locally) */
+.filterbar .pips { display: inline-flex; align-items: center; gap: 4px; }
+.filterbar .colbtn {
+  width: 21px; height: 21px; border-radius: 50%; padding: 0; flex: none;
+  border: none; opacity: 0.35; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.filterbar .colbtn.on { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; box-shadow: 0 0 8px rgba(226, 179, 85, 0.5); }
+.filterbar .colbtn.colW { background: url("/pip-W.svg") center/100% no-repeat; }
+.filterbar .colbtn.colU { background: url("/pip-U.svg") center/100% no-repeat; }
+.filterbar .colbtn.colB { background: url("/pip-B.svg") center/100% no-repeat; }
+.filterbar .colbtn.colR { background: url("/pip-R.svg") center/100% no-repeat; }
+.filterbar .colbtn.colG { background: url("/pip-G.svg") center/100% no-repeat; }
+.filterbar .colbtn.colC { background: url("/pip-C.svg") center/100% no-repeat; }
+.filterbar .sizeslider { width: 90px; margin-left: auto; accent-color: var(--accent); background: none; border: none; padding: 0; }
+
+/* in-app replacement for window.prompt */
+.askbox { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+.askbox input { padding: 9px 10px; font-size: var(--fs-body); }
+.askrow { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ability-to-stack modal: card left, input as tall as the card, send below */
+.abilitymodal { display: flex; gap: 12px; align-items: stretch; }
+.abilitymodal img { width: 230px; border-radius: 11px; flex: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55); }
+.abilitymodal .amoracle {
+  width: 230px; font-size: var(--fs-body); line-height: 1.5; white-space: pre-wrap; color: var(--text);
+  overflow-y: auto; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+}
+.abilitymodal .amcol { display: flex; flex-direction: column; gap: 8px; width: 290px; }
+.abilitymodal .amcol textarea {
+  flex: 1; resize: none; font: inherit; color: var(--text); padding: 9px 10px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+}
+.abilitymodal .amcol textarea:focus { outline: none; background: linear-gradient(#221d30, #221d30) padding-box, var(--chrome) border-box; }
+.abilitymodal .ambtns { display: flex; gap: 8px; }
+.abilitymodal .ambtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; }
+.abilitymodal .ambtn small { font-size: var(--fs-micro); opacity: 0.65; font-family: -apple-system, sans-serif; letter-spacing: 0.1em; }
+
+/* target palette hovering beside the ability modal */
+.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; margin-top: 10vh; max-height: calc(78vh - 20px); }
+.tcol {
+  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: calc(82vh - 20px);
+  border: 1px solid transparent; border-radius: 10px; padding: 5px;
+  background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
+}
+.tcolhead { font: var(--fw-heading) var(--fs-tiny)/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
+.tcolhead::after { content: " ▾"; font-size: var(--fs-tiny); color: var(--dim); }
+.tcol.collapsed .tcolhead::after { content: " ▸"; color: var(--gold-hi); }
+.tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.tcol.collapsed .tlist { display: none; }
+.titem { cursor: pointer; border-radius: 5px; }
+.titem img { width: 100%; border-radius: 5px; display: block; }
+.titem span { display: block; font-size: var(--fs-tiny); padding: 3px; }
+.titem:hover { outline: 2px solid var(--accent); }
+.tsub { font: var(--fw-label) var(--fs-tiny)/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
+
+.tokencustom { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
+.tokencustom .tclabel { width: 100%; color: var(--accent); font: var(--fw-label) var(--fs-note)/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
+.tokencustom input { width: 170px; }
