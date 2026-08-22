@@ -862,6 +862,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         isToken: true,
       });
       game.players[player].zones.battlefield.push(id);
+      // a batch is ONE object on the table, not n of them scattered across it:
+      // each new token slides under the previous, so they arrive as a pile the
+      // board already knows how to draw, drag as a unit and take apart.
+      if (ids.length) game.cards[id].under = ids[ids.length - 1];
       ids.push(id);
     }
     addLog(ctx.actor, `${who(ctx.actor)} created ${n}x ${p.name} token for ${who(player)}`);

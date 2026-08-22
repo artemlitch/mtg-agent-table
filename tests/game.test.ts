@@ -1044,3 +1044,37 @@ describe("P/T counters are one net quantity (+1/+1 and -1/-1 annihilate)", () =>
     expect(c.counters["loyalty"]).toBe(3);
   });
 });
+
+describe("create_token", () => {
+  test("a batch of tokens enters as one pile, newest at the bottom", () => {
+    const r = applyAction("you", "create_token", { name: "Treasure", n: 3 });
+    const [a, b, c] = r.ids as string[];
+    // the first is the pile's top and sits on nothing
+    expect(game.cards[a].under).toBeNull();
+    expect(game.cards[b].under).toBe(a);
+    expect(game.cards[c].under).toBe(b);
+    expect(game.players.you.zones.battlefield.length).toBe(3);
+  });
+
+  test("a single token is not a pile", () => {
+    const r = applyAction("you", "create_token", { name: "Clue", n: 1 });
+    expect(game.cards[(r.ids as string[])[0]].under).toBeNull();
+  });
+
+  test("a second batch is its own pile, not stacked on the first", () => {
+    const first = applyAction("you", "create_token", { name: "Treasure", n: 2 }).ids as string[];
+    const second = applyAction("you", "create_token", { name: "Soldier", n: 2 }).ids as string[];
+    expect(game.cards[second[0]].under).toBeNull();
+    expect(game.cards[second[1]].under).toBe(second[0]);
+    // and the first pile is untouched
+    expect(game.cards[first[1]].under).toBe(first[0]);
+  });
+
+  test("the pile can be taken apart with tuck, like any other", () => {
+    const ids = applyAction("you", "create_token", { name: "Treasure", n: 3 }).ids as string[];
+    applyAction("you", "tuck", { card: ids[1], under: "" });
+    expect(game.cards[ids[1]].under).toBeNull();
+    // pulling the middle out re-links the one below it to the top
+    expect(game.cards[ids[2]].under).toBe(ids[0]);
+  });
+});
