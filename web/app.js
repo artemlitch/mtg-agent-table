@@ -1082,17 +1082,16 @@ function lifeBox(p) {
   const ps = state.players[p];
   const d = document.createElement("div");
   d.className = "lifebox";
-  // commander damage is reference, not headline: it rides in a hover tooltip
+  // commander damage is reference, not headline: it rides in a hover tooltip,
+  // on the number itself — the name and the ± buttons are not it
   const cmdmg = Object.entries(ps.commanderDamage || {})
     .map(([c, n]) => `${n} from ${c}`)
     .join("\n");
-  if (cmdmg) {
-    d.dataset.tip = `Commander damage\n${cmdmg}`;
-  }
   const ld = lifeDelta[p].sum;
   const deltaTag = ld !== 0 ? `<div class="lifedelta ${ld < 0 ? "neg" : "pos"}">${ld > 0 ? "+" : ""}${ld}</div>` : "";
   d.innerHTML = `${deltaTag}<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
     <div class="liferow"><button data-d="-1">−</button><div class="life">${ps.life}</div><button data-d="1">+</button></div>`;
+  if (cmdmg) d.querySelector(".life").dataset.tip = `Commander damage\n${cmdmg}`;
   d.querySelectorAll("button").forEach((b) => (b.onclick = (e) => {
     e.stopPropagation();
     bumpLifeDelta(p, Number(b.dataset.d));
