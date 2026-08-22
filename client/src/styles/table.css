@@ -151,30 +151,57 @@
 }
 .cmdzone .card.cmdcard { width: var(--hand-card-w); height: var(--hand-card-h); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
 
-/* the flare: a slow conic sweep orbiting behind the plate, plus a second one
-   the other way so the light never looks like it is simply spinning */
-.cmdzone .cmdswirl {
-  position: absolute; inset: -5px; border-radius: 15px; pointer-events: none; z-index: -1;
-  overflow: hidden;
+/* The nebula behind the card: four soft blobs, each drifting on its own clock
+   and fading in and out as it goes, so the light gathers and disperses like a
+   lava lamp instead of circling. They screen over each other, which is what
+   makes two overlapping blobs read as one brighter cloud.
+   One keyframe drives all four — the drift vector, the peak opacity and the
+   timing are per-blob variables, so a fifth blob is one more rule.
+   Peaks top out at 0.1: this is weather behind a card, not a light show. */
+.cmdzone .cmdcloud {
+  position: absolute; inset: 1px; border-radius: 10px; overflow: hidden;
+  pointer-events: none; z-index: 0;
 }
-.cmdzone .cmdswirl::before,
-.cmdzone .cmdswirl::after {
-  content: ""; position: absolute; inset: -40%; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 55%, rgba(226, 179, 85, 0.83) 72%, var(--gold-hi) 80%, rgba(226, 179, 85, 0.83) 88%, transparent 100%);
-  filter: blur(4px);
-  animation: cmdswirl 35s linear infinite;
+.cmdzone .cmdcloud span {
+  position: absolute; border-radius: 50%; opacity: 0;
+  filter: blur(11px);
+  mix-blend-mode: screen;
+  animation: cmdcloud var(--dur) ease-in-out infinite;
+  animation-delay: var(--delay);
 }
-.cmdzone .cmdswirl::after {
-  background: conic-gradient(from 180deg, transparent 0 62%, rgba(140, 100, 220, 0.68) 78%, rgba(200, 170, 255, 1) 84%, transparent 96%);
-  animation-duration: 55s; animation-direction: reverse; opacity: 1;
+@keyframes cmdcloud {
+  0%   { transform: translate(0, 0) scale(0.85); opacity: 0; }
+  22%  { opacity: var(--peak); }
+  50%  { transform: translate(var(--dx), var(--dy)) scale(1.45); opacity: var(--peak); }
+  78%  { opacity: calc(var(--peak) * 0.4); }
+  100% { transform: translate(0, 0) scale(0.85); opacity: 0; }
 }
-@keyframes cmdswirl {
-  to { transform: rotate(1turn); }
+/* negative delays start each blob mid-drift, so they never all bloom at once */
+.cmdzone .cmdcloud span:nth-child(1) {
+  width: 78%; height: 62%; left: -12%; top: 28%;
+  background: radial-gradient(circle, rgba(240, 208, 120, 0.95), transparent 68%);
+  --dx: 34%; --dy: -38%; --peak: 0.1; --dur: 26s; --delay: -3s;
 }
-/* dragging a commander over it: the socket lights up and the swirl quickens */
+.cmdzone .cmdcloud span:nth-child(2) {
+  width: 92%; height: 70%; left: 22%; top: -18%;
+  background: radial-gradient(circle, rgba(150, 108, 226, 0.9), transparent 68%);
+  --dx: -30%; --dy: 44%; --peak: 0.078; --dur: 34s; --delay: -13s;
+}
+.cmdzone .cmdcloud span:nth-child(3) {
+  width: 58%; height: 55%; left: 42%; top: 44%;
+  background: radial-gradient(circle, rgba(226, 140, 60, 0.85), transparent 66%);
+  --dx: -38%; --dy: -28%; --peak: 0.083; --dur: 21s; --delay: -18s;
+}
+.cmdzone .cmdcloud span:nth-child(4) {
+  width: 50%; height: 46%; left: 4%; top: -8%;
+  background: radial-gradient(circle, rgba(255, 244, 214, 0.8), transparent 64%);
+  --dx: 44%; --dy: 48%; --peak: 0.063; --dur: 29s; --delay: -8s;
+}
+/* the card sits in front of the weather */
+.cmdzone .cmdslot { position: relative; z-index: 1; }
+/* dragging a commander over it: the socket lights up and the cloud thickens */
 .cmdzone.armed { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
-.cmdzone.armed .cmdswirl::before { animation-duration: 8s; filter: blur(2px); }
-.cmdzone.armed .cmdswirl::after { animation-duration: 12s; }
+.cmdzone.armed .cmdcloud span { filter: blur(8px) brightness(1.5); }
 .cmdzone.armed .cmdslot:empty { border-color: var(--gold-hi); }
 
 /* card-shaped token creator, bottom-right by your hand */

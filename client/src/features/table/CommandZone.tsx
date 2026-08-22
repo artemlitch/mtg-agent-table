@@ -15,7 +15,13 @@ export function CommandZone({ p }: { p: PlayerId }) {
   const mine = p === "you";
   return (
     <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-tip="Command zone">
-      <div className="cmdswirl" aria-hidden="true" />
+      {/* the nebula: four blobs drifting on their own clocks — see table.css */}
+      <div className="cmdcloud" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="cmdslot">
         {cards.map((c) => (
           <CardEl
