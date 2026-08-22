@@ -2309,6 +2309,13 @@ document.addEventListener("keydown", (e) => {
   // keybinds are inert while typing
   const t = document.activeElement;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  // CMD/CTRL+Z undoes the last table action. Below the typing guard on
+  // purpose: inside a text field it stays the browser's text undo.
+  if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+    e.preventDefault();
+    undoLastAction();
+    return;
+  }
   // SPACE takes the floating next action, SHIFT+SPACE skips to the turn pass.
   // preventDefault stops both the page scroll and the native button
   // activation, so a focused button fires once.
