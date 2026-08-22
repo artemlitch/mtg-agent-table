@@ -48,7 +48,7 @@
   position: absolute; right: 2px; bottom: 18px; z-index: 5;
   min-width: 18px; height: 16px; border-radius: 8px; padding: 0 5px;
   font: var(--fw-heavy) var(--fs-tiny)/14px var(--font-fantasy); text-align: center; letter-spacing: 0.02em;
-  opacity: 0; transition: transform 0.1s, opacity 0.15s;
+  opacity: 0; transition: transform 0.1s, var(--hover-transition);
 }
 .card:hover .ctrbtn { opacity: 1; }
 .card .ctrbtn:hover { transform: scale(1.35); }

@@ -26,7 +26,7 @@
 
 /* the turn as a route: dots on a line, the current stop lit and named */
 #phasetrack { display: flex; align-items: center; }
-#phasetrack .pt-line { width: 16px; height: 1px; background: rgba(226, 179, 85, 0.22); transition: background 0.3s ease; }
+#phasetrack .pt-line { width: 16px; height: 1px; background: rgba(226, 179, 85, 0.22); transition: var(--hover-transition); }
 #phasetrack .pt-line.done { background: rgba(226, 179, 85, 0.6); }
 #phasetrack .pt-node {
   display: inline-flex; align-items: center; padding: 3px 5px;
@@ -36,7 +36,7 @@
 #phasetrack .pt-dot {
   width: 9px; height: 9px; border-radius: 50%; flex: none;
   border: 1.5px solid rgba(226, 179, 85, 0.45); background: transparent;
-  transition: width 0.3s ease, height 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: width var(--glow-dur) var(--glow-ease), height var(--glow-dur) var(--glow-ease), var(--hover-transition);
 }
 #phasetrack .pt-node:hover .pt-dot { border-color: var(--gold-hi); }
 #phasetrack .pt-node.done .pt-dot { background: rgba(226, 179, 85, 0.5); border-color: rgba(226, 179, 85, 0.5); }
@@ -49,7 +49,7 @@
   max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
   font: var(--fw-label) var(--fs-note)/1 var(--font-fantasy); letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--gold-hi);
-  transition: max-width 0.3s ease, opacity 0.3s ease;
+  transition: max-width var(--glow-dur) var(--glow-ease), opacity var(--glow-dur) var(--glow-ease);
 }
 #phasetrack .pt-node.now .pt-name { max-width: 90px; opacity: 1; padding-left: 7px; }
 

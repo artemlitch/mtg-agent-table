@@ -35,7 +35,7 @@
 }
 .deckstack::before { transform: translate(3px, 3px); z-index: 0; }
 .deckstack::after { transform: translate(6px, 6px); opacity: 0.65; z-index: 0; }
-.deckstack img.cardback { position: relative; z-index: 1; width: 100%; border-radius: 8px; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6); }
+.deckstack img.cardback { position: relative; z-index: 1; width: 100%; border-radius: 8px; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6); transition: var(--hover-transition); }
 .deckcount {
   position: absolute; z-index: 2; left: 50%; top: 42%; transform: translate(-50%, -50%);
   font: var(--fw-heading) var(--fs-title)/1.3 var(--font-fantasy); color: var(--gold-hi);
@@ -54,7 +54,7 @@
   position: relative; overflow: hidden;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
   background: none;
-  transition: border-color 0.25s ease, background 0.25s ease;
+  transition: var(--hover-transition);
 }
 .pile::after {
   /* the panel purple part-way to black. Darkness is the pair of this mix and
@@ -69,7 +69,7 @@
   /* the crest of an ellipse is a hard line however soft the gradient is —
      blur is what turns it into an edge rather than an arc drawn on the rail */
   filter: blur(7px);
-  opacity: 0.86; transition: opacity 0.25s ease;
+  opacity: 0.86; transition: opacity var(--glow-dur) var(--glow-ease);
 }
 /* the plate used to carry the hover; a hairline rim does it now */
 .pile:hover { border-color: rgba(226, 179, 85, 0.4); background: rgba(226, 179, 85, 0.04); }
@@ -174,7 +174,7 @@
   border: 1px solid transparent;
   background: linear-gradient(rgba(14, 10, 6, 0.9), rgba(20, 14, 8, 0.9)) padding-box, var(--chrome) border-box;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: box-shadow 0.25s ease;
+  transition: var(--hover-transition);
 }
 /* the agent's mirrors across the midline, into the top corner of its board */
 .cmdzone.theirs { bottom: auto; top: 12px; }
@@ -245,7 +245,7 @@
   border: 1px solid transparent;
   background: radial-gradient(circle at 50% 32%, #241d31, #100c17) padding-box, var(--chrome-dim) border-box;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 1px 3px rgba(0, 0, 0, 0.6);
-  transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  transition: var(--hover-transition);
 }
 .cmdzone .cmdtax.owed {
   color: var(--gold-hi);

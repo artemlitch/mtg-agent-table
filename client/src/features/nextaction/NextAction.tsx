@@ -88,15 +88,18 @@ function useSizeTransition() {
     el.style.width = `${from.w}px`;
     el.style.height = `${from.h}px`;
     void el.offsetWidth; // flush, or the browser coalesces both sizes into one
-    el.style.transition = "width 0.22s ease, height 0.22s ease";
+    // the timing lives in CSS (#na-primary.sizing) so this shares one set of
+    // variables with every other transition in the app
+    el.style.transition = "";
+    el.classList.add("sizing");
     el.style.width = `${to.w}px`;
     el.style.height = `${to.h}px`;
     const release = () => {
-      el.style.transition = "";
+      el.classList.remove("sizing");
       el.style.width = "";
       el.style.height = "";
     };
-    const t = window.setTimeout(release, 240);
+    const t = window.setTimeout(release, 260);
     return () => window.clearTimeout(t);
   });
   return ref;

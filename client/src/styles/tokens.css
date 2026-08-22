@@ -108,4 +108,20 @@
      so it needs the weight to match or Cinzel goes spindly at size */
   --font-next: var(--font-fantasy);
   --fw-next: 700;
+  /* ── the hover feel ────────────────────────────────────────────────────
+     One duration and one curve for everything that lights up. --hover-transition
+     is the whole property list, so a rule opts in with
+     `transition: var(--hover-transition)` and nothing invents its own timing.
+     Anything that also moves adds its own property in front of the var. */
+  --glow-dur: 0.25s;
+  --glow-ease: ease;
+  /* boxes that resize rather than light up */
+  --size-dur: 0.22s;
+  --hover-transition:
+    background var(--glow-dur) var(--glow-ease),
+    border-color var(--glow-dur) var(--glow-ease),
+    box-shadow var(--glow-dur) var(--glow-ease),
+    outline-color var(--glow-dur) var(--glow-ease),
+    color var(--glow-dur) var(--glow-ease),
+    opacity var(--glow-dur) var(--glow-ease);
 }

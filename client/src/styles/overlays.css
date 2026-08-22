@@ -115,6 +115,12 @@ body.unfocused .na-key { display: none; }
 #na-primary .na-text { width: max-content; }
 #na-primary .na-label { white-space: nowrap; }
 #na-primary:hover { background: rgb(52, 34, 16); border-color: var(--gold-hi); }
+/* while the box is resizing it still has to light up the same way as every
+   other button, so the size properties are added to the shared list rather
+   than replacing it. useSizeTransition toggles this class. */
+#na-primary.sizing {
+  transition: width var(--size-dur) var(--glow-ease), height var(--size-dur) var(--glow-ease), var(--hover-transition);
+}
 #na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 /* the stack item's own words, under the action */
 #na-primary .na-sub {

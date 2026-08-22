@@ -22,6 +22,9 @@ button {
   border: 1px solid transparent; border-radius: 7px; padding: 4px 11px; cursor: pointer;
   background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box;
   color: #e6d8ae; font: var(--fw-action) var(--fs-label)/1.5 var(--font-action); letter-spacing: 0.03em;
+  /* the base rule is why most buttons used to snap: it lit up on hover and
+     never said how long that should take */
+  transition: var(--hover-transition);
 }
 button:hover {
   background: linear-gradient(180deg, #2d2640, #1b1626) padding-box, var(--chrome) border-box;

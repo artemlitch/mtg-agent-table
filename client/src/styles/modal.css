@@ -34,7 +34,7 @@
 .modalcards { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px; }
 /* the whole card is the button — its actions live in the click menu */
 .modalcard { width: var(--cardsize, 170px); cursor: pointer; }
-.modalcard img { width: 100%; border-radius: 6px; transition: outline-color 0.2s ease, box-shadow 0.2s ease; outline: 1.5px solid transparent; outline-offset: 1px; }
+.modalcard img { width: 100%; border-radius: 6px; transition: var(--hover-transition); outline: 1.5px solid transparent; outline-offset: 1px; }
 .modalcard:hover img { outline-color: var(--accent); box-shadow: 0 0 14px rgba(216, 160, 61, 0.25); }
 .modalcard.bottomed img { opacity: 0.4; }
 .modalcard.bottomed::after { content: "→ bottom"; color: var(--accent); font: var(--fw-label) var(--fs-micro)/1.5 var(--font-fantasy); }
@@ -54,7 +54,7 @@
   --c: var(--accent);
   width: 16px; height: 11px; padding: 0; border-radius: 3px; display: flex; align-items: center; justify-content: center;
   color: var(--dim); background: rgba(255, 255, 255, 0.04); border: 1px solid transparent; box-shadow: none;
-  transition: background 0.25s ease, color 0.25s ease;
+  transition: var(--hover-transition);
 }
 .filterbar .spinb .ico { font-size: var(--fs-micro); }
 .filterbar .spinb:hover { color: var(--accent); background: rgba(226, 179, 85, 0.16); }
@@ -111,7 +111,7 @@
 .tcol.collapsed .tcolhead::after { content: " ▸"; color: var(--gold-hi); }
 .tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .tcol.collapsed .tlist { display: none; }
-.titem { cursor: pointer; border-radius: 5px; }
+.titem { cursor: pointer; border-radius: 5px; outline: 2px solid transparent; transition: var(--hover-transition); }
 .titem img { width: 100%; border-radius: 5px; display: block; }
 .titem span { display: block; font-size: var(--fs-tiny); padding: 3px; }
 .titem:hover { outline: 2px solid var(--accent); }
