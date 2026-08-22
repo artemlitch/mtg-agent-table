@@ -75,8 +75,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 /* Anything mounted fresh replays its animation, so the fades below need no
    JS: appearing is enough. */
+/* a pure scale — the transform-origin is set per-open to the click point (see
+   components/Menu.tsx), so any nudge in here would drag the plate off it */
 @keyframes menuIn {
-  from { opacity: 0; transform: scale(0.96) translateY(-3px); }
+  from { opacity: 0; transform: scale(0.86); }
   to { opacity: 1; transform: none; }
 }
 @keyframes veilIn {

@@ -7,7 +7,8 @@
   position: fixed; z-index: 65; border: 1px solid transparent; border-radius: 8px; min-width: 170px;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); padding: 4px; max-height: 70vh; overflow-y: auto;
-  transform-origin: top left; animation: menuIn 0.13s ease-out;
+  /* transform-origin is written per-open by Menu.tsx — the click point */
+  animation: menuIn 0.14s ease-out;
 }
 /* card-menu rows: flat until hovered, then the same plate the panel wears —
    a long list would be noisy with every row plated at rest */

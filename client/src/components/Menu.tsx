@@ -27,14 +27,20 @@ export function MenuLayer() {
   }, [menu, closeMenu]);
 
   // clamped once it has a height — a menu opened near the bottom edge grows
-  // upward rather than off-screen
+  // upward rather than off-screen. The open animation then scales out of the
+  // point that was actually clicked: with the origin pinned there, a menu
+  // that sits below the cursor grows downward, one pushed up by the bottom
+  // edge grows upward, and one shoved sideways by the right edge grows out of
+  // its own middle — all from the same rule, no cases.
   useLayoutEffect(() => {
     if (!menu || !box.current) return;
+    const el = box.current;
     const wide = menu.kind === "panel" ? 250 : 200;
-    const x = Math.min(menu.x + CURSOR_GAP.x, window.innerWidth - wide);
-    const y = Math.min(menu.y + CURSOR_GAP.y, window.innerHeight - box.current.offsetHeight - 10);
-    box.current.style.left = `${x}px`;
-    box.current.style.top = `${Math.max(4, y)}px`;
+    const left = Math.min(menu.x + CURSOR_GAP.x, window.innerWidth - wide);
+    const top = Math.max(4, Math.min(menu.y + CURSOR_GAP.y, window.innerHeight - el.offsetHeight - 10));
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.transformOrigin = `${menu.x - left}px ${menu.y - top}px`;
   }, [menu]);
 
   if (!menu) return null;

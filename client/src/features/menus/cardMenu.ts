@@ -45,11 +45,13 @@ export function cardMenu(c: Card, e: Anchor) {
       ...(eAttacks ? {} : { keys: ["E"] }),
       fn: () => void act("tap", { cards: [c.id], tapped: !c.tapped }),
     };
-    if (eAttacks) items.push(attackItem, tapItem);
-    else {
-      items.push(tapItem);
-      if (canAttack) items.push(attackItem);
-    }
+    // announcing an ability is the second thing you reach for after the main
+    // gesture, so it sits directly under it rather than at the bottom
+    const abilityItem: MenuItem = { label: "⚡ Ability → stack…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) };
+    const primary = eAttacks ? attackItem : tapItem;
+    const secondary = eAttacks ? tapItem : canAttack ? attackItem : null;
+    items.push(primary, abilityItem);
+    if (secondary) items.push(secondary);
     if (c.controller === "you" && pendingAtk) {
       items.push({ label: "✖ Remove attacker", fn: () => void removeAttacker(c, pendingAtk) });
     }
@@ -131,10 +133,6 @@ export function cardMenu(c: Card, e: Anchor) {
   if ((c.faceCount ?? 1) > 1 && c.faces) {
     const next = ((c.face ?? 0) + 1) % (c.faceCount ?? 1);
     items.push({ label: `⟳ Show ${c.faces[next].name}`, fn: () => void act("set_face", { card: c.id, face: next }) });
-  }
-
-  if (c.zone === "battlefield") {
-    items.push({ label: "⚡ Ability → stack…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
   }
 
   if (c.zone === "exile" && !c.hidden) {
