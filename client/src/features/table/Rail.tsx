@@ -82,13 +82,23 @@ function LifeBox({ p }: { p: PlayerId }) {
       </div>
       <div className="liferow">
         <button onClick={(e) => (e.stopPropagation(), bump(-1))}>−</button>
-        <div className="life" data-tip={`Commander damage\n${cmdmg}`}>
+        <div className="life" style={lifeFit(ps.life)} data-tip={`Commander damage\n${cmdmg}`}>
           {ps.life}
         </div>
         <button onClick={(e) => (e.stopPropagation(), bump(1))}>+</button>
       </div>
     </div>
   );
+}
+
+/** The life box is a fixed width, so a longer total has to shrink to fit it
+ *  rather than push the ± buttons apart. Stepped off the digit count instead
+ *  of measured: the sizes are known in advance and a measure-then-resize would
+ *  reflow on every life change. Four characters covers "-12" and "100". */
+function lifeFit(life: number): React.CSSProperties {
+  const digits = String(life).length;
+  const scale = digits <= 2 ? 1 : digits === 3 ? 0.78 : 0.62;
+  return scale === 1 ? {} : { fontSize: `calc(var(--fs-huge) * ${scale})` };
 }
 
 /** The library as a physical face-down pile, count on top; your deck carries a

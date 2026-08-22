@@ -20,10 +20,19 @@
 }
 .lifedelta.neg { color: var(--red); text-shadow: 0 0 8px rgba(208, 85, 85, 0.5); }
 .lifedelta.pos { color: var(--green); text-shadow: 0 0 8px rgba(89, 168, 108, 0.5); }
-.lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.lifebox .liferow button { font-size: var(--fs-body); padding: 1px 7px; }
+.lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.lifebox .liferow button { font-size: var(--fs-body); padding: 1px 7px; flex: none; }
 .lifebox .lname { font: var(--fw-label) var(--fs-micro)/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lifebox .life { font-size: var(--fs-huge); font-family: var(--font-fantasy); }
+/* A fixed box, so the − and + never shuffle sideways as the total goes from
+   40 to 9 to 100. The numeral scales to stay inside it rather than the box
+   growing to fit the numeral — see LifeBox, which sets the size off the digit
+   count. Tabular figures keep the width steady between values of equal
+   length, so 11 and 40 sit in the same place. */
+.lifebox .life {
+  width: 46px; flex: none; text-align: center;
+  font-size: var(--fs-huge); font-family: var(--font-fantasy);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
 .deckname { font-size: var(--fs-micro); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── the library as a physical face-down pile ── */
