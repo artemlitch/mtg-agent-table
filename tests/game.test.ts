@@ -48,6 +48,35 @@ beforeEach(() => {
   resetGameState();
 });
 
+describe("commander damage keys", () => {
+  test("a card id is accepted but damage is stored under the commander's name", () => {
+    const cmdr = seedCard("Marchesa, the Black Rose", "you", "battlefield", { isCommander: true });
+    const r = applyAction("you", "commander_damage", { to: "agent", commander: cmdr.id, delta: 4 });
+    expect(r.commander).toBe("Marchesa, the Black Rose");
+    expect(game.players.agent.commanderDamage).toEqual({ "Marchesa, the Black Rose": 4 });
+  });
+
+  test("stale id-keyed entries are healed on the next call", () => {
+    const cmdr = seedCard("Teysa Karlov", "agent", "battlefield", { isCommander: true });
+    game.players.you.commanderDamage[cmdr.id] = 2;
+    applyAction("agent", "commander_damage", { to: "you", commander: "Teysa Karlov", delta: 3 });
+    expect(game.players.you.commanderDamage).toEqual({ "Teysa Karlov": 5 });
+  });
+
+  test("unknown commanders and missing delta fail loudly", () => {
+    seedCard("Teysa Karlov", "agent", "battlefield", { isCommander: true });
+    expect(() => applyAction("agent", "commander_damage", { to: "you", commander: "c999", delta: 2 })).toThrow(/unknown commander/);
+    expect(() => applyAction("agent", "commander_damage", { to: "you", commander: "Teysa Karlov" })).toThrow(/numeric delta/);
+  });
+
+  test("damage dropping to zero removes the scoreboard entry", () => {
+    const cmdr = seedCard("Teysa Karlov", "agent", "battlefield", { isCommander: true });
+    applyAction("agent", "commander_damage", { to: "you", commander: cmdr.id, delta: 3 });
+    applyAction("agent", "commander_damage", { to: "you", commander: cmdr.id, delta: -3 });
+    expect(game.players.you.commanderDamage).toEqual({});
+  });
+});
+
 describe("owner zones (CR 404.1)", () => {
   test("a stolen creature dying goes to its OWNER's graveyard, not the thief's", () => {
     const c = seedCard("Stormdrake", "you", "battlefield", { controller: "agent" });
@@ -489,6 +518,7 @@ describe("life and commander damage", () => {
   });
 
   test("commander damage accumulates per commander name", () => {
+    seedCard("Gonti, Night Minister", "agent", "command", { isCommander: true });
     applyAction("agent", "commander_damage", { to: "you", commander: "Gonti, Night Minister", delta: 3 });
     applyAction("agent", "commander_damage", { to: "you", commander: "Gonti, Night Minister", delta: 4 });
     expect(game.players.you.commanderDamage["Gonti, Night Minister"]).toBe(7);

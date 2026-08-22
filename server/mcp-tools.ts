@@ -140,7 +140,7 @@ export const TOOLS: Record<string, ToolDef> = {
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
   commander_damage: {
     description: "Track commander combat damage dealt to a player.",
-    schema: obj({ to: PLAYER, commander: str("commander name"), delta: num("damage dealt") }, ["to", "commander", "delta"]),
+    schema: obj({ to: PLAYER, commander: str("the commander — card id or name"), delta: num("damage dealt") }, ["to", "commander", "delta"]),
   },
   reveal: { description: "Reveal cards (from your hand etc.) to 'all' or one player.", schema: obj({ cards: arr(str("card id"), "card ids"), to: str("audience", ["all", "you", "agent"]) }, ["cards"]) },
   peek: {

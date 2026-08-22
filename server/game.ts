@@ -933,11 +933,36 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   commander_damage(ctx, p) {
-    // p: { to: PlayerId, commander: card name, delta }
+    if (typeof p.delta !== "number") throw new Error("commander_damage requires a numeric delta");
+    const commanders = Object.values(game.cards).filter((c) => c.isCommander);
+    // heal any historical id-keyed entries into canonical names — every other
+    // tool takes card ids, so models pass them here too, and "4 from c28" is
+    // not a scoreboard
+    for (const pl of PLAYERS) {
+      const dmg = game.players[pl].commanderDamage;
+      for (const [k, v] of Object.entries(dmg)) {
+        const byId = game.cards[k];
+        if (byId) {
+          delete dmg[k];
+          dmg[byId.name] = (dmg[byId.name] || 0) + v;
+        }
+      }
+    }
+    const ref = String(p.commander ?? "");
+    const match =
+      commanders.find((c) => c.id === ref) ??
+      commanders.find((c) => c.name.toLowerCase() === ref.toLowerCase()) ??
+      (ref.length >= 4 ? commanders.find((c) => c.name.toLowerCase().includes(ref.toLowerCase())) : undefined);
+    if (!match) {
+      throw new Error(
+        `unknown commander ${JSON.stringify(ref)} — commanders in this game: ${commanders.map((c) => `${c.name} (${c.id})`).join(", ") || "(none)"}`
+      );
+    }
     const ps = game.players[asPlayer(p.to, "to")];
-    ps.commanderDamage[p.commander] = (ps.commanderDamage[p.commander] || 0) + (p.delta ?? 0);
-    addLog(ctx.actor, `${who(p.to)} has taken ${ps.commanderDamage[p.commander]} commander damage from ${p.commander}`);
-    return { ok: true };
+    ps.commanderDamage[match.name] = (ps.commanderDamage[match.name] || 0) + p.delta;
+    if (!ps.commanderDamage[match.name]) delete ps.commanderDamage[match.name];
+    addLog(ctx.actor, `${who(p.to)} has taken ${ps.commanderDamage[match.name] || 0} commander damage from ${match.name}`);
+    return { ok: true, commander: match.name, total: ps.commanderDamage[match.name] || 0 };
   },
 
   reveal(ctx, p) {
