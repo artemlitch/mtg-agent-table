@@ -71,7 +71,9 @@
 .ptbadge {
   position: absolute; bottom: 2px; right: 2px; z-index: 4; pointer-events: none;
   border: 1px solid transparent; border-radius: 4px;
-  padding: 0 4px; font: var(--fw-heavy) var(--fs-body)/1.5 var(--font-fantasy); color: #ffd97a;
+  /* 20% down from body — it sits over the card's own printed corner and was
+     bigger than the numbers it is overriding */
+  padding: 0 4px; font: var(--fw-heavy) var(--fs-micro)/1.5 var(--font-fantasy); color: #ffd97a;
   background: linear-gradient(rgba(12, 9, 4, 0.94), rgba(12, 9, 4, 0.94)) padding-box, var(--chrome) border-box;
 }
 

@@ -163,8 +163,7 @@
   padding: 0.25em 0.35em; overflow: hidden;
   font-family: var(--font-scroll); font-size: 0.72em; line-height: 1.25; color: var(--text);
 }
-/* 20% down from 0.9em — the printed P/T was crowding its box */
-.tokenface .tc-pt { font-size: 0.72em; }
+.tokenface .tc-pt { font-size: 0.9em; }
 
 /* the hover preview: the same face at preview size. It brings its own frame
    and container context, since there is no .card around it here. */
