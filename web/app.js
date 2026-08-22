@@ -350,10 +350,12 @@ const NEXT_ACTION_STEPS = [
   {
     id: "combat-damage",
     when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/COMBAT DAMAGE/),
+    // one click straight onto the stack — the agent works out the numbers,
+    // the player never types damage
     step: () => ({
       label: "💥 Go to damage",
       skip: true,
-      fn: () => { switchTab("stack"); const i = $("#chat-input"); i.value = "COMBAT DAMAGE — "; i.focus(); },
+      fn: () => act("stack_push", { text: "go to damage" }),
     }),
   },
   {
@@ -2388,8 +2390,15 @@ function cardPrimaryAction(card, shift) {
         if (cur.tapped) act("tap", { cards: [cur.id], tapped: false });
         return;
       }
-      // 3. your untapped creature → declare the attack
-      if (typeCat(cur) === "creature" && !cur.attacking && !cur.tapped) {
+      // 3. your untapped creature IN COMBAT → declare the attack. Only in
+      // combat: elsewhere E means tap (for mana), and attacking on a main
+      // phase keypress was never what anyone wanted
+      if (
+        typeCat(cur) === "creature" &&
+        !cur.attacking &&
+        !cur.tapped &&
+        /combat|attack/i.test(state.phase || "")
+      ) {
         act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
         return;
       }
