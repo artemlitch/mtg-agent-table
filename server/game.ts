@@ -170,6 +170,45 @@ export function markSeenByAgent(ids: (string | undefined)[]) {
   for (const id of ids) if (id) seen[id] = true;
 }
 
+// Trigger HINTS: triggered abilities are lexically rigid — every one starts
+// with When/Whenever/At — so the server can flag them at the moments they get
+// missed, with zero rules knowledge. Hints ride tool results and are never
+// rulings; false positives are fine.
+function activeOracle(c: Card): string {
+  const face = c.face !== undefined && c.faces ? c.faces[c.face] : undefined;
+  return String(face?.oracle ?? c.oracle ?? "");
+}
+
+// Written-out triggers (CR 603) use When/Whenever/At — matched anywhere in
+// the line, since ability words prefix them ("Landfall — Whenever…"). Bare
+// keywords that IMPLY a trigger with no trigger word, and Saga chapter lines,
+// get their own nets.
+const TRIGGER_WORD = /\b(when|whenever|at the beginning of|at end of combat|as .{0,40}enters|enters (?:the battlefield )?with)\b/i;
+const TRIGGER_KEYWORD =
+  /\b(prowess|exalted|extort|cascade|storm|gravestorm|ripple|persist|undying|evolve|fabricate|mentor|melee|myriad|annihilator|afflict|bushido|rampage|soulbond|haunt|dethrone|exploit|enrage|renown|training|battle cry|ingest|decayed|flanking|gift of|living weapon|casualty)\b/i;
+const SAGA_CHAPTER = /^[IVX]+(?:, ?[IVX]+)* ?—/;
+
+export function triggerLines(c: Card): string[] {
+  return activeOracle(c)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => TRIGGER_WORD.test(l) || SAGA_CHAPTER.test(l) || TRIGGER_KEYWORD.test(l));
+}
+
+/** Battlefield permanents (both sides) whose text mentions deaths/leaving. */
+export function deathTriggerCandidates(): string[] {
+  const out: string[] = [];
+  for (const p of PLAYERS) {
+    for (const id of game.players[p].zones.battlefield) {
+      const c = game.cards[id];
+      if (c && /\b(dies|die|leaves the battlefield|put into a graveyard)\b/i.test(activeOracle(c))) {
+        out.push(`${who(p)}'s ${c.name}`);
+      }
+    }
+  }
+  return out;
+}
+
 export const game: GameState = newGameState();
 
 export function resetGameState() {
@@ -614,9 +653,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     let insertAt: number | null = null;
     let toPlayerForLog: PlayerId = p.toPlayer ?? cards[0].controller;
 
+    let deaths = 0;
     for (const card of cards) {
       const fromZone = card.zone;
       fromZones.add(fromZone);
+      if (fromZone === "battlefield" && toZone === "graveyard") deaths++;
       const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
       const toPlayer: PlayerId = p.toPlayer === undefined ? card.controller : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
@@ -670,7 +711,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     for (const v of PLAYERS) if (line(names[v]) !== publicText) priv[v] = line(names[v]);
     addLog(ctx.actor, publicText, Object.keys(priv).length ? priv : undefined);
 
-    return { ok: true, cards: movedIds, removedTokens };
+    const deathWatchers = deaths ? deathTriggerCandidates() : [];
+    return {
+      ok: true,
+      cards: movedIds,
+      removedTokens,
+      ...(deathWatchers.length
+        ? { DEATH_TRIGGER_CANDIDATES: deathWatchers, note: "something just died — these battlefield cards mention dies/leaves (from their text); check which trigger and stack them" }
+        : {}),
+    };
   },
 
   untap(ctx, p) {
@@ -1026,7 +1075,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
-      return { ok: true, card: card.id, landPlay: true };
+      const landTrig = triggerLines(card);
+      return {
+        ok: true,
+        card: card.id,
+        landPlay: true,
+        ...(landTrig.length
+          ? { TRIGGERS_ON_THIS_CARD: landTrig, note: "the land drop itself is stackless, but these triggers still go on the stack (stack_push)" }
+          : {}),
+      };
     }
     // declared targets are PUBLIC stack information — resolve them before any
     // mutation so a bad ref fails atomically, and bake them into the item text
@@ -1047,7 +1104,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     });
     const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
     addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`);
-    return { ok: true, card: card.id, stackSize: game.stack.length };
+    const trig = triggerLines(card);
+    return {
+      ok: true,
+      card: card.id,
+      stackSize: game.stack.length,
+      ...(trig.length
+        ? { TRIGGERS_ON_THIS_CARD: trig, note: "batch the applicable ones onto the stack WITH this cast (stack_batch) — a trigger not on the stack did not happen" }
+        : {}),
+    };
   },
 
   /** Announce a trigger or activated ability as a text-only stack item.

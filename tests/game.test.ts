@@ -48,6 +48,70 @@ beforeEach(() => {
   resetGameState();
 });
 
+describe("trigger hints", () => {
+  test("casting a card with trigger text returns the trigger lines", () => {
+    const c = seedCard("Bastion", "you", "hand", {
+      typeLine: "Enchantment",
+      oracle: "When Bastion enters the battlefield, create a 1/1 token.\nFlying",
+    });
+    const r = applyAction("you", "cast", { card: c.id });
+    expect(r.TRIGGERS_ON_THIS_CARD).toEqual(["When Bastion enters the battlefield, create a 1/1 token."]);
+  });
+
+  test("ability words, bare keywords, sagas, another-phrasings, and as-enters are all caught", () => {
+    const mk = (oracle: string) => seedCard("T", "you", "hand", { oracle });
+    const lines = (o: string) => {
+      const card = mk(o);
+      const { triggerLines } = require("../server/game");
+      return triggerLines(card);
+    };
+    expect(lines("Landfall — Whenever a land you control enters, draw a card.").length).toBe(1);
+    expect(lines("Prowess").length).toBe(1);
+    expect(lines("Annihilator 2").length).toBe(1);
+    expect(lines("I — Draw a card.\nII, III — Discard a card.").length).toBe(2);
+    expect(lines("Whenever another creature you control dies, gain 1 life.").length).toBe(1);
+    expect(lines("As this creature enters, choose a color.").length).toBe(1);
+    expect(lines("This creature enters with two +1/+1 counters on it.").length).toBe(1);
+    expect(lines("Flying, haste").length).toBe(0);
+    expect(lines("Other creatures you control get +1/+1.").length).toBe(0);
+  });
+
+  test("a plain card returns no trigger hint", () => {
+    const c = seedCard("Vanilla", "you", "hand", { oracle: "Flying" });
+    const r = applyAction("you", "cast", { card: c.id });
+    expect(r.TRIGGERS_ON_THIS_CARD).toBeUndefined();
+  });
+
+  test("a land drop with trigger text carries the hint despite being stackless", () => {
+    const c = seedCard("Bojuka Bog", "you", "hand", {
+      typeLine: "Land",
+      oracle: "Bojuka Bog enters tapped.\nWhen Bojuka Bog enters, exile target player's graveyard.",
+    });
+    const r = applyAction("you", "cast", { card: c.id });
+    expect(r.landPlay).toBe(true);
+    expect(r.TRIGGERS_ON_THIS_CARD?.length).toBe(1);
+  });
+
+  test("a death lists battlefield cards whose text mentions dying", () => {
+    seedCard("Midnight Reaper", "agent", "battlefield", {
+      oracle: "Whenever a nontoken creature you control dies, you draw a card and lose 1 life.",
+    });
+    seedCard("Blood Artist", "you", "battlefield", {
+      oracle: "Whenever this or another creature dies, target player loses 1 life and you gain 1 life.",
+    });
+    const victim = seedCard("Bear", "you", "battlefield");
+    const r = applyAction("you", "move", { card: victim.id, toZone: "graveyard" });
+    expect(r.DEATH_TRIGGER_CANDIDATES!.sort()).toEqual(["Agent's Midnight Reaper", "Player's Blood Artist"]);
+  });
+
+  test("a discard (hand → graveyard) raises no death hint", () => {
+    seedCard("Blood Artist", "you", "battlefield", { oracle: "Whenever a creature dies, drain 1." });
+    const c = seedCard("Bear", "you", "hand");
+    const r = applyAction("you", "move", { card: c.id, toZone: "graveyard", note: "discard" });
+    expect(r.DEATH_TRIGGER_CANDIDATES).toBeUndefined();
+  });
+});
+
 describe("counters param strictness", () => {
   test("missing kind fails loudly instead of silently becoming +1/+1", () => {
     const c = seedCard("Sephiroth", "you", "battlefield");

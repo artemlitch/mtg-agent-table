@@ -16,7 +16,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { game, renderLogFor } from "./game";
+import { game, renderLogFor, triggerLines } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadApiKey, isCliVerified, loadProvider } from "./keystore";
 
@@ -208,6 +208,19 @@ export class AgentRunner {
         `respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve (top first). ` +
         `Never take other actions or call done while their items sit unresolved.\n`
       : "";
+    // turn-based trigger hints: "At the beginning of…" lines on the agent's
+    // own battlefield, surfaced at the top of its turn (text-grep, not rulings)
+    const turnTriggers =
+      reason === "window" && game.turn === "agent"
+        ? game.players.agent.zones.battlefield
+            .map((id) => game.cards[id])
+            .filter(Boolean)
+            .flatMap((c) => triggerLines(c!).filter((l) => /at the beginning of/i.test(l)).map((l) => `${c!.name}: ${l.slice(0, 100)}`))
+            .slice(0, 8)
+        : [];
+    const turnTrigText = turnTriggers.length
+      ? `\n⚠ TURN-BASED TRIGGERS on your battlefield (from card text — check which apply this turn):\n${turnTriggers.map((l) => `  · ${l}`).join("\n")}\n`
+      : "";
     const situation =
       `It is ${game.turn === "agent" ? "YOUR turn" : "Player's turn"} ` +
       `(round ${game.turnNumber}, phase: ${game.phase}).`;
@@ -228,7 +241,7 @@ export class AgentRunner {
       : "";
     this.interruptNote = false;
     return (
-      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}\n${situation} ${directive}\n` +
+      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}\n${situation} ${directive}\n` +
       `Narrate your reasoning in plain text BEFORE each action. ` +
       `Speak to Player with the say tool — plain response text is your visible thought process, not chat.`
     );
