@@ -440,7 +440,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   color: var(--text); background: none; border: 1px solid transparent; box-shadow: none;
   transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
 }
-#menu .mi .ico { font-size: var(--fs-note); width: 15px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
+/* game-icons are drawings, not glyphs — they need a little more room than a
+   font icon to stay readable */
+#menu .mi .ico { font-size: var(--fs-label); width: 18px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
 #menu .mi-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #menu .mi:hover {
   color: var(--c);
@@ -473,7 +475,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
       color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
       color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
 }
-#menu .mi.primary .ico { font-size: var(--fs-label); width: 17px; }
+#menu .mi.primary .ico { font-size: var(--fs-action); width: 20px; }
 #menu .mi-keys { margin-left: auto; padding-left: 8px; flex: none; }
 /* the option a dropdown is currently set to */
 #menu .mi.on { color: var(--gold-hi); background: rgba(226, 179, 85, 0.09); }
@@ -543,7 +545,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px color-mix(in srgb, var(--c) 35%, transparent);
 }
 #menu.libpanel .lp-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#menu.libpanel .ico { font-size: var(--fs-note); color: var(--c); flex: none; }
+#menu.libpanel .ico { font-size: var(--fs-label); color: var(--c); flex: none; }
 
 /* one colour per action, borrowed from the five mana colours. Shared by the
    library panel and the card menus. */
@@ -961,7 +963,7 @@ body.unfocused .na-key { display: none; }
 /* every action breathes, so the eye always lands on the thing to press */
 #na-primary { animation: noblockspulse 2s infinite ease-in-out; }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label .ico { font-size: var(--fs-note); line-height: 1; opacity: 0.9; }
+#na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
 #na-skip .ico { font-size: 10px; margin-right: 2px; }
 #na-hint {
   padding: 4px 12px; font-size: 11.5px; font-style: italic; color: var(--dim);

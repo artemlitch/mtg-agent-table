@@ -224,79 +224,87 @@ let noBlocksDeclaredFor = null;
 // classes at the call sites, so the icon set can be re-pointed in one place.
 // A tapped card's top ends at 3 o'clock, so tap turns clockwise and untap
 // turns back the other way.
+// game-icons.net, vendored as CSS masks (tools/build-icons.mjs). Add a name
+// here, list it in that script, re-run it.
 const ICONS = {
-  tap: "fa-arrow-rotate-right",
-  untap: "fa-arrows-rotate",
-  undo: "fa-rotate-left",
-  answer: "fa-comment-dots",
-  takeTurn: "fa-forward-step",
-  resolve: "fa-check",
-  resolveAll: "fa-check-double",
-  damage: "fa-burst",
-  noBlocks: "fa-shield-halved",
-  draw: "fa-share-from-square", // a card lifting out of the deck, not a bare hand
-  main: "fa-play",
-  combat: "fa-hand-fist",
-  end: "fa-moon",
-  passTurn: "fa-forward",
-  skip: "fa-forward-fast",
-  mulligan: "fa-recycle",
-  cast: "fa-wand-sparkles",
-  counters: "fa-plus-minus",
-  token: "fa-star",
-  copy: "fa-clone",
-  pile: "fa-layer-group",
-  steal: "fa-hand-sparkles",
-  give: "fa-gift",
-  command: "fa-crown",
-  ability: "fa-bolt",
-  flip: "fa-rotate",
-  trash: "fa-trash",
-  bullet: "fa-angle-right",
-  search: "fa-magnifying-glass",
-  scry: "fa-glasses",
-  surveil: "fa-binoculars",
-  mill: "fa-skull",
-  exile: "fa-ban",
-  reveal: "fa-eye",
-  shuffle: "fa-shuffle",
+  tap: "gi-clockwise-rotation",
+  untap: "gi-anticlockwise-rotation",
+  undo: "gi-return-arrow",
+  answer: "gi-chat-bubble",
+  takeTurn: "gi-player-next",
+  resolve: "gi-check-mark",
+  resolveAll: "gi-checklist",
+  damage: "gi-sword-clash",
+  noBlocks: "gi-shield-disabled",
+  draw: "gi-card-draw",
+  main: "gi-play-button",
+  combat: "gi-crossed-swords",
+  end: "gi-moon",
+  passTurn: "gi-hourglass",
+  skip: "gi-fast-forward-button",
+  mulligan: "gi-recycle",
+  cast: "gi-magic-swirl",
+  counters: "gi-gems",
+  token: "gi-token",
+  copy: "gi-gemini",
+  pile: "gi-stack",
+  steal: "gi-snatch",
+  give: "gi-shaking-hands",
+  command: "gi-crown",
+  ability: "gi-bolt-spell-cast",
+  flip: "gi-card-exchange",
+  trash: "gi-trash-can",
+  bullet: "gi-plain-circle",
+  search: "gi-magnifying-glass",
+  scry: "gi-spectacles",
+  surveil: "gi-binoculars",
+  mill: "gi-card-discard",
+  exile: "gi-card-burn",
+  reveal: "gi-all-seeing-eye",
+  shuffle: "gi-card-random",
   // card-menu specifics, so no two rows of one menu share a glyph
-  exileDown: "fa-eye-slash",
-  facedown: "fa-mask",
-  toHand: "fa-hand-holding",
-  top: "fa-angles-up",
-  bottom: "fa-angles-down",
-  library: "fa-book",
-  secret: "fa-user-secret",
-  block: "fa-shield-halved",
-  setpt: "fa-pen-to-square",
-  cancel: "fa-xmark",
-  cancelAttack: "fa-circle-xmark",
-  battlefield: "fa-chess-board",
-  caret: "fa-caret-down",
-  caretUp: "fa-caret-up",
+  exileDown: "gi-hidden",
+  facedown: "gi-invisible",
+  toHand: "gi-card-pickup",
+  top: "gi-up-card",
+  bottom: "gi-plain-arrow gi-rot180",
+  library: "gi-book-pile",
+  secret: "gi-hood",
+  block: "gi-shield",
+  setpt: "gi-pencil",
+  cancel: "gi-cancel",
+  cancelAttack: "gi-sword-break",
+  battlefield: "gi-empty-chessboard",
+  caret: "gi-plain-arrow gi-rot180",
+  caretUp: "gi-plain-arrow",
   // card types, for the search filter
-  anyType: "fa-asterisk",
-  creature: "fa-dragon",
-  land: "fa-mountain",
-  artifact: "fa-gear",
-  enchantment: "fa-hat-wizard",
-  instant: "fa-bolt",
-  sorcery: "fa-scroll",
-  planeswalker: "fa-chess-king",
-  battle: "fa-khanda",
+  anyType: "gi-circle",
+  creature: "gi-dragon-head",
+  land: "gi-mountains",
+  artifact: "gi-gears",
+  enchantment: "gi-sparkles",
+  instant: "gi-arcing-bolt",
+  sorcery: "gi-scroll-unfurled",
+  planeswalker: "gi-chess-king",
+  battle: "gi-castle",
   blank: "", // keeps a row's icon column aligned with nothing in it
+};
+// "blank" holds a row's icon column open with nothing in it, so it must not
+// carry .gi — a masked element with no mask paints a solid square.
+const iconClass = (name) => {
+  const cls = ICONS[name] ?? name;
+  return cls ? `gi ${cls} ico` : "ico";
 };
 function iconEl(name) {
   const i = document.createElement("i");
-  i.className = `fa-solid ${ICONS[name] ?? name} ico`;
+  i.className = iconClass(name);
   i.setAttribute("aria-hidden", "true");
   return i;
 }
 /** Fill any <i data-icon="name"> in the static markup. */
 function renderIcons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((el) => {
-    el.className = `fa-solid ${ICONS[el.dataset.icon] ?? el.dataset.icon} ico`;
+    el.className = iconClass(el.dataset.icon);
     el.setAttribute("aria-hidden", "true");
   });
 }
