@@ -63,8 +63,11 @@
     <div class="seat" id="seat-you">
       <div class="rail" id="rail-you"></div>
       <div class="boardwrap">
-        <button id="btn-noblocks" class="hidden">🛡 No blocks — take the damage</button>
-        <button id="btn-turnpass" class="hidden">⏭ Agent passed the turn — resolve to begin yours</button>
+        <div id="nextaction" class="hidden">
+          <button id="na-primary"></button>
+          <div id="na-hint" class="hidden"></div>
+          <button id="na-skip" class="hidden">⏭ skip to pass turn</button>
+        </div>
         <div class="battlefield" id="bf-you"></div>
         <div class="handrow" id="hand-you"></div>
         <button id="btn-token" title="Create a token"><span class="tstar">✦</span><span>Token</span></button>

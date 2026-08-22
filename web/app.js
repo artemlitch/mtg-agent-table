@@ -122,8 +122,7 @@ function render() {
   renderBattlefield("you");
   renderChat();
   renderLog();
-  renderNoBlocks();
-  renderTurnPass();
+  renderNextAction();
   processSounds();
   updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
@@ -216,30 +215,176 @@ $("#btn-delkey").onclick = async () => {
 // no blocks declared — the standoff killer
 let noBlocksDeclaredFor = null;
 
-// the agent's turn pass waiting on top of the stack: resolving it is how your
-// turn starts, so it gets the same floating one-click prompt as "no blocks"
-function renderTurnPass() {
-  const btn = $("#btn-turnpass");
-  const top = state.stack?.length ? state.stack[state.stack.length - 1] : null;
-  const show = !!top && !!top.turnPassTo && top.player === "agent";
-  btn.classList.toggle("hidden", !show);
-  if (show) btn.onclick = () => act("stack_resolve", { item: top.id });
+// ── The next-action prompt ────────────────────────────────────────────────
+// One always-visible "most obvious next tap" floating over your board. This
+// is a PRECEDENCE list, not a linear chain: the agent's stack items outrank
+// the turn structure, because the house rule is settle the stack first.
+// Each step is one entry — add, remove or reorder freely; the first whose
+// when() is true wins. Return either { label, fn } for a real action or
+// { hint } for a nudge at something the table can't do in one click.
+//   kind: "urgent" pulses (something waits on you), otherwise calm.
+//   skip: true adds the faded skip-to-pass-turn line underneath.
+
+const passTurnToAgent = async () => {
+  await act("set_turn", { player: "agent" });
+  await act("done", {});
+};
+
+/** Did this happen already during the current round? (log-scan: the turn
+ *  structure isn't tracked in state, and the round marker bounds the scan) */
+function didThisTurn(re) {
+  const log = state.log || [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    const t = log[i].text || "";
+    if (/^—\s*Round \d+/.test(t)) return false;
+    if (re.test(t)) return true;
+  }
+  return false;
 }
 
-function renderNoBlocks() {
-  const btn = $("#btn-noblocks");
-  const attackers = state.players.agent.zones.battlefield.filter((c) => c.attacking);
-  const sig = attackers.map((c) => c.id).sort().join(",");
-  const blocking = state.players.you.zones.battlefield.some((c) => c.blocking);
-  const show = attackers.length > 0 && !blocking && noBlocksDeclaredFor !== sig;
-  btn.classList.toggle("hidden", !show);
-  if (show) {
-    btn.onclick = () => {
-      noBlocksDeclaredFor = sig;
-      btn.classList.add("hidden");
-      act("chat", { text: "No blocks." });
-    };
+function nextActionContext() {
+  const stack = state.stack || [];
+  const top = stack.length ? stack[stack.length - 1] : null;
+  const theirAttackers = state.players.agent.zones.battlefield.filter((c) => c.attacking);
+  return {
+    stack,
+    top,
+    mine: state.turn === "you",
+    phase: state.phase || "",
+    theirAttackers,
+    attackSig: theirAttackers.map((c) => c.id).sort().join(","),
+    iAmBlocking: state.players.you.zones.battlefield.some((c) => c.blocking),
+    myAttackers: state.players.you.zones.battlefield.filter((c) => c.attacking),
+    myTapped: state.players.you.zones.battlefield.some((c) => c.tapped),
+  };
+}
+
+const NEXT_ACTION_STEPS = [
+  // ── either turn: the stack and the agent come first ──
+  {
+    id: "answer-question",
+    when: () => !!state.pendingQuestion,
+    step: () => ({ label: "💬 Answer the agent", kind: "urgent", fn: () => { switchTab("chat"); $("#chat-input").focus(); } }),
+  },
+  {
+    id: "take-your-turn",
+    when: (c) => c.top?.player === "agent" && !!c.top.turnPassTo,
+    step: (c) => ({ label: "⏭ Take your turn", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
+  },
+  {
+    id: "lock-their-attack",
+    when: (c) => c.top?.player === "agent" && !!c.top.attackPairs,
+    step: (c) => ({ label: "⚔ Lock in their attack", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
+  },
+  {
+    id: "resolve-all",
+    when: (c) => c.top?.player === "agent" && !!c.top.groupId && c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length > 1,
+    step: (c) => ({
+      label: `✓ Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
+      kind: "urgent",
+      fn: () => act("stack_resolve_all", { group: c.top.groupId }),
+    }),
+  },
+  {
+    id: "resolve-one",
+    when: (c) => c.top?.player === "agent",
+    step: (c) => ({
+      label: `✓ Resolve: ${String(c.top.card?.name || c.top.text || "").slice(0, 32)}`,
+      kind: "urgent",
+      fn: () => act("stack_resolve", { item: c.top.id }),
+    }),
+  },
+  {
+    id: "waiting-on-agent-response",
+    when: (c) => !!c.top, // your own item on top — the agent answers it
+    step: () => ({ hint: "on the stack — waiting for the agent" }),
+  },
+  {
+    id: "no-blocks",
+    when: (c) => c.theirAttackers.length > 0 && !c.iAmBlocking && noBlocksDeclaredFor !== c.attackSig,
+    step: (c) => ({
+      label: "🛡 No blocks — take the damage",
+      kind: "urgent",
+      fn: () => { noBlocksDeclaredFor = c.attackSig; act("chat", { text: "No blocks." }); },
+    }),
+  },
+  {
+    id: "waiting-on-agent-turn",
+    when: (c) => !c.mine,
+    step: () => ({ hint: "the agent's turn — waiting" }),
+  },
+
+  // ── your turn, stack settled: the turn structure ──
+  {
+    id: "untap",
+    when: (c) => /untap/.test(c.phase) && c.myTapped && !didThisTurn(/^Player untapped all/),
+    step: () => ({ label: "↻ Untap all", skip: true, fn: async () => { await act("untap_all", { player: "you" }); act("set_phase", { phase: "untap/upkeep" }); } }),
+  },
+  {
+    id: "draw",
+    when: (c) => /untap/.test(c.phase) && state.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
+    step: () => ({ label: "🂠 Draw for turn", skip: true, fn: () => act("draw", { n: 1 }) }),
+  },
+  {
+    id: "main-1",
+    when: (c) => /untap/.test(c.phase),
+    step: () => ({ label: "▶ Main phase 1", skip: true, fn: () => act("set_phase", { phase: "main 1" }) }),
+  },
+  {
+    id: "to-combat",
+    when: (c) => c.phase === "main 1",
+    step: () => ({ label: "⚔ Go to combat", skip: true, fn: () => act("set_phase", { phase: "combat" }) }),
+  },
+  {
+    id: "combat-damage",
+    when: (c) => c.phase === "combat" && c.myAttackers.length > 0,
+    step: () => ({
+      label: "💥 Announce combat damage",
+      skip: true,
+      fn: () => { switchTab("stack"); const i = $("#chat-input"); i.value = "COMBAT DAMAGE — "; i.focus(); },
+    }),
+  },
+  {
+    id: "pick-attackers",
+    when: (c) => c.phase === "combat",
+    step: () => ({ hint: "right-click a creature to attack — or skip ahead", skip: true }),
+  },
+  {
+    id: "main-2",
+    when: (c) => c.phase === "main 2",
+    step: () => ({ label: "🌙 End step", skip: true, fn: () => act("set_phase", { phase: "end" }) }),
+  },
+  {
+    id: "pass-turn",
+    when: () => true, // end step, or any phase we don't have a step for
+    step: () => ({ label: "⏭ Pass turn to agent", fn: passTurnToAgent }),
+  },
+];
+
+function renderNextAction() {
+  const wrap = $("#nextaction");
+  if (!state.started) {
+    wrap.classList.add("hidden");
+    return;
   }
+  const ctx = nextActionContext();
+  const rule = NEXT_ACTION_STEPS.find((r) => r.when(ctx));
+  const a = rule ? rule.step(ctx) : null;
+  wrap.classList.toggle("hidden", !a);
+  if (!a) return;
+  const btn = $("#na-primary");
+  const hint = $("#na-hint");
+  btn.classList.toggle("hidden", !!a.hint);
+  hint.classList.toggle("hidden", !a.hint);
+  if (a.hint) hint.textContent = a.hint;
+  else {
+    btn.textContent = a.label;
+    btn.classList.toggle("urgent", a.kind === "urgent");
+    btn.onclick = a.fn;
+  }
+  const skip = $("#na-skip");
+  skip.classList.toggle("hidden", !a.skip);
+  skip.onclick = passTurnToAgent;
 }
 
 let newGameAutoOpened = false;
