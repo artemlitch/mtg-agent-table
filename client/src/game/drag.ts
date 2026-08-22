@@ -38,12 +38,20 @@ export const useDrag = create<DragStore>((set) => ({
   over: null,
   overCard: null,
   begin(cards) {
+    // While a card is in the air the table leaves the hover system: no
+    // previews, no tooltips, no hover chips. Without this, every card the
+    // cursor crosses raises its own full-size preview and repositions it on
+    // each mousemove, which is a card image being laid out continuously
+    // underneath the drag. It is the reason a drag has to say "I am dragging"
+    // globally rather than just moving an element.
+    document.body.classList.add("dragging");
     set({ cards, over: null, overCard: null });
   },
   aim(over, overCard) {
     set({ over, overCard });
   },
   end() {
+    document.body.classList.remove("dragging");
     set({ cards: [], over: null, overCard: null });
   },
 }));
@@ -106,10 +114,12 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     return f;
   };
 
-  const draw = () => {
+  // the target under the cursor only changes when you cross a boundary, so it
+  // is resolved once a frame and the store is written only when the answer
+  // differs. The card's own position is NOT deferred — see onMove.
+  const retarget = () => {
     frame = 0;
-    const f = place(last.x, last.y);
-    const region = regionAt(regions, f.x, f.y);
+    const region = regionAt(regions, last.x - origin.x, last.y - origin.y);
     // tucking is a board-to-board gesture: playing a card out of your hand
     // should never silently attach it to whatever is under the drop
     const target = !region && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
@@ -138,9 +148,12 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       useDrag.getState().begin(carried);
     }
     last = { x: mv.clientX, y: mv.clientY };
-    // pointermove can outrun the display; one paint per frame is all the
-    // screen can show anyway
-    if (!frame) frame = requestAnimationFrame(draw);
+    // the card moves NOW, in the handler, the way it did before any of this:
+    // a transform write with no reads around it is cheap, and deferring it to
+    // the next animation frame is a frame of lag you can feel. Only the
+    // target hit-test waits for the frame.
+    place(mv.clientX, mv.clientY);
+    if (!frame) frame = requestAnimationFrame(retarget);
   };
 
   const onUp = async (up: PointerEvent) => {

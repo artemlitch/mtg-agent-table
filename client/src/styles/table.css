@@ -114,6 +114,14 @@
 }
 #cardlayer { z-index: 3; }
 #cardlayer .card.placed { position: absolute; pointer-events: auto; transition: left 0.18s, top 0.18s; }
+/* mid-drag the table is inert to the pointer. The old drag held a pointer
+   capture, which routed every event to the card being carried; window
+   listeners are sturdier — they survive the source element re-rendering — but
+   they let the cursor keep waking whatever it passes over. This does the same
+   job, and covers the tooltip and hover chips as well as the preview. */
+body.dragging #cardlayer .card,
+body.dragging .handrow .card,
+body.dragging .cmdzone .card { pointer-events: none; }
 #cardlayer .card.placed.grabbable { cursor: grab; }
 #cardlayer .card.placed.tucked { filter: brightness(0.85); }
 #cardlayer .card.placed.tapped { margin: 0; }

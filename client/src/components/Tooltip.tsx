@@ -17,6 +17,9 @@ export function TooltipLayer() {
 
   useEffect(() => {
     const over = (e: MouseEvent) => {
+      // a card in the air is not a hover: the cursor is crossing the table on
+      // its way somewhere, not asking about what it passes over
+      if (document.body.classList.contains("dragging")) return;
       const t = e.target as HTMLElement | null;
       setEl(t?.closest?.<HTMLElement>("[data-tip]") ?? null);
     };
