@@ -15,6 +15,7 @@ export function askText(title: string, def = ""): Promise<string | null> {
     };
     ui().openModal({
       compact: true,
+      centred: true,
       onClose: () => done(null),
       body: (
         <AskText

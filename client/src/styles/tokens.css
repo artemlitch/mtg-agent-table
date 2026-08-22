@@ -65,8 +65,9 @@
   --hand-card-w: 76px;
   --hand-card-h: 106px;
   /* the side rails flank the playmat; anything that wants to line up with the
-     cards has to discount them */
+     cards has to discount them — and so does the side panel on the right */
   --rail-w: 130px;
+  --side-w: 360px;
   --gold-hi: #f8e7a0;
   --gold-dk: #6e4a14;
   /* metallic band gradient used for every "chrome" border */

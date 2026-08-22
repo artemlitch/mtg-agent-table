@@ -15,7 +15,7 @@ export function ModalLayer() {
   if (!modal) return null;
   return (
     <div id="modal" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-      <div id="modal-box" className={modal.compact ? "compact" : ""}>
+      <div id="modal-box" className={[modal.compact && "compact", modal.centred && "centred"].filter(Boolean).join(" ")}>
         <button className="modalx" title="Close (Esc)" onClick={closeModal}>
           ✕
         </button>

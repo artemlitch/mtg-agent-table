@@ -2,7 +2,7 @@
    plus the composer that feeds whichever of them is open. */
 
 #side {
-  width: 360px; background: var(--panel); display: flex; flex-direction: column;
+  width: var(--side-w); background: var(--panel); display: flex; flex-direction: column;
   border-left: 1px solid; border-image: linear-gradient(180deg, #4a350f, #b8892f, #4a350f) 1;
 }
 #tabs { display: flex; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }

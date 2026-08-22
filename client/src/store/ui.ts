@@ -32,6 +32,9 @@ export interface ModalState {
   body: ReactNode;
   /** size to content instead of the fixed card-browser box */
   compact?: boolean;
+  /** sit in the middle of the playmat rather than hanging from the top of the
+   *  window — for one-question boxes, which have no reason to be anywhere else */
+  centred?: boolean;
   /** floats outside the box, beside it (the ability modal's target palette) */
   side?: ReactNode;
   onClose?: () => void;
