@@ -122,6 +122,9 @@ function render() {
   renderBattlefield("you");
   renderChat();
   renderLog();
+  // combat glow: the whole combat step, either player's turn — the phase is
+  // free text, so blockers/damage sub-steps count too
+  $("#combatglow").classList.toggle("on", !!state.started && /combat|attack|block|damage/i.test(state.phase || ""));
   renderNextAction();
   processSounds();
   updateKeyUI();
