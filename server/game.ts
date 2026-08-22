@@ -125,6 +125,10 @@ export interface LogEntry {
   actor: PlayerId | "system";
   text: string; // public rendering
   private?: Partial<Record<PlayerId, string>>; // richer rendering for viewers allowed to know
+  /** Conversation rather than a play: chat, a question, passing priority.
+   *  Something one player SAID, not something that happened to the game — so
+   *  undo never deletes it and redo never brings it back (see history.ts). */
+  talk?: true;
 }
 
 export interface StackItem {
@@ -280,6 +284,7 @@ export const game: GameState = newGameState();
 export function resetGameState() {
   const fresh = newGameState();
   Object.assign(game, fresh);
+  said = [];
   nextCardId = 1;
 }
 
@@ -291,11 +296,44 @@ export function setNextCardId(n: number) {
   nextCardId = n;
 }
 
+// ── the two streams ────────────────────────────────────────────────────────
+//
+//   game.log   what happened TO the game. This is game state: it lives on
+//              `game`, so it is inside every undo snapshot, and rewinding a
+//              play takes its log line back with it. That is correct — the
+//              line is a record of the thing that no longer happened.
+//
+//   said       what a player SAID: chat, a question, passing priority. It
+//              lives OUT HERE, not on `game`, so no snapshot can contain it
+//              and neither undo nor redo can reach it. You cannot take back
+//              having said something, and a redo cannot make you say it
+//              twice. Passing is a response, not a play.
+//
+// Nothing merges the two but the readers. transcript() interleaves them by
+// seq, which is monotonic across restores, so the order is always right.
+let said: LogEntry[] = [];
+
 export function addLog(actor: LogEntry["actor"], text: string, priv?: LogEntry["private"]): LogEntry {
   const entry: LogEntry = { seq: ++game.seq, ts: Date.now(), actor, text, ...(priv ? { private: priv } : {}) };
   game.log.push(entry);
   return entry;
 }
+
+/** Say something. Never an event, never undoable, never redoable. */
+export function addTalk(actor: LogEntry["actor"], text: string): LogEntry {
+  const entry: LogEntry = { seq: ++game.seq, ts: Date.now(), actor, text, talk: true };
+  said.push(entry);
+  return entry;
+}
+
+/** Everything that has passed at the table, in order — plays and talk. Every
+ *  reader wants both; only the undo machinery wants them apart. */
+export const transcript = (): LogEntry[] => [...game.log, ...said].sort((a, b) => a.seq - b.seq);
+
+export const getSaid = () => said;
+export const setSaid = (s: LogEntry[] | undefined) => {
+  said = Array.isArray(s) ? s : [];
+};
 
 // ---------------------------------------------------------------------------
 // Visibility
@@ -425,7 +463,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       turnPassTo: item.apply?.type === "turn" ? item.apply.player : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,
     })),
-    log: game.log.slice(-logTail).map((e) => renderLogFor(e, viewer)),
+    log: transcript().slice(-logTail).map((e) => renderLogFor(e, viewer)),
     seq: game.seq,
   };
 }
@@ -1504,7 +1542,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   chat(ctx, p) {
     const text = p.text ?? p.message ?? p.msg;
     if (!text || !String(text).trim()) throw new Error("chat requires text");
-    addLog(ctx.actor, `💬 ${who(ctx.actor)}: ${text}`);
+    addTalk(ctx.actor, `💬 ${who(ctx.actor)}: ${text}`);
     if (ctx.actor === "you" && game.pendingQuestion) game.pendingQuestion = null;
     return { ok: true };
   },
@@ -1513,13 +1551,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const question = p.question ?? p.text ?? p.message;
     if (!question || !String(question).trim()) throw new Error("ask_user requires question");
     game.pendingQuestion = question;
-    addLog(ctx.actor, `❓ ${who(ctx.actor)} asks: ${question}`);
+    addTalk(ctx.actor, `❓ ${who(ctx.actor)} asks: ${question}`);
     return { ok: true };
   },
 
   done(ctx, _p) {
+    // passing is a response, not a play: it is one player telling the other
+    // they are finished. Nothing about the game changed, so it stays out of
+    // the undo history in both directions.
     game.waitingOn = ctx.actor === "you" ? "agent" : "you";
-    addLog(ctx.actor, `${who(ctx.actor)} passes — ${who(game.waitingOn)}'s window`);
+    addTalk(ctx.actor, `${who(ctx.actor)} passes — ${who(game.waitingOn)}'s window`);
     return { ok: true };
   },
 };

@@ -14,6 +14,7 @@ import {
   triggerLines,
   leanCard,
   homePos,
+  transcript,
   type Card,
   type PlayerId,
   type Zone,
@@ -653,10 +654,12 @@ describe("reset", () => {
 describe("chat robustness", () => {
   test("chat accepts message/text aliases and rejects empty", () => {
     applyAction("agent", "chat", { message: "aliased hello" });
-    expect(game.log.at(-1)!.text).toContain("aliased hello");
+    expect(transcript().at(-1)!.text).toContain("aliased hello");
     applyAction("agent", "chat", { text: "normal hello" });
-    expect(game.log.at(-1)!.text).toContain("normal hello");
+    expect(transcript().at(-1)!.text).toContain("normal hello");
     expect(() => applyAction("agent", "chat", {})).toThrow();
+    // said, not played: it is not in the game's own log at all
+    expect(game.log.some((e) => e.text.includes("hello"))).toBe(false);
   });
 
   test("ask_user accepts text alias too", () => {

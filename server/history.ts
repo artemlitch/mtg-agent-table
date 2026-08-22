@@ -23,7 +23,8 @@ export function setHistory(h: any[]) {
 }
 
 const snapshot = () => serializeState({ agent: null, lastDecks: null });
-/** The last real action in the log, never an undo/redo notice about one. */
+/** The last play in the log, never an undo/redo notice about one. game.log
+ *  holds only plays — what was said is a separate stream this never sees. */
 const lastAction = () =>
   [...game.log].reverse().find((e) => !/^[↩↪]/.test(e.text))?.text ?? "(unknown action)";
 
@@ -40,10 +41,15 @@ function restore(snap: any) {
   const idBefore = getNextCardId();
   const layout = new Map<string, { x: number; y: number }>();
   for (const [id, c] of Object.entries(game.cards)) if (c.pos) layout.set(id, c.pos);
+  // Whose window it is was established by a pass, and a pass is something
+  // said rather than something played — so it survives the rewind, like the
+  // rest of the conversation, which no snapshot contains in the first place.
+  const waitingOn = game.waitingOn;
 
   restoreState(snap);
   game.seq = Math.max(game.seq, seqBefore);
   setNextCardId(Math.max(getNextCardId(), idBefore));
+  game.waitingOn = waitingOn;
 
   for (const c of Object.values(game.cards)) {
     // the invariant relocateCard keeps: on the table means it has a spot,

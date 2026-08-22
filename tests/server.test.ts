@@ -55,6 +55,31 @@ describe("what undo steps back through", () => {
     await api("/api/undo", {});
     expect(await life()).toBe(before);
   });
+
+  test("undo and redo leave what was SAID alone", async () => {
+    const log = async () => ((await api("/api/state?viewer=you")).log as any[]).map((e) => e.text);
+    const said = async (s: string) => (await log()).filter((t) => t.includes(s)).length;
+
+    // the test server's state file outlives the run, so the marker has to be
+    // unique or an earlier run's copy is still in the log
+    const marker = `marker-${Date.now()}`;
+    await act("you", "life", { player: "you", delta: -3 });
+    await act("you", "chat", { text: marker });
+    await act("you", "done"); // a pass is a response, like the chat line
+    expect(await said(marker)).toBe(1);
+    const passes = await said("passes");
+    expect(passes).toBeGreaterThan(0);
+
+    // undo reaches past both to the life change, and takes neither with it
+    await api("/api/undo", {});
+    expect(await said(marker)).toBe(1);
+    expect(await said("passes")).toBe(passes);
+
+    // and redo does not say them a second time
+    await api("/api/redo", {});
+    expect(await said(marker)).toBe(1);
+    expect(await said("passes")).toBe(passes);
+  });
 });
 
 describe("api basics", () => {

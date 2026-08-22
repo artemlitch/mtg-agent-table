@@ -4,10 +4,14 @@
 import { game, getNextCardId, setNextCardId } from "./game";
 import type { AgentSnapshot } from "./agent";
 
+/** Everything saved alongside the game that is NOT the game. The undo history
+ *  was always here; the conversation belongs here for the same reason — a
+ *  snapshot of the game must not contain it, or undo could rewind it. */
 export interface PersistedExtra {
   agent: AgentSnapshot | null;
   lastDecks: { you: number; agent: number } | null;
   history?: any[];
+  said?: any[];
   studio?: any;
 }
 
@@ -21,6 +25,7 @@ export function serializeState(extra: PersistedExtra) {
       agent: extra.agent,
       lastDecks: extra.lastDecks,
       ...(extra.history ? { history: extra.history } : {}),
+      ...(extra.said ? { said: extra.said } : {}),
       ...(extra.studio ? { studio: extra.studio } : {}),
     })
   );
@@ -63,7 +68,7 @@ export function restoreState(snap: any): PersistedExtra {
   }
   for (const p of Object.values(game.players)) (p.zones as any).stack ??= [];
   setNextCardId(snap.nextCardId ?? 1);
-  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [], studio: snap.studio };
+  return { agent: snap.agent ?? null, lastDecks: snap.lastDecks ?? null, history: snap.history ?? [], said: snap.said ?? [], studio: snap.studio };
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

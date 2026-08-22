@@ -108,8 +108,12 @@
    fraction converts to a pixel with no per-seat offset; the layer itself is
    transparent to the pointer, so the hands and rails underneath still work,
    and each card opts back in. */
+/* Above every piece of table furniture. Cards are the objects ON the table;
+   the felt, the gold midline, the rails, the hands and the command zones are
+   the table itself, and none of them may paint over a card. Only the app's
+   own overlays go higher — the topbar (50), modal, menu, preview, tooltip. */
 #cardlayer {
-  position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  position: absolute; inset: 0; pointer-events: none; z-index: 46;
 }
 #cardlayer .card.placed { position: absolute; pointer-events: auto; transition: left 0.18s, top 0.18s; }
 /* mid-drag the table is inert to the pointer. The old drag held a pointer
@@ -143,14 +147,13 @@ body.dragging .cmdzone .card { pointer-events: none; }
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
 }
 
-/* The card layer sits over the felt, so everything that must stay reachable
-   ON TOP of the cards is raised past it here. The rail and the midline do not
-   overlap the placeable area, but they are raised anyway — a card mid-drag
-   crosses them. (The command zone and the token button carry z-index 45 of
-   their own further down.) */
+/* Furniture, under the cards. These sit above the bare felt and each other
+   in the obvious order; every one of them is below #cardlayer. The gold line
+   is the lowest of all — it is a marking painted ON the table, so a card
+   crossing the midline covers it the way a real one would. */
+#midline { z-index: 0; }
 .rail { position: relative; z-index: 10; }
 .handrow.fan { position: relative; z-index: 12; }
-#midline { z-index: 14; }
 
 /* armed drop targets: the region under the carried card says so */
 .handrow.fan.armed,

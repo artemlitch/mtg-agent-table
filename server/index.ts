@@ -1,6 +1,6 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
-import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, leanCard, type PlayerId } from "./game";
+import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, transcript, getSaid, setSaid, leanCard, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
@@ -26,7 +26,7 @@ const NOT_UNDOABLE = new Set(["place", "chat", "done"]);
 
 // Everything persisted beside the game itself. A backup carries the table as
 // it stands; the live state file adds the undo history.
-const tableSnapshot = () => ({ agent: agent.serialize(), lastDecks });
+const tableSnapshot = () => ({ agent: agent.serialize(), lastDecks, said: getSaid() });
 const collectState = () => ({ ...tableSnapshot(), history: getHistory() });
 
 const saveSoon = () => scheduleSave(STATE_FILE, collectState);
@@ -36,7 +36,7 @@ const saveSoon = () => scheduleSave(STATE_FILE, collectState);
 async function backupAndArchive(): Promise<string | null> {
   const backup = STATE_FILE.replace(/\.json$/, "") + `-backup-${Date.now()}.json`;
   await Bun.write(backup, JSON.stringify(serializeState(tableSnapshot())));
-  return await archiveGame(game, GAMES_DIR).catch((e) => {
+  return await archiveGame(game, GAMES_DIR, Date.now(), getSaid()).catch((e) => {
     console.error("archive failed:", e);
     return null;
   });
@@ -48,6 +48,7 @@ async function backupAndArchive(): Promise<string | null> {
     if (restored.agent) agent.restore(restored.agent);
     lastDecks = restored.lastDecks;
     setHistory(restored.history ?? []);
+    setSaid(restored.said);
     // a game saved before the prompt became rebuildable carries a frozen
     // string. Its inputs are all still on the table, so recover them and the
     // game in progress gets current rules instead of the ones it started with.
@@ -247,7 +248,7 @@ const server = Bun.serve({
         // working rides back inside the agent's next tool result, so it can
         // factor the new information in BEFORE continuing its line of play
         if (actor === "agent" && agent.busy) {
-          const fresh = game.log.filter((e) => e.seq > agent.lastSeenSeq && e.actor === "you");
+          const fresh = transcript().filter((e) => e.seq > agent.lastSeenSeq && e.actor === "you");
           if (fresh.length) {
             (result as any).NEW_FROM_PLAYER_WHILE_YOU_WERE_ACTING = fresh.map(
               (e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`

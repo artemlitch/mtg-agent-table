@@ -1,6 +1,6 @@
 // Persistence: game + agent state must survive a server restart.
 import { describe, test, expect, beforeEach, afterAll } from "vitest";
-import { game, resetGameState, applyAction, newCardId } from "../server/game";
+import { game, resetGameState, applyAction, newCardId, getSaid } from "../server/game";
 import { serializeState, restoreState } from "../server/persist";
 import { AgentRunner } from "../server/agent";
 
@@ -16,7 +16,7 @@ describe("state serialization", () => {
     applyAction("you", "life", { player: "you", delta: -5 });
     applyAction("you", "chat", { text: "checkpoint" });
     const tokenIds = [...game.players.you.zones.battlefield];
-    const snap = serializeState({ agent: null, lastDecks: { you: 1, agent: 2 } });
+    const snap = serializeState({ agent: null, lastDecks: { you: 1, agent: 2 }, said: getSaid() });
 
     resetGameState();
     expect(game.players.you.life).toBe(40);
@@ -25,8 +25,19 @@ describe("state serialization", () => {
     expect(game.players.you.life).toBe(35);
     expect(game.players.you.zones.battlefield).toEqual(tokenIds);
     expect(game.cards[tokenIds[0]].name).toBe("Treasure");
-    expect(game.log.at(-1)!.text).toContain("checkpoint");
+    expect(game.log.at(-1)!.text).toContain("life is now 35");
     expect(extra.lastDecks).toEqual({ you: 1, agent: 2 });
+    // the conversation rides alongside the game, never inside it
+    expect(extra.said!.some((e: any) => e.text.includes("checkpoint"))).toBe(true);
+  });
+
+  test("a game snapshot carries no conversation — that is what keeps undo off it", () => {
+    applyAction("you", "life", { player: "you", delta: -1 });
+    applyAction("you", "chat", { text: "not a play" });
+    // the shape history.ts snapshots with: game only, no extras
+    const snap = serializeState({ agent: null, lastDecks: null });
+    expect(JSON.stringify(snap.game)).not.toContain("not a play");
+    expect(snap.said).toBeUndefined();
   });
 
   test("card id counter survives: no id collisions after restore", () => {

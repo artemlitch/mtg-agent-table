@@ -30,13 +30,17 @@ export function summarizeGame(g: any) {
 }
 
 /** Write <dir>/<stamp>-<you>-vs-<agent>.{json,md}; returns the base path. */
-export async function archiveGame(g: any, dir: string, endedAtMs = Date.now()) {
+export async function archiveGame(g: any, dir: string, endedAtMs = Date.now(), said: any[] = []) {
   mkdirSync(dir, { recursive: true });
   const s = summarizeGame(g);
   const stamp = new Date(endedAtMs).toISOString().slice(0, 16).replace("T", "-").replace(":", "");
   const base = `${dir}/${stamp}-${slug(s.decks.you.name)}-vs-${slug(s.decks.agent.name)}`;
-  // Player's view of the log: what was public at the table, plus their private lines
-  const log = (g.log ?? []).map((e: any) => renderLogFor(e, "you"));
+  // Player's view of the whole table: what was played and what was said,
+  // interleaved by seq — the two live apart in memory precisely so undo
+  // cannot touch the second, but a record of the game wants both.
+  const log = [...(g.log ?? []), ...said]
+    .sort((a: any, b: any) => a.seq - b.seq)
+    .map((e: any) => renderLogFor(e, "you"));
   await Bun.write(
     base + ".json",
     JSON.stringify({ endedAt: new Date(endedAtMs).toISOString(), ...s, log }, null, 1)

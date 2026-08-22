@@ -16,7 +16,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { game, renderLogFor, triggerLines } from "./game";
+import { game, renderLogFor, transcript, triggerLines } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadApiKey, isCliVerified, loadProvider } from "./keystore";
 
@@ -210,7 +210,7 @@ export class AgentRunner {
 
   /** Events since the agent last saw the table, rendered from its viewpoint. */
   newEventsText(): string {
-    const events = game.log.filter((e) => e.seq > this.lastSeenSeq);
+    const events = transcript().filter((e) => e.seq > this.lastSeenSeq);
     return events.map((e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`).join("\n");
   }
 
@@ -616,7 +616,7 @@ export class AgentRunner {
       // turn ALWAYS rewakes; an uninterrupted one skips the rewake if
       // everything was already delivered inline and nothing of Player's
       // awaits resolution.
-      const undelivered = game.log.some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
+      const undelivered = transcript().some((e) => e.seq > this.lastSeenSeq && e.actor === "you");
       const playersItemWaits = game.stack.length > 0 && game.stack[game.stack.length - 1].player === "you";
       if (this.preempted || undelivered || playersItemWaits) {
         setTimeout(() => this.wake(this.pendingReason ?? "react"), 500);
