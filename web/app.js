@@ -463,7 +463,17 @@ const NEXT_ACTION_STEPS = [
   },
   {
     id: "no-blocks",
-    when: (c) => c.theirAttackers.length > 0 && !c.iAmBlocking && noBlocksDeclaredFor !== c.attackSig,
+    // only while their attack is still live: their turn, still in combat, and
+    // damage not dealt yet. Attackers keep the `attacking` flag after damage
+    // until combat is cleared, and a dying attacker changes the signature —
+    // between them the prompt used to come back and sit there.
+    when: (c) =>
+      !c.mine &&
+      /combat|attack|block|damage/i.test(c.phase) &&
+      !didThisTurn(/combat damage|no blocks/i) &&
+      c.theirAttackers.length > 0 &&
+      !c.iAmBlocking &&
+      noBlocksDeclaredFor !== c.attackSig,
     step: (c) => ({
       label: "No blocks — take the damage",
       icon: "noBlocks",

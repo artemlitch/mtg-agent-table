@@ -793,7 +793,12 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .askbox input { padding: 9px 10px; font-size: var(--fs-body); }
 .askrow { display: flex; gap: 8px; justify-content: flex-end; }
 
-#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; }
+/* fades in on every show — going from display:none to shown replays it */
+#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; animation: previewIn 0.1s ease-out; }
+@keyframes previewIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 #cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8); }
 #cardpreview .pv-text {
   border: 1px solid transparent; border-radius: 8px; padding: 8px; font-size: var(--fs-body); white-space: pre-wrap;
