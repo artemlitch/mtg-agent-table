@@ -20,10 +20,19 @@ if (typeof window !== "undefined") {
   };
 }
 
+/** One line, everything in the string. Console readers that only surface the
+ *  format string (the devtools MCP among them) show "[object Object]" for a
+ *  payload passed as a second argument, so the payload is flattened in. */
 export function dlog(tag: string, data?: Record<string, unknown>) {
   if (!on) return;
+  const body = data
+    ? " " +
+      Object.entries(data)
+        .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+        .join("  ")
+    : "";
   // eslint-disable-next-line no-console
-  console.log(`%c[drag]%c ${tag}`, "color:#e2b355;font-weight:700", "color:inherit", data ?? "");
+  console.log(`[drag] ${tag}${body}`);
 }
 
 /** pixels: two decimals is well past what a screen can show */

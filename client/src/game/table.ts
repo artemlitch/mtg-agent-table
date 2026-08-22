@@ -55,8 +55,8 @@ export const PILE_DY = 26;
  *  it. Only reached by cards the server has no position for — an unresolved
  *  card nobody has pre-placed yet. */
 export const HOME: Record<"you" | "agent", { x: number; y: number }> = {
-  agent: { x: 0, y: 0 },
-  you: { x: 0, y: 1 },
+  agent: { x: 0.12, y: 0.08 },
+  you: { x: 0.12, y: 0.86 },
 };
 
 interface Surface {
@@ -92,36 +92,17 @@ export function measureSurface(): Surface | null {
     height: bottom(bot) - top.top,
   };
 
-  // inset past whatever is drawn over the board. Each piece is on a known
-  // edge, so this is four maxima rather than real region subtraction.
-  let l = board.left;
-  let t = board.top;
-  let r = right(board);
-  let b = bottom(board);
-  const inset = (sel: string, edge: "top" | "bottom" | "left" | "right") => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    const q = rectOf(el, origin);
-    if (edge === "top") t = Math.max(t, bottom(q));
-    else if (edge === "bottom") b = Math.min(b, q.top);
-    else if (edge === "left") l = Math.max(l, right(q));
-    else r = Math.min(r, q.left);
-  };
-  inset("#hand-agent", "top");
-  inset("#hand-you", "bottom");
-  // both command zones hug the left edge of their own half (the agent's is
-  // mirrored to its top corner), so one left inset clears both
-  inset("#cmdzone-you", "left");
-  inset("#cmdzone-agent", "left");
-  inset("#btn-token", "right");
-
-  const place: Rect = { left: l, top: t, width: Math.max(1, r - l), height: Math.max(1, b - t) };
+  // The placeable rect IS the board. It is tempting to inset it past the
+  // furniture drawn on top (the hands, the command zones, the token button)
+  // so that x=0 lands somewhere clear — but every one of those is a drop
+  // REGION, so a release over them never reaches placement in the first
+  // place. Insetting only makes x=0 mean "84px inside the left edge", which
+  // clamps anything dropped further left and snaps it sideways on release.
+  const place: Rect = board;
   surface = { felt: { left: 0, top: 0, width: origin.width, height: origin.height }, place };
   dlog("surface", {
     felt: `${px(origin.width)} x ${px(origin.height)} @vp ${px(origin.left)}, ${px(origin.top)}`,
-    board: `${px(board.width)} x ${px(board.height)} @felt ${box(board)}`,
     placeable: `${px(place.width)} x ${px(place.height)} @felt ${box(place)}`,
-    insetBy: `top ${px(place.top - board.top)}, bottom ${px(bottom(board) - bottom(place))}, left ${px(place.left - board.left)}, right ${px(right(board) - right(place))}`,
     card: `${cw} x ${ch}`,
     span: `${px(Math.max(1, place.width - cw))} x ${px(Math.max(1, place.height - ch))}`,
   });

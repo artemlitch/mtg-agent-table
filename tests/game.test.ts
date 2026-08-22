@@ -749,10 +749,11 @@ describe("the table surface", () => {
     const theirs = seedCard("Theirs", "agent", "hand");
     applyAction("you", "move", { card: mine.id, toZone: "battlefield" });
     applyAction("agent", "move", { card: theirs.id, toZone: "battlefield" });
-    expect(mine.pos).toEqual({ x: 0, y: 1 });
-    expect(theirs.pos).toEqual({ x: 0, y: 0 });
+    expect(mine.pos).toEqual(HOME_POS.you);
+    expect(theirs.pos).toEqual(HOME_POS.agent);
     // one space, both halves: y alone says which side a card is on
-    expect(theirs.pos!.y).toBeLessThan(mine.pos!.y);
+    expect(theirs.pos!.y).toBeLessThan(0.5);
+    expect(mine.pos!.y).toBeGreaterThan(0.5);
   });
 
   test("place moves cards without logging — it is not a game action", () => {

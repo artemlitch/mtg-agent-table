@@ -58,13 +58,16 @@ export interface Card {
 
 /** Where a card lands when it reaches the battlefield without being placed.
  *  Provisional: the real default-placement rules are not scoped yet, so for
- *  now everything stacks in the controller's outer corner — the agent's at the
- *  top of the table, yours at the bottom. The client insets the placeable area
- *  past the hands and command zones, so {0,0} and {0,1} are the corners of
- *  usable board rather than of the window. */
+ *  now everything stacks in the controller's outer corner — the agent's at
+ *  the top of the table, yours at the bottom.
+ *
+ *  Nudged in from the true corners rather than sitting on them, because the
+ *  hands and the command zones are DRAWN over those corners: {0,1} is a card
+ *  hidden behind your own hand. Approximate on purpose — the exact clearance
+ *  moves with the window, and this whole rule is a placeholder. */
 export const HOME_POS: Record<PlayerId, { x: number; y: number }> = {
-  agent: { x: 0, y: 0 },
-  you: { x: 0, y: 1 },
+  agent: { x: 0.12, y: 0.08 },
+  you: { x: 0.12, y: 0.86 },
 };
 
 /** Table coordinates are fractions; anything else is off the table. NaN lands
