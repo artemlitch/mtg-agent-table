@@ -5,7 +5,6 @@
 import { useEffect, useRef, useState } from "react";
 import { act } from "../../api";
 import { previewProps } from "../../components/CardPreview";
-import { useDrag } from "../../game/drag";
 import { useGame } from "../../store/game";
 import { menuOpen, ui, type Anchor } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
@@ -159,11 +158,11 @@ function Pile({
 }) {
   const recent = cards.slice(-5).reverse();
   // a card dragged onto the pile goes to that zone — the rail is part of the
-  // same surface as the board
-  const armed = useDrag((s) => s.over?.kind === "pile" && s.over.zone === zone && s.over.player === p);
+  // same surface as the board. The "armed" glow is toggled imperatively by
+  // the drag, so hovering a carried card here re-renders nothing.
   return (
     <div
-      className={`pile${armed ? " armed" : ""}`}
+      className="pile"
       data-drop={`pile:${p}:${zone}`}
       onClick={(e) => {
         e.stopPropagation();

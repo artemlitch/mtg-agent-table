@@ -14,17 +14,11 @@ export function CommandZone({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.command);
   const tax = useGame((s) => s.view!.players[p].commanderTax) ?? 0;
   const mine = p === "you";
-  // the socket lights up when a commander is being carried over it
-  const armed = useDrag((s) => s.over?.kind === "command" && s.over.player === p);
-  // the carried commander draws in the drag layer; this one dims in its socket
+  // the carried commander draws in the drag layer; this one dims in its
+  // socket. The "armed" glow is toggled imperatively by the drag.
   const carried = useDrag((s) => s.cards);
   return (
-    <div
-      className={`cmdzone${mine ? "" : " theirs"}${armed ? " armed" : ""}`}
-      id={`cmdzone-${p}`}
-      data-drop={`command:${p}`}
-      data-tip="Command zone"
-    >
+    <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-drop={`command:${p}`} data-tip="Command zone">
       {/* the nebula: four blobs drifting on their own clocks — see table.css */}
       <div className="cmdcloud" aria-hidden="true">
         <span />

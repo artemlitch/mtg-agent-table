@@ -37,14 +37,14 @@ export function Hand({ p }: { p: PlayerId }) {
     overlap = Math.min(HAND_W * 0.8, HAND_W - (avail - HAND_W) / (n - 1));
   }
 
-  // the hand is a drop target for anything of yours coming off the table
-  const armed = useDrag((s) => s.over?.kind === "hand" && s.over.player === p);
   // a card being carried draws in the drag layer; the one here dims and holds
-  // its slot, so the fan doesn't re-arrange itself under your hand mid-drag
+  // its slot, so the fan doesn't re-arrange itself under your hand mid-drag.
+  // (This renders twice per drag — lift and land. The "armed" drop-target
+  // class is toggled imperatively by the drag, never through here.)
   const carried = useDrag((s) => s.cards);
 
   return (
-    <div className={`handrow fan${armed ? " armed" : ""}`} id={`hand-${p}`} ref={row} data-drop={`hand:${p}`}>
+    <div className="handrow fan" id={`hand-${p}`} ref={row} data-drop={`hand:${p}`}>
       {cards.map((c, i) => (
         <CardEl
           key={c.id}

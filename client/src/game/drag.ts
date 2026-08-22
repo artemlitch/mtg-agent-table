@@ -16,43 +16,43 @@ import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
-import { CH, CW, PILE_DX, PILE_DY, cardAt, pxToPos, regionAt, snapshotCards, snapshotRegions, type Region } from "./table";
+import { CH, CW, PILE_DX, PILE_DY, cardAt, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
 
 /** How far the pointer travels before this is a drag and not a click. */
 const THRESHOLD = 6;
 
+// This store renders exactly TWICE per drag: once when the card lifts (mount
+// it in the drag layer, dim its slot) and once when it lands. Everything that
+// changes DURING the gesture — the card's position, which zone is lit, which
+// card would take the tuck — is imperative DOM, because a store write here
+// re-renders every subscriber: the whole card layer, both hands, the rails.
+// Routing per-frame state through React is what made the drag trail the
+// cursor.
 interface DragStore {
   /** the card in hand, plus anything tucked beneath it, top-first */
   cards: Card[];
-  /** the region that would take the drop right now */
-  over: Region | null;
-  /** the card that would be tucked under, if any */
-  overCard: string | null;
   begin(cards: Card[]): void;
-  aim(over: Region | null, overCard: string | null): void;
   end(): void;
 }
 
 export const useDrag = create<DragStore>((set) => ({
   cards: [],
-  over: null,
-  overCard: null,
   begin(cards) {
     // While a card is in the air the table leaves the hover system: no
     // previews, no tooltips, no hover chips. Without this, every card the
     // cursor crosses raises its own full-size preview and repositions it on
     // each mousemove, which is a card image being laid out continuously
-    // underneath the drag. It is the reason a drag has to say "I am dragging"
-    // globally rather than just moving an element.
+    // underneath the drag.
     document.body.classList.add("dragging");
-    set({ cards, over: null, overCard: null });
-  },
-  aim(over, overCard) {
-    set({ over, overCard });
+    // and incoming server views wait until the pointer comes up — applying
+    // one mid-gesture re-renders the whole table underneath the drag
+    useGame.getState().setDragging(true);
+    set({ cards });
   },
   end() {
     document.body.classList.remove("dragging");
-    set({ cards: [], over: null, overCard: null });
+    set({ cards: [] });
+    useGame.getState().setDragging(false);
   },
 }));
 
@@ -94,15 +94,15 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   // style write — no getBoundingClientRect, no getComputedStyle, no query.
   let origin = { x: 0, y: 0 };
   let regions: Region[] = [];
-  let others: ReturnType<typeof snapshotCards> = [];
+  let others: CardBox[] = [];
   let layer: HTMLElement | null = null;
   let carried: Card[] = [];
   let live = false;
   let at = { left: 0, top: 0 };
-  // the last target we told the store about; the store is only touched when
-  // the answer actually changes, not on every frame
+  // the elements currently lit as the drop target — armed and un-armed by
+  // toggling a class, never through React (see the store's comment)
   let aimedAt: Region | null = null;
-  let aimedCard: string | null = null;
+  let aimedCard: CardBox | null = null;
 
   let frame = 0;
   let last = { x: startX, y: startY };
@@ -115,18 +115,23 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   };
 
   // the target under the cursor only changes when you cross a boundary, so it
-  // is resolved once a frame and the store is written only when the answer
-  // differs. The card's own position is NOT deferred — see onMove.
+  // is resolved once a frame, and only the two elements whose answer changed
+  // are touched. The card's own position is NOT deferred — see onMove.
   const retarget = () => {
     frame = 0;
     const region = regionAt(regions, last.x - origin.x, last.y - origin.y);
     // tucking is a board-to-board gesture: playing a card out of your hand
     // should never silently attach it to whatever is under the drop
     const target = !region && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
-    if (region !== aimedAt || target !== aimedCard) {
+    if (region !== aimedAt) {
+      aimedAt?.el.classList.remove("armed");
+      region?.el.classList.add("armed");
       aimedAt = region;
+    }
+    if (target !== aimedCard) {
+      aimedCard?.el.classList.remove("tuckover");
+      target?.el.classList.add("tuckover");
       aimedCard = target;
-      useDrag.getState().aim(region, target);
     }
   };
 
@@ -174,12 +179,14 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     const f = place(up.clientX, up.clientY);
     const over = regionAt(regions, f.x, f.y);
     const overCard = !over && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
+    aimedAt?.el.classList.remove("armed");
+    aimedCard?.el.classList.remove("tuckover");
     ui().hidePreview();
     // the card stays in the drag layer, at the point you let go, until the
     // server has been told where it went — release it any earlier and it
     // flicks back to its old spot for the length of the round trip
     try {
-      await drop(card, over, overCard, at);
+      await drop(card, over, overCard?.id ?? null, at);
     } finally {
       useDrag.getState().end();
     }

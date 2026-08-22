@@ -1,8 +1,13 @@
 // The server's view of the table, mirrored into a store. The server is the
-// only source of truth: nothing here invents game state. One exception, and
-// it is about not flickering while the network catches up — a card you just
-// dropped keeps the spot you put it in until the server's view agrees, so an
-// unrelated poll landing in between cannot snap it back.
+// only source of truth: nothing here invents game state. Two exceptions, both
+// about not flickering while the network catches up:
+//
+//   pendingPos — a card you just dropped keeps the spot you put it in until
+//     the server's view agrees, so an unrelated poll landing in between
+//     cannot snap it back.
+//   dragging — while a card is in the air, incoming views park in `parked`
+//     and land the moment the drag ends. Applying one mid-gesture re-renders
+//     the whole table underneath the pointer.
 import { create } from "zustand";
 import type { BrainEntry, Card, GameView, PlayerId } from "../types";
 
@@ -10,9 +15,13 @@ interface GameStore {
   view: GameView | null;
   brain: BrainEntry[];
   agentBusy: boolean;
+  dragging: boolean;
+  /** a view that arrived mid-drag, waiting for the pointer to come up */
+  parked: GameView | null;
   pendingPos: Map<string, { x: number; y: number }>;
 
   applyView(v: GameView): void;
+  setDragging(on: boolean): void;
   setBrain(entries: BrainEntry[], busy: boolean): void;
   pushBrain(entry: BrainEntry, busy: boolean): void;
   /** claim a card's position locally until the server reports the same one */
@@ -41,10 +50,20 @@ export const useGame = create<GameStore>((set, get) => ({
   view: null,
   brain: [],
   agentBusy: false,
+  dragging: false,
+  parked: null,
   pendingPos: new Map(),
 
   applyView(v) {
-    set({ view: reconcile(v, get().pendingPos) });
+    const { dragging, pendingPos } = get();
+    if (dragging) return set({ parked: v });
+    set({ view: reconcile(v, pendingPos), parked: null });
+  },
+
+  setDragging(on) {
+    if (on) return set({ dragging: true });
+    const { parked, pendingPos } = get();
+    set(parked ? { dragging: false, view: reconcile(parked, pendingPos), parked: null } : { dragging: false });
   },
 
   expectPos(id, pos) {

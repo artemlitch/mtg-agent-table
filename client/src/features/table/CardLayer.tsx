@@ -26,8 +26,10 @@ const PLAYERS: PlayerId[] = ["agent", "you"];
 
 export function CardLayer() {
   const view = useGame((s) => s.view);
+  // renders twice per drag — lift and land. Per-frame drag state (position,
+  // armed targets, the tuckover ring) never comes through React: a store
+  // write here re-renders every card on the table.
   const carried = useDrag((s) => s.cards);
-  const overCard = useDrag((s) => s.overCard);
   const [measured, setMeasured] = useState(false);
   const [, bump] = useState(0);
 
@@ -80,7 +82,7 @@ export function CardLayer() {
         {PLAYERS.flatMap((p) =>
           view.players[p].zones.battlefield
             .filter((c) => !hidden.has(c.id))
-            .map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} tuckTarget={overCard === c.id} />)
+            .map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
         )}
         {ghosts.map(({ item, spell }) => (
           <Ghost key={item.card!.id} item={item} spell={spell} />
@@ -99,17 +101,12 @@ export function CardLayer() {
 /** One battlefield card at its place on the surface. A tucked card has no
  *  place of its own — it hangs off the card above it, one step per rung, so a
  *  pile stays a pile however its top card moves. */
-function Placed({ card: c, lift, tuckTarget }: { card: Card; lift?: StackItem; tuckTarget: boolean }) {
+function Placed({ card: c, lift }: { card: Card; lift?: StackItem }) {
   const { left, top, depth } = anchorOf(c);
   const mine = c.controller === "you";
-  const classes = [
-    "placed",
-    mine && "grabbable",
-    depth > 0 && "tucked",
-    lift && "lifted",
-    tuckTarget && "tuckover",
-    pendingAttackOf(c.id) && "declaring",
-  ]
+  // "tuckover" is not in this list on purpose: the drag paints it straight
+  // onto the element, so lighting a target costs zero renders
+  const classes = ["placed", mine && "grabbable", depth > 0 && "tucked", lift && "lifted", pendingAttackOf(c.id) && "declaring"]
     .filter(Boolean)
     .join(" ");
   return (

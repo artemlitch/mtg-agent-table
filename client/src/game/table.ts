@@ -188,18 +188,24 @@ export function regionAt(regions: Region[], x: number, y: number): Region | null
  *
  *  Cards do not move while you hold one. A poll landing mid-drag could in
  *  principle add one, and it will not be a tuck target until you let go. */
-export function snapshotCards(exclude: Set<string>): { id: string; rect: Rect }[] {
+export interface CardBox {
+  id: string;
+  el: HTMLElement;
+  rect: Rect;
+}
+
+export function snapshotCards(exclude: Set<string>): CardBox[] {
   const felt = document.getElementById("felt");
   if (!felt) return [];
   const origin = felt.getBoundingClientRect();
   return [...document.querySelectorAll<HTMLElement>("#cardlayer .card[data-card-id]")]
     .filter((el) => !exclude.has(el.dataset.cardId!))
-    .map((el) => ({ id: el.dataset.cardId!, rect: rectOf(el, origin) }));
+    .map((el) => ({ id: el.dataset.cardId!, el, rect: rectOf(el, origin) }));
 }
 
 /** The topmost card under a point — last in document order wins, which is the
  *  one drawn on top. */
-export function cardAt(cards: { id: string; rect: Rect }[], x: number, y: number): string | null {
-  for (let i = cards.length - 1; i >= 0; i--) if (inside(cards[i].rect, x, y)) return cards[i].id;
+export function cardAt(cards: CardBox[], x: number, y: number): CardBox | null {
+  for (let i = cards.length - 1; i >= 0; i--) if (inside(cards[i].rect, x, y)) return cards[i];
   return null;
 }
