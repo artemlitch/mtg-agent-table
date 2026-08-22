@@ -45,12 +45,24 @@
 .deckpile:hover img.cardback { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6), 0 0 14px rgba(226, 179, 85, 0.3); }
 
 /* ── graveyard / exile piles ── */
-/* no metallic rim in the rail — the piles are furniture, not controls */
+/* No plate and no metallic rim — the piles are furniture, not controls. What
+   separates one from the next is a soft glow along the bottom edge: a wide
+   ellipse parked almost entirely below the box, with only its top tenth
+   clearing the overflow. It reads as a lit lip under the cards rather than as
+   a border. */
 .pile {
+  position: relative; overflow: hidden;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
-  background: var(--panel2); transition: background 0.25s ease;
+  background: none;
 }
-.pile:hover { background: #241f33; }
+.pile::after {
+  content: ""; position: absolute; left: -25%; right: -25%; bottom: -144%;
+  /* 160% tall, sunk 144% — 16% of the box shows, which is a tenth of the ellipse */
+  height: 160%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(226, 179, 85, 0.5), rgba(226, 179, 85, 0.14) 45%, transparent 70%);
+  opacity: 0.5; transition: opacity 0.25s ease;
+}
+.pile:hover::after { opacity: 1; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
 .pile .pcount { font-size: var(--fs-label); font-family: var(--font-fantasy); }
