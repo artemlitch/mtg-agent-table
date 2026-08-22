@@ -463,7 +463,9 @@ const NEXT_ACTION_STEPS = [
   },
   {
     id: "combat-damage",
-    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/COMBAT DAMAGE/),
+    // the guard has to match what the button actually pushes, or the step
+    // never stands down and combat cannot advance
+    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/combat damage|go to damage/i),
     // one click straight onto the stack — the agent works out the numbers,
     // the player never types damage
     step: () => ({
@@ -1863,10 +1865,14 @@ function libraryMenu(p, e) {
         stepper.classList.toggle("step-up", top);
         stepper.classList.toggle("step-down", !top);
       };
+      // on the dial the click won't run the action, so the button stops
+      // pretending it is hovered
+      stepper.onmouseenter = () => b.classList.add("on-dial");
       stepper.onmouseleave = () => {
         up.classList.remove("armed");
         down.classList.remove("armed");
         stepper.classList.remove("step-up", "step-down");
+        b.classList.remove("on-dial");
       };
       b.append(stepper);
     }
