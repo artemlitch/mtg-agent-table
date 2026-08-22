@@ -273,6 +273,19 @@ const ICONS = {
   cancel: "fa-xmark",
   cancelAttack: "fa-circle-xmark",
   battlefield: "fa-chess-board",
+  caret: "fa-caret-down",
+  caretUp: "fa-caret-up",
+  // card types, for the search filter
+  anyType: "fa-asterisk",
+  creature: "fa-dragon",
+  land: "fa-mountain",
+  artifact: "fa-gear",
+  enchantment: "fa-hat-wizard",
+  instant: "fa-bolt",
+  sorcery: "fa-scroll",
+  planeswalker: "fa-chess-king",
+  battle: "fa-khanda",
+  blank: "", // keeps a row's icon column aligned with nothing in it
 };
 function iconEl(name) {
   const i = document.createElement("i");
@@ -1679,12 +1692,12 @@ const MENU_LOOK = [
   [/untap/i, "untap", "mulligan"],
   [/^tap\b/i, "tap", "mulligan"],
   [/play |cast|→ stack/i, "cast", "surveil"],
-  // owner/steal/give before the plain battlefield rule, or "to MY
-  // battlefield" and "to owner bf" would collapse onto one glyph
+  // owner/steal/give before the plain battlefield rule, or "to my battlefield"
+  // and "to owner's battlefield" would collapse onto one glyph
   [/steal|take/i, "steal", "exile"],
-  [/give|return|owner bf/i, "give", "draw"],
-  [/\bbf\b|battlefield/i, "battlefield", "draw"],
-  [/graveyard|discard|mill|\bgy\b/i, "mill", "mill"],
+  [/give|return|owner's battlefield/i, "give", "draw"],
+  [/battlefield/i, "battlefield", "draw"],
+  [/graveyard|discard|mill/i, "mill", "mill"],
   [/exile/i, "exile", "exile"],
   [/token/i, "token", "draw"],
   [/command/i, "command", "reveal"],
@@ -1699,7 +1712,7 @@ const MENU_LOOK = [
 /** Labels used to carry their own emoji; the icon says it now. */
 const stripGlyph = (s) => String(s).replace(/^[^\p{L}\p{N}(]+/u, "").trim();
 
-function openMenu(items, e) {
+function openMenu(items, e, opts = {}) {
   const m = $("#menu");
   m.className = ""; // the library panel restyles this container — reset it
   m.innerHTML = "";
@@ -1713,13 +1726,15 @@ function openMenu(items, e) {
     }
     const [, icon, tone] = MENU_LOOK.find(([re]) => re.test(it.label)) ?? [];
     const b = document.createElement("button");
-    // the first action is the one you almost always came for — give it size
-    const first = !m.querySelector(".mi:not(.title)");
-    b.className = `mi a-${tone ?? "neutral"}` + (it.sep ? " sep" : "") + (first ? " primary" : "");
+    // the first action is the one you almost always came for — give it size.
+    // A dropdown's list is a list of equals, so it opts out.
+    const first = !opts.plain && !m.querySelector(".mi:not(.title)");
+    b.className =
+      `mi a-${tone ?? "neutral"}` + (it.sep ? " sep" : "") + (first ? " primary" : "") + (it.on ? " on" : "");
     const label = document.createElement("span");
     label.className = "mi-label";
     label.textContent = stripGlyph(it.label);
-    b.append(iconEl(icon ?? "bullet"), label);
+    b.append(iconEl(it.icon ?? icon ?? "bullet"), label);
     if (it.keys) {
       const keys = document.createElement("span");
       keys.className = "na-key mi-keys";
@@ -1743,13 +1758,74 @@ function closeMenu() {
 }
 document.addEventListener("click", closeMenu);
 
-function moveItem(label, c, params) {
-  return { label, fn: () => act("move", { card: c.id, ...params }) };
+// A native <select> can't wear the plate-and-rim look, so ours is a plate that
+// drops the card menu underneath it. `.value` and `.options` behave like a
+// select's, so callers read it the same way.
+function dropdown(options, value, onPick = () => {}) {
+  const b = document.createElement("button");
+  b.className = "dropdown";
+  const label = document.createElement("span");
+  label.className = "dd-label";
+  let v = value;
+  const paint = () => (label.textContent = options.find((o) => o.value === v)?.label ?? "");
+  Object.defineProperty(b, "value", { get: () => v, set: (nv) => { v = nv; paint(); } });
+  b.options = options;
+  b.append(label, iconEl("caret"));
+  paint();
+  b.onclick = (e) => {
+    e.stopPropagation();
+    if (menuOpen()) return closeMenu();
+    const r = b.getBoundingClientRect();
+    openMenu(
+      options.map((o) => ({
+        label: o.label,
+        // options that carry their own glyph keep it; the rest borrow the
+        // icon column to mark which one is current
+        icon: o.icon ?? (o.value === v ? "resolve" : "blank"),
+        on: o.value === v,
+        fn: () => { b.value = o.value; onPick(o.value); },
+      })),
+      { clientX: r.left - CURSOR_GAP.x, clientY: r.bottom - CURSOR_GAP.y + 3 },
+      { plain: true }
+    );
+  };
+  return b;
 }
+
+// The one place a card destination is named. Every menu and every card browser
+// builds its rows from here, so a graveyard row is spelled, coloured and aimed
+// the same way wherever you meet it. Entries are [label, move params]; the
+// caller decides who runs the move — the board moves a card outright, the
+// graveyard browser puts it on the stack first.
+const DEST = {
+  hand: (c) => ["To hand", { toZone: "hand", toPlayer: c.owner }],
+  myHand: () => ["To my hand", { toZone: "hand", toPlayer: "you" }],
+  graveyard: (c) => ["Graveyard", { toZone: "graveyard", toPlayer: c.owner }],
+  exile: (c) => ["Exile", { toZone: "exile", toPlayer: c.owner }],
+  exileDown: (c) => ["Exile face-down", { toZone: "exile", toPlayer: c.owner, faceDown: true, revealTo: "you" }],
+  top: (c) => ["Top of library", { toZone: "library", toPlayer: c.owner, position: "top" }],
+  bottom: (c) => ["Bottom of library", { toZone: "library", toPlayer: c.owner, position: "bottom" }],
+  command: (c) => ["Command zone", { toZone: "command", toPlayer: c.owner }],
+  myBattlefield: () => ["To my battlefield", { toZone: "battlefield", toPlayer: "you" }],
+  ownerBattlefield: (c) => ["To owner's battlefield", { toZone: "battlefield", toPlayer: c.owner }],
+  play: (c) => ["Straight to battlefield", { toZone: "battlefield", toPlayer: c.controller }],
+  steal: () => ["😈 Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
+  give: () => ["🎁 Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
+  giveBack: () => ["Return to agent's battlefield", { toZone: "battlefield", toPlayer: "agent" }],
+};
+/** A menu row that moves the card. `extra` only ever adds a log note. */
+const destItem = (key, c, extra) => {
+  const [label, params] = DEST[key](c);
+  return { label, fn: () => act("move", { card: c.id, ...params, ...extra }) };
+};
+/** The same row for a card browser, where the caller runs the move. */
+const destButton = (key, c, run, suffix = "") => {
+  const [label, params] = DEST[key](c);
+  return [label + suffix, () => run(params)];
+};
 
 function cardMenu(c, e) {
   const items = [{ label: c.hidden ? "(hidden card)" : c.name, title: true }];
-  const owner = c.owner;
 
   if (c.zone === "hand" && c.controller === "you") {
     if ((c.faceCount ?? 1) > 1 && c.faces) {
@@ -1760,12 +1836,11 @@ function cardMenu(c, e) {
     } else {
       items.push({ label: "🌀 Play → stack", fn: () => act("cast", { card: c.id }) });
     }
-    items.push(moveItem("Discard", c, { toZone: "graveyard", toPlayer: owner, note: "discard" }));
-    items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
+    items.push(destItem("graveyard", c, { note: "discard" }));
+    items.push(destItem("exile", c));
     items.push({ label: "Reveal to agent", fn: () => act("reveal", { cards: [c.id], to: "agent" }) });
     items.push({ label: "Reveal to all", fn: () => act("reveal", { cards: [c.id], to: "all" }) });
-    items.push(moveItem("Top of library", c, { toZone: "library", toPlayer: owner, position: "top" }));
-    items.push(moveItem("Bottom of library", c, { toZone: "library", toPlayer: owner, position: "bottom" }));
+    items.push(destItem("top", c), destItem("bottom", c));
   }
 
   if (c.zone === "battlefield") {
@@ -1822,27 +1897,18 @@ function cardMenu(c, e) {
       },
     });
     if (c.under) items.push({ label: "Pull out of pile", fn: () => act("tuck", { card: c.id, under: "" }) });
-    if (c.isToken) {
-      items.push({
-        label: "🗑 Delete token",
-        sep: true,
-        fn: () => act("move", { card: c.id, toZone: "graveyard", toPlayer: owner, note: "token removed" }),
-      });
-    }
-    items.push({ label: "To graveyard", sep: !c.isToken, fn: () => act("move", { card: c.id, toZone: "graveyard", toPlayer: owner }) });
-    items.push(moveItem("Exile", c, { toZone: "exile", toPlayer: owner }));
-    items.push(moveItem("Exile face-down (I may look)", c, { toZone: "exile", toPlayer: owner, faceDown: true, revealTo: "you" }));
-    items.push(moveItem("To owner's hand", c, { toZone: "hand", toPlayer: owner }));
-    items.push(moveItem("Top of owner's library", c, { toZone: "library", toPlayer: owner, position: "top" }));
-    if (c.isCommander) items.push(moveItem("To command zone", c, { toZone: "command", toPlayer: owner }));
-    if (c.controller === "agent") items.push(moveItem("😈 Steal — to MY battlefield", c, { toZone: "battlefield", toPlayer: "you", note: "control effect" }));
-    if (c.controller === "you" && c.owner === "agent") items.push(moveItem("Return to agent's battlefield", c, { toZone: "battlefield", toPlayer: "agent" }));
-    if (c.controller === "you" && c.owner === "you") items.push(moveItem("🎁 Give to agent's battlefield", c, { toZone: "battlefield", toPlayer: "agent", note: "control effect" }));
+    if (c.isToken) items.push({ ...destItem("graveyard", c, { note: "token removed" }), label: "🗑 Delete token", sep: true });
+    items.push({ ...destItem("graveyard", c), sep: !c.isToken });
+    items.push(destItem("exile", c), destItem("exileDown", c), destItem("hand", c), destItem("top", c));
+    if (c.isCommander) items.push(destItem("command", c));
+    if (c.controller === "agent") items.push(destItem("steal", c));
+    if (c.controller === "you" && c.owner === "agent") items.push(destItem("giveBack", c));
+    if (c.controller === "you" && c.owner === "you") items.push(destItem("give", c));
   }
 
   if (c.zone === "command") {
     items.push({ label: "🌀 Cast → stack", fn: () => act("cast", { card: c.id, note: "from command zone" }) });
-    items.push(moveItem("▶ Straight to battlefield", c, { toZone: "battlefield", toPlayer: c.controller }));
+    items.push(destItem("play", c));
   }
 
   if (!c.hidden) {
@@ -1886,9 +1952,7 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "exile" && !c.hidden) {
-    items.push(moveItem("▶ Play to MY battlefield", c, { toZone: "battlefield", toPlayer: "you", note: "cast from exile" }));
-    items.push(moveItem("To owner's graveyard", c, { toZone: "graveyard", toPlayer: owner }));
-    items.push(moveItem("To owner's hand", c, { toZone: "hand", toPlayer: owner }));
+    items.push(destItem("myBattlefield", c, { note: "cast from exile" }), destItem("graveyard", c), destItem("hand", c));
   }
 
   openMenu(items, e);
@@ -2053,12 +2117,24 @@ function libraryMenu(p, e) {
 // Modals
 // ---------------------------------------------------------------------------
 
+// The card-size slider picks a row density, not a pixel width: the cards then
+// divide the browser evenly, so a row never ends in a ragged half-gap.
+const PER_ROW = [10, 9, 8, 7, 6, 5, 4, 3];
+const GRID_GAP = 8; // must match .modalcards gap
+const GRID_PAD = 4; // and its padding, which the row width has to give back
+const perRow = () => Number(localStorage.getItem("cardsPerRow")) || 5;
+function applyCardSize(n = perRow()) {
+  const box = $("#modal-box");
+  const w = (box.querySelector(".modalscroll") ?? box).clientWidth - 2 * GRID_PAD;
+  if (w > 0) box.style.setProperty("--cardsize", Math.floor((w - GRID_GAP * (n - 1)) / n) - 1 + "px");
+}
+window.addEventListener("resize", () => applyCardSize());
+
 function openModal(title, bodyEl, opts = {}) {
   const box = $("#modal-box");
   $("#modal .targetpanel")?.remove(); // stale palette from a previous modal
   // card browsers are fixed-size (hard rule); compact modals size to content
   box.classList.toggle("compact", !!opts.compact);
-  box.style.setProperty("--cardsize", (localStorage.getItem("cardsize") || 170) + "px");
   box.innerHTML = "";
   const x = document.createElement("button");
   x.className = "modalx";
@@ -2066,12 +2142,18 @@ function openModal(title, bodyEl, opts = {}) {
   x.title = "Close (Esc)";
   x.onclick = closeModal;
   box.appendChild(x);
+  // title and any filter bar stay put; only the cards under them scroll
+  const head = document.createElement("div");
+  head.className = "modalhead";
+  head.innerHTML = `<h3>${title}</h3>`;
+  if (opts.header) head.appendChild(opts.header);
+  box.appendChild(head);
   const scroll = document.createElement("div");
   scroll.className = "modalscroll";
-  scroll.innerHTML = `<h3>${title}</h3>`;
   scroll.appendChild(bodyEl);
   box.appendChild(scroll);
   $("#modal").classList.remove("hidden");
+  applyCardSize(); // needs the box laid out, so after it is shown
 }
 function closeModal() {
   $("#modal").classList.add("hidden");
@@ -2165,7 +2247,7 @@ function targetPanel(input) {
     if (exileCards.some((c) => !c.hidden)) {
       const sub = document.createElement("div");
       sub.className = "tsub";
-      sub.textContent = "exile";
+      sub.textContent = "Exile";
       list.appendChild(sub);
       sortLandsLast(exileCards).forEach(add);
     }
@@ -2187,22 +2269,20 @@ function modalCardEl(info, buttons) {
   d.onmouseenter = (e) => showPreview(info, e);
   d.onmousemove = (e) => positionPreview(e);
   d.onmouseleave = hidePreview;
-  const btns = document.createElement("div");
-  btns.className = "mcbtns";
-  for (const [label, fn] of buttons) {
-    // same icon/tone table the menus use, so a card's buttons read the same
-    // wherever they appear
-    const [, icon, tone] = MENU_LOOK.find(([re]) => re.test(label)) ?? [];
-    const b = document.createElement("button");
-    b.className = `mcbtn a-${tone ?? "neutral"}`;
-    const text = document.createElement("span");
-    text.textContent = stripGlyph(label);
-    b.append(iconEl(icon ?? "bullet"), text);
-    b.title = label;
-    b.onclick = fn;
-    btns.appendChild(b);
-  }
-  d.appendChild(btns);
+  // no button strip under the art: clicking the card opens the same menu the
+  // battlefield uses. A card with a single action just runs it.
+  const open = (e) => {
+    e.stopPropagation();
+    if (menuOpen()) return closeMenu(); // second click dismisses, same as the board
+    hidePreview();
+    if (buttons.length === 1) return buttons[0][1]();
+    openMenu([{ label: info.name, title: true }, ...buttons.map(([label, fn]) => ({ label, fn }))], e);
+  };
+  d.onclick = open;
+  d.oncontextmenu = (e) => {
+    e.preventDefault();
+    open(e);
+  };
   return d;
 }
 
@@ -2227,7 +2307,18 @@ function cardColors(c) {
   return set;
 }
 
-const CARD_TYPES = ["", "creature", "land", "artifact", "enchantment", "instant", "sorcery", "planeswalker", "battle"];
+// value is what the type line is matched against; the glyph is what you see
+const CARD_TYPES = [
+  { value: "", label: "Any type", icon: "anyType" },
+  { value: "creature", label: "Creature", icon: "creature" },
+  { value: "land", label: "Land", icon: "land" },
+  { value: "artifact", label: "Artifact", icon: "artifact" },
+  { value: "enchantment", label: "Enchantment", icon: "enchantment" },
+  { value: "instant", label: "Instant", icon: "instant" },
+  { value: "sorcery", label: "Sorcery", icon: "sorcery" },
+  { value: "planeswalker", label: "Planeswalker", icon: "planeswalker" },
+  { value: "battle", label: "Battle", icon: "battle" },
+];
 
 /** Shared filter bar: name, type, P/T (≥/≤), mana value (≥/≤), colors. */
 function filterBar(onChange) {
@@ -2238,7 +2329,7 @@ function filterBar(onChange) {
   // search bar on its own line above the filters
   const q = document.createElement("input");
   q.className = "namein";
-  q.placeholder = "search name, type, or card text…";
+  q.placeholder = "Search name, type, or card text…";
   q.oninput = () => { f.q = q.value.toLowerCase(); onChange(); };
   el.appendChild(q);
   // focus once the modal is actually in the DOM
@@ -2246,52 +2337,52 @@ function filterBar(onChange) {
 
   const row = document.createElement("div");
   row.className = "frow";
-  const type = document.createElement("select");
-  for (const t of CARD_TYPES) {
-    const o = document.createElement("option");
-    o.value = t;
-    o.textContent = t || "any type";
-    type.appendChild(o);
-  }
-  type.onchange = () => { f.type = type.value; onChange(); };
-  row.append(type);
+  row.append(dropdown(CARD_TYPES, "", (v) => { f.type = v; onChange(); }));
   const numFilter = (label, opKey, valKey) => {
     const span = document.createElement("span");
     span.className = "numf";
-    span.textContent = label;
-    const op = document.createElement("select");
-    for (const o of [">=", "<="]) {
-      const e = document.createElement("option");
-      e.value = o;
-      e.textContent = o === ">=" ? "≥" : "≤";
-      op.appendChild(e);
-    }
-    op.value = f[opKey];
-    op.onchange = () => { f[opKey] = op.value; onChange(); };
+    const name = document.createElement("span");
+    name.className = "numlabel";
+    name.textContent = label;
+    span.appendChild(name);
+    // two states don't deserve a popup — the plate flips between them
+    const op = document.createElement("button");
+    op.className = "opbtn";
+    op.textContent = f[opKey] === ">=" ? "≥" : "≤";
+    op.title = "At least / at most";
+    op.onclick = () => {
+      f[opKey] = f[opKey] === ">=" ? "<=" : ">=";
+      op.textContent = f[opKey] === ">=" ? "≥" : "≤";
+      onChange();
+    };
     const n = document.createElement("input");
     n.type = "number";
     n.className = "numin";
     n.oninput = () => { f[valKey] = n.value; onChange(); };
-    span.append(op, n);
+    // the native spinner can't be styled, so it is hidden and this pair of
+    // plates does the stepping
+    const spin = document.createElement("span");
+    spin.className = "spin";
+    for (const [icon, d] of [["caretUp", 1], ["caret", -1]]) {
+      const s = document.createElement("button");
+      s.className = "spinb";
+      s.append(iconEl(icon));
+      s.onclick = () => {
+        n.value = Math.max(0, Number(n.value || 0) + d);
+        f[valKey] = n.value;
+        onChange();
+      };
+      spin.appendChild(s);
+    }
+    span.append(op, n, spin);
     return span;
   };
   row.append(numFilter("power", "powOp", "pow"), numFilter("toughness", "touOp", "tou"), numFilter("mana cost", "mvOp", "mv"));
 
-  // card-size slider — persisted, applies to every card browser
-  const size = document.createElement("input");
-  size.type = "range";
-  size.min = 110;
-  size.max = 280;
-  size.value = localStorage.getItem("cardsize") || 170;
-  size.className = "sizeslider";
-  size.title = "card size";
-  size.oninput = () => {
-    localStorage.setItem("cardsize", size.value);
-    $("#modal-box").style.setProperty("--cardsize", size.value + "px");
-  };
-  row.appendChild(size);
-
+  // pips ride as one tight cluster right after the mana-cost input
   const PIP_NAMES = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green", C: "No color" };
+  const pips = document.createElement("span");
+  pips.className = "pips";
   for (const col of ["W", "U", "B", "R", "G", "C"]) {
     const b = document.createElement("button");
     b.className = "colbtn col" + col;
@@ -2301,8 +2392,27 @@ function filterBar(onChange) {
       else { f.colors.add(col); b.classList.add("on"); }
       onChange();
     };
-    row.appendChild(b);
+    pips.appendChild(b);
   }
+  row.appendChild(pips);
+
+  // card-size slider — one notch per row density, persisted, and pinned to the
+  // far right by margin-left:auto
+  const size = document.createElement("input");
+  size.type = "range";
+  size.min = 0;
+  size.max = PER_ROW.length - 1;
+  size.step = 1;
+  size.value = Math.max(0, PER_ROW.indexOf(perRow()));
+  size.className = "sizeslider";
+  const describe = () => (size.title = `${PER_ROW[size.value]} cards per row`);
+  describe();
+  size.oninput = () => {
+    localStorage.setItem("cardsPerRow", PER_ROW[size.value]);
+    describe();
+    applyCardSize();
+  };
+  row.appendChild(size);
   el.append(row);
 
   const active = () =>
@@ -2349,7 +2459,7 @@ function abilityModal(c) {
   const col = document.createElement("div");
   col.className = "amcol";
   const input = document.createElement("textarea");
-  input.placeholder = "what does the ability do? (targets, numbers…)";
+  input.placeholder = "What does the ability do? (targets, numbers…)";
   // not everything taps to activate: [Tap + Stack] (⇧⏎) vs [Stack] (⏎)
   const submit = (tapToo) => {
     const t = input.value.trim();
@@ -2386,7 +2496,6 @@ function abilityModal(c) {
 function showZoneModal(p, zone) {
   // piles read newest-first: the last card added is the top of the pile
   const cards = [...state.players[p].zones[zone]].reverse();
-  const wrap = document.createElement("div");
   const grid = document.createElement("div");
   grid.className = "modalcards";
   const renderGrid = () => {
@@ -2403,56 +2512,58 @@ function showZoneModal(p, zone) {
       }
       // leaving a graveyard/exile is a game action — it goes ON THE STACK
       // (cast with a declared destination; the agent resolves or responds)
-      const viaStack = (label, resolveTo, toPlayer) => [
-        `${label} ⚡`,
-        () =>
-          act("cast", {
-            card: c.id,
-            resolveTo,
-            ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
-            note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${resolveTo}`,
-          }).then(closeModal),
-      ];
+      const viaStack = (key) =>
+        destButton(
+          key,
+          c,
+          ({ toZone, toPlayer }) =>
+            act("cast", {
+              card: c.id,
+              resolveTo: toZone,
+              ...(toPlayer !== "you" ? { resolveToPlayer: toPlayer } : {}),
+              note: `from ${zone} → ${toPlayer === "you" ? "your" : "owner's"} ${toZone}`,
+            }).then(closeModal),
+          " ⚡"
+        );
       grid.appendChild(
         modalCardEl(c, [
-          viaStack("to hand", "hand", c.owner),
-          viaStack("to my bf", "battlefield", "you"),
-          viaStack("to owner bf", "battlefield", c.owner),
-          viaStack(zone === "exile" ? "gy" : "exile", zone === "exile" ? "graveyard" : "exile", c.owner),
+          viaStack("hand"),
+          viaStack("myBattlefield"),
+          viaStack("ownerBattlefield"),
+          viaStack(zone === "exile" ? "graveyard" : "exile"),
         ])
       );
     }
   };
   const fb = filterBar(() => renderGrid());
-  wrap.append(fb.el, grid);
   renderGrid();
-  openModal(`${p === "you" ? "Your" : "Agent's"} ${zone} (${cards.length})`, wrap);
+  openModal(`${p === "you" ? "Your" : "Agent's"} ${zone} (${cards.length})`, grid, { header: fb.el });
 }
 
 function peekModal(p, cards) {
-  const wrap = document.createElement("div");
   const grid = document.createElement("div");
   grid.className = "modalcards";
   for (const c of cards) {
-    // every button acts immediately; "move to bottom" dims the card,
-    // "keep on top" brings it back to the top of the library
+    // every action fires immediately and the window stays open (esc or ✕
+    // closes it); a card that has left the top dims in place
     let el;
-    // the window stays open through every action — esc or ✕ closes it
+    const leave = (params) => {
+      act("move", { card: c.id, ...params });
+      el.classList.add("bottomed");
+    };
     el = modalCardEl(c, [
-      ["keep on top", () => { act("reorder_top", { player: p, top: [c.id] }); el.classList.remove("bottomed"); }],
-      ["move to bottom", () => { act("reorder_top", { player: p, toBottom: [c.id] }); el.classList.add("bottomed"); }],
-      ["draw→hand", () => { act("move", { card: c.id, toZone: "hand", toPlayer: "you" }); el.classList.add("bottomed"); }],
-      ["gy", () => { act("move", { card: c.id, toZone: "graveyard", toPlayer: p }); el.classList.add("bottomed"); }],
-      ["exile", () => { act("move", { card: c.id, toZone: "exile", toPlayer: p }); el.classList.add("bottomed"); }],
+      ["Keep on top", () => { act("reorder_top", { player: p, top: [c.id] }); el.classList.remove("bottomed"); }],
+      ["Bottom of library", () => { act("reorder_top", { player: p, toBottom: [c.id] }); el.classList.add("bottomed"); }],
+      destButton("myHand", c, leave),
+      destButton("graveyard", c, leave),
+      destButton("exile", c, leave),
     ]);
     grid.appendChild(el);
   }
-  wrap.appendChild(grid);
-  openModal(`Top of ${p === "you" ? "your" : "agent's"} library`, wrap);
+  openModal(`Top of ${p === "you" ? "your" : "agent's"} library`, grid);
 }
 
 function searchModal(p, cards) {
-  const wrap = document.createElement("div");
   const grid = document.createElement("div");
   grid.className = "modalcards";
   const renderGrid = () => {
@@ -2466,30 +2577,24 @@ function searchModal(p, cards) {
         cards = cards.filter((x) => x.id !== c.id);
         renderGrid();
       });
+      // a found card always comes to YOUR hand — searching the agent's library
+      // is a theft effect, and taking the card is the point
+      const found = (params) => move({ ...params, note: "from library search" });
       grid.appendChild(
         modalCardEl(c, [
-          // to hand always means YOUR hand — searching the agent's library is
-          // a theft effect, and taking the card is the point
-          ["to hand", () => move({ toZone: "hand", toPlayer: "you" })],
-          ["to my bf", () => move({ toZone: "battlefield", toPlayer: "you" })],
-          ["gy", () => move({ toZone: "graveyard", toPlayer: p, note: "from library search" })],
-          ["exile", () => move({ toZone: "exile", toPlayer: p, note: "from library search" })],
-          ["exile face down", () => move({ toZone: "exile", toPlayer: p, faceDown: true, revealTo: "you", note: "search theft" })],
-          ["top", () => move({ toZone: "library", toPlayer: p, position: "top" })],
+          destButton("myHand", c, move),
+          destButton("myBattlefield", c, move),
+          destButton("graveyard", c, found),
+          destButton("exile", c, found),
+          destButton("exileDown", c, found),
+          destButton("top", c, move),
         ])
       );
     }
   };
   const fb = filterBar(() => renderGrid());
-  wrap.appendChild(fb.el);
-  wrap.appendChild(grid);
   renderGrid();
-  const sh = document.createElement("button");
-  sh.textContent = "Shuffle";
-  sh.style.marginTop = "10px";
-  sh.onclick = () => act("shuffle", { player: p });
-  wrap.appendChild(sh);
-  openModal(`Searching ${p === "you" ? "your" : "agent's"} library`, wrap);
+  openModal(`Searching ${p === "you" ? "your" : "agent's"} library`, grid, { header: fb.el });
 }
 
 // ---------------------------------------------------------------------------
@@ -2656,6 +2761,17 @@ function parseDeckRef(v) {
   return m ? m[1] : "";
 }
 
+const MODELS = [
+  { value: "opus", label: "Opus — strongest" },
+  { value: "sonnet", label: "Sonnet — strong" },
+  { value: "haiku", label: "Haiku — casual" },
+];
+{
+  const d = dropdown(MODELS, "opus");
+  d.id = "ng-model";
+  $("#ng-model-slot").appendChild(d);
+}
+
 // New-game overlay: fields come prefilled with the currently loaded decks so
 // a straight re-match is one click; type over them to switch decks.
 function openNewGame() {
@@ -2768,8 +2884,9 @@ let hoveredCard = null;
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     pendingTuck = null;
-    closeMenu();
-    closeModal();
+    // esc peels one layer: an open menu first, the modal under it next
+    if (menuOpen()) closeMenu();
+    else closeModal();
     render();
     return;
   }

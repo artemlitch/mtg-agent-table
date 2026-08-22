@@ -6,6 +6,30 @@
   font-display: swap;
   src: url("fonts/cinzel-var.woff2") format("woff2");
 }
+/* font #2, for every label and control: a humanist sans with some warmth to
+   it, and light enough not to shout next to Cinzel */
+@font-face {
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fonts/alegreyasans-300.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/alegreyasans-400.woff2") format("woff2");
+}
+@font-face {
+  /* only the library-panel dial asks for this — see .lp-count */
+  font-family: "Alegreya Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/alegreyasans-500.woff2") format("woff2");
+}
 @font-face {
   font-family: "IM Fell English";
   font-style: normal;
@@ -43,9 +67,28 @@
   --chrome: linear-gradient(155deg, #8a5f1d 0%, #f8e7a0 22%, #b07d26 45%, #6e4a14 62%, #eecf7a 82%, #8a5f1d 100%);
   --chrome-dim: linear-gradient(155deg, #5c4116 0%, #a68a4c 25%, #6e5322 50%, #4a350f 65%, #97783a 85%, #5c4116 100%);
   --font-fantasy: "Cinzel", "Palatino", "Times New Roman", serif;
-  /* controls read as UI, not as chrome — buttons use this everywhere */
-  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* controls read as UI, not as chrome — buttons and labels use this everywhere */
+  --font-ui: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-scroll: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  /* one dial per text role — change the size here, not in thirty rules */
+  --fs-action: 17px; /* the next action, and the top row of a menu */
+  --fs-label: 15px;  /* buttons, menu rows, inputs, filter labels */
+  --fs-note: 13px;   /* dense chrome: counts, keycaps, badges */
+  /* Cinzel carries weight well and is the only face we take above regular;
+     the sans stays at 400 everywhere */
+  --fw-heavy: 800;   /* life totals, the loudest numbers */
+  --fw-heading: 700; /* titles and banners */
+  --fw-label: 600;   /* small-caps labels in Cinzel */
+  --fw-ui: 400;      /* everything in the sans */
+  /* interactive things — buttons, menu rows, dropdowns — share one role: the
+     sans, at regular. Cinzel was tried here and read as costume */
+  --font-action: var(--font-ui);
+  --fw-action: 400;
+  /* the centred next action is its own role, and NOT the menu's: it is large,
+     so it needs the weight to match or Cinzel goes spindly at size */
+  --font-next: var(--font-fantasy);
+  --fs-next: 19px;
+  --fw-next: 700;
 }
 * { box-sizing: border-box; margin: 0; }
 /* slim, translucent-gold scrollbars everywhere. NOTE: setting the standard
@@ -62,12 +105,12 @@ body {
     radial-gradient(1100px 700px at 50% 38%, rgba(64, 46, 110, 0.22), transparent 70%),
     radial-gradient(900px 600px at 50% 105%, rgba(180, 130, 40, 0.10), transparent 65%),
     var(--bg);
-  color: var(--text); font: 13px/1.45 -apple-system, "SF Pro Text", Helvetica, sans-serif; overflow: hidden;
+  color: var(--text); font: 400 13.5px/1.45 var(--font-ui); overflow: hidden;
 }
 button {
   border: 1px solid transparent; border-radius: 7px; padding: 4px 11px; cursor: pointer;
   background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box;
-  color: #e6d8ae; font: 600 11px/1.6 var(--font-ui); letter-spacing: 0.03em;
+  color: #e6d8ae; font: var(--fw-action) var(--fs-label)/1.5 var(--font-action); letter-spacing: 0.03em;
 }
 button:hover {
   background: linear-gradient(180deg, #2d2640, #1b1626) padding-box, var(--chrome) border-box;
@@ -122,7 +165,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
 }
 .setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
-#turnbanner { font: 700 14px/1.4 var(--font-fantasy); letter-spacing: 0.04em; color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35); }
+#turnbanner { font: var(--fw-heading) 14px/1.4 var(--font-fantasy); letter-spacing: 0.04em; color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35); }
 .phasebtns { margin-left: auto; display: flex; gap: 4px; }
 .phasebtns button { padding: 3px 8px; font-size: 10.5px; }
 
@@ -139,13 +182,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .lifebox { position: relative; }
 .lifedelta {
   position: absolute; top: 3px; right: 6px;
-  font: 800 13px/1.4 var(--font-fantasy);
+  font: var(--fw-heavy) 13px/1.4 var(--font-fantasy);
 }
 .lifedelta.neg { color: var(--red); text-shadow: 0 0 8px rgba(208, 85, 85, 0.5); }
 .lifedelta.pos { color: var(--green); text-shadow: 0 0 8px rgba(89, 168, 108, 0.5); }
 .lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .lifebox .liferow button { font-size: 12px; padding: 1px 7px; }
-.lifebox .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lifebox .lname { font: var(--fw-label) 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lifebox .cmdmg { font-size: 9px; color: var(--red); }
 #midline { position: relative; height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 
@@ -209,7 +252,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(180deg, rgba(226, 179, 85, 0.06), rgba(226, 179, 85, 0.13));
 }
 #handzone span {
-  font: 600 10px/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
+  font: var(--fw-label) 10px/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--accent); opacity: 0.75;
 }
 #handzone.armed {
@@ -239,7 +282,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   /* bottom-right, hovering just above the printed P/T box */
   position: absolute; right: 2px; bottom: 18px; z-index: 5;
   min-width: 18px; height: 16px; border-radius: 8px; padding: 0 5px;
-  font: 800 9px/14px var(--font-fantasy); text-align: center; letter-spacing: 0.02em;
+  font: var(--fw-heavy) 9px/14px var(--font-fantasy); text-align: center; letter-spacing: 0.02em;
   opacity: 0; transition: opacity 0.12s;
 }
 .card:hover .ctrbtn { opacity: 1; }
@@ -256,7 +299,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .tokentag {
   position: absolute; top: 2px; right: 2px; z-index: 4; pointer-events: none;
   background: rgba(0, 0, 0, 0.8); border-radius: 4px; padding: 0 4px;
-  font: 600 8px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase;
+  font: var(--fw-label) 8px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase;
 }
 .badge.att { color: #ff9c9c; }
 .badge.blk { color: #9cc4ff; }
@@ -270,7 +313,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border: 1px solid transparent;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
 }
-.textcard .textpt { position: absolute; bottom: 2px; right: 4px; font-weight: 700; font-size: 12px; background: var(--panel2); padding: 0 2px; }
+.textcard .textpt { position: absolute; bottom: 2px; right: 4px; font-size: 12px; background: var(--panel2); padding: 0 2px; }
 
 /* the library as a physical face-down pile */
 .deckpile { cursor: pointer; padding: 0 6px 6px 0; }
@@ -284,7 +327,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .deckstack img.cardback { position: relative; z-index: 1; width: 100%; border-radius: 8px; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6); }
 .deckcount {
   position: absolute; z-index: 2; left: 50%; top: 42%; transform: translate(-50%, -50%);
-  font: 700 22px/1.3 var(--font-fantasy); color: var(--gold-hi);
+  font: var(--fw-heading) 22px/1.3 var(--font-fantasy); color: var(--gold-hi);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9), 0 0 18px rgba(0, 0, 0, 0.8);
 }
 .deckstack .drawbtn { position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 7px; font-size: 10.5px; padding: 3px 0; }
@@ -296,8 +339,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .pile:hover { background: linear-gradient(#241f33, #241f33) padding-box, var(--chrome) border-box; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
-.pile .pname { font: 600 10px/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
-.pile .pcount { font-weight: 700; font-size: 14px; font-family: var(--font-fantasy); }
+.pile .pname { font: var(--fw-label) 10px/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
+.pile .pcount { font-size: 14px; font-family: var(--font-fantasy); }
 /* tiny face-up fan of the pile's most recent cards; clipped, never scrolls */
 .pile .pstrip { display: flex; margin-top: 4px; height: 42px; overflow: hidden; }
 .pile .pstrip .mini {
@@ -305,12 +348,12 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   object-fit: cover; box-shadow: 1px 0 3px rgba(0, 0, 0, 0.65); background: #1d1929;
 }
 .pile .pstrip .mini + .mini { margin-left: -12px; }
-.pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: 700 12px var(--font-fantasy); color: var(--dim); }
+.pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: var(--fw-heading) 12px var(--font-fantasy); color: var(--dim); }
 .lifebox {
   border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; text-align: center;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
 }
-.lifebox .life { font-size: 26px; font-weight: 800; font-family: var(--font-fantasy); }
+.lifebox .life { font-size: 26px; font-family: var(--font-fantasy); }
 .cmdmg { font-size: 10px; color: var(--red); margin-top: 3px; }
 .deckname { font-size: 10px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -330,7 +373,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .msg.agent { background: linear-gradient(#2c2437, #2c2437) padding-box, var(--chrome-dim) border-box; align-self: flex-start; }
 .msg.sys { color: var(--dim); font-size: 11px; align-self: center; background: none; border: none; padding: 1px; }
 .msg.actline { color: var(--dim); font-size: 11px; align-self: stretch; background: none; border: none; padding: 0 2px; max-width: 100%; }
-.msg .mwho { font: 600 9px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
+.msg .mwho { font: var(--fw-label) 9px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
 
 .brain { font-size: 12px; white-space: pre-wrap; word-wrap: break-word; }
 .brain.thinking { color: var(--dim); font-family: var(--font-scroll); font-style: italic; font-size: 13px; }
@@ -350,8 +393,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #keysetup { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 #keysetup.hidden { display: none; }
 .keybox { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 260px; text-align: center; }
-.keytitle { font: 700 14px/1.4 var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
-.keysub { font: 600 12px/1.4 var(--font-fantasy); color: var(--text); letter-spacing: 0.03em; }
+.keytitle { font: var(--fw-heading) 14px/1.4 var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
+.keysub { font: var(--fw-label) 12px/1.4 var(--font-fantasy); color: var(--text); letter-spacing: 0.03em; }
 .keydivider { color: var(--dim); font-size: 11px; letter-spacing: 0.2em; margin: 4px 0; }
 #cli-error { color: var(--red); font-size: 12px; min-height: 15px; max-width: 100%; overflow-wrap: break-word; }
 .keybox input { width: 100%; padding: 10px; font-size: 13px; text-align: center; }
@@ -362,26 +405,42 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
 }
 #brain-header.hidden { display: none; }
-#brain-header .bh-label { color: var(--dim); font: 600 11px/1 var(--font-fantasy); letter-spacing: 0.08em; }
+#brain-header .bh-label { color: var(--dim); font: var(--fw-label) 11px/1 var(--font-fantasy); letter-spacing: 0.08em; }
 #brain-header button { padding: 4px 10px; font-size: 11px; }
 #brain-header button:disabled { opacity: 0.45; cursor: default; }
 #composer input { flex: 1; padding: 11px 10px; font-size: 13.5px; }
 
+/* Anything that goes display:none -> shown replays its animation, so the fades
+   below need no JS: dropping .hidden is enough. */
+@keyframes menuIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes veilIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes boxIn {
+  from { opacity: 0; transform: scale(0.985) translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
 #menu {
-  position: fixed; z-index: 50; border: 1px solid transparent; border-radius: 8px; min-width: 170px;
+  /* above #modal (60): card browsers open this same menu */
+  position: fixed; z-index: 65; border: 1px solid transparent; border-radius: 8px; min-width: 170px;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); padding: 4px; max-height: 70vh; overflow-y: auto;
+  transform-origin: top left; animation: menuIn 0.13s ease-out;
 }
 /* card-menu rows: flat until hovered, then the same plate the panel wears —
    a long list would be noisy with every row plated at rest */
 #menu .mi {
   position: relative; display: flex; align-items: center; gap: 9px; width: 100%;
   padding: 5px 9px; border-radius: 8px; cursor: pointer; white-space: nowrap; text-align: left;
-  font: 600 11px/1.45 var(--font-ui); letter-spacing: 0.01em;
+  font: var(--fw-action) var(--fs-label)/1.4 var(--font-action); letter-spacing: 0.01em;
   color: var(--text); background: none; border: 1px solid transparent; box-shadow: none;
   transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
 }
-#menu .mi .ico { font-size: 11px; width: 13px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
+#menu .mi .ico { font-size: var(--fs-note); width: 15px; text-align: center; color: var(--c); flex: none; opacity: 0.9; }
 #menu .mi-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #menu .mi:hover {
   color: var(--c);
@@ -401,7 +460,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
    transparent border the hover rim uses */
 /* the first action carries the plate at rest and a little more size */
 #menu .mi.primary {
-  font-size: 12.5px; padding: 8px 10px; margin-bottom: 2px;
+  font-size: var(--fs-action); padding: 8px 10px; margin-bottom: 2px;
   color: var(--c);
   background:
     linear-gradient(180deg,
@@ -414,8 +473,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
       color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
       color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
 }
-#menu .mi.primary .ico { font-size: 13px; width: 15px; }
+#menu .mi.primary .ico { font-size: var(--fs-label); width: 17px; }
 #menu .mi-keys { margin-left: auto; padding-left: 8px; flex: none; }
+/* the option a dropdown is currently set to */
+#menu .mi.on { color: var(--gold-hi); background: rgba(226, 179, 85, 0.09); }
 
 #menu .mi.sep { margin-top: 7px; }
 #menu .mi.sep::before {
@@ -423,7 +484,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background: linear-gradient(90deg, transparent, #8a6420, transparent);
 }
 #menu .mi.title {
-  display: block; color: var(--accent); font: 700 10px/1 var(--font-fantasy);
+  display: block; color: var(--accent); font: var(--fw-heading) 10px/1 var(--font-fantasy);
   letter-spacing: 0.16em; text-transform: uppercase; text-align: center;
   padding: 3px 2px 5px; margin-bottom: 3px; cursor: default;
   text-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
@@ -433,9 +494,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 /* ── library panel: laid out, not a list ── */
 /* --c is the per-action colour; this is the fallback for anything unclassed */
-#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 262px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
+#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 290px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
 #menu.libpanel .lp-title {
-  color: var(--accent); font: 700 10px/1 var(--font-fantasy);
+  color: var(--accent); font: var(--fw-heading) 10px/1 var(--font-fantasy);
   letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 2px 4px;
   text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.3);
   border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
@@ -450,7 +511,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel button {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   min-width: 0; padding: 7px 8px; border-radius: 9px;
-  font: 600 11px/1.3 var(--font-ui); letter-spacing: 0.02em; text-align: center;
+  font: var(--fw-action) var(--fs-label)/1.3 var(--font-action); letter-spacing: 0.02em; text-align: center;
   color: var(--c);
   border: 1px solid transparent;
   background:
@@ -482,7 +543,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px color-mix(in srgb, var(--c) 35%, transparent);
 }
 #menu.libpanel .lp-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#menu.libpanel .ico { font-size: 11px; color: var(--c); flex: none; }
+#menu.libpanel .ico { font-size: var(--fs-note); color: var(--c); flex: none; }
 
 /* one colour per action, borrowed from the five mana colours. Shared by the
    library panel and the card menus. */
@@ -521,10 +582,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
-#menu.libpanel .lp-count { font: 700 19px/1 var(--font-ui); color: var(--c); }
+/* the dial number is large, so it carries a heavier weight than its label */
+#menu.libpanel .lp-count { font: 500 19px/1 var(--font-action); color: var(--c); }
 #menu.libpanel .lp-step {
   position: absolute; left: 50%; transform: translateX(-50%);
-  font: 700 9px/1 var(--font-ui); color: var(--c);
+  font: 500 9px/1 var(--font-action); color: var(--c);
   opacity: 0; transition: opacity 0.3s ease;
 }
 #menu.libpanel .lp-step.up { top: -9px; }
@@ -569,6 +631,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #modal {
   position: fixed; inset: 0; z-index: 60; background: rgba(5, 3, 10, 0.68);
   display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh;
+  animation: veilIn 0.16s ease-out;
 }
 #modal-box {
   /* HARD RULE: modals are a fixed size — content (filtered cards etc.) never
@@ -578,6 +641,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   position: relative; display: flex; flex-direction: column;
   background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome) border-box;
   box-shadow: 0 12px 44px rgba(0, 0, 0, 0.8), 0 0 24px rgba(216, 160, 61, 0.12);
+  animation: boxIn 0.18s ease-out;
 }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 /* target palette hovering beside the ability modal */
@@ -587,7 +651,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   border: 1px solid transparent; border-radius: 10px; padding: 5px;
   background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
 }
-.tcolhead { font: 700 8.5px/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
+.tcolhead { font: var(--fw-heading) 8.5px/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
 .tcolhead::after { content: " ▾"; font-size: 8px; color: var(--dim); }
 .tcol.collapsed .tcolhead::after { content: " ▸"; color: var(--gold-hi); }
 .tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
@@ -596,7 +660,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .titem img { width: 100%; border-radius: 5px; display: block; }
 .titem span { display: block; font-size: 9px; padding: 3px; }
 .titem:hover { outline: 2px solid var(--accent); }
-.tsub { font: 600 8px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
+.tsub { font: var(--fw-label) 8px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
 
 /* compact modals size to content — the fixed-size rule is for card browsers */
 #modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; margin-top: 10vh; }
@@ -621,13 +685,34 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .abilitymodal .ambtn small { font-size: 10px; opacity: 0.65; font-family: -apple-system, sans-serif; letter-spacing: 0.1em; }
 
 /* filter bar shared by zone modals and library search — one line */
+/* our select: a plate whose list is the card menu */
+.dropdown { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px; }
+.dropdown .dd-label { min-width: 62px; text-align: left; }
+.dropdown .ico { font-size: 11px; color: var(--dim); }
+.dropdown:hover .ico { color: var(--accent); }
+
 .filterbar { margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
 .filterbar .namein { width: 100%; }
 .filterbar .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.filterbar select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px; font-size: 11px; }
-.filterbar .numf { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--dim); white-space: nowrap; }
-.filterbar .numin { width: 48px; padding: 3px 5px; font-size: 11px; }
+.filterbar .numf { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.filterbar .numlabel { font: var(--fw-action) var(--fs-label)/1.5 var(--font-action); letter-spacing: 0.02em; color: var(--dim); }
+.filterbar .numin { width: 52px; padding: 3px 5px; font: 400 var(--fs-label) var(--font-ui); }
+/* the native number spinner can't be themed — hidden, ours sits beside it */
+.filterbar .numin::-webkit-inner-spin-button,
+.filterbar .numin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.filterbar .spin { display: inline-flex; flex-direction: column; gap: 1px; }
+.filterbar .spinb {
+  --c: var(--accent);
+  width: 16px; height: 11px; padding: 0; border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); background: rgba(255, 255, 255, 0.04); border: 1px solid transparent; box-shadow: none;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.filterbar .spinb .ico { font-size: 10px; }
+.filterbar .spinb:hover { color: var(--accent); background: rgba(226, 179, 85, 0.16); }
+/* ≥ / ≤ has two states, so the plate flips in place instead of dropping a list */
+.filterbar .opbtn { width: 26px; padding: 3px 0; font: 400 var(--fs-action)/1 var(--font-ui); color: var(--accent); }
 /* mana pips: the real symbols (Scryfall SVGs, served locally) */
+.filterbar .pips { display: inline-flex; align-items: center; gap: 4px; }
 .filterbar .colbtn {
   width: 21px; height: 21px; border-radius: 50%; padding: 0; flex: none;
   border: none; opacity: 0.35; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -641,50 +726,21 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .filterbar .colbtn.colC { background: url("pip-C.svg") center/100% no-repeat; }
 .filterbar .sizeslider { width: 90px; margin-left: auto; accent-color: var(--accent); background: none; border: none; padding: 0; }
 
-.modalcards { display: flex; flex-wrap: wrap; gap: 8px; }
-.modalcard { width: var(--cardsize, 170px); }
-.modalcard img { width: 100%; border-radius: 6px; }
-.modalcard .mcbtns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+/* padding so a hovered card's outline isn't clipped by the scroll edge */
+.modalcards { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px; }
+/* the whole card is the button — its actions live in the click menu */
+.modalcard { width: var(--cardsize, 170px); cursor: pointer; }
+.modalcard img { width: 100%; border-radius: 6px; transition: outline-color 0.2s ease, box-shadow 0.2s ease; outline: 1.5px solid transparent; outline-offset: 1px; }
+.modalcard:hover img { outline-color: var(--accent); box-shadow: 0 0 14px rgba(216, 160, 61, 0.25); }
 .modalcard.bottomed img { opacity: 0.4; }
-.modalcard.bottomed::after { content: "→ bottom"; color: var(--accent); font: 600 10px/1.5 var(--font-fantasy); }
-/* card buttons in the search/peek/zone browsers wear the menu's language:
-   coloured icon, plate and rim on hover. --c falls back to neutral. */
-.modalcard .mcbtns button {
-  --c: #8a8496;
-  display: inline-flex; align-items: center; gap: 4px;
-  font: 600 9px/1.3 var(--font-ui); letter-spacing: 0.01em; padding: 3px 6px; border-radius: 6px;
-  color: var(--c); background: none; border: 1px solid transparent; box-shadow: none;
-  transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
-}
-.modalcard .mcbtns button .ico { font-size: 9px; opacity: 0.9; }
-.modalcard .mcbtns button:hover {
-  color: var(--c);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--c) 24%, #241d31),
-      color-mix(in srgb, var(--c) 10%, #171220)) padding-box,
-    linear-gradient(155deg,
-      color-mix(in srgb, var(--c) 60%, #8a5f1d),
-      #f8e7a0 32%,
-      color-mix(in srgb, var(--c) 75%, #b07d26) 64%,
-      #eecf7a 88%,
-      color-mix(in srgb, var(--c) 60%, #8a5f1d)) border-box;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 30%, transparent);
-}
-/* the tone palette is defined under #menu; these live in modals */
-.modalcard .a-draw { --c: #63b878; }
-.modalcard .a-exile { --c: #d4553f; }
-.modalcard .a-mill { --c: #9c8fa8; }
-.modalcard .a-scry { --c: #5ea8dd; }
-.modalcard .a-surveil { --c: #a17ccc; }
-.modalcard .a-reveal { --c: #f0e6cd; }
-.modalcard .a-neutral { --c: #8a8496; }
+.modalcard.bottomed::after { content: "→ bottom"; color: var(--accent); font: var(--fw-label) 10px/1.5 var(--font-fantasy); }
 /* floating close X on the box corner; content scrolls in an inner wrapper */
 .modalx {
   position: absolute; top: -11px; left: -11px; z-index: 5;
   width: 28px; height: 28px; border-radius: 50%; padding: 0; font-size: 13px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
+#modal-box .modalhead { flex: none; }
 #modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
 /* the badges strip is click-transparent; live counter badges opt back in.
    Hover grows the hit target — these are tiny and get clicked mid-game. */
@@ -714,7 +770,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* the stack — lives in the side panel as its own tab; the pile is anchored to
    the bottom and grows upward (top of stack highest), like a real stack */
 #pane-stack > :first-child { margin-top: auto; }
-#pane-stack .stacklabel { color: var(--accent); font: 700 11px/1.6 var(--font-fantasy); letter-spacing: 0.14em; white-space: nowrap; text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.45); }
+#pane-stack .stacklabel { color: var(--accent); font: var(--fw-heading) 11px/1.6 var(--font-fantasy); letter-spacing: 0.14em; white-space: nowrap; text-align: center; text-shadow: 0 0 10px rgba(226, 179, 85, 0.45); }
 #pane-stack .stackempty { text-align: center; color: var(--dim); font-family: var(--font-scroll); font-style: italic; font-size: 13px; margin-top: 18px; }
 #pane-stack .stackhint { text-align: center; color: var(--dim); font-size: 11px; opacity: 0.7; }
 
@@ -723,7 +779,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .tabbadge {
   position: absolute; top: 2px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 9px; background: linear-gradient(180deg, #f0d078, #b8862c);
-  color: #2a1c04; font: 700 10px/16px var(--font-fantasy);
+  color: #2a1c04; font: var(--fw-heading) 10px/16px var(--font-fantasy);
   animation: badgepulse 1.4s infinite ease-in-out;
 }
 @keyframes badgepulse {
@@ -768,21 +824,21 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .stackitem .sirownum {
   flex: none; min-width: 15px; height: 15px; border-radius: 8px; text-align: center;
-  font: 700 9px/15px var(--font-fantasy); color: var(--gold-hi); background: rgba(110, 83, 34, 0.4);
+  font: var(--fw-heading) 9px/15px var(--font-fantasy); color: var(--gold-hi); background: rgba(110, 83, 34, 0.4);
 }
 /* countered items stay on the stack, visibly dead until resolved (fizzle) */
 .stackitem.countered { opacity: 0.7; }
 .stackitem.countered .sitext { text-decoration: line-through; text-decoration-color: var(--red); }
-.ctag { margin-left: 6px; font: 700 8px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--red); border: 1px solid var(--red); border-radius: 4px; padding: 0 4px; }
+.ctag { margin-left: 6px; font: var(--fw-heading) 8px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--red); border: 1px solid var(--red); border-radius: 4px; padding: 0 4px; }
 .card.ghost.countered { filter: grayscale(0.75); opacity: 0.4 !important; animation: none; }
 .card.ghost.countered::after {
   content: "COUNTERED"; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-18deg);
-  font: 800 11px/1.4 var(--font-fantasy); letter-spacing: 0.1em; color: var(--red);
+  font: var(--fw-heavy) 11px/1.4 var(--font-fantasy); letter-spacing: 0.1em; color: var(--red);
   background: rgba(10, 6, 6, 0.85); border: 1px solid var(--red); border-radius: 4px; padding: 1px 6px;
 }
 #pane-stack .resolveall {
   background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
-  color: #2a1c04; font: 700 10.5px/1.6 var(--font-fantasy); letter-spacing: 0.04em;
+  color: #2a1c04; font: var(--fw-heading) 10.5px/1.6 var(--font-fantasy); letter-spacing: 0.04em;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer;
 }
 #pane-stack .resolveall:hover { box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
@@ -796,11 +852,13 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 28px rgba(216, 160, 61, 0.15);
 }
 #newgame-overlay.hidden { display: none; }
-#newgame-overlay .ngtitle { color: var(--accent); font: 700 17px/1.4 var(--font-fantasy); letter-spacing: 0.1em; text-align: center; text-shadow: 0 0 14px rgba(226, 179, 85, 0.4); }
+#newgame-overlay .ngtitle { color: var(--accent); font: var(--fw-heading) 17px/1.4 var(--font-fantasy); letter-spacing: 0.1em; text-align: center; text-shadow: 0 0 14px rgba(226, 179, 85, 0.4); }
 #newgame-overlay .ngrow { display: flex; flex-direction: column; gap: 3px; }
-#newgame-overlay .ngrow label { font: 600 10px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); }
+#newgame-overlay .ngrow label { font: var(--fw-label) 10px/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); }
 #newgame-overlay .ngrow input { font-size: 13px; padding: 6px 8px; }
 #newgame-overlay .ngrow a { font-size: 10px; color: var(--dim); text-decoration: underline; min-height: 12px; }
+#newgame-overlay .dropdown { align-self: flex-start; padding: 6px 10px; font-size: 13px; }
+#newgame-overlay .dropdown .dd-label { min-width: 130px; }
 #newgame-overlay .ngbtns { display: flex; gap: 8px; justify-content: center; }
 #newgame-overlay .ngbtns button { font-size: 11px; padding: 5px 14px; }
 #btn-loaddecks {
@@ -812,7 +870,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .ptbadge {
   position: absolute; bottom: 2px; right: 2px; z-index: 4; pointer-events: none;
   background: rgba(12, 9, 4, 0.94); border: 1px solid transparent; border-radius: 4px;
-  padding: 0 4px; font: 800 12px/1.5 var(--font-fantasy); color: #ffd97a;
+  padding: 0 4px; font: var(--fw-heavy) 12px/1.5 var(--font-fantasy); color: #ffd97a;
   background: linear-gradient(rgba(12, 9, 4, 0.94), rgba(12, 9, 4, 0.94)) padding-box, var(--chrome) border-box;
 }
 
@@ -823,7 +881,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   border: 1px dashed transparent;
   background: linear-gradient(rgba(29, 25, 41, 0.85), rgba(29, 25, 41, 0.85)) padding-box, var(--chrome-dim) border-box;
-  color: var(--accent); font: 600 11px/1.3 var(--font-fantasy); letter-spacing: 0.06em;
+  color: var(--accent); font: var(--fw-label) 11px/1.3 var(--font-fantasy); letter-spacing: 0.06em;
   font-size: 11px; padding: 0;
 }
 #btn-token .tstar { font-size: 22px; line-height: 1; }
@@ -832,7 +890,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   box-shadow: 0 0 12px rgba(226, 179, 85, 0.35);
 }
 .tokencustom { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
-.tokencustom .tclabel { width: 100%; color: var(--accent); font: 600 11px/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
+.tokencustom .tclabel { width: 100%; color: var(--accent); font: var(--fw-label) 11px/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
 .tokencustom input { width: 170px; }
 
 /* the next-action prompt: one always-present "most obvious tap", floating
@@ -869,7 +927,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* the stack item's own words, under the action */
 #na-primary .na-sub {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 10px; font-weight: 400; color: var(--dim); letter-spacing: 0.01em;
+  font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
 #na-primary .na-sub.hidden { display: none; }
 /* the icon font centres on its own box — no glyph nudging needed */
@@ -879,10 +937,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
    playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
-#na-primary, #na-skip { font-family: var(--font-fantasy); letter-spacing: 0.05em; }
+#na-skip { font-family: var(--font-fantasy); letter-spacing: 0.05em; }
 #na-primary {
-  display: flex; flex-direction: row; align-items: center; gap: 9px;
-  padding: 5px 14px 4px; font-size: 12px;
+  display: flex; flex-direction: row; align-items: center; gap: 9px; letter-spacing: 0.05em;
+  padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
 }
@@ -895,16 +953,16 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   min-width: 13px; padding: 1.5px 5px;
   border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 4px;
   background: rgba(226, 179, 85, 0.05);
-  font: 600 7px/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
+  font: var(--fw-label) 9px/1 var(--font-fantasy); letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--dim);
 }
-.keyplus { font-size: 7px; color: var(--dim); opacity: 0.5; }
+.keyplus { font-size: 9px; color: var(--dim); opacity: 0.5; }
 body.unfocused .na-key { display: none; }
 /* every action breathes, so the eye always lands on the thing to press */
 #na-primary { animation: noblockspulse 2s infinite ease-in-out; }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label .ico { font-size: 10.5px; line-height: 1; opacity: 0.9; }
-#na-skip .ico { font-size: 8px; margin-right: 2px; }
+#na-primary .na-label .ico { font-size: var(--fs-note); line-height: 1; opacity: 0.9; }
+#na-skip .ico { font-size: 10px; margin-right: 2px; }
 #na-hint {
   padding: 4px 12px; font-size: 11.5px; font-style: italic; color: var(--dim);
   background: rgba(15, 10, 6, 0.72); border-radius: 10px;
@@ -914,7 +972,7 @@ body.unfocused .na-key { display: none; }
 #na-skip {
   position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
   display: flex; flex-direction: column; align-items: center; gap: 0;
-  padding: 1px 8px; font-size: 10px; letter-spacing: 0.04em; white-space: nowrap;
+  padding: 1px 8px; font-size: var(--fs-note); letter-spacing: 0.04em; white-space: nowrap;
   background: none; border: none; color: var(--dim); opacity: 0.5;
 }
 #na-skip:hover { opacity: 1; color: var(--accent); }
