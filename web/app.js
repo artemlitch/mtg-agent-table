@@ -2602,7 +2602,7 @@ function searchModal(p, cards) {
   };
   const fb = filterBar(() => renderGrid());
   renderGrid();
-  openModal(`Searching ${p === "you" ? "your" : "agent's"} library`, grid, { header: fb.el });
+  openModal(`${p === "you" ? "Your" : "Agent's"} library`, grid, { header: fb.el });
 }
 
 // ---------------------------------------------------------------------------
