@@ -1,0 +1,3 @@
+# Applies to `bun test` only — `bun run test` (Vitest) is unaffected.
+[test]
+preload = ["./tools/bun-test-guard.ts"]

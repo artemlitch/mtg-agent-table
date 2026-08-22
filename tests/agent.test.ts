@@ -1,7 +1,7 @@
 // The Messages-API transport: tool loop, cache breakpoints, auth headers,
 // preemption bookkeeping — against a scripted fake Anthropic endpoint and a
 // stub table server, no network.
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
 
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
 

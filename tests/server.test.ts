@@ -1,7 +1,7 @@
 // HTTP integration tests: spawn the real server on a test port with the agent
 // harness disabled. Deck-loading tests hit Archidekt/Scryfall and are gated
 // behind RUN_NET=1 (they need network):  RUN_NET=1 bun test
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "vitest";
 
 const PORT = 4799;
 const BASE = `http://localhost:${PORT}`;
@@ -71,7 +71,7 @@ describe("api basics", () => {
   });
 });
 
-describe.if(!!process.env.RUN_NET)("deck loading (network)", () => {
+describe.runIf(!!process.env.RUN_NET)("deck loading (network)", () => {
   test("new_game loads two Archidekt decks, deals hands, redacts them", async () => {
     // deck refs may be bare ids or full Archidekt URLs
     const r = await api("/api/new_game", {

@@ -1,5 +1,5 @@
 // Undo: per-action snapshots, state rewind, monotonic seq, log notice.
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach } from "vitest";
 import { game, resetGameState, applyAction, addLog, getNextCardId } from "../server/game";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, historySize } from "../server/history";
 

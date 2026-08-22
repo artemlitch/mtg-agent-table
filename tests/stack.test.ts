@@ -1,5 +1,5 @@
 // The Magic stack: cast → stack zone, LIFO resolution, countering, triggers.
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach } from "vitest";
 import { game, resetGameState, applyAction, viewFor, cardVisibleTo, newCardId, makeCard, type Card, type PlayerId, type Zone } from "../server/game";
 
 function seedCard(name: string, owner: PlayerId, zone: Zone, extra: Partial<Card> = {}): Card {

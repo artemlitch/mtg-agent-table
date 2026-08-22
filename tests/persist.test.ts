@@ -1,5 +1,5 @@
 // Persistence: game + agent state must survive a server restart.
-import { describe, test, expect, beforeEach, afterAll } from "bun:test";
+import { describe, test, expect, beforeEach, afterAll } from "vitest";
 import { game, resetGameState, applyAction, newCardId } from "../server/game";
 import { serializeState, restoreState } from "../server/persist";
 import { AgentRunner } from "../server/agent";

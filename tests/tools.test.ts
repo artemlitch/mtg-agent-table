@@ -1,7 +1,7 @@
 // Tool-boundary strictness: arguments that don't fit a tool's schema fail
 // loudly — no soft assumptions. Born from the charge-counter incident, where
 // {type: "charge"} silently became a +1/+1 bump.
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { validateArgs, TOOLS } from "../server/mcp-tools";
 
 describe("tool argument validation", () => {

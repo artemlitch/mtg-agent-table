@@ -1,6 +1,6 @@
 // Deck loading: Archidekt is the card source (offline fixture tests of the
 // mapping); Scryfall network tests (token lookups) gated behind RUN_NET=1.
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect } from "vitest";
 import { buildCardInfo, cdnImg, pickTokenFace } from "../server/decks";
 
 // fixtures modeled on real archidekt.com/api/decks/<id>/ payloads
@@ -121,7 +121,7 @@ describe("cdnImg", () => {
   });
 });
 
-describe.if(!!process.env.RUN_NET)("token lookup (network)", () => {
+describe.runIf(!!process.env.RUN_NET)("token lookup (network)", () => {
   test("Treasure resolves to an actual Treasure token, not a fuzzy mismatch", async () => {
     const { scryfallToken } = await import("../server/decks");
     const t = await scryfallToken("Treasure");

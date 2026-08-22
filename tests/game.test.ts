@@ -1,7 +1,7 @@
 // Core game logic tests: zones, moves, redaction, combat annotations, log privacy.
 // Run: bun test
 
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach } from "vitest";
 import {
   game,
   resetGameState,
@@ -11,6 +11,7 @@ import {
   makeCard,
   cardVisibleTo,
   renderLogFor,
+  triggerLines,
   type Card,
   type PlayerId,
   type Zone,
@@ -135,7 +136,6 @@ describe("trigger hints", () => {
     const mk = (oracle: string) => seedCard("T", "you", "hand", { oracle });
     const lines = (o: string) => {
       const card = mk(o);
-      const { triggerLines } = require("../server/game");
       return triggerLines(card);
     };
     expect(lines("Landfall — Whenever a land you control enters, draw a card.").length).toBe(1);

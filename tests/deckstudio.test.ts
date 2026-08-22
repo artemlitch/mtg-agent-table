@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach } from "vitest";
 import {
   studio,
   deckMetadata,
@@ -13,7 +13,7 @@ import {
   type StudioCard,
   type Proposal,
 } from "../server/deckstudio";
-import { ArchidektClient, parseDeck, toArchidektAction } from "../server/archidekt";
+import { ArchidektClient, parseDeck, parsePrinting, toArchidektAction } from "../server/archidekt";
 import { normalize, cardSearch, setSearchFetch, edhrecSlug } from "../server/cardsearch";
 
 const card = (name: string, category: string, mana: string | undefined, typeLine: string, qty = 1, extra: Partial<StudioCard> = {}): StudioCard => ({
@@ -265,14 +265,17 @@ describe("confirm", () => {
 });
 
 describe("parsePrinting", () => {
-  test("builds the Scryfall CDN url from uid + hash and reads DFC faces", () => {
-    const { parsePrinting } = require("../server/archidekt");
+  // parsePrinting used to build a CDN url from uid + scryfallImageHash. It now
+  // goes through the name-keyed redirect (see imageUrl in server/archidekt.ts):
+  // Archidekt's stored uids go stale and 404. Deck loading still uses the CDN
+  // path via cdnImg — that's covered in decks.test.ts.
+  test("builds the Scryfall image url from the card name and reads DFC faces", () => {
     const p = parsePrinting({
       id: 7, uid: "44c1a862-00fc-4e79-a83a-289fef81503a", scryfallImageHash: "1783935360",
       oracleCard: { name: "Valakut Awakening // Valakut Stoneforge", cmc: 3, manaCost: "", layout: "modal_dfc", colorIdentity: ["R"], legalities: { commander: "legal" }, gameChanger: false,
         faces: [{ name: "Valakut Awakening", manaCost: "{2}{R}", types: ["Instant"], text: "Put any number" }, { name: "Valakut Stoneforge", manaCost: "", types: ["Land"], text: "T: add R" }] },
     });
-    expect(p.image).toBe("https://cards.scryfall.io/normal/front/4/4/44c1a862-00fc-4e79-a83a-289fef81503a.jpg?1783935360");
+    expect(p.image).toBe("https://api.scryfall.com/cards/named?exact=Valakut%20Awakening&format=image&version=normal");
     expect(p.mana).toBe("{2}{R}");
     expect(p.typeLine).toBe("Instant // Land");
     expect(p.oracle).toContain("Valakut Stoneforge: T: add R");
