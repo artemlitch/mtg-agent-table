@@ -37,11 +37,7 @@
         </div>
       </div>
       <div class="phasebtns">
-        <button data-phase="untap/upkeep">Untap</button>
-        <button data-phase="main 1">Main 1</button>
-        <button data-phase="combat">Combat</button>
-        <button data-phase="main 2">Main 2</button>
-        <button data-phase="end">End</button>
+        <div id="phasetrack" title="The turn's phases — click one to jump there"></div>
         <button id="btn-endturn" class="accent">End turn → Agent</button>
         <button id="btn-undo" title="Undo the last action, any player (⌘Z)">↩ Undo</button>
       </div>
@@ -62,8 +58,8 @@
       <div id="nextaction" class="hidden">
         <div class="na-row">
           <div class="na-undowrap">
-            <button id="na-undo" title="Undo the last action (⌘Z)"><i data-icon="undo"></i></button>
-            <span class="na-key" data-keys="⌘,Z"></span>
+            <button id="na-undo"><i data-icon="undo"></i></button>
+            <span class="na-tip">Undo<span class="na-key" data-keys="⌘,Z"></span></span>
           </div>
           <button id="na-primary">
             <img id="na-card" class="hidden" alt="">

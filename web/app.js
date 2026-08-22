@@ -102,11 +102,12 @@ function render() {
     pendingRender = true;
     return;
   }
-  const turnWho = state.turn === "you" ? "Your turn" : "Agent's turn";
-  const prio = state.waitingOn === "agent" ? "⏳ agent has priority" : "● you have priority";
+  // the banner says whose turn it is and nothing else — the phase lives on the
+  // track at the other end of the bar
   $("#turnbanner").textContent = state.started
-    ? `Round ${state.turnNumber} — ${turnWho} — ${state.phase} — ${prio}`
+    ? `Round ${state.turnNumber} — ${state.turn === "you" ? "Your turn" : "Agent's turn"}`
     : "No game — hit New game to load decks";
+  renderPhaseTrack();
   if (!state.started && $("#newgame-overlay").classList.contains("hidden") && !newGameAutoOpened) {
     newGameAutoOpened = true;
     openNewGame();
@@ -2828,12 +2829,40 @@ $("#btn-loaddecks").onclick = async () => {
   }
 };
 
-document.querySelectorAll(".phasebtns button[data-phase]").forEach((b) => {
-  b.onclick = async () => {
-    if (b.dataset.phase === "untap/upkeep") await act("untap_all", { player: "you" });
-    act("set_phase", { phase: b.dataset.phase });
-  };
-});
+// The phase track: dots on a line, one lit. The phase itself is free text, so
+// each stop owns a pattern rather than an exact string — "declare blockers"
+// still lights combat.
+const PHASES = [
+  { key: "untap/upkeep", label: "Untap", re: /untap|upkeep/i },
+  { key: "main 1", label: "Main 1", re: /main 1/i },
+  { key: "combat", label: "Combat", re: /combat|attack|block|damage/i },
+  { key: "main 2", label: "Main 2", re: /main 2/i },
+  { key: "end", label: "End", re: /end/i },
+];
+function renderPhaseTrack() {
+  const track = $("#phasetrack");
+  const now = PHASES.findIndex((p) => p.re.test(state.phase || ""));
+  if (!track.children.length) {
+    PHASES.forEach((p, i) => {
+      if (i) track.appendChild(Object.assign(document.createElement("span"), { className: "pt-line" }));
+      const b = document.createElement("button");
+      b.className = "pt-node";
+      b.title = p.label;
+      b.innerHTML = `<span class="pt-dot"></span><span class="pt-name">${p.label}</span>`;
+      b.onclick = async () => {
+        if (p.key === "untap/upkeep") await act("untap_all", { player: "you" });
+        act("set_phase", { phase: p.key });
+      };
+      track.appendChild(b);
+    });
+  }
+  // rebuilt nothing — only the lit state moves, so the dots can animate
+  [...track.querySelectorAll(".pt-node")].forEach((b, i) => {
+    b.classList.toggle("now", i === now);
+    b.classList.toggle("done", i < now);
+  });
+  [...track.querySelectorAll(".pt-line")].forEach((l, i) => l.classList.toggle("done", i < now));
+}
 
 $("#btn-endturn").onclick = async () => {
   await act("set_turn", { player: "agent" });
