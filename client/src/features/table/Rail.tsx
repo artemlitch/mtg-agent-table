@@ -104,7 +104,7 @@ function DeckPile({ p }: { p: PlayerId }) {
     openLibraryPanel(p, e);
   };
   return (
-    <div className="deckpile" data-tip="Library — click for options" onClick={open} onContextMenu={open}>
+    <div className="deckpile" data-tip="Library" onClick={open} onContextMenu={open}>
       <div className="deckstack">
         <img className="cardback" src="/card-back.jpg" alt="library" />
         <div className="deckcount">{count}</div>
