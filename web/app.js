@@ -894,11 +894,15 @@ function deckEl(p) {
     <img class="cardback" src="card-back.jpg" alt="library">
     <div class="deckcount">${state.players[p].counts.library}</div>
   </div>`;
+  // either button opens the panel, like the cards — clicking again closes it
   wrap.onclick = (e) => {
     e.stopPropagation();
-    // clicking again with the panel up closes it
     if (menuOpen()) return closeMenu();
     libraryMenu(p, e);
+  };
+  wrap.oncontextmenu = (e) => {
+    e.preventDefault();
+    wrap.onclick(e);
   };
   if (p === "you") {
     const b = document.createElement("button");
