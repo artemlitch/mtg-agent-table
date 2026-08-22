@@ -16,7 +16,7 @@ import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
-import { CH, CW, PILE_DX, PILE_DY, cardAt, pxToPos, regionAt, snapshotRegions, type Region } from "./table";
+import { CH, CW, PILE_DX, PILE_DY, cardAt, pxToPos, regionAt, snapshotCards, snapshotRegions, type Region } from "./table";
 
 /** How far the pointer travels before this is a drag and not a click. */
 const THRESHOLD = 6;
@@ -60,10 +60,9 @@ export function consumeDragClick(id: string): boolean {
 }
 
 /** Write the carried card's position. Imperative on purpose: this runs on
- *  every pointermove, and the drag layer's contents do not change while it
- *  moves — only its offset does. */
-function paint(left: number, top: number) {
-  const layer = document.getElementById("draglayer");
+ *  every frame of the drag, and the drag layer's CONTENTS do not change while
+ *  it moves — only its offset does, so there is nothing for React to do. */
+function paint(layer: HTMLElement | null, left: number, top: number) {
   if (layer) layer.style.transform = `translate3d(${left}px, ${top}px, 0)`;
 }
 
@@ -82,20 +81,43 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   const fy = src.height ? (startY - src.top) / src.height : 0.5;
 
   const fromBoard = card.zone === "battlefield";
-  // read once: the felt cannot move while the pointer is down, and asking for
-  // its rect on every frame forces a layout sixty times a second
+  // Everything the gesture needs is read ONCE, here. Nothing on the table
+  // moves while you hold a card, so a pointermove is pure arithmetic plus one
+  // style write — no getBoundingClientRect, no getComputedStyle, no query.
   let origin = { x: 0, y: 0 };
   let regions: Region[] = [];
+  let others: ReturnType<typeof snapshotCards> = [];
+  let layer: HTMLElement | null = null;
   let carried: Card[] = [];
-  let ids = new Set<string>();
   let live = false;
   let at = { left: 0, top: 0 };
+  // the last target we told the store about; the store is only touched when
+  // the answer actually changes, not on every frame
+  let aimedAt: Region | null = null;
+  let aimedCard: string | null = null;
+
+  let frame = 0;
+  let last = { x: startX, y: startY };
 
   const place = (clientX: number, clientY: number) => {
     const f = { x: clientX - origin.x, y: clientY - origin.y };
     at = { left: f.x - fx * CW(), top: f.y - fy * CH() };
-    paint(at.left, at.top);
+    paint(layer, at.left, at.top);
     return f;
+  };
+
+  const draw = () => {
+    frame = 0;
+    const f = place(last.x, last.y);
+    const region = regionAt(regions, f.x, f.y);
+    // tucking is a board-to-board gesture: playing a card out of your hand
+    // should never silently attach it to whatever is under the drop
+    const target = !region && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
+    if (region !== aimedAt || target !== aimedCard) {
+      aimedAt = region;
+      aimedCard = target;
+      useDrag.getState().aim(region, target);
+    }
   };
 
   const onMove = (mv: PointerEvent) => {
@@ -107,25 +129,26 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       // a pile travels with the card it hangs from; pulling a buried card out
       // takes only that card
       carried = [card, ...(fromBoard && !card.under ? pileChainBelow(card.id) : [])];
-      ids = new Set(carried.map((c) => c.id));
+      const ids = new Set(carried.map((c) => c.id));
       regions = snapshotRegions();
+      others = snapshotCards(ids);
+      layer = document.getElementById("draglayer");
       const felt = document.getElementById("felt")?.getBoundingClientRect();
       origin = { x: felt?.left ?? 0, y: felt?.top ?? 0 };
       useDrag.getState().begin(carried);
     }
-    const f = place(mv.clientX, mv.clientY);
-    const region = regionAt(regions, f.x, f.y);
-    // tucking is a board-to-board gesture: playing a card out of your hand
-    // should never silently attach it to whatever is under the drop
-    const centre = { x: at.left + CW() / 2, y: at.top + CH() / 2 };
-    const target = !region && fromBoard ? cardAt(centre.x, centre.y, ids) : null;
-    useDrag.getState().aim(region, target);
+    last = { x: mv.clientX, y: mv.clientY };
+    // pointermove can outrun the display; one paint per frame is all the
+    // screen can show anyway
+    if (!frame) frame = requestAnimationFrame(draw);
   };
 
   const onUp = async (up: PointerEvent) => {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onUp);
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
     if (!live) return;
     dragged = card.id;
     // a click that never comes must not eat a real one later: a card dropped
@@ -133,8 +156,11 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     window.setTimeout(() => {
       if (dragged === card.id) dragged = null;
     }, 400);
-    place(up.clientX, up.clientY);
-    const { over, overCard } = useDrag.getState();
+    // resolve the target from where the pointer ACTUALLY came up, not from
+    // whatever the last painted frame decided — a frame may have been dropped
+    const f = place(up.clientX, up.clientY);
+    const over = regionAt(regions, f.x, f.y);
+    const overCard = !over && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     ui().hidePreview();
     // the card stays in the drag layer, at the point you let go, until the
     // server has been told where it went — release it any earlier and it

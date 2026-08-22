@@ -33,9 +33,16 @@ const right = (r: Rect) => r.left + r.width;
 const bottom = (r: Rect) => r.top + r.height;
 
 /** Card size on the board — the LAYOUT box, from the stylesheet. Never a
- *  bounding rect: a tapped card is rotated, and its rect is not its box. */
-export const CW = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-w")) || 92;
-export const CH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h")) || 128;
+ *  bounding rect: a tapped card is rotated, and its rect is not its box.
+ *
+ *  Cached, and refreshed by measureSurface. Reading a custom property means
+ *  getComputedStyle, which flushes style; this is called once per card per
+ *  render and several times per pointermove, and at that rate it is the
+ *  difference between a card that tracks the cursor and one that trails it. */
+let cw = 92;
+let ch = 128;
+export const CW = () => cw;
+export const CH = () => ch;
 
 /** A tucked card peeks out from under the one it hangs from by this much, one
  *  step per rung, so every card in a pile has a strip you can grab. */
@@ -66,6 +73,10 @@ export function measureSurface(): Surface | null {
   const boards = ["agent", "you"].map((p) => document.getElementById(`boardwrap-${p}`));
   if (!felt || !boards[0] || !boards[1]) return null;
   const origin = felt.getBoundingClientRect();
+  // the one place the card size is read: everything downstream uses the cache
+  const root = getComputedStyle(document.documentElement);
+  cw = parseFloat(root.getPropertyValue("--card-w")) || 92;
+  ch = parseFloat(root.getPropertyValue("--card-h")) || 128;
 
   const top = rectOf(boards[0]!, origin);
   const bot = rectOf(boards[1]!, origin);
@@ -170,16 +181,25 @@ export function regionAt(regions: Region[], x: number, y: number): Region | null
   return regions.find((r) => inside(r.rect, x, y)) ?? null;
 }
 
-/** The topmost battlefield card under a point, excluding a set being carried.
- *  Hit-tested off the DOM rather than off stored positions: a card's element
- *  is where it actually is, mid-transition and all. */
-export function cardAt(x: number, y: number, exclude: Set<string>): string | null {
+/** Every board card's box, in the same felt-local space. Snapshotted when a
+ *  drag starts, for the same reason the regions are: measuring each card on
+ *  each pointermove is a forced layout per card per frame, and that is what a
+ *  card lagging behind the cursor looks like.
+ *
+ *  Cards do not move while you hold one. A poll landing mid-drag could in
+ *  principle add one, and it will not be a tuck target until you let go. */
+export function snapshotCards(exclude: Set<string>): { id: string; rect: Rect }[] {
   const felt = document.getElementById("felt");
-  if (!felt) return null;
+  if (!felt) return [];
   const origin = felt.getBoundingClientRect();
-  const hits = [...document.querySelectorAll<HTMLElement>("#cardlayer .card[data-card-id]")].filter((el) => {
-    const id = el.dataset.cardId!;
-    return !exclude.has(id) && inside(rectOf(el, origin), x, y);
-  });
-  return hits.length ? hits[hits.length - 1].dataset.cardId! : null;
+  return [...document.querySelectorAll<HTMLElement>("#cardlayer .card[data-card-id]")]
+    .filter((el) => !exclude.has(el.dataset.cardId!))
+    .map((el) => ({ id: el.dataset.cardId!, rect: rectOf(el, origin) }));
+}
+
+/** The topmost card under a point — last in document order wins, which is the
+ *  one drawn on top. */
+export function cardAt(cards: { id: string; rect: Rect }[], x: number, y: number): string | null {
+  for (let i = cards.length - 1; i >= 0; i--) if (inside(cards[i].rect, x, y)) return cards[i].id;
+  return null;
 }

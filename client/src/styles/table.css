@@ -122,8 +122,10 @@
 
 /* the carried card rides above the hands and command zones, which is the
    whole reason it is a second layer and not a z-index on the first */
-#draglayer { z-index: 60; }
-#draglayer.empty { display: none; }
+/* the layer is what moves, once per frame, so it gets its own compositor
+   layer and the cards inside it are never re-laid-out */
+#draglayer { z-index: 60; will-change: transform; }
+#draglayer.empty { display: none; will-change: auto; }
 #draglayer .card.carried {
   position: absolute; cursor: grabbing;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
