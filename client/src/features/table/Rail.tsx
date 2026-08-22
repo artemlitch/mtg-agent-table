@@ -66,10 +66,11 @@ function LifeBox({ p }: { p: PlayerId }) {
   };
 
   // commander damage is reference, not headline: it rides in a hover tooltip,
-  // on the number itself — the name and the ± buttons are not it
-  const cmdmg = Object.entries(ps.commanderDamage || {})
-    .map(([c, n]) => `${n} from ${c}`)
-    .join("\n");
+  // on the number itself — the name and the ± buttons are not it. The tooltip
+  // is always there, saying "none yet" when the tally is empty: a number that
+  // sometimes answers a hover and sometimes ignores it reads as broken.
+  const tally = Object.entries(ps.commanderDamage || {});
+  const cmdmg = tally.length ? tally.map(([c, n]) => `${n} from ${c}`).join("\n") : "none yet";
 
   return (
     <div className="lifebox">
@@ -84,7 +85,7 @@ function LifeBox({ p }: { p: PlayerId }) {
       </div>
       <div className="liferow">
         <button onClick={(e) => (e.stopPropagation(), bump(-1))}>−</button>
-        <div className="life" {...(cmdmg ? { "data-tip": `Commander damage\n${cmdmg}` } : {})}>
+        <div className="life" data-tip={`Commander damage\n${cmdmg}`}>
           {ps.life}
         </div>
         <button onClick={(e) => (e.stopPropagation(), bump(1))}>+</button>
