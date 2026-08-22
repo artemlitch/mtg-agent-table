@@ -219,19 +219,41 @@ $("#btn-delkey").onclick = async () => {
 let noBlocksDeclaredFor = null;
 
 // ── icons ─────────────────────────────────────────────────────────────────
-// Inline SVG rather than an icon font: the app is deliberately network-free,
-// and these carry meaning worth drawing exactly. A tapped card's top points
-// at 3 o'clock, so tap sweeps 12→3 clockwise and untap sweeps 3→12 back.
+// Font Awesome Free (solid), vendored under web/vendor — same rule as the
+// type: nothing is fetched off the network at runtime. Names here, not
+// classes at the call sites, so the icon set can be re-pointed in one place.
+// A tapped card's top ends at 3 o'clock, so tap turns clockwise and untap
+// turns back the other way.
 const ICONS = {
-  tap:
-    `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">` +
-    `<path d="M8 2.5 A5.5 5.5 0 0 1 13.5 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
-    `<polygon points="13.5,10.6 11.9,7.2 15.1,7.2" fill="currentColor"/></svg>`,
-  untap:
-    `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">` +
-    `<path d="M13.5 8 A5.5 5.5 0 0 0 8 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
-    `<polygon points="5.4,2.5 8.8,0.9 8.8,4.1" fill="currentColor"/></svg>`,
+  tap: "fa-arrow-rotate-right",
+  untap: "fa-arrows-rotate",
+  undo: "fa-rotate-left",
+  answer: "fa-comment-dots",
+  takeTurn: "fa-forward-step",
+  resolve: "fa-check",
+  resolveAll: "fa-check-double",
+  damage: "fa-burst",
+  noBlocks: "fa-shield-halved",
+  draw: "fa-hand",
+  main: "fa-play",
+  combat: "fa-hand-fist",
+  end: "fa-moon",
+  passTurn: "fa-forward",
+  skip: "fa-forward-fast",
 };
+function iconEl(name) {
+  const i = document.createElement("i");
+  i.className = `fa-solid ${ICONS[name] ?? name} ico`;
+  i.setAttribute("aria-hidden", "true");
+  return i;
+}
+/** Fill any <i data-icon="name"> in the static markup. */
+function renderIcons(root = document) {
+  root.querySelectorAll("[data-icon]").forEach((el) => {
+    el.className = `fa-solid ${ICONS[el.dataset.icon] ?? el.dataset.icon} ico`;
+    el.setAttribute("aria-hidden", "true");
+  });
+}
 
 // ── keyboard keycaps ──────────────────────────────────────────────────────
 // One look for every shortcut hint in the app. Mark a span with
@@ -260,6 +282,7 @@ function renderKeyCaps(root = document) {
   });
 }
 renderKeyCaps();
+renderIcons();
 
 // the space shortcut only works while this window has the keyboard, so the
 // hint inside the button appears and disappears with focus
@@ -337,17 +360,17 @@ const NEXT_ACTION_STEPS = [
   {
     id: "answer-question",
     when: () => !!state.pendingQuestion,
-    step: () => ({ label: "Answer the agent", fn: () => { switchTab("chat"); $("#chat-input").focus(); } }),
+    step: () => ({ label: "Answer the agent", icon: "answer", fn: () => { switchTab("chat"); $("#chat-input").focus(); } }),
   },
   {
     id: "take-your-turn",
     when: (c) => c.top?.player === "agent" && !!c.top.turnPassTo,
-    step: (c) => ({ label: "Take your turn", fn: () => act("stack_resolve", { item: c.top.id }) }),
+    step: (c) => ({ label: "Take your turn", icon: "takeTurn", fn: () => act("stack_resolve", { item: c.top.id }) }),
   },
   {
     id: "lock-their-attack",
     when: (c) => c.top?.player === "agent" && !!c.top.attackPairs,
-    step: (c) => ({ label: "Go to damage", fn: () => act("stack_resolve", { item: c.top.id }) }),
+    step: (c) => ({ label: "Go to damage", icon: "damage", fn: () => act("stack_resolve", { item: c.top.id }) }),
   },
   {
     id: "resolve-all",
@@ -356,6 +379,7 @@ const NEXT_ACTION_STEPS = [
       const card = stackItemCard(c.top);
       return {
         label: `Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
+        icon: "resolveAll",
         sub: stackSubText(c.top, card),
         card,
         fn: () => act("stack_resolve_all", { group: c.top.groupId }),
@@ -370,6 +394,7 @@ const NEXT_ACTION_STEPS = [
       return {
         // with no card to picture, the item's own words carry the name
         label: card ? "Resolve" : `Resolve: ${String(c.top.text || "").slice(0, 32)}`,
+        icon: "resolve",
         sub: card ? stackSubText(c.top, card) : "",
         card,
         fn: () => act("stack_resolve", { item: c.top.id }),
@@ -386,6 +411,7 @@ const NEXT_ACTION_STEPS = [
     when: (c) => c.theirAttackers.length > 0 && !c.iAmBlocking && noBlocksDeclaredFor !== c.attackSig,
     step: (c) => ({
       label: "No blocks — take the damage",
+      icon: "noBlocks",
       fn: () => { noBlocksDeclaredFor = c.attackSig; act("chat", { text: "No blocks." }); },
     }),
   },
@@ -415,17 +441,17 @@ const NEXT_ACTION_STEPS = [
   {
     id: "draw",
     when: (c) => /untap/.test(c.phase) && state.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
-    step: () => ({ label: "Draw 1", skip: true, fn: () => act("draw", { n: 1 }) }),
+    step: () => ({ label: "Draw 1", icon: "draw", skip: true, fn: () => act("draw", { n: 1 }) }),
   },
   {
     id: "main-1",
     when: (c) => /untap/.test(c.phase),
-    step: () => ({ label: "Main phase 1", skip: true, fn: () => act("set_phase", { phase: "main 1" }) }),
+    step: () => ({ label: "Main phase 1", icon: "main", skip: true, fn: () => act("set_phase", { phase: "main 1" }) }),
   },
   {
     id: "to-combat",
     when: (c) => c.phase === "main 1",
-    step: () => ({ label: "Go to combat", skip: true, fn: () => act("set_phase", { phase: "combat" }) }),
+    step: () => ({ label: "Go to combat", icon: "combat", skip: true, fn: () => act("set_phase", { phase: "combat" }) }),
   },
   {
     id: "combat-damage",
@@ -434,6 +460,7 @@ const NEXT_ACTION_STEPS = [
     // the player never types damage
     step: () => ({
       label: "Go to damage",
+      icon: "damage",
       skip: true,
       fn: () => act("stack_push", { text: "go to damage" }),
     }),
@@ -445,7 +472,8 @@ const NEXT_ACTION_STEPS = [
     when: (c) => c.phase === "combat",
     step: () => ({
       label: "Main phase 2",
-      title: "right-click a creature to attack instead",
+      icon: "main",
+      title: "tap [e] a creature to attack instead",
       skip: true,
       fn: () => act("set_phase", { phase: "main 2" }),
     }),
@@ -453,12 +481,12 @@ const NEXT_ACTION_STEPS = [
   {
     id: "main-2",
     when: (c) => c.phase === "main 2",
-    step: () => ({ label: "End step", skip: true, fn: () => act("set_phase", { phase: "end" }) }),
+    step: () => ({ label: "End step", icon: "end", skip: true, fn: () => act("set_phase", { phase: "end" }) }),
   },
   {
     id: "pass-turn",
     when: () => true, // end step, or any phase we don't have a step for
-    step: () => ({ label: "Pass turn to agent", fn: passTurnToAgent }),
+    step: () => ({ label: "Pass turn to agent", icon: "passTurn", fn: passTurnToAgent }),
   },
 ];
 
@@ -480,7 +508,8 @@ function renderNextAction() {
   if (a.hint) hint.textContent = a.hint;
   else {
     const labelEl = btn.querySelector(".na-label");
-    labelEl.innerHTML = a.icon ? ICONS[a.icon] ?? "" : "";
+    labelEl.innerHTML = "";
+    if (a.icon) labelEl.append(iconEl(a.icon));
     labelEl.append(document.createTextNode(a.label));
     btn.title = a.title || "";
     btn.onclick = a.fn;
@@ -1820,6 +1849,15 @@ function libraryMenu(p, e) {
       for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" });
     },
   });
+  items.push({ label: "Exile top", fn: () => act("move", { card: `top:${p}`, toZone: "exile", toPlayer: p, note: "exiled from library" }) });
+  items.push({
+    label: "Exile N…",
+    fn: async () => {
+      const n = Number((await askText("Exile how many from the top?", "1")) || 0);
+      // one call per card: 'top:p' resolves against the library as it stands
+      for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "exile", toPlayer: p, note: "exiled from library" });
+    },
+  });
   items.push({ label: "Shuffle", fn: () => act("shuffle", { player: p }) });
   openMenu(items, e);
 }
@@ -2599,9 +2637,20 @@ function cardPrimaryAction(card, shift) {
         if (cur.tapped) act("tap", { cards: [cur.id], tapped: false });
         return;
       }
+      // 3. in COMBAT, tapping your untapped creature declares the attack —
+      // that is what tapping a creature means at this point in the turn.
+      // Outside combat E stays a plain tap, for mana and everything else
+      if (
+        typeCat(cur) === "creature" &&
+        !cur.attacking &&
+        !cur.tapped &&
+        /combat|attack/i.test(state.phase || "")
+      ) {
+        act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
+        return;
+      }
     }
-    // 3. otherwise E is exactly what it has always been: tap/untap.
-    // Declaring an attack lives in the right-click menu
+    // 4. anything else taps/untaps
     act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
 }

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <title>MTG Battlefield</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -65,7 +67,7 @@
       <div id="nextaction" class="hidden">
         <div class="na-row">
           <div class="na-undowrap">
-            <button id="na-undo" title="Undo the last action (⌘Z)"><span>↩</span></button>
+            <button id="na-undo" title="Undo the last action (⌘Z)"><i data-icon="undo"></i></button>
             <span class="na-key" data-keys="⌘,Z"></span>
           </div>
           <button id="na-primary">
@@ -78,7 +80,7 @@
           </button>
           <div id="na-hint" class="hidden"></div>
         </div>
-        <button id="na-skip" class="hidden"><span>skip to pass turn</span><span class="na-key" data-keys="⇧,space"></span></button>
+        <button id="na-skip" class="hidden"><span><i data-icon="skip"></i> skip to pass turn</span><span class="na-key" data-keys="⇧,space"></span></button>
       </div>
     </div>
 

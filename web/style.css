@@ -651,7 +651,8 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   font-size: 10px; font-weight: 400; color: var(--dim); letter-spacing: 0.01em;
 }
 #na-primary .na-sub.hidden { display: none; }
-#na-undo span { display: block; transform: translateY(1.6px); }
+/* the icon font centres on its own box — no glyph nudging needed */
+#na-undo .ico { font-size: 11px; line-height: 1; }
 #na-undo:hover { opacity: 1; color: var(--accent); }
 /* opaque, in the leather's own brown so it reads as part of the table: the
    playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
@@ -680,7 +681,8 @@ body.unfocused .na-key { display: none; }
 /* every action breathes, so the eye always lands on the thing to press */
 #na-primary { animation: noblockspulse 2s infinite ease-in-out; }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label .ico { width: 11px; height: 11px; flex: none; }
+#na-primary .na-label .ico { font-size: 10.5px; line-height: 1; opacity: 0.9; }
+#na-skip .ico { font-size: 8px; margin-right: 2px; }
 #na-hint {
   padding: 4px 12px; font-size: 11.5px; font-style: italic; color: var(--dim);
   background: rgba(15, 10, 6, 0.72); border-radius: 10px;
