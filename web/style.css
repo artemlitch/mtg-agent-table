@@ -565,8 +565,12 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* satellites hover around the primary without displacing it: the row centres
    on the primary alone, everything else is taken out of flow */
 .na-row { position: relative; display: flex; align-items: center; justify-content: center; }
-#na-undo {
+.na-undowrap {
   position: absolute; right: 100%; margin-right: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.na-undowrap .na-key { font-size: 8px; letter-spacing: 0.1em; opacity: 0.4; line-height: 1; }
+#na-undo {
   display: flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; padding: 0; font-size: 12px; line-height: 1; opacity: 0.5;
 }
@@ -584,12 +588,12 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   color: var(--gold-hi);
 }
 #na-primary:hover { background: rgba(226, 179, 85, 0.14); border-color: var(--gold-hi); }
-/* the keyboard affordance: only meaningful while this window has focus */
+/* keyboard affordances are only meaningful while this window has focus */
 #na-primary .na-key {
   font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase;
   opacity: 0.4; line-height: 1;
 }
-body.unfocused #na-primary .na-key { display: none; }
+body.unfocused .na-key { display: none; }
 /* only genuinely-waiting-on-you actions pulse; routine phase steps stay calm */
 #na-primary.urgent { animation: noblockspulse 1.6s infinite ease-in-out; }
 #na-hint {
@@ -602,7 +606,6 @@ body.unfocused #na-primary .na-key { display: none; }
   background: none; border: none; color: var(--dim); opacity: 0.5;
 }
 #na-skip .na-key { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; }
-body.unfocused #na-skip .na-key { display: none; }
 #na-skip:hover { opacity: 1; color: var(--accent); }
 @keyframes noblockspulse {
   0%, 100% { box-shadow: 0 0 5px rgba(240, 208, 120, 0.4); }
