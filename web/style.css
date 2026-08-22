@@ -105,12 +105,14 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #combatglow {
   position: absolute; inset: 0 0 0 var(--rail-w); z-index: 40; pointer-events: none;
   opacity: 0; transition: opacity 2.2s ease;
-  box-shadow: inset 0 0 45px 6px rgba(208, 60, 50, 0.4);
+  box-shadow: inset 0 0 22px 3px rgba(208, 60, 50, 0.2);
 }
-#combatglow.on { opacity: 1; transition: opacity 0.7s ease; animation: combatpulse 2.6s ease-in-out infinite; }
+#combatglow.on { opacity: 1; transition: opacity 0.7s ease; animation: combatpulse 3.2s ease-in-out infinite; }
+/* half the reach of the first pass, fainter, and a narrower swing between the
+   two ends so it breathes rather than throbs */
 @keyframes combatpulse {
-  0%, 100% { box-shadow: inset 0 0 40px 4px rgba(208, 60, 50, 0.34); }
-  50% { box-shadow: inset 0 0 90px 20px rgba(226, 74, 58, 0.72); }
+  0%, 100% { box-shadow: inset 0 0 20px 2px rgba(208, 60, 50, 0.18); }
+  50% { box-shadow: inset 0 0 32px 6px rgba(214, 64, 52, 0.32); }
 }
 
 #topbar {
