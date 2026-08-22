@@ -16,6 +16,9 @@ export function startCastDrag(down: React.PointerEvent<HTMLDivElement>, c: Card,
   const el = down.currentTarget;
   const pointerId = down.pointerId;
   let ghost: HTMLElement | null = null;
+  // pinned now: a synthetic event is only guaranteed valid inside its handler
+  const startX = down.clientX;
+  const startY = down.clientY;
 
   const board = () => document.getElementById("bf-you")!;
   // a card already in the hand has nowhere to go there; anything else dragged
@@ -24,7 +27,7 @@ export function startCastDrag(down: React.PointerEvent<HTMLDivElement>, c: Card,
 
   const onMove = (mv: PointerEvent) => {
     if (!ghost) {
-      if (Math.hypot(mv.clientX - down.clientX, mv.clientY - down.clientY) < 8) return;
+      if (Math.hypot(mv.clientX - startX, mv.clientY - startY) < 8) return;
       ui().hidePreview();
       useGame.getState().setDragging(true);
       ghost = el.cloneNode(true) as HTMLElement;

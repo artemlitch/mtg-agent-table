@@ -278,6 +278,9 @@ function startDrag(down: React.PointerEvent<HTMLDivElement>, c: Card, p: PlayerI
   const el = down.currentTarget;
   const bf = document.getElementById(`bf-${p}`)!;
   const pointerId = down.pointerId;
+  // pinned now: a synthetic event is only guaranteed valid inside its handler
+  const startX = down.clientX;
+  const startY = down.clientY;
 
   // ONE coordinate system: battlefield-local layout px, the numbers that live
   // in style.left/top. The dragged element's own bounding rect is never read —
@@ -307,7 +310,7 @@ function startDrag(down: React.PointerEvent<HTMLDivElement>, c: Card, p: PlayerI
   let moved = false;
 
   const onMove = (mv: PointerEvent) => {
-    if (!moved && Math.hypot(mv.clientX - down.clientX, mv.clientY - down.clientY) < 6) return;
+    if (!moved && Math.hypot(mv.clientX - startX, mv.clientY - startY) < 6) return;
     if (!moved) {
       moved = true;
       useGame.getState().setDragging(true);
@@ -324,8 +327,8 @@ function startDrag(down: React.PointerEvent<HTMLDivElement>, c: Card, p: PlayerI
     if (c.isCommander) commandZone.arm(commandZone.over(mv.clientX, mv.clientY));
     // pure delta on the layout box: start position + pointer travel. No
     // transform can offset this — tapped cards drag identically.
-    left = Math.max(0, Math.min(maxX, startLeft + (mv.clientX - down.clientX)));
-    top = Math.max(minY, Math.min(maxY, startTop + (mv.clientY - down.clientY)));
+    left = Math.max(0, Math.min(maxX, startLeft + (mv.clientX - startX)));
+    top = Math.max(minY, Math.min(maxY, startTop + (mv.clientY - startY)));
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
     const dx = left - startLeft;

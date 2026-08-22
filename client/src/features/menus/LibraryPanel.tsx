@@ -10,7 +10,7 @@
 // The tile body runs the action with the number shown. The number is also the
 // stepper: hovering its top half arms a + above, the bottom half a − below,
 // and clicking there changes the count instead of firing.
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { act } from "../../api";
 import { Icon } from "../../components/Icon";
 import { gameView } from "../../store/game";
@@ -119,24 +119,30 @@ function LibButton({
 }) {
   const [n, setN] = useState(1);
   const [half, setHalf] = useState<"up" | "down" | null>(null);
+  const dial = useRef<HTMLSpanElement>(null);
 
-  const topHalf = (ev: React.MouseEvent) => {
-    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    return ev.clientY < r.top + r.height / 2;
+  // Takes a number, not the event. A synthetic event is only valid for the
+  // duration of its handler — React nulls currentTarget on the way out — so
+  // reading geometry off one inside a deferred setState updater blows up.
+  const topHalf = (clientY: number) => {
+    const r = dial.current?.getBoundingClientRect();
+    return !!r && clientY < r.top + r.height / 2;
   };
 
-  let dial: ReactNode = null;
+  let stepper: ReactNode = null;
   if (counted) {
-    dial = (
+    stepper = (
       <span
+        ref={dial}
         className={`lp-stepper${half === "up" ? " step-up" : half === "down" ? " step-down" : ""}`}
         // on the dial the click won't run the action, so the button stops
         // pretending it is hovered
-        onMouseMove={(ev) => setHalf(topHalf(ev) ? "up" : "down")}
+        onMouseMove={(ev) => setHalf(topHalf(ev.clientY) ? "up" : "down")}
         onMouseLeave={() => setHalf(null)}
         onClick={(ev) => {
           ev.stopPropagation(); // adjust, never fire
-          setN((v) => Math.max(1, topHalf(ev) ? v + 1 : v - 1));
+          const up = topHalf(ev.clientY); // resolved here, not inside the updater
+          setN((v) => Math.max(1, up ? v + 1 : v - 1));
         }}
       >
         <span className={`lp-step up${half === "up" ? " armed" : ""}`}>+</span>
@@ -154,7 +160,7 @@ function LibButton({
         <Icon name={icon} />
         <span className="lp-label">{label}</span>
       </span>
-      {dial}
+      {stepper}
     </button>
   );
 }
