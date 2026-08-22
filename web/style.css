@@ -393,18 +393,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .pile .pstrip .mini + .mini { margin-left: -12px; }
 .pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: var(--fw-heading) var(--fs-body) var(--font-fantasy); color: var(--dim); }
-.lifebox { border-radius: 8px; padding: 6px 8px; text-align: center; }
-/* Commander damage hangs off the life box on hover, in undo's tooltip. It
-   drops DOWNWARD and wraps: the rail scrolls, so anything that reaches past
-   its 130px would be clipped instead of overhanging. */
-.lifebox .cmdtip {
-  top: 100%; bottom: auto; margin: 5px 0 0;
-  flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
-  white-space: normal; width: max-content; max-width: 106px;
-  transform: translate(-50%, -2px);
-}
-.lifebox .cmdtip b { color: var(--red); font-weight: inherit; }
-.lifebox:hover .cmdtip { opacity: 1; transform: translate(-50%, 0); }
+.lifebox { border-radius: 8px; padding: 6px 8px; text-align: center; user-select: none; cursor: default; }
 .lifebox .life { font-size: var(--fs-huge); font-family: var(--font-fantasy); }
 .deckname { font-size: var(--fs-micro); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -966,16 +955,20 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .na-undowrap { position: absolute; right: 100%; margin-right: 6px; }
 .na-redowrap { position: absolute; left: 100%; margin-left: 6px; }
 /* the shortcut is a hover tooltip, not a permanent caption under the button */
-.na-tip {
-  position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, 2px); margin-bottom: 5px;
-  display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 7px;
-  background: rgba(15, 10, 6, 0.92); border: 1px solid rgba(226, 179, 85, 0.35);
-  font: var(--fw-label) var(--fs-note)/1 var(--font-fantasy); letter-spacing: 0.06em;
-  color: var(--gold-hi); white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity 0.2s ease, transform 0.2s ease;
+/* The app's one tooltip: fixed to the viewport and above every other layer,
+   so nothing that scrolls can clip it and nothing painted later can cover it.
+   Placed by JS — see the data-tip handler in app.js. */
+#tooltip {
+  position: fixed; z-index: 200; pointer-events: none; max-width: 280px;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  padding: 5px 9px; border-radius: 7px;
+  background: rgba(15, 10, 6, 0.95); border: 1px solid rgba(226, 179, 85, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  font: var(--fw-label) var(--fs-note)/1.35 var(--font-fantasy); letter-spacing: 0.06em;
+  color: var(--gold-hi);
+  animation: previewIn 0.12s ease-out;
 }
-.na-undowrap:hover .na-tip,
-.na-redowrap:hover .na-tip { opacity: 1; transform: translate(-50%, 0); }
+#tooltip .tt-row + .tt-row { color: var(--text); letter-spacing: 0.02em; }
 #na-undo,
 #na-redo {
   display: flex; align-items: center; justify-content: center;

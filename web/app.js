@@ -345,6 +345,61 @@ function renderKeyCaps(root = document) {
 renderKeyCaps();
 renderIcons();
 
+// ---------------------------------------------------------------------------
+// Tooltips. ONE floating layer, fixed to the viewport, above everything else
+// in the app. Never a sibling of the thing it describes: as a sibling it gets
+// clipped by any ancestor that scrolls (the rails, the topbar) and painted
+// over by later siblings (the deck pile), which reads as "the hover is
+// broken". Anything can have one:
+//     data-tip="Undo"                 — text; \n starts a new line
+//     data-tip-keys="⌘,Z"             — keycaps under it
+// ---------------------------------------------------------------------------
+const tipEl = document.createElement("div");
+tipEl.id = "tooltip";
+tipEl.className = "hidden";
+document.body.appendChild(tipEl);
+let tipFor = null;
+
+function placeTip(el) {
+  const r = el.getBoundingClientRect();
+  const t = tipEl.getBoundingClientRect();
+  // above when there is room, below when there isn't, and never off the side
+  const top = r.top - t.height - 6 < 4 ? r.bottom + 6 : r.top - t.height - 6;
+  const left = Math.max(4, Math.min(r.left + (r.width - t.width) / 2, window.innerWidth - t.width - 4));
+  tipEl.style.top = `${top}px`;
+  tipEl.style.left = `${left}px`;
+}
+function showTip(el) {
+  tipFor = el;
+  tipEl.innerHTML = "";
+  for (const line of el.dataset.tip.split("\n")) {
+    const row = document.createElement("div");
+    row.className = "tt-row";
+    row.textContent = line;
+    tipEl.appendChild(row);
+  }
+  if (el.dataset.tipKeys) {
+    const keys = document.createElement("span");
+    keys.className = "na-key";
+    keys.append(keyCaps(el.dataset.tipKeys.split(",")));
+    tipEl.appendChild(keys);
+  }
+  tipEl.classList.remove("hidden");
+  placeTip(el); // after it is measurable
+}
+function hideTip() {
+  tipFor = null;
+  tipEl.classList.add("hidden");
+}
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (el === tipFor) return;
+  if (el) showTip(el);
+  else hideTip();
+});
+document.addEventListener("mousedown", hideTip);
+document.addEventListener("mouseleave", hideTip);
+
 // the space shortcut only works while this window has the keyboard, so the
 // hint inside the button appears and disappears with focus
 const syncWindowFocus = () => document.body.classList.toggle("unfocused", !document.hasFocus());
@@ -891,7 +946,7 @@ function updateBrainPeek(entry) {
 function deckEl(p) {
   const wrap = document.createElement("div");
   wrap.className = "deckpile";
-  wrap.title = "Library — click for options";
+  wrap.dataset.tip = "Library — click for options";
   wrap.innerHTML = `<div class="deckstack">
     <img class="cardback" src="card-back.jpg" alt="library">
     <div class="deckcount">${state.players[p].counts.library}</div>
@@ -1029,13 +1084,15 @@ function lifeBox(p) {
   d.className = "lifebox";
   // commander damage is reference, not headline: it rides in a hover tooltip
   const cmdmg = Object.entries(ps.commanderDamage || {})
-    .map(([c, n]) => `<span><b>${n}</b> from ${c}</span>`)
-    .join("");
+    .map(([c, n]) => `${n} from ${c}`)
+    .join("\n");
+  if (cmdmg) {
+    d.dataset.tip = `Commander damage\n${cmdmg}`;
+  }
   const ld = lifeDelta[p].sum;
   const deltaTag = ld !== 0 ? `<div class="lifedelta ${ld < 0 ? "neg" : "pos"}">${ld > 0 ? "+" : ""}${ld}</div>` : "";
   d.innerHTML = `${deltaTag}<div class="lname" title="${ps.deckName || ""}">${p === "you" ? "You" : "Agent"}</div>
-    <div class="liferow"><button data-d="-1">−</button><div class="life">${ps.life}</div><button data-d="1">+</button></div>
-    ${cmdmg ? `<span class="na-tip cmdtip">Commander damage${cmdmg}</span>` : ""}`;
+    <div class="liferow"><button data-d="-1">−</button><div class="life">${ps.life}</div><button data-d="1">+</button></div>`;
   d.querySelectorAll("button").forEach((b) => (b.onclick = (e) => {
     e.stopPropagation();
     bumpLifeDelta(p, Number(b.dataset.d));
@@ -2911,7 +2968,7 @@ function renderPhaseTrack() {
       if (i) track.appendChild(Object.assign(document.createElement("span"), { className: "pt-line" }));
       const b = document.createElement("button");
       b.className = "pt-node";
-      b.title = p.label;
+      b.dataset.tip = p.label;
       b.innerHTML = `<span class="pt-dot"></span><span class="pt-name">${p.label}</span>`;
       b.onclick = async () => {
         if (p.key === "untap/upkeep") await act("untap_all", { player: "you" });

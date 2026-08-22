@@ -37,10 +37,10 @@
         </div>
       </div>
       <div class="phasebtns">
-        <div id="phasetrack" title="The turn's phases — click one to jump there"></div>
+        <div id="phasetrack"></div>
         <button id="btn-endturn" class="accent">End turn → Agent</button>
-        <button id="btn-undo" title="Undo the last action, any player (⌘Z)"><i data-icon="undo"></i></button>
-        <button id="btn-redo" title="Redo (⌘⇧Z)"><i data-icon="redo"></i></button>
+        <button id="btn-undo" data-tip="Undo" data-tip-keys="⌘,Z"><i data-icon="undo"></i></button>
+        <button id="btn-redo" data-tip="Redo" data-tip-keys="⌘,⇧,Z"><i data-icon="redo"></i></button>
       </div>
     </div>
 
@@ -59,8 +59,7 @@
       <div id="nextaction" class="hidden">
         <div class="na-row">
           <div class="na-undowrap">
-            <button id="na-undo"><i data-icon="undo"></i></button>
-            <span class="na-tip">Undo<span class="na-key" data-keys="⌘,Z"></span></span>
+            <button id="na-undo" data-tip="Undo" data-tip-keys="⌘,Z"><i data-icon="undo"></i></button>
           </div>
           <button id="na-primary">
             <img id="na-card" class="hidden" alt="">
@@ -72,8 +71,7 @@
           </button>
           <div id="na-hint" class="hidden"></div>
           <div class="na-redowrap hidden">
-            <button id="na-redo"><i data-icon="redo"></i></button>
-            <span class="na-tip">Redo<span class="na-key" data-keys="⌘,⇧,Z"></span></span>
+            <button id="na-redo" data-tip="Redo" data-tip-keys="⌘,⇧,Z"><i data-icon="redo"></i></button>
           </div>
         </div>
         <button id="na-skip" class="hidden"><span><i data-icon="skip"></i> skip to pass turn</span><span class="na-key" data-keys="⇧,space"></span></button>
