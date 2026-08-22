@@ -329,7 +329,7 @@ const NEXT_ACTION_STEPS = [
     id: "combat-damage",
     when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/COMBAT DAMAGE/),
     step: () => ({
-      label: "💥 Announce combat damage",
+      label: "💥 Go to damage",
       skip: true,
       fn: () => { switchTab("stack"); const i = $("#chat-input"); i.value = "COMBAT DAMAGE — "; i.focus(); },
     }),
@@ -1265,10 +1265,21 @@ function cardEl(c, opts = {}) {
     d.onmouseenter = (e) => showPreview(c, e);
     d.onmousemove = (e) => positionPreview(e);
     d.onmouseleave = hidePreview;
+    // what a click/keypress does here, spelled out on hover
+    if (c.zone === "battlefield") {
+      const keys = document.createElement("div");
+      keys.className = "cardkeys";
+      const attackable = c.controller === "you" && typeCat(c) === "creature" && !c.attacking && !c.tapped;
+      keys.innerHTML =
+        `<span><b>${attackable ? "attack" : c.tapped ? "untap" : "tap"}</b> click · e</span>` +
+        `<span><b>ability</b> ⇧-click · ⇧e</span>`;
+      d.appendChild(keys);
+    }
   }
   d.onclick = (e) => {
     e.stopPropagation();
-    // a drag's release fires a click — swallow it, no menu
+    // a drag's release fires a click — swallow it, so moving a card never
+    // also taps it
     if (d.dataset.dragged) {
       delete d.dataset.dragged;
       return;
@@ -1278,6 +1289,13 @@ function cardEl(c, opts = {}) {
       act("tuck", { card: pendingTuck, under: c.id });
       pendingTuck = null;
       render();
+      return;
+    }
+    // on the battlefield a click is the same gesture as E (tap / attack /
+    // undo), shift-click the same as shift+E (announce an ability). The menu
+    // stays on right-click. Elsewhere a click still opens the menu.
+    if (c.zone === "battlefield") {
+      cardPrimaryAction(c, e.shiftKey);
       return;
     }
     cardMenu(c, e);
@@ -1964,11 +1982,13 @@ function peekModal(p, cards) {
     // every button acts immediately; "move to bottom" dims the card,
     // "keep on top" brings it back to the top of the library
     let el;
+    // the window stays open through every action — esc or ✕ closes it
     el = modalCardEl(c, [
       ["keep on top", () => { act("reorder_top", { player: p, top: [c.id] }); el.classList.remove("bottomed"); }],
       ["move to bottom", () => { act("reorder_top", { player: p, toBottom: [c.id] }); el.classList.add("bottomed"); }],
-      ["draw→hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p }).then(closeModal)],
-      ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: p }).then(closeModal)],
+      ["draw→hand", () => { act("move", { card: c.id, toZone: "hand", toPlayer: "you" }); el.classList.add("bottomed"); }],
+      ["gy", () => { act("move", { card: c.id, toZone: "graveyard", toPlayer: p }); el.classList.add("bottomed"); }],
+      ["exile", () => { act("move", { card: c.id, toZone: "exile", toPlayer: p }); el.classList.add("bottomed"); }],
     ]);
     grid.appendChild(el);
   }
@@ -1985,13 +2005,22 @@ function searchModal(p, cards) {
     const shown = cards.filter(fb.predicate);
     if (!shown.length) grid.textContent = "(no matches)";
     for (const c of shown) {
+      // the window stays open through every action (esc or ✕ closes it) —
+      // searches usually take several cards. Each action re-renders in place.
+      const move = (params) => act("move", { card: c.id, ...params }).then(() => {
+        cards = cards.filter((x) => x.id !== c.id);
+        renderGrid();
+      });
       grid.appendChild(
         modalCardEl(c, [
-          ["to hand", () => act("move", { card: c.id, toZone: "hand", toPlayer: p === "you" ? "you" : "you" }).then(closeModal)],
-          ["to my bf", () => act("move", { card: c.id, toZone: "battlefield", toPlayer: "you" }).then(closeModal)],
-          ["gy", () => act("move", { card: c.id, toZone: "graveyard", toPlayer: p, note: "from library search" }).then(closeModal)],
-          ["exile ⬇ (theft)", () => act("move", { card: c.id, toZone: "exile", toPlayer: p, faceDown: true, revealTo: "you", note: "search theft" }).then(closeModal)],
-          ["top", () => act("move", { card: c.id, toZone: "library", toPlayer: p, position: "top" }).then(closeModal)],
+          // to hand always means YOUR hand — searching the agent's library is
+          // a theft effect, and taking the card is the point
+          ["to hand", () => move({ toZone: "hand", toPlayer: "you" })],
+          ["to my bf", () => move({ toZone: "battlefield", toPlayer: "you" })],
+          ["gy", () => move({ toZone: "graveyard", toPlayer: p, note: "from library search" })],
+          ["exile", () => move({ toZone: "exile", toPlayer: p, note: "from library search" })],
+          ["exile face down", () => move({ toZone: "exile", toPlayer: p, faceDown: true, revealTo: "you", note: "search theft" })],
+          ["top", () => move({ toZone: "library", toPlayer: p, position: "top" })],
         ])
       );
     }
@@ -2001,9 +2030,9 @@ function searchModal(p, cards) {
   wrap.appendChild(grid);
   renderGrid();
   const sh = document.createElement("button");
-  sh.textContent = "Shuffle when done";
+  sh.textContent = "Shuffle";
   sh.style.marginTop = "10px";
-  sh.onclick = () => act("shuffle", { player: p }).then(closeModal);
+  sh.onclick = () => act("shuffle", { player: p });
   wrap.appendChild(sh);
   openModal(`Searching ${p === "you" ? "your" : "agent's"} library`, wrap);
 }
@@ -2310,19 +2339,24 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if ((e.key === "e" || e.key === "E") && hoveredCard) {
-    // E taps/untaps the hovered battlefield card (fresh lookup — state may
-    // have re-rendered under the cursor since mouseenter).
-    // Shift+E = activate: tap it AND open the ability-to-stack input.
-    const cur = cardById(hoveredCard.id) ?? hoveredCard;
-    // E on a hand card plays it (lands = land drop, spells = onto the stack;
-    // a DFC plays whichever face it's showing)
+    cardPrimaryAction(hoveredCard, e.shiftKey);
+  }
+});
+
+/** What E — and a left-click on a battlefield card — does to a card.
+ *  shift = announce an ability instead (the modal decides tap vs no-tap). */
+function cardPrimaryAction(card, shift) {
+  {
+    // fresh lookup: state may have re-rendered under the cursor since mouseenter
+    const cur = cardById(card.id) ?? card;
+    // on a hand card this plays it (lands = land drop, spells = onto the
+    // stack; a DFC plays whichever face it's showing)
     if (cur.zone === "hand" && cur.controller === "you") {
       act("cast", { card: cur.id });
       return;
     }
     if (cur.zone !== "battlefield") return;
-    // Shift+E = announce an ability (the modal decides tap vs no-tap)
-    if (e.shiftKey) {
+    if (shift) {
       abilityModal(cur);
       return;
     }
@@ -2351,7 +2385,7 @@ document.addEventListener("keydown", (e) => {
     // 4. anything else just taps/untaps
     act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
-});
+}
 
 // late-loading images grow the pane after we've pinned to the bottom —
 // re-pin as each one lands if the reader is still following (capture:

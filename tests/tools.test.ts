@@ -32,6 +32,13 @@ describe("tool argument validation", () => {
     expect(validateArgs("tap", ["c1"])).toContain("JSON object");
   });
 
+  test("attach is its own tool and maps target → under for the tuck action", () => {
+    expect(validateArgs("attach", { card: "c1", target: "c2" })).toBeNull();
+    expect(validateArgs("attach", { card: "c1", under: "c2" })).toContain('"under"');
+    expect(TOOLS.attach.action).toBe("tuck");
+    expect(TOOLS.attach.argMap).toEqual({ target: "under" });
+  });
+
   test("every tool description's own advertised params exist in its schema (cast face regression)", () => {
     // cast's description tells the model to pass `face`; the schema must agree
     expect(Object.keys(TOOLS.cast.schema.properties)).toContain("face");

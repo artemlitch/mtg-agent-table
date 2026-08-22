@@ -86,12 +86,23 @@ describe("owner zones (CR 404.1)", () => {
     expect(game.players.agent.zones.graveyard).not.toContain(c.id);
   });
 
-  test("an explicit wrong toPlayer is coerced to the owner for graveyard/hand/library", () => {
-    for (const zone of ["graveyard", "hand", "library"] as const) {
+  test("an explicit wrong toPlayer is coerced to the owner for graveyard/library/command", () => {
+    for (const zone of ["graveyard", "library", "command"] as const) {
       const c = seedCard("Bear-" + zone, "you", "battlefield");
       applyAction("agent", "move", { card: c.id, toZone: zone, toPlayer: "agent" });
       expect(game.players.you.zones[zone]).toContain(c.id);
     }
+  });
+
+  test("hand is the deliberate exception: it defaults to the owner but honours an explicit thief", () => {
+    // theft effects at this table take a card INTO the thief's hand
+    const stolen = seedCard("Stolen Plan", "agent", "library");
+    applyAction("you", "move", { card: stolen.id, toZone: "hand", toPlayer: "you" });
+    expect(game.players.you.zones.hand).toContain(stolen.id);
+    // with no toPlayer it still goes home to its owner
+    const bounced = seedCard("Their Bear", "agent", "battlefield", { controller: "you" });
+    applyAction("you", "move", { card: bounced.id, toZone: "hand" });
+    expect(game.players.agent.zones.hand).toContain(bounced.id);
   });
 
   test("battlefield keeps controller semantics (steals still work)", () => {

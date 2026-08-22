@@ -686,6 +686,20 @@ body.unfocused .na-key { display: none; }
 .brain.highlight { background: #33290f; border-radius: 4px; transition: background 0.4s; }
 
 /* two-faced cards */
+/* hover crib sheet, centred so it clears the badges, counters and flip
+   button; counter-rotated on a tapped card so it stays readable */
+.card .cardkeys {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: none; flex-direction: column; align-items: center; gap: 2px; z-index: 6;
+  padding: 4px 7px; border-radius: 6px; pointer-events: none;
+  background: rgba(10, 7, 4, 0.82); color: var(--text);
+  font: 500 7.5px/1.25 var(--font-fantasy); letter-spacing: 0.03em; white-space: nowrap;
+}
+.card .cardkeys b { color: var(--accent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.card:hover .cardkeys { display: flex; }
+.card.tapped .cardkeys { transform: translate(-50%, -50%) rotate(-90deg); }
+.card.dragging .cardkeys, body.unfocused .cardkeys { display: none !important; }
+
 .card .flipbtn {
   position: absolute; top: 3px; right: 3px; z-index: 5;
   background: rgba(0, 0, 0, 0.75); color: #ffd97a; border: 1px solid rgba(255, 217, 122, 0.5);

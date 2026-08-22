@@ -681,15 +681,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       else if (fromZone === "battlefield" && toZone !== "battlefield") leftBf++;
       if (toZone === "battlefield" && fromZone !== "battlefield") enteredBf++;
       const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
-      // graveyards, hands, libraries and command zones belong to the card's
-      // OWNER (CR 404.1) — no exceptions, so a controller default or an
-      // explicit wrong toPlayer is coerced (a stolen creature dying once
-      // landed in the thief's graveyard)
-      const ownerZone = toZone === "graveyard" || toZone === "hand" || toZone === "library" || toZone === "command";
+      // graveyards, libraries and command zones belong to the card's OWNER
+      // (CR 404.1) — coerced, since a stolen creature dying once landed in
+      // the thief's graveyard. Hand is deliberately NOT coerced: theft
+      // effects at this table put a stolen card in the thief's hand, and an
+      // explicit toPlayer says so. Its default is still the owner.
+      const ownerZone = toZone === "graveyard" || toZone === "library" || toZone === "command";
       const toPlayer: PlayerId = ownerZone
         ? card.owner
         : p.toPlayer === undefined
-          ? card.controller
+          ? toZone === "hand"
+            ? card.owner
+            : card.controller
           : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
 

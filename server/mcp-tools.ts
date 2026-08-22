@@ -23,6 +23,7 @@ export interface ToolDef {
   description: string;
   schema: Schema;
   action?: string; // /api/action type; defaults to tool name
+  argMap?: Record<string, string>; // rename params on the way to the action
   special?: "state";
   // result carries a card list: trim it the way the lean state view is trimmed,
   // so art urls and board positions never burn context here either
@@ -136,6 +137,13 @@ export const TOOLS: Record<string, ToolDef> = {
       ["name"]
     ),
   },
+  attach: {
+    description:
+      "Attach an Aura, Equipment or Fortification to a permanent — the attached card tucks under its target so the pairing is visible on the board, and moving the target carries it along. Pass target '' to unattach. (Same mechanism as tuck, named for what it models.)",
+    schema: obj({ card: str("the aura/equipment card id"), target: str("card id to attach to, or '' to unattach") }, ["card"]),
+    action: "tuck",
+    argMap: { target: "under" },
+  },
   tuck: { description: "Tuck card under another battlefield card, forming a pile (equipment/auras, or board tidying). The pile's top card is the handle and carries the pile when it moves. Pass under '' to pull a card out of its pile.", schema: obj({ card: str("card id"), under: str("card id to tuck under, or '' to pull out") }, ["card"]) },
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
   commander_damage: {
@@ -217,10 +225,14 @@ export async function callTable(tool: string, args: any, tableUrl: string = TABL
     const res = await fetch(`${tableUrl}/api/state?viewer=agent&lean=1`);
     return await res.text();
   }
+  let params: any = args ?? {};
+  if (def.argMap) {
+    params = Object.fromEntries(Object.entries(params).map(([k, v]) => [def.argMap![k] ?? k, v]));
+  }
   const res = await fetch(`${tableUrl}/api/action`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ actor: "agent", type: def.action ?? tool, params: args ?? {} }),
+    body: JSON.stringify({ actor: "agent", type: def.action ?? tool, params }),
   });
   const text = await res.text();
   if (!def.leanCards) return text;
