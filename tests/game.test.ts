@@ -876,11 +876,13 @@ describe("the table surface", () => {
     applyAction("you", "cast", { card: bear.id });
     // different kinds of card go to different places on the table
     expect(bolt.pos).not.toEqual(bear.pos);
-    // the middle of your half, underneath the creatures. y 0.5 puts a card's
-    // CENTRE on the midline, so anything over it is inside your own half.
+    // top centre of your half, up against the midline. y 0.5 puts a card's
+    // CENTRE on the midline, so just over it is just inside your own half.
     expect(bolt.pos!.x).toBe(0.5);
-    expect(bolt.pos!.y).toBeGreaterThan(bear.pos!.y);
     expect(bolt.pos!.y).toBeGreaterThan(0.5);
+    expect(bolt.pos!.y).toBeLessThan(0.65);
+    // same row as the creatures, but centred instead of hard left
+    expect(bolt.pos!.x).toBeGreaterThan(bear.pos!.x);
     // and it carries no position into the graveyard
     applyAction("agent", "stack_resolve", { item: game.stack[0].id });
     expect(bolt.zone).toBe("graveyard");

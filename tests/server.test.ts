@@ -38,6 +38,25 @@ afterAll(() => {
   proc?.kill();
 });
 
+describe("what undo steps back through", () => {
+  // undo is for taking back a PLAY. Passing priority, chatting and sliding a
+  // card are not plays — and with a pass between every action, counting them
+  // would turn one undo into three.
+  const life = async () => (await api("/api/state?viewer=you")).players.you.life;
+
+  test("one undo reaches past the passes and chat to the last real play", async () => {
+    const before = await life();
+    await act("you", "life", { player: "you", delta: -5 });
+    await act("you", "done");
+    await act("agent", "done");
+    await act("you", "chat", { text: "your turn" });
+    expect(await life()).toBe(before - 5);
+
+    await api("/api/undo", {});
+    expect(await life()).toBe(before);
+  });
+});
+
 describe("api basics", () => {
   test("serves the frontend", async () => {
     const res = await fetch(BASE + "/");

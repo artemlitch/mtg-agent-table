@@ -73,7 +73,7 @@ export interface Card {
 const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
   you: {
     creature: { x: 0.02, y: 0.59 }, // top left of your half
-    spell: { x: 0.5, y: 0.73 }, //    middle, underneath the creatures
+    spell: { x: 0.5, y: 0.59 }, //    top centre, up against the midline
     other: { x: 0.97, y: 0.73 }, //   the right-hand column
     land: { x: 0.12, y: 1 }, //       the land row, flush above your hand
   },
@@ -81,7 +81,7 @@ const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> =
   // its creatures also come forward and its lands also sit on its own edge
   agent: {
     creature: { x: 0.02, y: 0.41 },
-    spell: { x: 0.5, y: 0.27 },
+    spell: { x: 0.5, y: 0.41 },
     other: { x: 0.97, y: 0.27 },
     land: { x: 0.12, y: 0 },
   },

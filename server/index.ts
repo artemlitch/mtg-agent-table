@@ -5,7 +5,7 @@ import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
-import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, getHistory, setHistory } from "./history";
+import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, historySize, clearHistory, getHistory, setHistory } from "./history";
 import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 
@@ -20,6 +20,9 @@ const wakeAgent = (reason: "window" | "react" = "window") => {
 agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
+
+/** Actions that never become an undo step — see the note where it is used. */
+const NOT_UNDOABLE = new Set(["place", "chat", "done"]);
 
 // Everything persisted beside the game itself. A backup carries the table as
 // it stands; the live state file adds the undo history.
@@ -106,6 +109,7 @@ const server = Bun.serve({
         view.agentTransport = transportChoice();
         view.cliInstalled = !!resolveClaudeBin();
         view.canRedo = redoSize() > 0;
+        view.undoDepth = historySize();
       }
       return json(view);
     }
@@ -220,11 +224,15 @@ const server = Bun.serve({
             body.params = { ...body.params, image: info.image, oracle: body.params.oracle ?? info.oracle, typeLine: body.params.typeLine ?? info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
-        // sliding a card around the table changes nothing about the game, so it
-        // is not an undo step and it does not wake the agent. Chat is
-        // conversation rather than a game action, so it skips undo too.
+        // Sliding a card around the table changes nothing about the game, so
+        // it does not wake the agent either.
         const cosmetic = body.type === "place";
-        const undoable = !cosmetic && body.type !== "chat";
+        // What cmd+Z steps back through. Undo is for taking back a PLAY, so
+        // the things that are not plays stay out of the history: layout,
+        // conversation, and passing priority — nobody reaches for undo to
+        // un-pass a turn, and a pass between every action turns one undo into
+        // three.
+        const undoable = !NOT_UNDOABLE.has(body.type);
         if (undoable) recordSnapshot();
         let result;
         try {
