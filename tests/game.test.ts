@@ -104,6 +104,35 @@ describe("trigger hints", () => {
     expect(r.DEATH_TRIGGER_CANDIDATES!.sort()).toEqual(["Agent's Midnight Reaper", "Player's Blood Artist"]);
   });
 
+  test("entering the battlefield lists watchers, including the card's own ETB", () => {
+    seedCard("Soul Warden", "agent", "battlefield", {
+      oracle: "Whenever another creature enters the battlefield, you gain 1 life.",
+    });
+    const back = seedCard("Gravedigger", "you", "graveyard", {
+      oracle: "When Gravedigger enters the battlefield, return target creature card from your graveyard to your hand.",
+    });
+    const r = applyAction("you", "move", { card: back.id, toZone: "battlefield", note: "reanimate" });
+    expect(r.ENTER_TRIGGER_CANDIDATES!.sort()).toEqual(["Agent's Soul Warden", "Player's Gravedigger"]);
+  });
+
+  test("leaving the battlefield (bounce) lists leaves-watchers, not death-watchers", () => {
+    seedCard("Watcher", "agent", "battlefield", {
+      oracle: "Whenever a creature leaves the battlefield, draw a card.",
+    });
+    const c = seedCard("Bear", "you", "battlefield");
+    const r = applyAction("you", "move", { card: c.id, toZone: "hand" });
+    expect(r.LEAVE_TRIGGER_CANDIDATES).toEqual(["Agent's Watcher"]);
+    expect(r.DEATH_TRIGGER_CANDIDATES).toBeUndefined();
+  });
+
+  test("tokens entering trigger the enter-watchers hint", () => {
+    seedCard("Soul Warden", "you", "battlefield", {
+      oracle: "Whenever another creature enters the battlefield, you gain 1 life.",
+    });
+    const r = applyAction("you", "create_token", { name: "Treasure", n: 1 });
+    expect(r.ENTER_TRIGGER_CANDIDATES).toEqual(["Player's Soul Warden"]);
+  });
+
   test("a discard (hand → graveyard) raises no death hint", () => {
     seedCard("Blood Artist", "you", "battlefield", { oracle: "Whenever a creature dies, drain 1." });
     const c = seedCard("Bear", "you", "hand");

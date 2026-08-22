@@ -195,15 +195,21 @@ export function triggerLines(c: Card): string[] {
     .filter((l) => TRIGGER_WORD.test(l) || SAGA_CHAPTER.test(l) || TRIGGER_KEYWORD.test(l));
 }
 
-/** Battlefield permanents (both sides) whose text mentions deaths/leaving. */
-export function deathTriggerCandidates(): string[] {
+/** Battlefield permanents (both sides) whose TRIGGER text watches the given
+ * zone-change event. Scanned after the change, so an entering card's own ETB
+ * lines list it too. */
+export function zoneChangeWatchers(kind: "enters" | "leaves" | "dies"): string[] {
+  const re =
+    kind === "enters"
+      ? /\benters?\b/i
+      : kind === "dies"
+        ? /\b(dies|die|put into a graveyard|leaves the battlefield)\b/i
+        : /\bleaves the battlefield\b/i;
   const out: string[] = [];
   for (const p of PLAYERS) {
     for (const id of game.players[p].zones.battlefield) {
       const c = game.cards[id];
-      if (c && /\b(dies|die|leaves the battlefield|put into a graveyard)\b/i.test(activeOracle(c))) {
-        out.push(`${who(p)}'s ${c.name}`);
-      }
+      if (c && triggerLines(c).some((l) => re.test(l))) out.push(`${who(p)}'s ${c.name}`);
     }
   }
   return out;
@@ -586,7 +592,15 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     }
   }
   addLog(ctx.actor, `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`);
-  return { ok: true, card: card.id, toZone };
+  const enterWatchers = toZone === "battlefield" ? zoneChangeWatchers("enters") : [];
+  return {
+    ok: true,
+    card: card.id,
+    toZone,
+    ...(enterWatchers.length
+      ? { ENTER_TRIGGER_CANDIDATES: enterWatchers, note: "it entered the battlefield — these cards have trigger text mentioning enters (its own ETB lines included); check which apply and stack them" }
+      : {}),
+  };
 }
 
 export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> = {
@@ -654,10 +668,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     let toPlayerForLog: PlayerId = p.toPlayer ?? cards[0].controller;
 
     let deaths = 0;
+    let leftBf = 0;
+    let enteredBf = 0;
     for (const card of cards) {
       const fromZone = card.zone;
       fromZones.add(fromZone);
       if (fromZone === "battlefield" && toZone === "graveyard") deaths++;
+      else if (fromZone === "battlefield" && toZone !== "battlefield") leftBf++;
+      if (toZone === "battlefield" && fromZone !== "battlefield") enteredBf++;
       const preVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
       const toPlayer: PlayerId = p.toPlayer === undefined ? card.controller : asPlayer(p.toPlayer, "toPlayer");
       toPlayerForLog = toPlayer;
@@ -711,13 +729,21 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     for (const v of PLAYERS) if (line(names[v]) !== publicText) priv[v] = line(names[v]);
     addLog(ctx.actor, publicText, Object.keys(priv).length ? priv : undefined);
 
-    const deathWatchers = deaths ? deathTriggerCandidates() : [];
+    const deathWatchers = deaths ? zoneChangeWatchers("dies") : [];
+    const leaveWatchers = leftBf ? zoneChangeWatchers("leaves") : [];
+    const enterWatchers = enteredBf ? zoneChangeWatchers("enters") : [];
     return {
       ok: true,
       cards: movedIds,
       removedTokens,
       ...(deathWatchers.length
-        ? { DEATH_TRIGGER_CANDIDATES: deathWatchers, note: "something just died — these battlefield cards mention dies/leaves (from their text); check which trigger and stack them" }
+        ? { DEATH_TRIGGER_CANDIDATES: deathWatchers, note: "something just died — these battlefield cards have trigger text mentioning dies/leaves; check which apply and stack them" }
+        : {}),
+      ...(leaveWatchers.length
+        ? { LEAVE_TRIGGER_CANDIDATES: leaveWatchers }
+        : {}),
+      ...(enterWatchers.length
+        ? { ENTER_TRIGGER_CANDIDATES: enterWatchers, note: "something entered the battlefield — these cards have trigger text mentioning enters (the entering card's own ETB lines included); check which apply and stack them" }
         : {}),
     };
   },
@@ -814,7 +840,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ids.push(id);
     }
     addLog(ctx.actor, `${who(ctx.actor)} created ${n}x ${p.name} token for ${who(player)}`);
-    return { ok: true, ids };
+    const enterWatchers = zoneChangeWatchers("enters");
+    return {
+      ok: true,
+      ids,
+      ...(enterWatchers.length
+        ? { ENTER_TRIGGER_CANDIDATES: enterWatchers, note: "tokens entered the battlefield — these cards have trigger text mentioning enters; check which apply and stack them" }
+        : {}),
+    };
   },
 
   /** Override a card's current P/T (layers shorthand); empty/absent power resets to printed. */
@@ -1076,6 +1109,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.faceDown = false;
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
       const landTrig = triggerLines(card);
+      const landWatchers = zoneChangeWatchers("enters");
       return {
         ok: true,
         card: card.id,
@@ -1083,6 +1117,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         ...(landTrig.length
           ? { TRIGGERS_ON_THIS_CARD: landTrig, note: "the land drop itself is stackless, but these triggers still go on the stack (stack_push)" }
           : {}),
+        ...(landWatchers.length ? { ENTER_TRIGGER_CANDIDATES: landWatchers } : {}),
       };
     }
     // declared targets are PUBLIC stack information — resolve them before any
