@@ -1896,8 +1896,6 @@ function libraryMenu(p, e) {
       })
     );
   }
-  // draw leads, then search, then the counter tiles
-  if (mine) m.append(button("lp-wide lp-draw", "Draw", "draw", (n) => act("draw", { n }), true));
   m.append(
     button("lp-wide", "Search", "search", async () => {
       const r = await act("view_zone", { player: p, zone: "library" });
@@ -1915,6 +1913,7 @@ function libraryMenu(p, e) {
   );
   m.append(grid);
 
+  if (mine) m.append(button("lp-wide lp-draw", "Draw", "draw", (n) => act("draw", { n }), true));
   m.append(
     button("lp-wide", "Reveal top", "reveal", async () => {
       const r = await act("peek", { player: p, n: 1 });
