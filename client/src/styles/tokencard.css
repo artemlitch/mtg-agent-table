@@ -1,0 +1,159 @@
+/* The custom-token maker drawn as the card it makes (CustomTokenCard) and the
+   same face printed on the battlefield (TokenFace in Card.tsx). One set of
+   region rules serves both, so what you build is what you see.
+
+   Everything is proportional. The maker sizes its type off --cardsize; the
+   printed face off the card's own width in container units, because that card
+   is 92px on the board, 76px in a hand and whatever the browser's density
+   slider says in a modal. Every region is placed as a percentage, so the
+   anatomy holds at all of those. */
+
+.tokencard {
+  --w: var(--cardsize, 190px);
+  position: relative;
+  width: var(--w);
+  aspect-ratio: 0.716;
+  flex: none;
+  font-size: calc(var(--w) * 0.058);
+  font-family: var(--font-fantasy);
+  border-radius: 4.5% / 3.2%;
+  padding: 0;
+  background:
+    linear-gradient(180deg, #241d31, #16121e) padding-box,
+    var(--chrome) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* the fields read as printed text until you touch them: the card's own type,
+   no plate of their own */
+.tokencard input,
+.tokencard textarea {
+  width: 100%;
+  padding: 0 0.25em;
+  border: 1px solid transparent;
+  border-radius: 0.2em;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: 0.01em;
+  transition: var(--hover-transition);
+}
+.tokencard input::placeholder,
+.tokencard textarea::placeholder { color: var(--dim); opacity: 0.55; }
+.tokencard input:hover,
+.tokencard textarea:hover { background: rgba(226, 179, 85, 0.06); }
+.tokencard input:focus,
+.tokencard textarea:focus {
+  outline: none;
+  background: rgba(226, 179, 85, 0.1);
+  border-color: rgba(226, 179, 85, 0.45);
+}
+
+/* ── the regions, in card anatomy order ── */
+
+/* title: centred across its own bar, the way a token's name is */
+.tokencard .tc-title,
+.tokenface .tc-title {
+  position: absolute; left: 5.5%; right: 5.5%; top: 3.2%; height: 9%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 0.25em;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--gold-hi);
+}
+.tokencard .tc-title input { font-size: 1em; text-align: center; color: var(--gold-hi); }
+
+/* the art is the art — no frame around it, nothing behind it */
+.tokencard .tc-art,
+.tokenface .tc-art {
+  position: absolute; left: 5.5%; right: 5.5%; top: 14%; height: 38%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.tokencard .tc-icon { font-size: calc(var(--w) * 0.3); color: var(--accent); opacity: 0.9; }
+.tokencard .tc-arrow {
+  position: absolute; top: 0; bottom: 0; width: 22%;
+  display: flex; align-items: center; justify-content: center;
+  font: var(--fw-heading) calc(var(--w) * 0.11)/1 var(--font-fantasy);
+  color: var(--dim); opacity: 0; padding: 0;
+}
+.tokencard .tc-arrow.left { left: 0; }
+.tokencard .tc-arrow.right { right: 0; }
+.tokencard .tc-art:hover .tc-arrow { opacity: 0.75; }
+.tokencard .tc-arrow:hover { opacity: 1; color: var(--gold-hi); }
+
+/* type line and rules text share one box, divided by a hairline: on a token
+   the type is a label for the text under it, not a bar of its own */
+.tokencard .tc-body,
+.tokenface .tc-body {
+  position: absolute; left: 5.5%; right: 5.5%; top: 54%; bottom: 12.5%;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(226, 179, 85, 0.3); border-radius: 0.25em;
+  background: rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+.tokencard .tc-type,
+.tokenface .tc-type {
+  flex: none; display: flex; align-items: center;
+  padding: 0 0.15em; min-height: 1.5em;
+  border-bottom: 1px solid rgba(226, 179, 85, 0.22);
+  color: var(--gold-hi);
+}
+.tokencard .tc-type input { font-size: 0.82em; color: var(--gold-hi); }
+.tokencard .tc-text,
+.tokenface .tc-text { flex: 1; min-height: 0; }
+.tokencard .tc-text textarea {
+  width: 100%; height: 100%; resize: none;
+  padding: 0.3em 0.4em; border-radius: 0;
+  font-family: var(--font-scroll); font-size: 0.78em; line-height: 1.3;
+}
+
+/* the P/T box hangs off the bottom-right corner, like the printed one */
+.tokencard .tc-pt,
+.tokenface .tc-pt {
+  position: absolute; right: 5%; bottom: 2.2%; width: 27%; height: 9%;
+  display: flex; align-items: center; justify-content: center; gap: 0.1em;
+  border: 1px solid transparent; border-radius: 0.25em;
+  background: linear-gradient(180deg, #2b2231, #17111d) padding-box, var(--chrome-dim) border-box;
+  font-weight: var(--fw-heavy); color: var(--gold-hi);
+}
+.tokencard .tc-pt input { width: 1.9em; text-align: center; padding: 0; font-weight: var(--fw-heavy); color: var(--gold-hi); }
+.tokencard .tc-pt span { opacity: 0.65; }
+
+/* the maker sits beside the deck's own tokens rather than under them */
+.tokencustom {
+  display: flex; align-items: flex-start; gap: 14px; margin-top: 14px;
+  padding-top: 14px; border-top: 1px solid;
+  border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+}
+.tokencustom .tclabel {
+  color: var(--accent); font: var(--fw-label) var(--fs-note)/1.5 var(--font-fantasy); letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.tokencustom .tcside { display: flex; flex-direction: column; align-items: flex-start; }
+
+/* ── the same face, printed ────────────────────────────────────────────────
+   The container context is opted into only by cards that hold one of these:
+   container-type establishes a containing block for absolute descendants, and
+   every other card has some (the lift panel, the counter chip). */
+.card:has(> .tokenface) { container-type: inline-size; }
+.tokenface {
+  position: absolute; inset: 0; overflow: hidden;
+  border-radius: 6px;
+  font-size: 8.2cqw;
+  font-family: var(--font-fantasy);
+  color: var(--text);
+  background: linear-gradient(180deg, #241d31, #16121e);
+}
+.tokenface .tc-title,
+.tokenface .tc-type {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tokenface .tc-title { font-size: 1em; }
+.tokenface .tc-type { font-size: 0.82em; }
+.tokenface .tc-art img { width: 82%; height: 82%; object-fit: contain; border-radius: 0; }
+.tokenface .tc-text {
+  padding: 0.25em 0.35em; overflow: hidden;
+  font-family: var(--font-scroll); font-size: 0.72em; line-height: 1.25; color: var(--text);
+}
+.tokenface .tc-pt { font-size: 0.9em; }
