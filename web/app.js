@@ -1818,8 +1818,9 @@ function dropdown(options, value, onPick = () => {}) {
 // caller decides who runs the move — the board moves a card outright, the
 // graveyard browser puts it on the stack first.
 const DEST = {
-  hand: (c) => ["To hand", { toZone: "hand", toPlayer: c.owner }],
-  myHand: () => ["To my hand", { toZone: "hand", toPlayer: "you" }],
+  // always YOUR hand: nothing in this UI ever puts a card in the agent's hand,
+  // the agent takes cards itself
+  hand: () => ["To hand", { toZone: "hand", toPlayer: "you" }],
   graveyard: (c) => ["Graveyard", { toZone: "graveyard", toPlayer: c.owner }],
   exile: (c) => ["Exile", { toZone: "exile", toPlayer: c.owner }],
   exileDown: (c) => ["Exile face-down", { toZone: "exile", toPlayer: c.owner, faceDown: true, revealTo: "you" }],
@@ -2587,7 +2588,7 @@ function peekModal(p, cards) {
     el = modalCardEl(c, [
       ["Keep on top", () => { act("reorder_top", { player: p, top: [c.id] }); el.classList.remove("bottomed"); }],
       ["Bottom of library", () => { act("reorder_top", { player: p, toBottom: [c.id] }); el.classList.add("bottomed"); }],
-      destButton("myHand", c, leave),
+      destButton("hand", c, leave),
       destButton("graveyard", c, leave),
       destButton("exile", c, leave),
     ]);
@@ -2615,7 +2616,7 @@ function searchModal(p, cards) {
       const found = (params) => move({ ...params, note: "from library search" });
       grid.appendChild(
         modalCardEl(c, [
-          destButton("myHand", c, move),
+          destButton("hand", c, move),
           destButton("myBattlefield", c, move),
           destButton("graveyard", c, found),
           destButton("exile", c, found),
