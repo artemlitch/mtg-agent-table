@@ -33,6 +33,9 @@ export interface Card {
   /** Null until the card is placed. The server never invents one — see
    *  game/settle.ts, which places anything on the table that lacks one. */
   pos?: { x: number; y: number } | null;
+  /** Paint order among the cards on the table, low to high: bumped every time
+   *  the card is put down, so the last one you touched lies on top. */
+  z?: number;
   hidden?: boolean;
 
   name?: string;

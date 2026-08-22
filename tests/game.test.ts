@@ -806,6 +806,44 @@ describe("the table surface", () => {
     expect(game.log.length).toBe(before);
   });
 
+  test("putting a card down puts it on top of the ones it overlaps", () => {
+    const a = seedCard("A", "you", "battlefield");
+    const b = seedCard("B", "you", "battlefield");
+    applyAction("you", "place", { positions: [{ card: a.id, x: 0.3, y: 0.6 }] });
+    applyAction("you", "place", { positions: [{ card: b.id, x: 0.32, y: 0.6 }] });
+    expect(b.z).toBeGreaterThan(a.z!);
+    // touch A again and it comes back to the top
+    applyAction("you", "place", { positions: [{ card: a.id, x: 0.3, y: 0.6 }] });
+    expect(a.z).toBeGreaterThan(b.z!);
+  });
+
+  test("a batch of placements keeps its own order", () => {
+    const a = seedCard("A", "you", "battlefield");
+    const b = seedCard("B", "you", "battlefield");
+    applyAction("you", "place", {
+      positions: [
+        { card: a.id, x: 0.3, y: 0.6 },
+        { card: b.id, x: 0.4, y: 0.6 },
+      ],
+    });
+    expect(b.z).toBeGreaterThan(a.z!);
+  });
+
+  test("paint order runs across both seats — the table is one surface", () => {
+    const mine = seedCard("Mine", "you", "battlefield");
+    const theirs = seedCard("Theirs", "agent", "battlefield");
+    applyAction("you", "place", { positions: [{ card: mine.id, x: 0.3, y: 0.6 }] });
+    applyAction("agent", "place", { positions: [{ card: theirs.id, x: 0.3, y: 0.45 }] });
+    expect(theirs.z).toBeGreaterThan(mine.z!);
+  });
+
+  test("a game saved before paint order existed starts counting from 1", () => {
+    const c = seedCard("C", "you", "battlefield");
+    expect(c.z).toBeUndefined();
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.6 }] });
+    expect(c.z).toBe(1);
+  });
+
   test("either seat may place any card — the table is shared", () => {
     const mine = seedCard("Mine", "you", "battlefield");
     applyAction("agent", "place", { positions: [{ card: mine.id, x: 0.4, y: 0.9 }] });

@@ -59,7 +59,17 @@ export interface Card {
   // that is knowable from here. A card on the table with a null pos is a card
   // waiting for the client to place it, which it does before the next paint.
   pos?: { x: number; y: number } | null;
+  // Paint order among the cards lying on the table, low to high. Bumped every
+  // time the card is put down, so the last card you touched is the one on
+  // top — the same as sliding a real card over the one beside it. Not a
+  // z-index: the bands (a pile under its anchor, an unresolved card over
+  // everything) are the client's, and this only breaks ties inside them.
+  z?: number;
 }
+
+/** The next paint order. Read off the table rather than counted, so it needs
+ *  no state of its own and a game saved before this existed starts from 1. */
+const nextZ = () => 1 + Math.max(0, ...Object.values(game.cards).map((c) => c.z ?? 0));
 
 /** Table coordinates are fractions; anything else is off the table. NaN lands
  *  at 0 rather than poisoning the card's position. */
@@ -343,6 +353,7 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     attacking: card.attacking,
     blocking: card.blocking,
     pos: card.pos ?? null,
+    z: card.z ?? 0,
   };
   if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
   // a DFC always presents as its ACTIVE face — the composite name never shows
@@ -1477,6 +1488,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         throw new Error(`${c.name} is in ${c.zone} — only cards on the table (battlefield or stack) have a position`);
       }
       c.pos = { x: clamp01(Number(at.x)), y: clamp01(Number(at.y)) };
+      c.z = nextZ();
       moved.push(c.id);
     }
     return { ok: true, placed: moved.length };

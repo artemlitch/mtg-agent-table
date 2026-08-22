@@ -81,9 +81,15 @@ export function CardLayer() {
 
   return (
     <div id="cardlayer">
-      {PLAYERS.flatMap((p) =>
-        view.players[p].zones.battlefield.map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
-      )}
+      {/* In paint order: two cards that overlap are separated by nothing but
+          which comes later here, and the one you put down last should be the
+          one lying on top. Both seats sort together — the table is one
+          surface, so it cannot be "my cards over yours". */}
+      {PLAYERS.flatMap((p) => view.players[p].zones.battlefield)
+        .sort((a, b) => (a.z ?? 0) - (b.z ?? 0))
+        .map((c) => (
+          <Placed key={c.id} card={c} lift={lifts.get(c.id)} />
+        ))}
       {unresolved.map((item) => (
         <Placed key={item.card!.id} card={item.card!} item={item} />
       ))}
