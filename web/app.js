@@ -215,6 +215,13 @@ $("#btn-delkey").onclick = async () => {
 // no blocks declared — the standoff killer
 let noBlocksDeclaredFor = null;
 
+// the space shortcut only works while this window has the keyboard, so the
+// hint inside the button appears and disappears with focus
+const syncWindowFocus = () => document.body.classList.toggle("unfocused", !document.hasFocus());
+window.addEventListener("focus", syncWindowFocus);
+window.addEventListener("blur", syncWindowFocus);
+syncWindowFocus();
+
 // ── The next-action prompt ────────────────────────────────────────────────
 // One always-visible "most obvious next tap" floating over your board. This
 // is a PRECEDENCE list, not a linear chain: the agent's stack items outrank
@@ -378,7 +385,7 @@ function renderNextAction() {
   hint.classList.toggle("hidden", !a.hint);
   if (a.hint) hint.textContent = a.hint;
   else {
-    btn.textContent = a.label;
+    btn.querySelector(".na-label").textContent = a.label;
     btn.classList.toggle("urgent", a.kind === "urgent");
     btn.onclick = a.fn;
   }
@@ -2294,6 +2301,16 @@ document.addEventListener("keydown", (e) => {
   // keybinds are inert while typing
   const t = document.activeElement;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  // SPACE takes the floating next action, SHIFT+SPACE skips to the turn pass.
+  // preventDefault stops both the page scroll and the native button
+  // activation, so a focused button fires once.
+  if (e.key === " " || e.code === "Space") {
+    e.preventDefault();
+    if ($("#nextaction").classList.contains("hidden")) return;
+    const btn = e.shiftKey ? $("#na-skip") : $("#na-primary");
+    if (!btn.classList.contains("hidden")) btn.click();
+    return;
+  }
   if ((e.key === "e" || e.key === "E") && hoveredCard) {
     // E taps/untaps the hovered battlefield card (fresh lookup — state may
     // have re-rendered under the cursor since mouseenter).
