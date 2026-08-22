@@ -218,6 +218,49 @@ $("#btn-delkey").onclick = async () => {
 // reappearing for an attack you already waved through
 let noBlocksDeclaredFor = null;
 
+// ── icons ─────────────────────────────────────────────────────────────────
+// Inline SVG rather than an icon font: the app is deliberately network-free,
+// and these carry meaning worth drawing exactly. A tapped card's top points
+// at 3 o'clock, so tap sweeps 12→3 clockwise and untap sweeps 3→12 back.
+const ICONS = {
+  tap:
+    `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">` +
+    `<path d="M8 2.5 A5.5 5.5 0 0 1 13.5 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
+    `<polygon points="13.5,10.6 11.9,7.2 15.1,7.2" fill="currentColor"/></svg>`,
+  untap:
+    `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true">` +
+    `<path d="M13.5 8 A5.5 5.5 0 0 0 8 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
+    `<polygon points="5.4,2.5 8.8,0.9 8.8,4.1" fill="currentColor"/></svg>`,
+};
+
+// ── keyboard keycaps ──────────────────────────────────────────────────────
+// One look for every shortcut hint in the app. Mark a span with
+// data-keys="⇧,space" and it becomes outlined caps joined by +. Rendered
+// once at load; add a hint by adding the attribute, not by writing markup.
+function keyCaps(keys) {
+  const wrap = document.createDocumentFragment();
+  keys.forEach((k, i) => {
+    if (i) {
+      const plus = document.createElement("span");
+      plus.className = "keyplus";
+      plus.textContent = "+";
+      wrap.append(plus);
+    }
+    const cap = document.createElement("kbd");
+    cap.className = "keycap";
+    cap.textContent = k;
+    wrap.append(cap);
+  });
+  return wrap;
+}
+function renderKeyCaps(root = document) {
+  root.querySelectorAll("[data-keys]").forEach((el) => {
+    el.innerHTML = "";
+    el.append(keyCaps(el.dataset.keys.split(",")));
+  });
+}
+renderKeyCaps();
+
 // the space shortcut only works while this window has the keyboard, so the
 // hint inside the button appears and disappears with focus
 const syncWindowFocus = () => document.body.classList.toggle("unfocused", !document.hasFocus());
@@ -232,7 +275,7 @@ syncWindowFocus();
 // Each step is one entry — add, remove or reorder freely; the first whose
 // when() is true wins. Return either { label, fn } for a real action or
 // { hint } for a nudge at something the table can't do in one click.
-//   kind: "urgent" pulses (something waits on you), otherwise calm.
+//   icon: a key into ICONS, drawn before the label.
 //   skip: true adds the faded skip-to-pass-turn line underneath.
 
 const passTurnToAgent = async () => {
@@ -294,17 +337,17 @@ const NEXT_ACTION_STEPS = [
   {
     id: "answer-question",
     when: () => !!state.pendingQuestion,
-    step: () => ({ label: "💬 Answer the agent", kind: "urgent", fn: () => { switchTab("chat"); $("#chat-input").focus(); } }),
+    step: () => ({ label: "Answer the agent", fn: () => { switchTab("chat"); $("#chat-input").focus(); } }),
   },
   {
     id: "take-your-turn",
     when: (c) => c.top?.player === "agent" && !!c.top.turnPassTo,
-    step: (c) => ({ label: "⏭ Take your turn", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
+    step: (c) => ({ label: "Take your turn", fn: () => act("stack_resolve", { item: c.top.id }) }),
   },
   {
     id: "lock-their-attack",
     when: (c) => c.top?.player === "agent" && !!c.top.attackPairs,
-    step: (c) => ({ label: "⚔ Go to damage", kind: "urgent", fn: () => act("stack_resolve", { item: c.top.id }) }),
+    step: (c) => ({ label: "Go to damage", fn: () => act("stack_resolve", { item: c.top.id }) }),
   },
   {
     id: "resolve-all",
@@ -312,8 +355,7 @@ const NEXT_ACTION_STEPS = [
     step: (c) => {
       const card = stackItemCard(c.top);
       return {
-        label: `✓ Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
-        kind: "urgent",
+        label: `Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
         sub: stackSubText(c.top, card),
         card,
         fn: () => act("stack_resolve_all", { group: c.top.groupId }),
@@ -327,9 +369,8 @@ const NEXT_ACTION_STEPS = [
       const card = stackItemCard(c.top);
       return {
         // with no card to picture, the item's own words carry the name
-        label: card ? "✓ Resolve" : `✓ Resolve: ${String(c.top.text || "").slice(0, 32)}`,
+        label: card ? "Resolve" : `Resolve: ${String(c.top.text || "").slice(0, 32)}`,
         sub: card ? stackSubText(c.top, card) : "",
-        kind: "urgent",
         card,
         fn: () => act("stack_resolve", { item: c.top.id }),
       };
@@ -344,8 +385,7 @@ const NEXT_ACTION_STEPS = [
     id: "no-blocks",
     when: (c) => c.theirAttackers.length > 0 && !c.iAmBlocking && noBlocksDeclaredFor !== c.attackSig,
     step: (c) => ({
-      label: "🛡 No blocks — take the damage",
-      kind: "urgent",
+      label: "No blocks — take the damage",
       fn: () => { noBlocksDeclaredFor = c.attackSig; act("chat", { text: "No blocks." }); },
     }),
   },
@@ -370,22 +410,22 @@ const NEXT_ACTION_STEPS = [
   {
     id: "untap",
     when: (c) => /untap/.test(c.phase) && c.myTapped && !didThisTurn(/^Player untapped all/),
-    step: () => ({ label: "↻ Untap all", skip: true, fn: async () => { await act("untap_all", { player: "you" }); act("set_phase", { phase: "untap/upkeep" }); } }),
+    step: () => ({ label: "Untap all", icon: "untap", skip: true, fn: async () => { await act("untap_all", { player: "you" }); act("set_phase", { phase: "untap/upkeep" }); } }),
   },
   {
     id: "draw",
     when: (c) => /untap/.test(c.phase) && state.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
-    step: () => ({ label: "🂠 Draw 1", skip: true, fn: () => act("draw", { n: 1 }) }),
+    step: () => ({ label: "Draw 1", skip: true, fn: () => act("draw", { n: 1 }) }),
   },
   {
     id: "main-1",
     when: (c) => /untap/.test(c.phase),
-    step: () => ({ label: "▶ Main phase 1", skip: true, fn: () => act("set_phase", { phase: "main 1" }) }),
+    step: () => ({ label: "Main phase 1", skip: true, fn: () => act("set_phase", { phase: "main 1" }) }),
   },
   {
     id: "to-combat",
     when: (c) => c.phase === "main 1",
-    step: () => ({ label: "⚔ Go to combat", skip: true, fn: () => act("set_phase", { phase: "combat" }) }),
+    step: () => ({ label: "Go to combat", skip: true, fn: () => act("set_phase", { phase: "combat" }) }),
   },
   {
     id: "combat-damage",
@@ -393,7 +433,7 @@ const NEXT_ACTION_STEPS = [
     // one click straight onto the stack — the agent works out the numbers,
     // the player never types damage
     step: () => ({
-      label: "💥 Go to damage",
+      label: "Go to damage",
       skip: true,
       fn: () => act("stack_push", { text: "go to damage" }),
     }),
@@ -404,7 +444,7 @@ const NEXT_ACTION_STEPS = [
     id: "past-combat",
     when: (c) => c.phase === "combat",
     step: () => ({
-      label: "▶ Main phase 2",
+      label: "Main phase 2",
       title: "right-click a creature to attack instead",
       skip: true,
       fn: () => act("set_phase", { phase: "main 2" }),
@@ -413,12 +453,12 @@ const NEXT_ACTION_STEPS = [
   {
     id: "main-2",
     when: (c) => c.phase === "main 2",
-    step: () => ({ label: "🌙 End step", skip: true, fn: () => act("set_phase", { phase: "end" }) }),
+    step: () => ({ label: "End step", skip: true, fn: () => act("set_phase", { phase: "end" }) }),
   },
   {
     id: "pass-turn",
     when: () => true, // end step, or any phase we don't have a step for
-    step: () => ({ label: "⏭ Pass turn to agent", fn: passTurnToAgent }),
+    step: () => ({ label: "Pass turn to agent", fn: passTurnToAgent }),
   },
 ];
 
@@ -439,9 +479,10 @@ function renderNextAction() {
   hint.classList.toggle("hidden", !a.hint);
   if (a.hint) hint.textContent = a.hint;
   else {
-    btn.querySelector(".na-label").textContent = a.label;
+    const labelEl = btn.querySelector(".na-label");
+    labelEl.innerHTML = a.icon ? ICONS[a.icon] ?? "" : "";
+    labelEl.append(document.createTextNode(a.label));
     btn.title = a.title || "";
-    btn.classList.toggle("urgent", a.kind === "urgent");
     btn.onclick = a.fn;
     // the stack item's own words, under the action
     const sub = btn.querySelector(".na-sub");
