@@ -76,9 +76,9 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   let at = { left: 0, top: 0 };
   let last = { x: startX, y: startY };
 
-  // the elements currently lit as the drop target — armed and un-armed by
-  // toggling a class, never through React
-  let aimedAt: Region | null = null;
+  // the card a drop would tuck under, ringed by a class toggle rather than
+  // through React. The ZONES do not track the cursor at all: they are lit for
+  // the whole drag off body.dragging, in CSS.
   let aimedCard: CardBox | null = null;
   let frame = 0;
 
@@ -107,12 +107,6 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     // (or pre-placing an unresolved one) should never silently attach it to
     // whatever is under the drop
     const target = !region && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
-    if (region !== aimedAt) {
-      aimedAt?.el.classList.remove("armed");
-      region?.el.classList.add("armed");
-      aimedAt = region;
-      dlog("target", { zone: region ? `${region.kind}:${region.player}${region.zone ? ":" + region.zone : ""}` : "open table" });
-    }
     if (target !== aimedCard) {
       aimedCard?.el.classList.remove("tuckover");
       target?.el.classList.add("tuckover");
@@ -212,7 +206,6 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     // whatever the last painted frame decided
     const over = regionAt(regions, at);
     const overCard = !over && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
-    aimedAt?.el.classList.remove("armed");
     aimedCard?.el.classList.remove("tuckover");
     ui().hidePreview();
     // a felt card released beyond the placeable rect settles onto its clamped
