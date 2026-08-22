@@ -35,14 +35,15 @@ const samePos = (a: Card["pos"], b: { x: number; y: number }) => !!a && Math.abs
  *  it was just parsed from JSON and nothing else holds a reference to it. */
 function reconcile(v: GameView, pending: Map<string, { x: number; y: number }>) {
   if (!pending.size) return v;
-  for (const p of ["you", "agent"] as PlayerId[]) {
-    for (const c of v.players[p].zones.battlefield) {
-      const pos = pending.get(c.id);
-      if (!pos) continue;
-      if (samePos(c.pos, pos)) pending.delete(c.id);
-      else c.pos = pos;
-    }
-  }
+  const claim = (c: Card) => {
+    const pos = pending.get(c.id);
+    if (!pos) return;
+    if (samePos(c.pos, pos)) pending.delete(c.id);
+    else c.pos = pos;
+  };
+  for (const p of ["you", "agent"] as PlayerId[]) for (const c of v.players[p].zones.battlefield) claim(c);
+  // unresolved cards hold positions too (pre-placed while on the stack)
+  for (const it of v.stack ?? []) if (it.card) claim(it.card);
   return v;
 }
 

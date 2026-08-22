@@ -441,15 +441,18 @@ function spliceOutOfPile(card: Card) {
 }
 
 function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
+  const from = card.zone;
   spliceOutOfPile(card);
   removeFromZone(card);
   card.zone = zone;
   card.controller = player;
   card.visibleTo = [];
-  // every zone change re-homes the card: onto the battlefield it takes its new
-  // controller's corner, off the battlefield it has no position at all. So a
-  // battlefield card ALWAYS has a pos and the client never invents one.
-  card.pos = zone === "battlefield" ? { ...HOME_POS[player] } : null;
+  // every zone change re-homes the card: onto the battlefield it takes its
+  // new controller's corner, off the battlefield it has no position at all —
+  // so a battlefield card ALWAYS has a pos and the client never invents one.
+  // The exception is a card resolving off the stack: an unresolved card sits
+  // on the table too, and a spot chosen for it while it waited survives.
+  card.pos = zone === "battlefield" ? (from === "stack" && card.pos ? card.pos : { ...HOME_POS[player] }) : null;
   return game.players[player].zones[zone];
 }
 
@@ -1431,7 +1434,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const moved: string[] = [];
     for (const at of positions) {
       const c = getCard(at.card);
-      if (c.zone !== "battlefield") throw new Error(`${c.name} is in ${c.zone}, not on the battlefield — only cards on the table have a position`);
+      // unresolved cards sit on the table too — placing one pre-chooses the
+      // spot it resolves into
+      if (c.zone !== "battlefield" && c.zone !== "stack") {
+        throw new Error(`${c.name} is in ${c.zone} — only cards on the table (battlefield or stack) have a position`);
+      }
       c.pos = { x: clamp01(Number(at.x)), y: clamp01(Number(at.y)) };
       moved.push(c.id);
     }

@@ -133,11 +133,13 @@ body.dragging .cmdzone .card { pointer-events: none; }
   transition: none; z-index: 60 !important; cursor: grabbing;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
 }
-/* dragging out of the hand or command zone: those cards have no left/top of
-   their own to move, so a board-size clone rides the cursor while the
-   original dims in place (.beingdragged, card.css) */
-.card.dragghost {
-  position: fixed; z-index: 80; pointer-events: none; margin: 0;
+/* dragging out of the hand or command zone: the SAME element is lifted out
+   of flow at board size for the length of the gesture — no clone. The
+   !importants beat the fan's stylesheet transform and the inline margins and
+   z-index React laid the fan out with. */
+.card.draglift {
+  position: fixed !important; z-index: 80 !important; pointer-events: none;
+  margin: 0 !important; transform: none !important; transition: none;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
 }
 

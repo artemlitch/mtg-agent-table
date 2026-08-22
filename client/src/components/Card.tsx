@@ -17,15 +17,15 @@ export interface CardElProps {
   small?: boolean;
   elRef?: Ref<HTMLDivElement>;
   onPointerDown?: (e: RPointerEvent<HTMLDivElement>) => void;
-  /** ghosts open the Stack tab rather than the card menu */
+  /** unresolved cards open the Stack tab rather than the card menu */
   onClick?: (e: React.MouseEvent) => void;
   /** the stack panel that rides below a lifted card */
   children?: ReactNode;
 }
 
-/** THE card. One element, every state as a class: tapped, attacking, ghost,
- *  lifted, tucked, face-down. Used in hands, on the board, in the rail and on
- *  the stack — the geometry never changes, only the classes. */
+/** THE card. One element, every state as a class: tapped, attacking,
+ *  unresolved, lifted, tucked, face-down. Used in hands, on the board, in the
+ *  rail and on the stack — the geometry never changes, only the classes. */
 export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, children }: CardElProps) {
   const pendingTuck = useUI((s) => s.pendingTuck);
   const classes = ["card", c.tapped && "tapped", c.attacking && "attacking", c.blocking && "blocking", pendingTuck === c.id && "tuck-source", className]

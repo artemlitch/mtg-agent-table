@@ -14,7 +14,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { startDrag } from "../../game/drag";
-import { battlefieldGhosts, battlefieldTriggerGhosts, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { HOME, PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -63,44 +63,63 @@ export function CardLayer() {
   if (!view || !measured) return null;
 
   const lifts = new Map<string, StackItem>();
-  const ghosts: { item: StackItem; spell: boolean }[] = [];
+  const unresolved: StackItem[] = [];
   for (const p of PLAYERS) {
-    for (const { item, source } of battlefieldTriggerGhosts(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
-    for (const g of battlefieldGhosts(p)) ghosts.push({ item: g, spell: false });
-    for (const g of stackCardsOf(p)) if (resolveZoneOf(g) !== "battlefield") ghosts.push({ item: g, spell: true });
+    for (const { item, source } of liftedTriggers(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
+    unresolved.push(...stackCardsOf(p));
   }
 
   return (
-    <>
-      <div id="cardlayer">
-        {PLAYERS.flatMap((p) =>
-          view.players[p].zones.battlefield.map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
-        )}
-        {ghosts.map(({ item, spell }) => (
-          <Ghost key={item.card!.id} item={item} spell={spell} />
-        ))}
-      </div>
-    </>
+    <div id="cardlayer">
+      {PLAYERS.flatMap((p) =>
+        view.players[p].zones.battlefield.map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
+      )}
+      {unresolved.map((item) => (
+        <Placed key={item.card!.id} card={item.card!} item={item} />
+      ))}
+    </div>
   );
 }
 
-/** One battlefield card at its place on the surface. A tucked card has no
- *  place of its own — it hangs off the card above it, one step per rung, so a
- *  pile stays a pile however its top card moves. */
-function Placed({ card: c, lift }: { card: Card; lift?: StackItem }) {
+/** THE card, at its place on the surface — there is no other way a card gets
+ *  drawn on the table. Everything else is a state on it: `unresolved` while
+ *  it waits on the stack (translucent, bobbing, the stack buttons riding
+ *  below), `tucked` while it hangs in a pile, `lifted` while one of its
+ *  triggers waits. An unresolved card drags like any other — the spot you
+ *  put it in is where it resolves — it just cannot be tapped, because
+ *  tapping is not an action it has yet. */
+function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: StackItem }) {
   const { left, top, depth } = anchorOf(c);
-  const mine = c.controller === "you";
+  const mine = item ? item.player === "you" : c.controller === "you";
+  const spell = item && resolveZoneOf(item) !== "battlefield";
   // "tuckover" is not in this list on purpose: the drag paints it straight
   // onto the element, so lighting a target costs zero renders
-  const classes = ["placed", mine && "grabbable", depth > 0 && "tucked", lift && "lifted", pendingAttackOf(c.id) && "declaring"]
+  const classes = [
+    "placed",
+    mine && "grabbable",
+    item && "unresolved",
+    item?.countered && "countered",
+    spell && "spell",
+    depth > 0 && "tucked",
+    lift && "lifted",
+    !item && pendingAttackOf(c.id) && "declaring",
+  ]
     .filter(Boolean)
     .join(" ");
   return (
     <CardEl
       card={c}
       className={classes}
-      style={{ left, top, zIndex: depth > 0 ? Math.max(1, 20 - depth) : 21 }}
+      style={{ left, top, zIndex: item ? 22 : depth > 0 ? Math.max(1, 20 - depth) : 21 }}
       onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
+      onClick={
+        item
+          ? () => {
+              ui().hidePreview();
+              ui().setTab("stack");
+            }
+          : undefined
+      }
     >
       {lift && (
         <div className="liftpanel">
@@ -115,6 +134,11 @@ function Placed({ card: c, lift }: { card: Card; lift?: StackItem }) {
             {lift.text.length > 110 ? lift.text.slice(0, 110) + "…" : lift.text}
           </div>
           <StackItemButtons item={lift} />
+        </div>
+      )}
+      {item && (
+        <div className="liftpanel">
+          <StackItemButtons item={item} />
         </div>
       )}
     </CardEl>
@@ -138,29 +162,4 @@ function anchorOf(c: Card): { left: number; top: number; depth: number } {
   const claimed = useGame.getState().pendingPos.get(top.id);
   const at = posToPx(claimed ?? top.pos ?? HOME[top.controller]);
   return { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
-}
-
-/** THE card in its on-the-stack presentation — the same element as any board
- *  card, with "ghost" as a state class and the stack buttons riding below in a
- *  panel that does not affect its box. Not draggable: a card on the stack has
- *  no position yet (the server only gives one to cards that have landed), so
- *  it hovers in its caster's corner until it resolves. */
-function Ghost({ item, spell }: { item: StackItem; spell: boolean }) {
-  const c = item.card!;
-  const { left, top } = anchorOf(c);
-  return (
-    <CardEl
-      card={c}
-      className={["placed", "ghost", item.countered && "countered", spell && "spell"].filter(Boolean).join(" ")}
-      style={{ left, top, zIndex: 22 }}
-      onClick={() => {
-        ui().hidePreview();
-        ui().setTab("stack");
-      }}
-    >
-      <div className="liftpanel">
-        <StackItemButtons item={item} />
-      </div>
-    </CardEl>
-  );
 }

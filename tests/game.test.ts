@@ -787,7 +787,26 @@ describe("the table surface", () => {
 
   test("only cards on the table have a position", () => {
     const c = seedCard("C", "you", "hand");
-    expect(() => applyAction("you", "place", { positions: [{ card: c.id, x: 0.5, y: 0.5 }] })).toThrow(/not on the battlefield/);
+    expect(() => applyAction("you", "place", { positions: [{ card: c.id, x: 0.5, y: 0.5 }] })).toThrow(/only cards on the table/);
+  });
+
+  test("an unresolved card can be pre-placed, and resolves into that spot", () => {
+    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("stack");
+    // freshly cast: no position until somebody chooses one
+    expect(c.pos).toBeNull();
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.4, y: 0.7 }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("battlefield");
+    expect(c.pos).toEqual({ x: 0.4, y: 0.7 });
+  });
+
+  test("an unresolved card nobody placed resolves into its home corner", () => {
+    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.pos).toEqual(HOME_POS.you);
   });
 
   test("leaving the battlefield drops the position; coming back re-homes it", () => {

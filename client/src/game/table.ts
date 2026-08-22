@@ -50,8 +50,8 @@ export const PILE_DX = 15;
 export const PILE_DY = 26;
 
 /** Mirrors HOME_POS on the server: where a card sits before anybody has moved
- *  it. Only reached by cards the server has no position for — a stack ghost
- *  hovering before it resolves. */
+ *  it. Only reached by cards the server has no position for — an unresolved
+ *  card nobody has pre-placed yet. */
 export const HOME: Record<"you" | "agent", { x: number; y: number }> = {
   agent: { x: 0, y: 0 },
   you: { x: 0, y: 1 },

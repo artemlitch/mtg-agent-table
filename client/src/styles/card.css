@@ -1,5 +1,5 @@
-/* One card, everywhere it appears: in a hand, on the board, on the stack as a
-   ghost, and as a face-down back. Every state is a class on the same element. */
+/* One card, everywhere it appears: in a hand, on the board, unresolved on the
+   stack, and as a face-down back. Every state is a class on the same element. */
 
 .card { width: var(--card-w); height: var(--card-h); border-radius: 6px; position: relative; cursor: pointer; flex: none; transition: transform 0.15s; background: #222; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
 .card img { width: 100%; height: 100%; border-radius: 6px; display: block; object-fit: cover; }
@@ -17,10 +17,6 @@
 }
 .card.blocking { outline: 2px solid var(--blue); outline-offset: 1px; }
 .card.tuck-source { outline: 2px dashed var(--accent); }
-
-/* the card is riding the cursor as a dragghost clone; this one only holds
-   its slot open so the hand doesn't re-fan under your hand */
-.card.beingdragged { opacity: 0.25; }
 
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
 .badge { background: rgba(0, 0, 0, 0.8); border-radius: 4px; font-size: var(--fs-micro); padding: 0 4px; color: #ffd97a; }
@@ -87,25 +83,29 @@
 }
 .card .flipbtn:hover { background: rgba(216, 160, 61, 0.9); color: #14181c; }
 
-/* ghost = THE card in its on-the-stack presentation: the same .card.placed
-   element as any board card, styled as a state */
-.card.ghost {
+/* unresolved = THE card while it waits on the stack: the same element as any
+   board card, styled as a state. It drags like any card; it cannot be tapped
+   because tapping is not an action it has yet. */
+.card.unresolved {
   opacity: 0.55; filter: saturate(0.75); z-index: 6;
   outline: 1.5px dashed var(--accent); outline-offset: 2px;
-  animation: ghostbob 2.6s ease-in-out infinite;
+  animation: cardbob 2.6s ease-in-out infinite;
   box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 16px rgba(226, 179, 85, 0.25);
 }
-@keyframes ghostbob {
+/* the bob's transform would fight the drag's left/top; a carried card flies
+   level */
+.card.unresolved.dragging { animation: none; }
+@keyframes cardbob {
   0%, 100% { transform: translateY(-5px); }
   50% { transform: translateY(-11px); }
 }
-/* spells mid-cast: brighter than resolving-permanent ghosts, arcane violet cast */
-.card.ghost.spell {
+/* unresolved spells: brighter than resolving permanents, arcane violet cast */
+.card.unresolved.spell {
   opacity: 0.85; filter: none;
   box-shadow: 0 14px 22px rgba(0, 0, 0, 0.55), 0 0 20px rgba(140, 100, 220, 0.45);
 }
-.card.ghost.countered { filter: grayscale(0.75); opacity: 0.4 !important; animation: none; }
-.card.ghost.countered::after {
+.card.unresolved.countered { filter: grayscale(0.75); opacity: 0.4 !important; animation: none; }
+.card.unresolved.countered::after {
   content: "COUNTERED"; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-18deg);
   font: var(--fw-heavy) var(--fs-note)/1.4 var(--font-fantasy); letter-spacing: 0.1em; color: var(--red);
   background: rgba(10, 6, 6, 0.85); border: 1px solid var(--red); border-radius: 4px; padding: 1px 6px;
@@ -115,7 +115,7 @@
   outline: 1.5px solid var(--accent); outline-offset: 2px; z-index: 6;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(226, 179, 85, 0.35);
 }
-.card.lifted:not(.tapped) { animation: ghostbob 2.6s ease-in-out infinite; }
+.card.lifted:not(.tapped) { animation: cardbob 2.6s ease-in-out infinite; }
 .card .liftpanel {
   position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 5px;
   display: flex; flex-direction: column; gap: 3px; align-items: center;

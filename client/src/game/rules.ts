@@ -74,20 +74,15 @@ export function stackSubText(item: StackItem | null | undefined, card: Card | nu
   return t.trim();
 }
 
-/** Visible cards on the stack that belong to p. */
+/** Visible cards on the stack that belong to p — unresolved cards, drawn on
+ *  the table like any other card, in their unresolved state. */
 export function stackCardsOf(p: PlayerId): StackItem[] {
   return (gameView()?.stack ?? []).filter((it) => it.card && !it.card.hidden && it.player === p);
 }
 
-/** Stack items whose card would resolve onto p's battlefield — drawn as
- *  ghosts hovering in the slot they'd land in. */
-export function battlefieldGhosts(p: PlayerId): StackItem[] {
-  return stackCardsOf(p).filter((it) => resolveZoneOf(it) === "battlefield");
-}
-
 /** Text-only stack items (triggered/activated abilities) matched to their
  *  source permanent on p's battlefield — the source lifts off the board. */
-export function battlefieldTriggerGhosts(p: PlayerId): { item: StackItem; source: Card }[] {
+export function liftedTriggers(p: PlayerId): { item: StackItem; source: Card }[] {
   const out: { item: StackItem; source: Card }[] = [];
   const v = gameView();
   if (!v) return out;
