@@ -921,9 +921,11 @@ function pile(label, count, cards, onClick, onMenu) {
   const d = document.createElement("div");
   d.className = "pile";
   d.innerHTML = `<div class="phead"><span class="pname">${label}</span><span class="pcount">${count}</span></div>`;
-  // the last few cards, newest first, fanned tiny and face up — newest on top
+  // the last few cards, newest first, fanned tiny and face up — newest on top.
+  // The strip is always here, empty or not, so the rail doesn't jump when the
+  // first card lands in a pile.
   const recent = cards.slice(-5).reverse();
-  if (recent.length) {
+  {
     const strip = document.createElement("div");
     strip.className = "pstrip";
     recent.forEach((c, i) => {

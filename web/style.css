@@ -371,15 +371,18 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .deckstack .drawbtn { position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 7px; font-size: var(--fs-micro); padding: 3px 0; }
 .deckpile:hover img.cardback { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6), 0 0 14px rgba(226, 179, 85, 0.3); }
 
+/* no metallic rim in the rail — the piles are furniture, not controls */
 .pile {
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
-  background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
+  background: var(--panel2); transition: background 0.25s ease;
 }
-.pile:hover { background: linear-gradient(#241f33, #241f33) padding-box, var(--chrome) border-box; }
+.pile:hover { background: #241f33; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
 .pile .pcount { font-size: var(--fs-label); font-family: var(--font-fantasy); }
 /* tiny face-up fan of the pile's most recent cards; clipped, never scrolls */
+/* fixed height whether or not there is anything in it — an empty graveyard
+   holds its place in the rail */
 .pile .pstrip { display: flex; margin-top: 4px; height: 42px; overflow: hidden; }
 .pile .pstrip .mini {
   width: 30px; height: 42px; flex: none; position: relative; border-radius: 3px;
