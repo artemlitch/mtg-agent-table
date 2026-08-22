@@ -108,9 +108,9 @@ function DeckPile({ p }: { p: PlayerId }) {
         <div className="deckcount">{count}</div>
         {p === "you" && (
           <button
-            /* the same gold plate as End turn — the two buttons you actually
-               press every turn should look like each other */
-            className="drawbtn accent"
+            /* End turn's gold, in its quiet form — this one sits on top of the
+               deck art, where a filled plate would fight the card back */
+            className="drawbtn accent subtle"
             onClick={(e) => {
               e.stopPropagation();
               void act("draw", { n: 1 });

@@ -43,6 +43,21 @@ button.accent {
   color: #2a1c04; text-shadow: 0 1px 0 rgba(255, 240, 190, 0.4);
 }
 button.accent:hover { color: #1a1000; box-shadow: 0 0 12px rgba(240, 208, 120, 0.5); }
+/* The accent's quiet form, for a gold action that sits on top of artwork or
+   repeats often enough that a filled plate would shout: the gold moves into
+   the text and a 10% wash, and the plate only arrives on hover. */
+button.accent.subtle {
+  background:
+    linear-gradient(rgba(226, 179, 85, 0.1), rgba(226, 179, 85, 0.1)) padding-box,
+    var(--chrome-dim) border-box;
+  color: var(--gold-hi); text-shadow: none;
+}
+button.accent.subtle:hover {
+  background:
+    linear-gradient(rgba(226, 179, 85, 0.22), rgba(226, 179, 85, 0.22)) padding-box,
+    var(--chrome) border-box;
+  color: var(--gold-hi); box-shadow: 0 0 10px rgba(226, 179, 85, 0.35);
+}
 input {
   border: 1px solid transparent; border-radius: 7px; padding: 4px 8px; font: inherit; color: var(--text);
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome-dim) border-box;
