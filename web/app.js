@@ -365,7 +365,7 @@ const NEXT_ACTION_STEPS = [
     when: (c) => c.phase === "combat",
     step: () => ({
       label: "▶ Main phase 2",
-      title: "tap [e] a creature to attack instead",
+      title: "right-click a creature to attack instead",
       skip: true,
       fn: () => act("set_phase", { phase: "main 2" }),
     }),
@@ -2390,20 +2390,9 @@ function cardPrimaryAction(card, shift) {
         if (cur.tapped) act("tap", { cards: [cur.id], tapped: false });
         return;
       }
-      // 3. your untapped creature IN COMBAT → declare the attack. Only in
-      // combat: elsewhere E means tap (for mana), and attacking on a main
-      // phase keypress was never what anyone wanted
-      if (
-        typeCat(cur) === "creature" &&
-        !cur.attacking &&
-        !cur.tapped &&
-        /combat|attack/i.test(state.phase || "")
-      ) {
-        act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
-        return;
-      }
     }
-    // 4. anything else just taps/untaps
+    // 3. otherwise E is exactly what it has always been: tap/untap.
+    // Declaring an attack lives in the right-click menu
     act("tap", { cards: [cur.id], tapped: !cur.tapped });
   }
 }
