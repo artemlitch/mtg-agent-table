@@ -18,8 +18,8 @@
 .card.blocking { outline: 2px solid var(--blue); outline-offset: 1px; }
 .card.tuck-source { outline: 2px dashed var(--accent); }
 
-/* the card is being carried in the drag layer; this one is only holding its
-   slot open so the hand doesn't re-fan under your cursor */
+/* the card is riding the cursor as a dragghost clone; this one only holds
+   its slot open so the hand doesn't re-fan under your hand */
 .card.beingdragged { opacity: 0.25; }
 
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }

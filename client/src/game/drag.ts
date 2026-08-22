@@ -1,62 +1,30 @@
-// One drag, for every card on the table.
+// One drag, for every card on the table — and NO React anywhere in it.
 //
-// A card is picked up wherever it lives — hand, board, command zone — and
-// PROMOTED onto the felt: the real element stops rendering in its zone and the
-// same card draws in the drag layer at board size, in felt-local pixels. No
-// clone rides the cursor. That is the whole reason there is one drag function
-// here instead of the two that used to disagree with each other: a hand card
-// and a board card differ only in which zone was rendering them a moment ago.
+// A board card is moved the way it always was: the element itself, by
+// style.left/top. It already lives in #cardlayer in felt-local pixels, so the
+// numbers written during the drag are the same numbers the layout uses — no
+// promotion, no remount, no render. A hand or command-zone card has no
+// left/top of its own to move (one is a flex row, the other a fixed socket),
+// so a fixed-position clone rides the cursor while the original dims in
+// place, exactly like the old castDrag.
 //
-// Where it lands is decided by the region under the pointer, not by a chain of
-// special cases in the gesture. Regions declare themselves in the DOM (see
-// snapshotRegions); this file only asks "what is under the cursor" and hands
-// the card to that region's rule.
-import { create } from "zustand";
+// React is touched exactly zero times between pointerdown and drop. The
+// armed drop-target glow and the tuckover ring are classList toggles on the
+// two elements whose answer changed; incoming server views park until the
+// pointer comes up. Routing any of this through a store re-renders the whole
+// table per boundary-crossing, which is what made the drag trail the cursor.
+//
+// Where the card lands is decided by the region under the pointer, not by a
+// chain of special cases in the gesture: zones declare themselves with
+// data-drop (see snapshotRegions) and each kind owns its drop rule below.
 import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
-import { CH, CW, PILE_DX, PILE_DY, cardAt, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
+import { CH, CW, cardAt, posToPx, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
 
 /** How far the pointer travels before this is a drag and not a click. */
 const THRESHOLD = 6;
-
-// This store renders exactly TWICE per drag: once when the card lifts (mount
-// it in the drag layer, dim its slot) and once when it lands. Everything that
-// changes DURING the gesture — the card's position, which zone is lit, which
-// card would take the tuck — is imperative DOM, because a store write here
-// re-renders every subscriber: the whole card layer, both hands, the rails.
-// Routing per-frame state through React is what made the drag trail the
-// cursor.
-interface DragStore {
-  /** the card in hand, plus anything tucked beneath it, top-first */
-  cards: Card[];
-  begin(cards: Card[]): void;
-  end(): void;
-}
-
-export const useDrag = create<DragStore>((set) => ({
-  cards: [],
-  begin(cards) {
-    // While a card is in the air the table leaves the hover system: no
-    // previews, no tooltips, no hover chips. Without this, every card the
-    // cursor crosses raises its own full-size preview and repositions it on
-    // each mousemove, which is a card image being laid out continuously
-    // underneath the drag.
-    document.body.classList.add("dragging");
-    // and incoming server views wait until the pointer comes up — applying
-    // one mid-gesture re-renders the whole table underneath the drag
-    useGame.getState().setDragging(true);
-    set({ cards });
-  },
-  end() {
-    document.body.classList.remove("dragging");
-    set({ cards: [] });
-    useGame.getState().setDragging(false);
-  },
-}));
-
-export const draggingIds = () => new Set(useDrag.getState().cards.map((c) => c.id));
 
 // A release always fires a click, so a finished drag would also open the card
 // menu. The dragged card is flagged and its next click is eaten.
@@ -67,13 +35,6 @@ export function consumeDragClick(id: string): boolean {
   return true;
 }
 
-/** Write the carried card's position. Imperative on purpose: this runs on
- *  every frame of the drag, and the drag layer's CONTENTS do not change while
- *  it moves — only its offset does, so there is nothing for React to do. */
-function paint(layer: HTMLElement | null, left: number, top: number) {
-  if (layer) layer.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-}
-
 export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   if (down.button !== 0) return;
   const el = down.currentTarget as HTMLElement;
@@ -81,42 +42,39 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   const startX = down.clientX;
   const startY = down.clientY;
 
-  // grab the card where you actually grabbed it, as a fraction of the element.
-  // A hand card is smaller than a board card, so the fraction survives the
-  // promotion where a pixel offset would not.
+  // where on the card you grabbed it, as a fraction — a hand card is smaller
+  // than its board-size ghost, so a fraction survives where a pixel offset
+  // would not
   const src = el.getBoundingClientRect();
   const fx = src.width ? (startX - src.left) / src.width : 0.5;
   const fy = src.height ? (startY - src.top) / src.height : 0.5;
 
   const fromBoard = card.zone === "battlefield";
-  // Everything the gesture needs is read ONCE, here. Nothing on the table
-  // moves while you hold a card, so a pointermove is pure arithmetic plus one
-  // style write — no getBoundingClientRect, no getComputedStyle, no query.
+  // Everything the gesture needs is read ONCE when it goes live. Nothing on
+  // the table moves while you hold a card, so a pointermove is arithmetic
+  // plus one or two style writes — no reads, no queries, no renders.
   let origin = { x: 0, y: 0 };
   let regions: Region[] = [];
   let others: CardBox[] = [];
-  let layer: HTMLElement | null = null;
-  let carried: Card[] = [];
   let live = false;
+  // the element under the cursor: the card itself (board) or the ghost
+  let ghost: HTMLElement | null = null;
+  let startLeft = 0;
+  let startTop = 0;
+  // pile riders: the cards hanging beneath a carried pile top, moved by the
+  // same delta each frame
+  let kids: { el: HTMLElement; left: number; top: number }[] = [];
+  // felt-local top-left corner of the carried card, kept current every move —
+  // this is what the drop converts to a stored position
   let at = { left: 0, top: 0 };
-  // the elements currently lit as the drop target — armed and un-armed by
-  // toggling a class, never through React (see the store's comment)
-  let aimedAt: Region | null = null;
-  let aimedCard: CardBox | null = null;
-
-  let frame = 0;
   let last = { x: startX, y: startY };
 
-  const place = (clientX: number, clientY: number) => {
-    const f = { x: clientX - origin.x, y: clientY - origin.y };
-    at = { left: f.x - fx * CW(), top: f.y - fy * CH() };
-    paint(layer, at.left, at.top);
-    return f;
-  };
+  // the elements currently lit as the drop target — armed and un-armed by
+  // toggling a class, never through React
+  let aimedAt: Region | null = null;
+  let aimedCard: CardBox | null = null;
+  let frame = 0;
 
-  // the target under the cursor only changes when you cross a boundary, so it
-  // is resolved once a frame, and only the two elements whose answer changed
-  // are touched. The card's own position is NOT deferred — see onMove.
   const retarget = () => {
     frame = 0;
     const region = regionAt(regions, last.x - origin.x, last.y - origin.y);
@@ -141,23 +99,60 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       live = true;
       ui().hidePreview();
       ui().closeMenu();
-      // a pile travels with the card it hangs from; pulling a buried card out
-      // takes only that card
-      carried = [card, ...(fromBoard && !card.under ? pileChainBelow(card.id) : [])];
-      const ids = new Set(carried.map((c) => c.id));
+      // the table leaves the hover system (no previews, no tooltips, no hover
+      // chips waking under the cursor) and incoming views wait for the drop
+      document.body.classList.add("dragging");
+      useGame.getState().setDragging(true);
+      const carriedIds = new Set([card.id, ...(fromBoard && !card.under ? pileChainBelow(card.id).map((c) => c.id) : [])]);
       regions = snapshotRegions();
-      others = snapshotCards(ids);
-      layer = document.getElementById("draglayer");
+      others = snapshotCards(carriedIds);
       const felt = document.getElementById("felt")?.getBoundingClientRect();
       origin = { x: felt?.left ?? 0, y: felt?.top ?? 0 };
-      useDrag.getState().begin(carried);
+      if (fromBoard) {
+        // the card moves itself — .dragging kills its glide transition so it
+        // is under the cursor, not 180ms behind it
+        el.classList.add("dragging");
+        startLeft = parseFloat(el.style.left) || 0;
+        startTop = parseFloat(el.style.top) || 0;
+        for (const id of carriedIds) {
+          if (id === card.id) continue;
+          const kel = document.querySelector<HTMLElement>(`#cardlayer .card[data-card-id="${id}"]`);
+          if (kel) {
+            kel.style.transition = "none";
+            kids.push({ el: kel, left: parseFloat(kel.style.left) || 0, top: parseFloat(kel.style.top) || 0 });
+          }
+        }
+      } else {
+        // no layout box to move: a board-size clone rides the cursor
+        ghost = el.cloneNode(true) as HTMLElement;
+        ghost.className = "card dragghost";
+        ghost.style.width = `${CW()}px`;
+        ghost.style.height = `${CH()}px`;
+        document.body.appendChild(ghost);
+        el.classList.add("beingdragged");
+      }
     }
     last = { x: mv.clientX, y: mv.clientY };
-    // the card moves NOW, in the handler, the way it did before any of this:
-    // a transform write with no reads around it is cheap, and deferring it to
-    // the next animation frame is a frame of lag you can feel. Only the
-    // target hit-test waits for the frame.
-    place(mv.clientX, mv.clientY);
+    if (fromBoard) {
+      const dx = mv.clientX - startX;
+      const dy = mv.clientY - startY;
+      at = { left: startLeft + dx, top: startTop + dy };
+      el.style.left = `${at.left}px`;
+      el.style.top = `${at.top}px`;
+      for (const k of kids) {
+        k.el.style.left = `${k.left + dx}px`;
+        k.el.style.top = `${k.top + dy}px`;
+      }
+    } else {
+      // the ghost is fixed-position, so it lives in viewport pixels; `at`
+      // tracks the same corner in felt pixels for the drop
+      const left = mv.clientX - fx * CW();
+      const top = mv.clientY - fy * CH();
+      ghost!.style.left = `${left}px`;
+      ghost!.style.top = `${top}px`;
+      at = { left: left - origin.x, top: top - origin.y };
+    }
+    // which zone is lit only changes on a boundary, so it waits for the frame
     if (!frame) frame = requestAnimationFrame(retarget);
   };
 
@@ -175,26 +170,41 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       if (dragged === card.id) dragged = null;
     }, 400);
     // resolve the target from where the pointer ACTUALLY came up, not from
-    // whatever the last painted frame decided — a frame may have been dropped
-    const f = place(up.clientX, up.clientY);
+    // whatever the last painted frame decided
+    const f = { x: up.clientX - origin.x, y: up.clientY - origin.y };
     const over = regionAt(regions, f.x, f.y);
     const overCard = !over && fromBoard ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     aimedAt?.el.classList.remove("armed");
     aimedCard?.el.classList.remove("tuckover");
     ui().hidePreview();
-    // the card stays in the drag layer, at the point you let go, until the
-    // server has been told where it went — release it any earlier and it
-    // flicks back to its old spot for the length of the round trip
+    // a board card released beyond the placeable rect settles onto its
+    // clamped spot NOW — the exact pixel the store will render it at — so
+    // the server ack cannot move it
+    if (fromBoard && !over && !overCard) {
+      const px = posToPx(pxToPos(at.left, at.top));
+      el.style.left = `${px.left}px`;
+      el.style.top = `${px.top}px`;
+    }
+    // the carried element stays where you let go until the server has been
+    // told — release it earlier and it flicks back for the round trip
     try {
       await drop(card, over, overCard?.id ?? null, at);
     } finally {
-      useDrag.getState().end();
+      if (fromBoard) {
+        el.classList.remove("dragging");
+        for (const k of kids) k.el.style.transition = "";
+        kids = [];
+      } else {
+        ghost?.remove();
+        el.classList.remove("beingdragged");
+      }
+      document.body.classList.remove("dragging");
+      useGame.getState().setDragging(false);
     }
   };
 
-  // on the window, not on the card: a poll can re-render the hand mid-gesture,
-  // and listeners on an element that unmounts would strand the card in the
-  // drag layer with no pointerup ever arriving
+  // on the window, not on the card: a poll can re-render the source element
+  // away mid-gesture, and listeners on it would die with it
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
@@ -246,8 +256,3 @@ async function drop(card: Card, over: Region | null, overCard: string | null, at
   useGame.getState().expectPos(card.id, pos);
   await act("place", { positions: [{ card: card.id, x: pos.x, y: pos.y }] });
 }
-
-/** Where a carried card draws, relative to the drag layer's own offset. The
- *  layer is moved as one block, so the head sits at 0,0 and its pile cascades
- *  beneath it exactly as it would on the board. */
-export const carriedOffset = (depth: number) => ({ left: depth * PILE_DX, top: depth * PILE_DY });

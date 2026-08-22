@@ -5,7 +5,7 @@
 // the edges.
 import { useEffect, useRef, useState } from "react";
 import { CardEl } from "../../components/Card";
-import { startDrag, useDrag } from "../../game/drag";
+import { startDrag } from "../../game/drag";
 import { HAND_W } from "../../game/interaction";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
@@ -37,19 +37,15 @@ export function Hand({ p }: { p: PlayerId }) {
     overlap = Math.min(HAND_W * 0.8, HAND_W - (avail - HAND_W) / (n - 1));
   }
 
-  // a card being carried draws in the drag layer; the one here dims and holds
-  // its slot, so the fan doesn't re-arrange itself under your hand mid-drag.
-  // (This renders twice per drag — lift and land. The "armed" drop-target
-  // class is toggled imperatively by the drag, never through here.)
-  const carried = useDrag((s) => s.cards);
-
+  // dragging never renders this component: the drag dims the picked card and
+  // arms the strip by toggling classes on the elements directly
   return (
     <div className="handrow fan" id={`hand-${p}`} ref={row} data-drop={`hand:${p}`}>
       {cards.map((c, i) => (
         <CardEl
           key={c.id}
           card={c}
-          className={`fanned${carried.some((d) => d.id === c.id) ? " beingdragged" : ""}`}
+          className="fanned"
           onPointerDown={p === "you" && !c.hidden ? (e) => startDrag(e, c) : undefined}
           style={
             {

@@ -8,13 +8,12 @@
 // battlefield div that reserves the space — but nothing positions a card
 // except this file.
 //
-// A second, identical layer sits above the furniture and holds whatever is
-// being dragged. Same geometry, so promoting a card from one to the other
-// costs no conversion; different z, so the carried card passes over the hand
-// and the command zone instead of under them.
+// Dragging never re-renders this layer: the drag moves the card's own element
+// by style.left/top (see game/drag.ts), and the numbers it writes are the
+// same felt-local pixels rendered here, so pickup and drop are seamless.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
-import { carriedOffset, startDrag, useDrag } from "../../game/drag";
+import { startDrag } from "../../game/drag";
 import { battlefieldGhosts, battlefieldTriggerGhosts, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { HOME, PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
@@ -26,10 +25,6 @@ const PLAYERS: PlayerId[] = ["agent", "you"];
 
 export function CardLayer() {
   const view = useGame((s) => s.view);
-  // renders twice per drag — lift and land. Per-frame drag state (position,
-  // armed targets, the tuckover ring) never comes through React: a store
-  // write here re-renders every card on the table.
-  const carried = useDrag((s) => s.cards);
   const [measured, setMeasured] = useState(false);
   const [, bump] = useState(0);
 
@@ -66,7 +61,6 @@ export function CardLayer() {
   // nothing draws before the surface is measured: a card rendered at 0,0 and
   // then corrected would glide across the felt on its own transition
   if (!view || !measured) return null;
-  const hidden = new Set(carried.map((c) => c.id));
 
   const lifts = new Map<string, StackItem>();
   const ghosts: { item: StackItem; spell: boolean }[] = [];
@@ -80,18 +74,10 @@ export function CardLayer() {
     <>
       <div id="cardlayer">
         {PLAYERS.flatMap((p) =>
-          view.players[p].zones.battlefield
-            .filter((c) => !hidden.has(c.id))
-            .map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
+          view.players[p].zones.battlefield.map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
         )}
         {ghosts.map(({ item, spell }) => (
           <Ghost key={item.card!.id} item={item} spell={spell} />
-        ))}
-      </div>
-
-      <div id="draglayer" className={carried.length ? "" : "empty"}>
-        {carried.map((c, depth) => (
-          <CardEl key={c.id} card={c} className={`placed carried${depth ? " tucked" : ""}`} style={carriedOffset(depth)} />
         ))}
       </div>
     </>

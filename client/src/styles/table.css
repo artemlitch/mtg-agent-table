@@ -108,11 +108,9 @@
    fraction converts to a pixel with no per-seat offset; the layer itself is
    transparent to the pointer, so the hands and rails underneath still work,
    and each card opts back in. */
-#cardlayer,
-#draglayer {
-  position: absolute; inset: 0; pointer-events: none;
+#cardlayer {
+  position: absolute; inset: 0; pointer-events: none; z-index: 3;
 }
-#cardlayer { z-index: 3; }
 #cardlayer .card.placed { position: absolute; pointer-events: auto; transition: left 0.18s, top 0.18s; }
 /* mid-drag the table is inert to the pointer. The old drag held a pointer
    capture, which routed every event to the card being carried; window
@@ -128,20 +126,20 @@ body.dragging .cmdzone .card { pointer-events: none; }
 /* the card a drop would tuck under */
 #cardlayer .card.placed.tuckover { outline: 2px solid var(--gold-hi); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 208, 120, 0.7); }
 
-/* the carried card rides above the hands and command zones, which is the
-   whole reason it is a second layer and not a z-index on the first */
-/* the layer is what moves, once per frame, so it gets its own compositor
-   layer and the cards inside it are never re-laid-out */
-#draglayer { z-index: 60; will-change: transform; }
-#draglayer.empty { display: none; will-change: auto; }
-#draglayer .card.carried {
-  position: absolute; cursor: grabbing;
+/* mid-drag the card is the cursor: no glide transition (it would trail the
+   pointer by 180ms) and it rides over the hands and the command zones. The
+   z-index beats the per-card inline one. */
+#cardlayer .card.placed.dragging {
+  transition: none; z-index: 60 !important; cursor: grabbing;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
-  transform: scale(1.03);
 }
-/* a pile travels as a pile: the rungs keep their cascade and stay behind the
-   card you actually grabbed */
-#draglayer .card.carried.tucked { transform: none; filter: brightness(0.85); }
+/* dragging out of the hand or command zone: those cards have no left/top of
+   their own to move, so a board-size clone rides the cursor while the
+   original dims in place (.beingdragged, card.css) */
+.card.dragghost {
+  position: fixed; z-index: 80; pointer-events: none; margin: 0;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
+}
 
 /* The card layer sits over the felt, so everything that must stay reachable
    ON TOP of the cards is raised past it here. The rail and the midline do not

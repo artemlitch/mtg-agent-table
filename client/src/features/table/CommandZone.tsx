@@ -6,7 +6,7 @@
 // information too.
 import { act } from "../../api";
 import { CardEl } from "../../components/Card";
-import { startDrag, useDrag } from "../../game/drag";
+import { startDrag } from "../../game/drag";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
 
@@ -14,9 +14,8 @@ export function CommandZone({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.command);
   const tax = useGame((s) => s.view!.players[p].commanderTax) ?? 0;
   const mine = p === "you";
-  // the carried commander draws in the drag layer; this one dims in its
-  // socket. The "armed" glow is toggled imperatively by the drag.
-  const carried = useDrag((s) => s.cards);
+  // dragging never renders this component: the drag dims the picked card and
+  // lights the socket by toggling classes on the elements directly
   return (
     <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-drop={`command:${p}`} data-tip="Command zone">
       {/* the nebula: four blobs drifting on their own clocks — see table.css */}
@@ -28,12 +27,7 @@ export function CommandZone({ p }: { p: PlayerId }) {
       </div>
       <div className="cmdslot">
         {cards.map((c) => (
-          <CardEl
-            key={c.id}
-            card={c}
-            className={`cmdcard${carried.some((d) => d.id === c.id) ? " beingdragged" : ""}`}
-            onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
-          />
+          <CardEl key={c.id} card={c} className="cmdcard" onPointerDown={mine ? (e) => startDrag(e, c) : undefined} />
         ))}
       </div>
       {/* the {2}-per-previous-cast surcharge. Both seats keep it by hand — the
