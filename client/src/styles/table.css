@@ -54,17 +54,23 @@
   position: relative; overflow: hidden;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
   background: none;
+  transition: border-color 0.25s ease, background 0.25s ease;
 }
 .pile::after {
-  /* the panel purple taken down toward black, so the lip is a shadow the rail
-     casts rather than a light source of its own */
-  --pile-lip: color-mix(in srgb, var(--panel2) 45%, #000);
+  /* the panel purple part-way to black — dark enough to read against the rail,
+     not so dark it becomes a hole */
+  --pile-lip: color-mix(in srgb, var(--panel2) 35%, #000);
   content: ""; position: absolute; left: -25%; right: -25%; bottom: -144%;
   /* 160% tall, sunk 144% — 16% of the box shows, which is a tenth of the ellipse */
   height: 160%; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(ellipse at center, var(--pile-lip), color-mix(in srgb, var(--pile-lip) 45%, transparent) 45%, transparent 70%);
-  opacity: 0.5; transition: opacity 0.25s ease;
+  background: radial-gradient(ellipse at center, var(--pile-lip), color-mix(in srgb, var(--pile-lip) 50%, transparent) 55%, transparent 80%);
+  /* the crest of an ellipse is a hard line however soft the gradient is —
+     blur is what turns it into an edge rather than an arc drawn on the rail */
+  filter: blur(7px);
+  opacity: 0.7; transition: opacity 0.25s ease;
 }
+/* the plate used to carry the hover; a hairline rim does it now */
+.pile:hover { border-color: rgba(226, 179, 85, 0.4); background: rgba(226, 179, 85, 0.04); }
 .pile:hover::after { opacity: 1; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
