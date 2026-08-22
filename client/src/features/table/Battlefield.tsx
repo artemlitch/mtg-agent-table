@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act } from "../../api";
 import { CardEl } from "../../components/Card";
-import { CH, CW, clearOverlays, guardClicks, handZone, markDragged, noHover, swallowClick } from "../../game/interaction";
+import { CH, CW, capturePointer, clearOverlays, commandZone, guardClicks, handZone, markDragged, noHover, swallowClick } from "../../game/interaction";
 import { battlefieldGhosts, battlefieldTriggerGhosts, pendingAttackOf, resolveZoneOf, stackCardsOf, typeCat } from "../../game/rules";
 import { cardBeneathOf, pileChainBelow, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -315,11 +315,13 @@ function startDrag(down: React.PointerEvent<HTMLDivElement>, c: Card, p: PlayerI
       // riders track per-frame: the placed-card left/top glide transition would
       // make them trail the handle by 180ms
       for (const k of kids) k.el.style.transition = "none";
-      el.setPointerCapture?.(pointerId);
+      capturePointer(el, pointerId);
       // your own cards can go back to hand — offer the strip while dragging
       if (c.controller === "you") handZone.show(false);
     }
     if (c.controller === "you") handZone.show(handZone.over(mv.clientX, mv.clientY));
+    // a commander has a second way off the board: back into its own socket
+    if (c.isCommander) commandZone.arm(commandZone.over(mv.clientX, mv.clientY));
     // pure delta on the layout box: start position + pointer travel. No
     // transform can offset this — tapped cards drag identically.
     left = Math.max(0, Math.min(maxX, startLeft + (mv.clientX - down.clientX)));
@@ -344,8 +346,16 @@ function startDrag(down: React.PointerEvent<HTMLDivElement>, c: Card, p: PlayerI
     guardClicks();
     noHover.id = c.id;
     handZone.hide();
+    commandZone.arm(false);
     clearOverlays();
 
+    // dropped in the command zone → the commander goes home. Always its
+    // OWNER's zone, so a borrowed commander returns to the right side.
+    if (c.isCommander && commandZone.over(up.clientX, up.clientY)) {
+      useGame.getState().setDragging(false);
+      await act("move", { card: c.id, toZone: "command", toPlayer: c.owner });
+      return;
+    }
     // dropped on the strip over your hand → the card goes back to hand
     if (c.controller === "you" && handZone.over(up.clientX, up.clientY)) {
       useGame.getState().setDragging(false);

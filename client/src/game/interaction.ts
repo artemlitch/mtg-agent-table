@@ -115,6 +115,30 @@ export const handZone = {
   },
 };
 
+/** Keep the pointer on the element for the rest of the gesture. Throws if the
+ *  pointer is already gone — a release between the press and the first move —
+ *  and that must not abort the drag that is already under way. */
+export function capturePointer(el: Element, pointerId: number) {
+  try {
+    el.setPointerCapture?.(pointerId);
+  } catch {
+    /* no active pointer to capture; the move/up listeners still fire */
+  }
+}
+
+/** The command zone socket on your half of the board — the other place a card
+ *  being dragged off the battlefield can land. Same imperative treatment as
+ *  the hand strip, and for the same reason. */
+export const commandZone = {
+  arm(on: boolean) {
+    document.getElementById("cmdzone-you")?.classList.toggle("armed", on);
+  },
+  over(x: number, y: number) {
+    const r = document.getElementById("cmdzone-you")?.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  },
+};
+
 /** Close any menu and preview before a gesture takes over. */
 export const clearOverlays = () => {
   ui().hidePreview();

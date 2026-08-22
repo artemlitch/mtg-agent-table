@@ -4,7 +4,6 @@
 // distance from the midline on both sides.
 import { useEffect, useRef, useState } from "react";
 import { act } from "../../api";
-import { CardEl } from "../../components/Card";
 import { previewProps } from "../../components/CardPreview";
 import { useGame } from "../../store/game";
 import { menuOpen, ui, type Anchor } from "../../store/ui";
@@ -26,9 +25,7 @@ export function Rail({ p }: { p: PlayerId }) {
         onMenu={(e) => graveyardMenu(p, e)}
       />
       <Pile label="Exile" count={ps.counts.exile} cards={ps.zones.exile} onClick={() => openZoneBrowser(p, "exile")} />
-      {ps.zones.command.map((c) => (
-        <CardEl key={c.id} card={c} small />
-      ))}
+      {/* the command zone is a place on the board now — see CommandZone */}
     </div>
   );
 }
