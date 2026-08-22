@@ -71,18 +71,19 @@ export interface Card {
  *  that overlap those edges, so a land at y=1 rests exactly on top of your
  *  hand rather than behind it. */
 const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
-  // the agent's half is the top of the table, so its own edge is y=0
-  agent: {
-    creature: { x: 0.02, y: 0.44 },
-    land: { x: 0.12, y: 0 },
-    other: { x: 0.97, y: 0.28 },
-    spell: { x: 0.5, y: 0.38 },
-  },
   you: {
-    creature: { x: 0.02, y: 0.56 },
-    land: { x: 0.12, y: 1 },
-    other: { x: 0.97, y: 0.72 },
-    spell: { x: 0.5, y: 0.62 },
+    creature: { x: 0.02, y: 0.59 }, // top left of your half
+    spell: { x: 0.5, y: 0.73 }, //    middle, underneath the creatures
+    other: { x: 0.97, y: 0.73 }, //   the right-hand column
+    land: { x: 0.12, y: 1 }, //       the land row, flush above your hand
+  },
+  // the agent's half mirrors yours about the midline: same x, y flipped, so
+  // its creatures also come forward and its lands also sit on its own edge
+  agent: {
+    creature: { x: 0.02, y: 0.41 },
+    spell: { x: 0.5, y: 0.27 },
+    other: { x: 0.97, y: 0.27 },
+    land: { x: 0.12, y: 0 },
   },
 };
 
@@ -909,7 +910,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const ids: string[] = [];
     for (let i = 0; i < n; i++) {
       const id = newCardId();
-      game.cards[id] = makeCard({
+      const token = makeCard({
         id,
         name: p.name,
         image: p.image ?? cat?.image,
@@ -923,6 +924,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         tapped: !!p.tapped,
         isToken: true,
       });
+      // a token arrives on the battlefield without passing through
+      // relocateCard, so it needs its starting spot handed to it directly —
+      // it is a card on the table like any other. A token artifact files in
+      // the right-hand column, a token creature comes forward.
+      token.pos = homePos(player, token);
+      game.cards[id] = token;
       game.players[player].zones.battlefield.push(id);
       // a batch is ONE object on the table, not n of them scattered across it:
       // each new token slides under the previous, so they arrive as a pile the

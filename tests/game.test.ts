@@ -854,6 +854,21 @@ describe("the table surface", () => {
     expect(c.pos).toEqual(homePos("you", c));
   });
 
+  test("tokens get a starting spot too, filed by what the token is", () => {
+    applyAction("you", "create_token", { name: "Treasure", typeLine: "Token Artifact — Treasure", n: 2 });
+    applyAction("you", "create_token", { name: "Soldier", typeLine: "Token Creature — Soldier", power: "1", toughness: "1" });
+    const bf = game.players.you.zones.battlefield.map((id) => game.cards[id]);
+    const treasure = bf.find((c) => c.name === "Treasure")!;
+    const soldier = bf.find((c) => c.name === "Soldier")!;
+    // a token never passes through relocateCard, so this is the path that
+    // used to leave it with no position at all
+    expect(treasure.pos).toEqual(homePos("you", treasure));
+    expect(soldier.pos).toEqual(homePos("you", soldier));
+    // an artifact token belongs in the right-hand column, a creature forward
+    expect(treasure.pos!.x).toBeGreaterThan(0.9);
+    expect(soldier.pos!.x).toBeLessThan(0.1);
+  });
+
   test("an instant hovers at a casting spot, not in a permanent row", () => {
     const bolt = seedCard("Lightning Bolt", "you", "hand", { typeLine: "Instant" });
     const bear = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
@@ -861,11 +876,11 @@ describe("the table surface", () => {
     applyAction("you", "cast", { card: bear.id });
     // different kinds of card go to different places on the table
     expect(bolt.pos).not.toEqual(bear.pos);
-    // the spell sits near the midline on its caster's side. y 0.5 puts a
-    // card's CENTRE on the midline, so just over it is just inside your half
+    // the middle of your half, underneath the creatures. y 0.5 puts a card's
+    // CENTRE on the midline, so anything over it is inside your own half.
     expect(bolt.pos!.x).toBe(0.5);
+    expect(bolt.pos!.y).toBeGreaterThan(bear.pos!.y);
     expect(bolt.pos!.y).toBeGreaterThan(0.5);
-    expect(bolt.pos!.y).toBeLessThan(0.7);
     // and it carries no position into the graveyard
     applyAction("agent", "stack_resolve", { item: game.stack[0].id });
     expect(bolt.zone).toBe("graveyard");
