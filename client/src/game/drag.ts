@@ -227,23 +227,18 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     }
     // the card stays where you let go until the server has been told —
     // release it earlier and it flicks back for the round trip
-    let moved = false;
     try {
-      moved = await drop(card, over, overCard?.id ?? null, at);
-      dlog(`settled ${card.name ?? "?"}`, { moved });
+      dlog(`settled ${card.name ?? "?"}`, { moved: await drop(card, over, overCard?.id ?? null, at) });
     } finally {
-      if (onFelt) {
-        el.classList.remove("dragging");
-        for (const k of kids) k.el.style.transition = "";
-        kids = [];
-      } else if (!moved) {
-        // the drop came to nothing: the fan takes the card back exactly as
-        // it was. (A card that DID move stays lifted where you dropped it
-        // until the server's view unmounts it from the hand — restoring it
-        // early would snap it back into the fan for a frame.)
-        el.classList.remove("draglift");
-        el.style.cssText = savedCss;
-      }
+      // Always put the element back the way it was found, whatever the drop
+      // did with the card. Skipping this when the card moved left a lifted,
+      // fixed-position card stuck over the table whenever the server did not
+      // unmount it — the whole difference between dragging from the hand and
+      // dragging on the board.
+      el.classList.remove("dragging", "draglift");
+      if (!onFelt) el.style.cssText = savedCss;
+      for (const k of kids) k.el.style.transition = "";
+      kids = [];
       document.body.classList.remove("dragging");
       useGame.getState().setDragging(false);
     }

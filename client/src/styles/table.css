@@ -155,10 +155,21 @@ body.dragging .cmdzone .card { pointer-events: none; }
 .rail { position: relative; z-index: 10; }
 .handrow.fan { position: relative; z-index: 12; }
 
-/* Drop targets are lit for the whole drag, not as the card passes over them:
-   on while a card is in the air, off otherwise. */
+/* Drop targets, while a card is in the air. Every one of them is outlined
+   for the whole drag — dotted, so it reads as "you could put it here" — and
+   the one the cursor is actually over draws a solid line instead.
+   Outline rather than border: these are flex containers, and a border would
+   resize them the instant a drag began. */
 body.dragging .handrow.fan,
-body.dragging .pile {
+body.dragging .pile,
+body.dragging .cmdzone {
+  outline: 1.5px dashed rgba(226, 179, 85, 0.6);
+  outline-offset: -2px;
+}
+body.dragging .handrow.fan:hover,
+body.dragging .pile:hover,
+body.dragging .cmdzone:hover {
+  outline: 2px solid var(--gold-hi);
   border-color: var(--gold-hi);
   background: rgba(226, 179, 85, 0.14);
   box-shadow: 0 0 16px rgba(240, 208, 120, 0.45);
@@ -302,9 +313,11 @@ body.dragging .handrow.fan { border-radius: 10px; }
 }
 .cmdzone .cmdtax:hover { color: var(--gold-hi); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 12px rgba(240, 208, 120, 0.7); }
 /* a commander carried over the socket: it lights up and the cloud thickens */
-body.dragging .cmdzone { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
-body.dragging .cmdzone .cmdcloud span { filter: blur(8px) brightness(1.5); }
-body.dragging .cmdzone .cmdslot:empty { border-color: var(--gold-hi); }
+/* the socket's own flare, on the same rule as every other target: only once
+   the cursor is actually over it */
+body.dragging .cmdzone:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
+body.dragging .cmdzone:hover .cmdcloud span { filter: blur(8px) brightness(1.5); }
+body.dragging .cmdzone:hover .cmdslot:empty { border-color: var(--gold-hi); }
 
 /* card-shaped token creator, bottom-right by your hand */
 #btn-token {
