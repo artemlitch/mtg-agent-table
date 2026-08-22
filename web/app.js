@@ -847,6 +847,8 @@ function deckEl(p) {
   </div>`;
   wrap.onclick = (e) => {
     e.stopPropagation();
+    // clicking again with the panel up closes it
+    if (menuOpen()) return closeMenu();
     libraryMenu(p, e);
   };
   if (p === "you") {
@@ -1550,6 +1552,8 @@ function cardEl(c, opts = {}) {
       delete d.dataset.dragged;
       return;
     }
+    // a menu is up: this click dismisses it rather than acting on the card
+    if (menuOpen()) return closeMenu();
     hidePreview();
     if (pendingTuck && pendingTuck !== c.id) {
       act("tuck", { card: pendingTuck, under: c.id });
