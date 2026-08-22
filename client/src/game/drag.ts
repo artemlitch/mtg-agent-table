@@ -24,7 +24,7 @@ import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
-import { alignY } from "./autoplace";
+import { alignY, type Box } from "./autoplace";
 import { box, dlog, fr, pt, px, tag } from "./debug";
 import { cardBoxes } from "./settle";
 import { CH, CW, cardAt, posToPx, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
@@ -65,6 +65,8 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   let origin = { x: 0, y: 0 };
   let regions: Region[] = [];
   let others: CardBox[] = [];
+  /** the card and anything hanging under it — never its own neighbours */
+  let carriedIds = new Set<string>([card.id]);
   let live = false;
   let startLeft = 0;
   let startTop = 0;
@@ -127,7 +129,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       // chips waking under the cursor) and incoming views wait for the drop
       document.body.classList.add("dragging");
       useGame.getState().setDragging(true);
-      const carriedIds = new Set([
+      carriedIds = new Set([
         card.id,
         ...(card.zone === "battlefield" && !card.under ? pileChainBelow(card.id).map((c) => c.id) : []),
       ]);
@@ -214,27 +216,31 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     const overCard = !over && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     aimedCard?.el.classList.remove("tuckover");
     ui().hidePreview();
-    // a felt card released beyond the placeable rect settles onto its clamped
-    // spot NOW — the exact pixel the store will render it at — so the server
-    // ack cannot move it
-    const stored = pxToPos(at.left, at.top);
-    const roundTrip = posToPx(stored);
+    // Released on the open felt — not into a zone, not onto a card to tuck
+    // under. That is the only case with a resting place to work out.
+    const onOpenFelt = !over && !overCard;
+    const rest = restingPlace(at, onOpenFelt ? cardBoxes(carriedIds) : null);
     dlog(`DROP   ${tag(card)}`, {
       releasedVp: `${px(up.clientX)}, ${px(up.clientY)}`,
       cardPx: box(at),
-      "-> stores": pt(stored),
-      "-> renders": box(roundTrip),
-      snap: `${px(roundTrip.left - at.left)}, ${px(roundTrip.top - at.top)}`,
+      "-> stores": pt(rest.pos),
+      "-> renders": box(rest.px),
+      snap: `${px(rest.px.left - at.left)}, ${px(rest.px.top - at.top)}`,
       onto: over ? `${over.kind}:${over.player}${over.zone ? ":" + over.zone : ""}` : overCard ? `tuck under ${overCard.id}` : "open table",
     });
-    if (onFelt && !over && !overCard) {
-      el.style.left = `${roundTrip.left}px`;
-      el.style.top = `${roundTrip.top}px`;
+    // Paint it at its resting place NOW, from the same answer the store is
+    // about to get. The drag has been moving this element by hand, and React
+    // only rewrites a style property it sees change between its own renders
+    // — so a card whose resting y matches the y it already had renders
+    // "unchanged" and would keep whatever pixel the drag left it on.
+    if (onFelt && onOpenFelt) {
+      el.style.left = `${rest.px.left}px`;
+      el.style.top = `${rest.px.top}px`;
     }
     // the card stays where you let go until the server has been told —
     // release it earlier and it flicks back for the round trip
     try {
-      dlog(`settled ${card.name ?? "?"}`, { moved: await drop(card, over, overCard?.id ?? null, at) });
+      dlog(`settled ${card.name ?? "?"}`, { moved: await drop(card, over, overCard?.id ?? null, rest.pos) });
     } finally {
       // Always put the element back the way it was found, whatever the drop
       // did with the card. Skipping this when the card moved left a lifted,
@@ -257,10 +263,24 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   window.addEventListener("pointercancel", onUp);
 }
 
+/** Where a card released at `at` comes to rest. Pure, and the ONLY thing that
+ *  decides: line it up with a neighbour, hold it on the board, and hand back
+ *  both the stored position and the pixel that draws. Everything downstream —
+ *  the element, the claim, the server — takes this one answer, so there is no
+ *  second opinion to disagree with.
+ *
+ *  `neighbours` is null when the card was released into a zone or onto another
+ *  card, where the release point is not a resting place at all. */
+function restingPlace(at: { left: number; top: number }, neighbours: Box[] | null) {
+  const aligned = neighbours ? alignY(at, neighbours, CW()) : at;
+  const pos = pxToPos(aligned.left, aligned.top);
+  return { pos, px: posToPx(pos) };
+}
+
 /** What a region does with a card released onto it. The gesture above knows
- *  none of this; it only knows which region won. Returns whether the card
- *  actually went somewhere. */
-async function drop(card: Card, over: Region | null, overCard: string | null, at: { left: number; top: number }): Promise<boolean> {
+ *  none of this; it only knows which region won and where the card came to
+ *  rest. Returns whether the card actually went somewhere. */
+async function drop(card: Card, over: Region | null, overCard: string | null, pos: { x: number; y: number }): Promise<boolean> {
   if (over?.kind === "hand") {
     // your hand takes your cards; the agent's takes its own
     if (over.player !== card.controller) return false;
@@ -280,13 +300,7 @@ async function drop(card: Card, over: Region | null, overCard: string | null, at
     return res.ok;
   }
 
-  // the open table: everything that is not one of the zones above. Put a card
-  // down beside another and it joins that card's line rather than sitting a
-  // few pixels out of it — a hand with a mouse cannot hit a row exactly, and
-  // the eye wants a row.
-  const landed = alignY(at, cardBoxes(new Set([card.id])), CW());
-  const pos = pxToPos(landed.left, landed.top);
-  if (landed.top !== at.top) dlog("align", { card: card.id, dy: Math.round(landed.top - at.top), pos: pt(pos) });
+  // the open table: everything that is not one of the zones above
   // released on top of another card: attach to it (equip, auras, tidying a
   // pile) rather than resting on the felt
   if (overCard) {
