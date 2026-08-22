@@ -357,6 +357,17 @@ const NEXT_ACTION_STEPS = [
 
   // ── your turn, stack settled: the turn structure ──
   {
+    // turn 1 before you have done anything: the useful move is playing a
+    // land or a spell, which no button can pick for you. Say nothing rather
+    // than marching the phase along
+    id: "game-start",
+    when: (c) =>
+      c.mine &&
+      state.turnNumber === 1 &&
+      !didThisTurn(/^Player (played|cast|tapped|untapped|moved|created|declares|put on the stack|moves to)/),
+    step: () => null,
+  },
+  {
     id: "untap",
     when: (c) => /untap/.test(c.phase) && c.myTapped && !didThisTurn(/^Player untapped all/),
     step: () => ({ label: "↻ Untap all", skip: true, fn: async () => { await act("untap_all", { player: "you" }); act("set_phase", { phase: "untap/upkeep" }); } }),
