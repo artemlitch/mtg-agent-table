@@ -23,6 +23,23 @@
 }
 
 /* ── chat ── */
+/* The chat is read, not glanced at, so it keeps the larger type the rest of
+   the app stepped down from. The scale has to be spelled out again rather
+   than just re-pointing --fs-base: a var() inside a custom-property
+   declaration is substituted where it is DECLARED, so the --fs-* tokens are
+   already frozen at the root's base by the time they inherit. Same
+   multipliers as tokens.css — only the base differs. */
+#pane-chat {
+  --fs-base: 15px;
+  --fs-tiny:  calc(var(--fs-base) * 0.73);
+  --fs-micro: calc(var(--fs-base) * 0.8);
+  --fs-note:  calc(var(--fs-base) * 0.87);
+  --fs-body:  var(--fs-base);
+  --fs-label: calc(var(--fs-base) * 1.13);
+  /* inherited text (a plain .msg sets no size of its own) needs the pane to
+     restate the body size, or it keeps the computed px from <body> */
+  font-size: var(--fs-body);
+}
 .msg { border-radius: 8px; padding: 6px 9px; max-width: 95%; white-space: pre-wrap; word-wrap: break-word; border: 1px solid transparent; }
 .msg.you { background: linear-gradient(#23303d, #23303d) padding-box, linear-gradient(155deg, #3a4c5e, #7a97b3, #3a4c5e) border-box; align-self: flex-end; }
 .msg.agent { background: linear-gradient(#2c2437, #2c2437) padding-box, var(--chrome-dim) border-box; align-self: flex-start; }

@@ -76,8 +76,9 @@
   /* ── type scale ────────────────────────────────────────────────────────
      One dial. Every size in the sheet is a multiple of --fs-base, so the
      whole app grows or shrinks from this line; no rule below states a pixel
-     size of its own. */
-  --fs-base: 15px;
+     size of its own. Re-declaring --fs-base on any element re-derives the
+     whole scale for its subtree — see #pane-chat, which keeps the old size. */
+  --fs-base: 13px;
   --fs-tiny:  calc(var(--fs-base) * 0.73); /* card badges, keycaps */
   --fs-micro: calc(var(--fs-base) * 0.8);
   --fs-note:  calc(var(--fs-base) * 0.87); /* dense chrome: counts, tags */
