@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freeSpot, GAP, homeSpot, type Box } from "../client/src/game/autoplace";
+import { ALIGN_REACH, ALIGN_TOL, alignY, freeSpot, GAP, homeSpot, type Box } from "../client/src/game/autoplace";
 import { typeCat } from "../client/src/game/rules";
 import type { Card, PlayerId } from "../client/src/types";
 
@@ -87,6 +87,61 @@ describe("the two halves of the table", () => {
     expect(freeSpot(yourCreatureHome, [], W, H, BOARD)).toEqual(yourCreatureHome);
     // and if they were, this is what would happen: hop the midline
     expect(freeSpot(yourCreatureHome, [theirCreature], W, H, BOARD).top).toBe(301);
+  });
+});
+
+describe("alignY", () => {
+  const neighbour = card(300, 400);
+
+  it("leaves a drop alone when nothing is near it", () => {
+    expect(alignY({ left: 900, top: 405 }, [neighbour], W)).toEqual({ left: 900, top: 405 });
+  });
+
+  it("takes the neighbour's line when the drop lands beside it and close to level", () => {
+    const drop = { left: 300 + W + 10, top: 412 };
+    expect(alignY(drop, [neighbour], W)).toEqual({ left: drop.left, top: 400 });
+  });
+
+  it("moves the y and nothing else — spacing along a row is your choice", () => {
+    const drop = { left: 300 + W + 37, top: 390 };
+    expect(alignY(drop, [neighbour], W)).toEqual({ left: drop.left, top: 400 });
+  });
+
+  it("reaches to either side", () => {
+    const drop = { left: 300 - W - 20, top: 408 };
+    expect(alignY(drop, [neighbour], W).top).toBe(400);
+  });
+
+  it("lets go past half a card's reach", () => {
+    const drop = { left: 300 + W + ALIGN_REACH + 1, top: 405 };
+    expect(alignY(drop, [neighbour], W)).toEqual(drop);
+  });
+
+  it("lets go when the drop is plainly on a line of its own", () => {
+    const drop = { left: 300 + W + 10, top: 400 + ALIGN_TOL + 1 };
+    expect(alignY(drop, [neighbour], W)).toEqual(drop);
+  });
+
+  it("snaps to a card it was dropped overlapping", () => {
+    expect(alignY({ left: 310, top: 415 }, [neighbour], W).top).toBe(400);
+  });
+
+  it("takes the nearest of several, not the first", () => {
+    const far = card(300 + W + 30, 396);
+    const near = card(300 + W + 5, 410);
+    const drop = { left: 300 + W + W + 40, top: 404 };
+    // `near` is 137px away and out of reach; `far` is 112 away... both are
+    // measured edge to edge from the drop, so pick by that
+    const spot = alignY(drop, [far, near], W);
+    expect(spot.top).toBe(far.top);
+  });
+
+  it("aligns a row one card at a time, so the row stays where the first card went", () => {
+    const first = card(200, 500);
+    const second = alignY({ left: 200 + W + 6, top: 508 }, [first], W);
+    const third = alignY({ left: 200 + 2 * (W + 6), top: 494 }, [first, { ...second, width: W, height: H }], W);
+    expect(second.top).toBe(500);
+    expect(third.top).toBe(500);
   });
 });
 

@@ -15,7 +15,7 @@ import type { Card } from "../types";
 import { freeSpot, homeSpot, type Box, type Spot } from "./autoplace";
 import { dlog, pt } from "./debug";
 import { stackCardsOf, typeCat } from "./rules";
-import type { GameView, PlayerId } from "../types";
+import type { PlayerId } from "../types";
 import { CH, CW, placeRect, posToPx, pxToPos } from "./table";
 
 /** Place every card on the table that has no position yet.
@@ -44,8 +44,7 @@ export function settleUnplaced(): boolean {
 
   const w = CW();
   const h = CH();
-  const waitingIds = new Set(waiting.map((c) => c.id));
-  const occupied = occupiedBoxes(view, waitingIds, pendingPos, w, h);
+  const occupied = cardBoxes(new Set(waiting.map((c) => c.id)));
 
   for (const c of waiting) {
     const cat = typeCat(c);
@@ -75,25 +74,23 @@ export function settleUnplaced(): boolean {
   return true;
 }
 
-/** Every card already on the felt, as the box it occupies and who holds it.
+/** Every card on the felt, as the box it occupies and who holds it.
  *
  *  Worked out from the positions, never measured off the screen. An element's
  *  rect is where the card is being DRAWN, and a card drawn is a card being
  *  animated: an unresolved one bobs by up to 11px, a card that just moved is
- *  still gliding to its spot. Lining a new card up with any of that puts it
- *  level with a moment rather than with its neighbour. */
-function occupiedBoxes(
-  view: GameView,
-  skip: Set<string>,
-  claims: Map<string, { x: number; y: number }>,
-  w: number,
-  h: number
-): OwnedBox[] {
+ *  still gliding to its spot. Lining a card up with any of that puts it level
+ *  with a moment rather than with its neighbour. */
+export function cardBoxes(skip: Set<string>): OwnedBox[] {
+  const { view, pendingPos } = useGame.getState();
+  if (!view) return [];
+  const w = CW();
+  const h = CH();
   const boxes: OwnedBox[] = [];
   const add = (c: Card, by: PlayerId) => {
     // a tucked card is not its own obstacle: the pile's anchor owns the space
     if (skip.has(c.id) || c.under) return;
-    const pos = claims.get(c.id) ?? c.pos;
+    const pos = pendingPos.get(c.id) ?? c.pos;
     if (!pos) return;
     boxes.push({ by, ...posToPx(pos), width: w, height: h });
   };
@@ -104,6 +101,6 @@ function occupiedBoxes(
   return boxes;
 }
 
-interface OwnedBox extends Box {
+export interface OwnedBox extends Box {
   by: PlayerId;
 }

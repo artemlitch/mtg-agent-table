@@ -24,7 +24,9 @@ import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
+import { alignY } from "./autoplace";
 import { box, dlog, fr, pt, px, tag } from "./debug";
+import { cardBoxes } from "./settle";
 import { CH, CW, cardAt, posToPx, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
 
 /** How far the pointer travels before this is a drag and not a click. */
@@ -278,8 +280,13 @@ async function drop(card: Card, over: Region | null, overCard: string | null, at
     return res.ok;
   }
 
-  // the open table: everything that is not one of the zones above
-  const pos = pxToPos(at.left, at.top);
+  // the open table: everything that is not one of the zones above. Put a card
+  // down beside another and it joins that card's line rather than sitting a
+  // few pixels out of it — a hand with a mouse cannot hit a row exactly, and
+  // the eye wants a row.
+  const landed = alignY(at, cardBoxes(new Set([card.id])), CW());
+  const pos = pxToPos(landed.left, landed.top);
+  if (landed.top !== at.top) dlog("align", { card: card.id, dy: Math.round(landed.top - at.top), pos: pt(pos) });
   // released on top of another card: attach to it (equip, auras, tidying a
   // pile) rather than resting on the felt
   if (overCard) {

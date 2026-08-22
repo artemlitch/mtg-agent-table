@@ -82,6 +82,38 @@ function blockerAt(at: Spot, w: number, h: number, occupied: Box[]): Box | null 
   return null;
 }
 
+/** How close, side to side, two cards must be before one is put down as the
+ *  other's neighbour. Roughly half a card. */
+export const ALIGN_REACH = 40;
+/** How far out of line a drop may be and still read as meant for the row. */
+export const ALIGN_TOL = 20;
+
+/** Tidy the y of a card just dropped by hand.
+ *
+ *  Land beside a card — within half a card's reach of it, and near enough to
+ *  its line that you were plainly aiming for the row — and the drop takes
+ *  that card's y exactly. It closes the gap between what a hand can do with
+ *  a mouse and what the eye wants, which is a straight row. x is left where
+ *  you put it: spacing along a row is a choice, height in it is not.
+ *
+ *  Out of reach, or clearly on a line of its own, and the drop stands. */
+export function alignY(spot: Spot, neighbours: Box[], w: number): Spot {
+  let best: Box | null = null;
+  let bestGap = Infinity;
+  for (const n of neighbours) {
+    const dy = Math.abs(n.top - spot.top);
+    if (dy > ALIGN_TOL) continue;
+    // edge to edge, so a card you dropped overlapping one counts as touching
+    const gap = Math.max(0, n.left - (spot.left + w), spot.left - right(n));
+    if (gap > ALIGN_REACH) continue;
+    if (gap < bestGap || (gap === bestGap && best && dy < Math.abs(best.top - spot.top))) {
+      best = n;
+      bestGap = gap;
+    }
+  }
+  return best ? { left: spot.left, top: best.top } : spot;
+}
+
 /** The spot a card should take, given where its type says it belongs.
  *
  *  If the home spot is clear, that is the answer. If it is not, two probes
