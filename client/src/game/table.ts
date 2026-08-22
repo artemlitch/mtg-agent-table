@@ -51,12 +51,12 @@ export const CH = () => ch;
 export const PILE_DX = 15;
 export const PILE_DY = 26;
 
-/** Mirrors HOME_POS on the server: where a card sits before anybody has moved
- *  it. Only reached by cards the server has no position for — an unresolved
- *  card nobody has pre-placed yet. */
+/** Where a card with no position of its own hovers: an unresolved card
+ *  nobody has pre-placed. Everything that has landed on the battlefield gets
+ *  a real position from the server (see homePos there). */
 export const HOME: Record<"you" | "agent", { x: number; y: number }> = {
-  agent: { x: 0.12, y: 0.08 },
-  you: { x: 0.12, y: 0.86 },
+  agent: { x: 0.3, y: 0.36 },
+  you: { x: 0.3, y: 0.64 },
 };
 
 interface Surface {
@@ -143,12 +143,21 @@ function yLimits(): { min: number; max: number } {
 
 const span = (s: Surface) => ({ w: Math.max(1, s.place.width - CW()), h: Math.max(1, s.place.height - CH()) });
 
-/** A stored position as felt-local pixels — the card's top-left corner. */
+/** A stored position as felt-local pixels — the card's top-left corner.
+ *
+ *  y is held inside the resting band on the way out, the same as on the way
+ *  in. That is what lets a default position say "y = 1" and mean "flush with
+ *  where my hand starts" at any window size, instead of carrying a fraction
+ *  someone measured once. It also means a card can never be DRAWN behind a
+ *  hand, however its position got there — dropped, defaulted, or placed by
+ *  the agent. */
 export function posToPx(pos: { x: number; y: number }): { left: number; top: number } {
   const s = surface;
   if (!s) return { left: 0, top: 0 };
   const { w, h } = span(s);
-  return { left: s.place.left + pos.x * w, top: s.place.top + pos.y * h };
+  const lim = yLimits();
+  const y = Math.max(lim.min, Math.min(lim.max, pos.y));
+  return { left: s.place.left + pos.x * w, top: s.place.top + y * h };
 }
 
 /** Felt-local pixels back to a stored position. x is clamped to the board's

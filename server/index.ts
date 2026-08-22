@@ -45,6 +45,19 @@ async function backupAndArchive(): Promise<string | null> {
     if (restored.agent) agent.restore(restored.agent);
     lastDecks = restored.lastDecks;
     setHistory(restored.history ?? []);
+    // a game saved before the prompt became rebuildable carries a frozen
+    // string. Its inputs are all still on the table, so recover them and the
+    // game in progress gets current rules instead of the ones it started with.
+    if (!agent.promptArgs && game.started) {
+      agent.promptArgs = {
+        agentDeck: game.players.agent.deckName ?? "your deck",
+        userDeck: game.players.you.deckName ?? "their deck",
+        decklist: Object.values(game.cards)
+          .filter((c) => c.owner === "agent")
+          .map((c) => (c.isCommander ? `${c.name} (COMMANDER)` : c.name)),
+      };
+      agent.legacyPrompt = "";
+    }
     console.log(`restored game from ${STATE_FILE} (turn ${game.turnNumber}, seq ${game.seq})`);
   }
 }

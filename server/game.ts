@@ -56,19 +56,37 @@ export interface Card {
   pos?: { x: number; y: number } | null;
 }
 
-/** Where a card lands when it reaches the battlefield without being placed.
- *  Provisional: the real default-placement rules are not scoped yet, so for
- *  now everything stacks in the controller's outer corner — the agent's at
- *  the top of the table, yours at the bottom.
+/** Where a card FIRST lands, by what it is. Only an initial value: it is
+ *  written into pos like any other position, and the moment anybody drags
+ *  the card it is overwritten and never consulted again.
  *
- *  Nudged in from the true corners rather than sitting on them, because the
- *  hands and the command zones are DRAWN over those corners: {0,1} is a card
- *  hidden behind your own hand. Approximate on purpose — the exact clearance
- *  moves with the window, and this whole rule is a placeholder. */
-export const HOME_POS: Record<PlayerId, { x: number; y: number }> = {
-  agent: { x: 0.12, y: 0.08 },
-  you: { x: 0.12, y: 0.86 },
+ *  The convention is the one the old board laid out by hand — lands in a row
+ *  along your own edge, creatures forward toward the midline, artifacts and
+ *  enchantments off to one side — expressed in table coordinates.
+ *
+ *  A note on y: it is a fraction of the PLACEABLE span (board height minus a
+ *  card), which puts a card's CENTRE at the midline when y is 0.5. So "just
+ *  inside my half" is a little over 0.5, not a little under 1. y of 0 and 1
+ *  mean flush against the far edges; the client holds a card off the hands
+ *  that overlap those edges, so a land at y=1 rests exactly on top of your
+ *  hand rather than behind it. */
+const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
+  // the agent's half is the top of the table, so its own edge is y=0
+  agent: { creature: { x: 0.02, y: 0.44 }, land: { x: 0.12, y: 0 }, other: { x: 0.97, y: 0.28 } },
+  you: { creature: { x: 0.02, y: 0.56 }, land: { x: 0.12, y: 1 }, other: { x: 0.97, y: 0.72 } },
 };
+
+type TypeCat = "creature" | "land" | "other";
+
+/** Which row a card belongs in. A DFC is whichever face it is showing. */
+function typeCat(card: Card): TypeCat {
+  const t = (card.faces?.[card.face ?? 0]?.typeLine ?? card.typeLine ?? "").toLowerCase();
+  if (t.includes("creature")) return "creature";
+  if (t.includes("land")) return "land";
+  return "other";
+}
+
+export const homePos = (player: PlayerId, card: Card) => ({ ...DEFAULT_POS[player][typeCat(card)] });
 
 /** Table coordinates are fractions; anything else is off the table. NaN lands
  *  at 0 rather than poisoning the card's position. */
@@ -455,7 +473,7 @@ function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
   // so a battlefield card ALWAYS has a pos and the client never invents one.
   // The exception is a card resolving off the stack: an unresolved card sits
   // on the table too, and a spot chosen for it while it waited survives.
-  card.pos = zone === "battlefield" ? (from === "stack" && card.pos ? card.pos : { ...HOME_POS[player] }) : null;
+  card.pos = zone === "battlefield" ? (from === "stack" && card.pos ? card.pos : homePos(player, card)) : null;
   return game.players[player].zones[zone];
 }
 

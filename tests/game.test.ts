@@ -13,7 +13,7 @@ import {
   renderLogFor,
   triggerLines,
   leanCard,
-  HOME_POS,
+  homePos,
   type Card,
   type PlayerId,
   type Zone,
@@ -741,7 +741,7 @@ describe("the table surface", () => {
     const c = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
     applyAction("you", "cast", { card: c.id });
     expect(c.zone).toBe("battlefield");
-    expect(c.pos).toEqual(HOME_POS.you);
+    expect(c.pos).toEqual(homePos("you", c));
   });
 
   test("home is a corner per seat: the agent's at the top of the table, yours at the bottom", () => {
@@ -749,11 +749,53 @@ describe("the table surface", () => {
     const theirs = seedCard("Theirs", "agent", "hand");
     applyAction("you", "move", { card: mine.id, toZone: "battlefield" });
     applyAction("agent", "move", { card: theirs.id, toZone: "battlefield" });
-    expect(mine.pos).toEqual(HOME_POS.you);
-    expect(theirs.pos).toEqual(HOME_POS.agent);
+    expect(mine.pos).toEqual(homePos("you", mine));
+    expect(theirs.pos).toEqual(homePos("agent", theirs));
     // one space, both halves: y alone says which side a card is on
     expect(theirs.pos!.y).toBeLessThan(0.5);
     expect(mine.pos!.y).toBeGreaterThan(0.5);
+  });
+
+  test("a card's first spot follows the old board's convention, by what it is", () => {
+    const kind = (name: string, typeLine: string, p: PlayerId = "you") => {
+      const c = seedCard(name, p, "hand", { typeLine });
+      applyAction(p, "move", { card: c.id, toZone: "battlefield" });
+      return c.pos!;
+    };
+    const land = kind("Forest", "Basic Land — Forest");
+    const creature = kind("Bear", "Creature — Bear");
+    const artifact = kind("Sol Ring", "Artifact");
+    const enchantment = kind("Ghostly Prison", "Enchantment");
+
+    // lands along your own edge, below everything else on your side
+    expect(land.y).toBeGreaterThan(creature.y);
+    // creatures forward, toward the midline (y 0.5 puts a card's CENTRE there)
+    expect(creature.y).toBeGreaterThan(0.5);
+    expect(creature.y).toBeLessThan(0.6);
+    // artifacts and enchantments share the side column, off to the right
+    expect(artifact).toEqual(enchantment);
+    expect(artifact.x).toBeGreaterThan(0.9);
+    expect(creature.x).toBeLessThan(0.1);
+
+    // and the agent's half mirrors all of it
+    const theirLand = kind("Island", "Basic Land — Island", "agent");
+    const theirCreature = kind("Bird", "Creature — Bird", "agent");
+    expect(theirLand.y).toBeLessThan(theirCreature.y);
+    expect(theirCreature.y).toBeLessThan(0.5);
+  });
+
+  test("a double-faced card files under the face it is showing", () => {
+    const c = seedCard("Vesuva", "you", "hand", {
+      typeLine: "Creature — Werewolf",
+      faces: [
+        { name: "Front", typeLine: "Creature — Werewolf" },
+        { name: "Back", typeLine: "Land" },
+      ] as any,
+      face: 1,
+    });
+    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
+    expect(c.pos).toEqual(homePos("you", c));
+    expect(c.pos!.y).toBe(1); // the land row, not the creature row
   });
 
   test("place moves cards without logging — it is not a game action", () => {
@@ -807,7 +849,7 @@ describe("the table surface", () => {
     const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: c.id });
     applyAction("agent", "stack_resolve", {});
-    expect(c.pos).toEqual(HOME_POS.you);
+    expect(c.pos).toEqual(homePos("you", c));
   });
 
   test("leaving the battlefield drops the position; coming back re-homes it", () => {
@@ -816,7 +858,7 @@ describe("the table surface", () => {
     applyAction("you", "move", { card: c.id, toZone: "graveyard" });
     expect(c.pos).toBeNull();
     applyAction("you", "move", { card: c.id, toZone: "battlefield" });
-    expect(c.pos).toEqual(HOME_POS.you);
+    expect(c.pos).toEqual(homePos("you", c));
   });
 
   test("changing controller re-homes the card onto its new side", () => {
@@ -824,7 +866,7 @@ describe("the table surface", () => {
     applyAction("agent", "place", { positions: [{ card: c.id, x: 0.5, y: 0.2 }] });
     applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "you" });
     expect(c.controller).toBe("you");
-    expect(c.pos).toEqual(HOME_POS.you);
+    expect(c.pos).toEqual(homePos("you", c));
   });
 
   test("the agent sees positions — it shares the surface and places its own cards", () => {
