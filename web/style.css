@@ -43,6 +43,8 @@
   --chrome: linear-gradient(155deg, #8a5f1d 0%, #f8e7a0 22%, #b07d26 45%, #6e4a14 62%, #eecf7a 82%, #8a5f1d 100%);
   --chrome-dim: linear-gradient(155deg, #5c4116 0%, #a68a4c 25%, #6e5322 50%, #4a350f 65%, #97783a 85%, #5c4116 100%);
   --font-fantasy: "Cinzel", "Palatino", "Times New Roman", serif;
+  /* controls read as UI, not as chrome — buttons use this everywhere */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-scroll: "IM Fell English", "Iowan Old Style", Georgia, serif;
 }
 * { box-sizing: border-box; margin: 0; }
@@ -65,7 +67,7 @@ body {
 button {
   border: 1px solid transparent; border-radius: 7px; padding: 4px 11px; cursor: pointer;
   background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box;
-  color: #e6d8ae; font: 600 11px/1.6 var(--font-fantasy); letter-spacing: 0.05em;
+  color: #e6d8ae; font: 600 11px/1.6 var(--font-ui); letter-spacing: 0.03em;
 }
 button:hover {
   background: linear-gradient(180deg, #2d2640, #1b1626) padding-box, var(--chrome) border-box;
@@ -375,21 +377,39 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu .mi.title:hover { background: none; }
 
 /* ── library panel: laid out, not a list ── */
-#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 236px; padding: 8px; }
+/* --c is the per-action colour; this is the fallback for anything unclassed */
+#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 250px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
 #menu.libpanel .lp-title {
-  color: var(--dim); font: 600 9.5px/1 var(--font-fantasy);
+  color: var(--dim); font: 600 9.5px/1 var(--font-ui);
   letter-spacing: 0.14em; text-transform: uppercase; padding: 1px 2px 2px;
 }
 #menu.libpanel .lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-/* no fill, just a rounded outline that lights up */
+/* no fill, just a rounded outline in the action's own colour. Contents are
+   centred as a group, and nothing may grow past the button box — a flex item
+   defaults to min-width:auto, which is what pushed the tile rows over. */
 #menu.libpanel button {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 10px; border-radius: 9px; font-size: 12px; text-align: left;
-  background: none; border: 1px solid rgba(226, 179, 85, 0.32); color: var(--text);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 0; padding: 7px 8px; border-radius: 9px;
+  font: 600 11px/1.3 var(--font-ui); letter-spacing: 0.02em; text-align: center;
+  background: none; border: 1px solid var(--c); color: var(--text);
 }
-#menu.libpanel button:hover { background: rgba(226, 179, 85, 0.1); border-color: var(--gold-hi); color: var(--gold-hi); }
-#menu.libpanel .lp-label { flex: 1; }
-#menu.libpanel .ico { font-size: 11px; opacity: 0.8; flex: none; }
+#menu.libpanel button:hover {
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+  border-color: var(--c); color: var(--c); box-shadow: none;
+}
+#menu.libpanel .lp-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#menu.libpanel .ico { font-size: 11px; color: var(--c); flex: none; }
+
+/* one colour per action */
+#menu.libpanel .a-mulligan { --c: #d98c3f; }
+#menu.libpanel .a-search { --c: #e2b355; }
+#menu.libpanel .a-scry { --c: #5b8fd0; }
+#menu.libpanel .a-surveil { --c: #4fb3a5; }
+#menu.libpanel .a-mill { --c: #8f8fa0; }
+#menu.libpanel .a-exile { --c: #d05555; }
+#menu.libpanel .a-draw { --c: #59a86c; }
+#menu.libpanel .a-reveal { --c: #f8e7a0; }
+#menu.libpanel .a-shuffle { --c: #9a8fae; }
 /* search and reveal are slimmer than the tiles they sit between */
 #menu.libpanel .lp-wide { padding-top: 5px; padding-bottom: 5px; }
 #menu.libpanel .lp-draw { padding-top: 7px; padding-bottom: 7px; }
@@ -399,11 +419,11 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   position: relative; display: inline-flex; align-items: center; justify-content: center;
   min-width: 22px; padding: 1px 3px; border-radius: 5px; cursor: ns-resize; flex: none;
 }
-#menu.libpanel .lp-stepper:hover { background: rgba(226, 179, 85, 0.18); }
-#menu.libpanel .lp-count { font: 700 12px/1 var(--font-fantasy); color: var(--gold-hi); }
+#menu.libpanel .lp-stepper:hover { background: color-mix(in srgb, var(--c) 20%, transparent); }
+#menu.libpanel .lp-count { font: 700 12px/1 var(--font-ui); color: var(--c); }
 #menu.libpanel .lp-step {
   position: absolute; left: 50%; transform: translateX(-50%);
-  font: 700 9px/1 var(--font-fantasy); color: var(--accent);
+  font: 700 9px/1 var(--font-ui); color: var(--c);
   opacity: 0; transition: opacity 0.1s;
 }
 #menu.libpanel .lp-step.up { bottom: 100%; margin-bottom: 2px; }

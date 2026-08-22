@@ -242,11 +242,11 @@ const ICONS = {
   skip: "fa-forward-fast",
   mulligan: "fa-recycle",
   search: "fa-magnifying-glass",
-  scry: "fa-eye",
+  scry: "fa-layer-group",
   surveil: "fa-binoculars",
   mill: "fa-skull",
   exile: "fa-ban",
-  reveal: "fa-bullhorn",
+  reveal: "fa-eye",
   shuffle: "fa-shuffle",
 };
 function iconEl(name) {
@@ -1824,10 +1824,10 @@ function libraryMenu(p, e) {
   m.appendChild(title);
 
   /** A button with an icon, a label, and optionally an inline counter that
-   *  doubles as a +/- stepper. Returns the element. */
+   *  doubles as a +/- stepper. `icon` doubles as the colour class. */
   const button = (cls, label, icon, onRun, counted) => {
     const b = document.createElement("button");
-    b.className = cls;
+    b.className = `${cls} a-${icon}`;
     const text = document.createElement("span");
     text.className = "lp-label";
     text.textContent = label;
