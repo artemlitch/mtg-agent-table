@@ -16,6 +16,7 @@ import { CardEl } from "../../components/Card";
 import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { settleAutoPlaced } from "../../game/settle";
 import { PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -48,6 +49,14 @@ export function CardLayer() {
       window.removeEventListener("resize", remeasure);
     };
   }, []);
+
+  // Anything that reached the table without a chosen spot gets one here,
+  // after the cards are in the DOM (their rects are what the search reads)
+  // but before the browser paints, so nothing is ever seen at the default
+  // spot it is about to leave.
+  useLayoutEffect(() => {
+    if (measured && settleAutoPlaced()) bump((n) => n + 1);
+  });
 
   // the fonts and art land after first paint and can change the hand's height,
   // so take one more measurement once everything has settled

@@ -31,6 +31,9 @@ export interface Card {
   blocking: string | null;
   /** table-surface fraction, both halves in one space; battlefield only */
   pos?: { x: number; y: number } | null;
+  /** pos is only the default for this card's type: nobody has chosen a spot
+   *  for it yet, so the client is free to find it a clear one. */
+  posAuto?: boolean;
   hidden?: boolean;
 
   name?: string;

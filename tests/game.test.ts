@@ -801,6 +801,49 @@ describe("the table surface", () => {
     expect(c.pos!.y).toBe(1); // the land row, not the creature row
   });
 
+  test("a home spot is flagged as nobody's choice, so the client may tidy it", () => {
+    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
+    expect(c.posAuto).toBe(true);
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    expect(c.posAuto).toBe(false);
+  });
+
+  test("a spot somebody chose survives the trip through the stack", () => {
+    const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("stack");
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("battlefield");
+    expect(c.pos).toEqual({ x: 0.3, y: 0.7 });
+    expect(c.posAuto).toBe(false);
+  });
+
+  test("a card leaving the table is nobody's choice either", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.3, y: 0.7 }] });
+    applyAction("you", "move", { card: c.id, toZone: "graveyard" });
+    expect(c.pos).toBe(null);
+    expect(c.posAuto).toBe(false);
+  });
+
+  test("a token arrives unchosen like anything else", () => {
+    const r = applyAction("you", "create_token", { name: "Treasure", typeLine: "Artifact — Treasure", n: 2 });
+    const [first, second] = (r.ids as string[]).map((id) => game.cards[id]);
+    expect(first.posAuto).toBe(true);
+    expect(first.pos).toEqual(homePos("you", first));
+    // the second is tucked under the first: the pile's anchor owns the spot
+    expect(second.under).toBe(first.id);
+  });
+
+  test("the view carries the flag, or the client cannot act on it", () => {
+    const c = seedCard("Bear", "you", "battlefield");
+    c.posAuto = true;
+    const seen = viewFor("you").players.you.zones.battlefield.find((x: any) => x.id === c.id);
+    expect(seen.posAuto).toBe(true);
+  });
+
   test("place moves cards without logging — it is not a game action", () => {
     const a = seedCard("A", "you", "battlefield");
     const b = seedCard("B", "you", "battlefield");

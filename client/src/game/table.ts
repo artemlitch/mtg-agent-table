@@ -19,7 +19,7 @@
 
 import { box, dlog, fr, px } from "./debug";
 
-interface Rect {
+export interface Rect {
   left: number;
   top: number;
   width: number;
@@ -121,6 +121,11 @@ export function measureSurface(): Surface | null {
     span: `${px(Math.max(1, place.width - cw))} x ${px(Math.max(1, place.height - ch))}`,
   });
   return surface;
+}
+
+/** The rect a card may be laid down in, in felt-local pixels. */
+export function placeRect(): Rect | null {
+  return surface?.place ?? null;
 }
 
 /** The stored-y range that keeps a card's whole box inside the resting band. */

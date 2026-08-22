@@ -54,6 +54,11 @@ export interface Card {
   // card is in is read off y, not off who controls it. Battlefield only;
   // null everywhere else.
   pos?: { x: number; y: number } | null;
+  // True while pos is only the default for the card's type — nobody has
+  // chosen where this card sits. The client tidies these: it knows how big a
+  // card is on screen and what else is already on the felt, and the server
+  // knows neither. Any explicit placement clears it.
+  posAuto?: boolean;
 }
 
 /** Where a card FIRST lands, by what it is. Only an initial value: it is
@@ -385,6 +390,7 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     attacking: card.attacking,
     blocking: card.blocking,
     pos: card.pos ?? null,
+    posAuto: !!card.posAuto,
   };
   if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
   // a DFC always presents as its ACTIVE face — the composite name never shows
@@ -527,7 +533,9 @@ function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
   // A card resolving off the stack keeps the one it was already sitting at,
   // which is what makes a creature resolve exactly where it was hovering.
   const onTable = zone === "battlefield" || zone === "stack";
-  card.pos = onTable ? (from === "stack" && card.pos ? card.pos : homePos(player, card)) : null;
+  const kept = from === "stack" && card.pos;
+  card.pos = onTable ? (kept ? card.pos! : homePos(player, card)) : null;
+  card.posAuto = onTable && !kept;
   return game.players[player].zones[zone];
 }
 
@@ -967,6 +975,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       // it is a card on the table like any other. A token artifact files in
       // the right-hand column, a token creature comes forward.
       token.pos = homePos(player, token);
+      token.posAuto = true;
       game.cards[id] = token;
       game.players[player].zones.battlefield.push(id);
       // a batch is ONE object on the table, not n of them scattered across it:
@@ -1521,6 +1530,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         throw new Error(`${c.name} is in ${c.zone} — only cards on the table (battlefield or stack) have a position`);
       }
       c.pos = { x: clamp01(Number(at.x)), y: clamp01(Number(at.y)) };
+      c.posAuto = false; // somebody chose this one
       moved.push(c.id);
     }
     return { ok: true, placed: moved.length };
