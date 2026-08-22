@@ -29,6 +29,8 @@ export interface Card {
   isCommander: boolean;
   attacking: string | null;
   blocking: string | null;
+  /** table-surface fraction, both halves in one space; battlefield only */
+  pos?: { x: number; y: number } | null;
   hidden?: boolean;
 
   name?: string;

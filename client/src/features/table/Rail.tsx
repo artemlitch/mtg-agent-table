@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { act } from "../../api";
 import { previewProps } from "../../components/CardPreview";
+import { useDrag } from "../../game/drag";
 import { useGame } from "../../store/game";
 import { menuOpen, ui, type Anchor } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
@@ -19,12 +20,14 @@ export function Rail({ p }: { p: PlayerId }) {
       <DeckPile p={p} />
       <Pile
         label="Graveyard"
+        zone="graveyard"
+        p={p}
         count={ps.counts.graveyard}
         cards={ps.zones.graveyard}
         onClick={() => openZoneBrowser(p, "graveyard")}
         onMenu={(e) => graveyardMenu(p, e)}
       />
-      <Pile label="Exile" count={ps.counts.exile} cards={ps.zones.exile} onClick={() => openZoneBrowser(p, "exile")} />
+      <Pile label="Exile" zone="exile" p={p} count={ps.counts.exile} cards={ps.zones.exile} onClick={() => openZoneBrowser(p, "exile")} />
       {/* the command zone is a place on the board now — see CommandZone */}
     </div>
   );
@@ -139,21 +142,29 @@ function DeckPile({ p }: { p: PlayerId }) {
  *  doesn't jump when the first card lands. */
 function Pile({
   label,
+  zone,
+  p,
   count,
   cards,
   onClick,
   onMenu,
 }: {
   label: string;
+  zone: string;
+  p: PlayerId;
   count: number;
   cards: Card[];
   onClick: (e: React.MouseEvent) => void;
   onMenu?: (e: React.MouseEvent) => void;
 }) {
   const recent = cards.slice(-5).reverse();
+  // a card dragged onto the pile goes to that zone — the rail is part of the
+  // same surface as the board
+  const armed = useDrag((s) => s.over?.kind === "pile" && s.over.zone === zone && s.over.player === p);
   return (
     <div
-      className="pile"
+      className={`pile${armed ? " armed" : ""}`}
+      data-drop={`pile:${p}:${zone}`}
       onClick={(e) => {
         e.stopPropagation();
         ui().hidePreview();

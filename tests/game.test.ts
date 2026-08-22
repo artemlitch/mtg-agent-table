@@ -12,6 +12,8 @@ import {
   cardVisibleTo,
   renderLogFor,
   triggerLines,
+  leanCard,
+  HOME_POS,
   type Card,
   type PlayerId,
   type Zone,
@@ -731,6 +733,88 @@ describe("batch actions", () => {
     applyAction("you", "move", { cards: [token, real.id], toZone: "graveyard" });
     expect(game.cards[token]).toBeUndefined();
     expect(real.zone).toBe("graveyard");
+  });
+});
+
+describe("the table surface", () => {
+  test("a card reaching the battlefield takes its controller's home corner", () => {
+    const c = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("battlefield");
+    expect(c.pos).toEqual(HOME_POS.you);
+  });
+
+  test("home is a corner per seat: the agent's at the top of the table, yours at the bottom", () => {
+    const mine = seedCard("Mine", "you", "hand");
+    const theirs = seedCard("Theirs", "agent", "hand");
+    applyAction("you", "move", { card: mine.id, toZone: "battlefield" });
+    applyAction("agent", "move", { card: theirs.id, toZone: "battlefield" });
+    expect(mine.pos).toEqual({ x: 0, y: 1 });
+    expect(theirs.pos).toEqual({ x: 0, y: 0 });
+    // one space, both halves: y alone says which side a card is on
+    expect(theirs.pos!.y).toBeLessThan(mine.pos!.y);
+  });
+
+  test("place moves cards without logging — it is not a game action", () => {
+    const a = seedCard("A", "you", "battlefield");
+    const b = seedCard("B", "you", "battlefield");
+    const before = game.log.length;
+    const r = applyAction("you", "place", {
+      positions: [
+        { card: a.id, x: 0.25, y: 0.8 },
+        { card: b.id, x: 0.5, y: 0.55 },
+      ],
+    });
+    expect(a.pos).toEqual({ x: 0.25, y: 0.8 });
+    expect(b.pos).toEqual({ x: 0.5, y: 0.55 });
+    expect(r.placed).toBe(2);
+    expect(game.log.length).toBe(before);
+  });
+
+  test("either seat may place any card — the table is shared", () => {
+    const mine = seedCard("Mine", "you", "battlefield");
+    applyAction("agent", "place", { positions: [{ card: mine.id, x: 0.4, y: 0.9 }] });
+    expect(mine.pos).toEqual({ x: 0.4, y: 0.9 });
+  });
+
+  test("coordinates are fractions: out of range clamps, garbage lands at the origin", () => {
+    const c = seedCard("C", "you", "battlefield");
+    applyAction("you", "place", { positions: [{ card: c.id, x: 7, y: -3 }] });
+    expect(c.pos).toEqual({ x: 1, y: 0 });
+    applyAction("you", "place", { positions: [{ card: c.id, x: NaN, y: 0.5 }] });
+    expect(c.pos).toEqual({ x: 0, y: 0.5 });
+  });
+
+  test("only cards on the table have a position", () => {
+    const c = seedCard("C", "you", "hand");
+    expect(() => applyAction("you", "place", { positions: [{ card: c.id, x: 0.5, y: 0.5 }] })).toThrow(/not on the battlefield/);
+  });
+
+  test("leaving the battlefield drops the position; coming back re-homes it", () => {
+    const c = seedCard("C", "you", "battlefield");
+    applyAction("you", "place", { positions: [{ card: c.id, x: 0.6, y: 0.7 }] });
+    applyAction("you", "move", { card: c.id, toZone: "graveyard" });
+    expect(c.pos).toBeNull();
+    applyAction("you", "move", { card: c.id, toZone: "battlefield" });
+    expect(c.pos).toEqual(HOME_POS.you);
+  });
+
+  test("changing controller re-homes the card onto its new side", () => {
+    const c = seedCard("Stolen", "agent", "battlefield");
+    applyAction("agent", "place", { positions: [{ card: c.id, x: 0.5, y: 0.2 }] });
+    applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "you" });
+    expect(c.controller).toBe("you");
+    expect(c.pos).toEqual(HOME_POS.you);
+  });
+
+  test("the agent sees positions — it shares the surface and places its own cards", () => {
+    const c = seedCard("C", "agent", "battlefield");
+    applyAction("agent", "place", { positions: [{ card: c.id, x: 0.3, y: 0.15 }] });
+    const v = viewFor("agent");
+    const seen = v.players.agent.zones.battlefield[0];
+    expect(seen.pos).toEqual({ x: 0.3, y: 0.15 });
+    // and it survives the lean trim that strips art urls
+    expect(leanCard(seen).pos).toEqual({ x: 0.3, y: 0.15 });
   });
 });
 

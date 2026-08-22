@@ -1,6 +1,7 @@
-import { type CSSProperties, type ReactNode, type Ref } from "react";
+import { type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode, type Ref } from "react";
 import { act } from "../api";
 import { cardMenu } from "../features/menus/cardMenu";
+import { consumeDragClick } from "../game/drag";
 import { trackHover } from "../game/interaction";
 import { cardById } from "../store/game";
 import { menuOpen, ui, useUI } from "../store/ui";
@@ -15,6 +16,7 @@ export interface CardElProps {
   /** rail-sized: fills its column instead of the fixed board size */
   small?: boolean;
   elRef?: Ref<HTMLDivElement>;
+  onPointerDown?: (e: RPointerEvent<HTMLDivElement>) => void;
   /** ghosts open the Stack tab rather than the card menu */
   onClick?: (e: React.MouseEvent) => void;
   /** the stack panel that rides below a lifted card */
@@ -24,7 +26,7 @@ export interface CardElProps {
 /** THE card. One element, every state as a class: tapped, attacking, ghost,
  *  lifted, tucked, face-down. Used in hands, on the board, in the rail and on
  *  the stack — the geometry never changes, only the classes. */
-export function CardEl({ card: c, className = "", style, small, elRef, onClick, children }: CardElProps) {
+export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, children }: CardElProps) {
   const pendingTuck = useUI((s) => s.pendingTuck);
   const classes = ["card", c.tapped && "tapped", c.attacking && "attacking", c.blocking && "blocking", pendingTuck === c.id && "tuck-source", className]
     .filter(Boolean)
@@ -49,6 +51,9 @@ export function CardEl({ card: c, className = "", style, small, elRef, onClick, 
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // a drag's release fires a click — eat it, so putting a card down never
+    // also opens its menu
+    if (consumeDragClick(c.id)) return;
     if (onClick) return onClick(e);
     // a menu is up: this click dismisses it rather than acting on the card
     if (menuOpen()) return ui().closeMenu();
@@ -70,6 +75,7 @@ export function CardEl({ card: c, className = "", style, small, elRef, onClick, 
       className={classes}
       style={{ ...smallStyle, ...style }}
       data-card-id={c.id}
+      onPointerDown={onPointerDown}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();

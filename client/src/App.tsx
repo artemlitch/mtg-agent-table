@@ -13,6 +13,7 @@ import { fireNextAction } from "./features/nextaction/steps";
 import { usePeek } from "./features/side/peek";
 import { SidePanel } from "./features/side/SidePanel";
 import { Battlefield } from "./features/table/Battlefield";
+import { CardLayer } from "./features/table/CardLayer";
 import { CommandZone } from "./features/table/CommandZone";
 import { Hand } from "./features/table/Hand";
 import { Rail } from "./features/table/Rail";
@@ -44,7 +45,7 @@ export function App() {
             <>
               <div className="seat" id="seat-agent">
                 <Rail p="agent" />
-                <div className="boardwrap">
+                <div className="boardwrap" id="boardwrap-agent">
                   <Hand p="agent" />
                   <Battlefield p="agent" />
                   <CommandZone p="agent" />
@@ -57,7 +58,7 @@ export function App() {
 
               <div className="seat" id="seat-you">
                 <Rail p="you" />
-                <div className="boardwrap">
+                <div className="boardwrap" id="boardwrap-you">
                   <Battlefield p="you" />
                   <Hand p="you" />
                   <CommandZone p="you" />
@@ -67,6 +68,10 @@ export function App() {
                   </button>
                 </div>
               </div>
+
+              {/* every card on the table draws here, over both seats — the
+                  seats above only reserve the space */}
+              <CardLayer />
             </>
           )}
         </div>

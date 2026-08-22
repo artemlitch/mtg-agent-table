@@ -48,7 +48,28 @@ export interface Card {
   visibleTo: PlayerId[];
   attacking: string | null; // defender description ("you", "agent", or a card id)
   blocking: string | null;  // attacker card id
+  // Where the card sits on the table surface, as a fraction of the placeable
+  // area: x 0 = left edge, 1 = right edge; y 0 = the agent's back edge, 1 =
+  // yours, so the midline is ~0.5. ONE space for both halves — which half a
+  // card is in is read off y, not off who controls it. Battlefield only;
+  // null everywhere else.
+  pos?: { x: number; y: number } | null;
 }
+
+/** Where a card lands when it reaches the battlefield without being placed.
+ *  Provisional: the real default-placement rules are not scoped yet, so for
+ *  now everything stacks in the controller's outer corner — the agent's at the
+ *  top of the table, yours at the bottom. The client insets the placeable area
+ *  past the hands and command zones, so {0,0} and {0,1} are the corners of
+ *  usable board rather than of the window. */
+export const HOME_POS: Record<PlayerId, { x: number; y: number }> = {
+  agent: { x: 0, y: 0 },
+  you: { x: 0, y: 1 },
+};
+
+/** Table coordinates are fractions; anything else is off the table. NaN lands
+ *  at 0 rather than poisoning the card's position. */
+const clamp01 = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
 export interface PlayerState {
   life: number;
@@ -289,6 +310,7 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
     isCommander: card.isCommander,
     attacking: card.attacking,
     blocking: card.blocking,
+    pos: card.pos ?? null,
   };
   if (!opts.reveal && !cardVisibleTo(card, viewer)) return { ...base, hidden: true as const };
   // a DFC always presents as its ACTIVE face — the composite name never shows
@@ -315,8 +337,9 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
 
 /** The agent-facing trim of an already-serialized card: the same card, minus
  * the fields that exist for human eyes only — the art urls, on the card and on
- * each face. Not a second card shape: a transport trim, applied by the lean
- * state view and by the granted peeks. */
+ * each face. Board position is NOT trimmed: the agent shares the table surface
+ * and places its own cards on it. Not a second card shape: a transport trim,
+ * applied by the lean state view and by the granted peeks. */
 export function leanCard({ image, faces, ...rest }: any) {
   return { ...rest, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
 }
@@ -423,6 +446,10 @@ function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
   card.zone = zone;
   card.controller = player;
   card.visibleTo = [];
+  // every zone change re-homes the card: onto the battlefield it takes its new
+  // controller's corner, off the battlefield it has no position at all. So a
+  // battlefield card ALWAYS has a pos and the client never invents one.
+  card.pos = zone === "battlefield" ? { ...HOME_POS[player] } : null;
   return game.players[player].zones[zone];
 }
 
@@ -1394,6 +1421,21 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, { [ctx.actor]: detail });
     }
     return { ok: true, face, name: c.name };
+  },
+
+  /** Move cards around the table surface. Cosmetic: no log entry, no undo
+   *  step, and it never wakes the agent — sliding a card is not a game action.
+   *  Either seat may place any battlefield card; the table is shared. */
+  place(ctx, p) {
+    const positions: { card: string; x: number; y: number }[] = p.positions ?? [];
+    const moved: string[] = [];
+    for (const at of positions) {
+      const c = getCard(at.card);
+      if (c.zone !== "battlefield") throw new Error(`${c.name} is in ${c.zone}, not on the battlefield — only cards on the table have a position`);
+      c.pos = { x: clamp01(Number(at.x)), y: clamp01(Number(at.y)) };
+      moved.push(c.id);
+    }
+    return { ok: true, placed: moved.length };
   },
 
   roll(ctx, p) {

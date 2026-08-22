@@ -146,6 +146,19 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   tuck: { description: "Tuck card under another battlefield card, forming a pile (equipment/auras, or board tidying). The pile's top card is the handle and carries the pile when it moves. Pass under '' to pull a card out of its pile.", schema: obj({ card: str("card id"), under: str("card id to tuck under, or '' to pull out") }, ["card"]) },
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
+  place: {
+    description:
+      "Slide cards around the shared table surface. ONE coordinate system covers both halves: x 0 = far left, 1 = far right; y 0 = YOUR back edge (top of the table), 1 = Player's back edge (bottom), so the midline is 0.5 and your own half is roughly y 0 to 0.5. Every battlefield card carries its pos on get_state, so you can read the board's layout and tidy it. New permanents land stacked in their controller's outer corner (yours 0,0) until somebody moves them — spread your board out so it can be read. Purely cosmetic: no log entry, no undo step, and it does not pass priority.",
+    schema: obj(
+      {
+        positions: arr(
+          obj({ card: str("card id"), x: num("0 (left) to 1 (right)"), y: num("0 (your back edge) to 1 (Player's back edge)") }, ["card", "x", "y"]),
+          "one entry per card — batch a whole board tidy into a single call"
+        ),
+      },
+      ["positions"]
+    ),
+  },
   commander_tax: {
     description:
       "Read/adjust a player's commander tax — the {2}-per-previous-cast surcharge on casting a commander out of the command zone. The current value for both players is on every get_state as players.<id>.commanderTax. Bump it by 2 (delta) each time that player casts their commander; use set to correct it.",

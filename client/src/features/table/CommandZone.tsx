@@ -6,6 +6,7 @@
 // information too.
 import { act } from "../../api";
 import { CardEl } from "../../components/Card";
+import { startDrag, useDrag } from "../../game/drag";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
 
@@ -13,8 +14,17 @@ export function CommandZone({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.command);
   const tax = useGame((s) => s.view!.players[p].commanderTax) ?? 0;
   const mine = p === "you";
+  // the socket lights up when a commander is being carried over it
+  const armed = useDrag((s) => s.over?.kind === "command" && s.over.player === p);
+  // the carried commander draws in the drag layer; this one dims in its socket
+  const carried = useDrag((s) => s.cards);
   return (
-    <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-tip="Command zone">
+    <div
+      className={`cmdzone${mine ? "" : " theirs"}${armed ? " armed" : ""}`}
+      id={`cmdzone-${p}`}
+      data-drop={`command:${p}`}
+      data-tip="Command zone"
+    >
       {/* the nebula: four blobs drifting on their own clocks — see table.css */}
       <div className="cmdcloud" aria-hidden="true">
         <span />
@@ -24,7 +34,12 @@ export function CommandZone({ p }: { p: PlayerId }) {
       </div>
       <div className="cmdslot">
         {cards.map((c) => (
-          <CardEl key={c.id} card={c} className="cmdcard" />
+          <CardEl
+            key={c.id}
+            card={c}
+            className={`cmdcard${carried.some((d) => d.id === c.id) ? " beingdragged" : ""}`}
+            onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
+          />
         ))}
       </div>
       {/* the {2}-per-previous-cast surcharge. Both seats keep it by hand — the

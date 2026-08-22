@@ -207,8 +207,11 @@ const server = Bun.serve({
             body.params = { ...body.params, image: info.image, oracle: body.params.oracle ?? info.oracle, typeLine: body.params.typeLine ?? info.typeLine, power: body.params.power ?? info.power, toughness: body.params.toughness ?? info.toughness };
           }
         }
-        // chat is conversation, not a game action — it never becomes an undo step
-        const undoable = body.type !== "chat";
+        // sliding a card around the table changes nothing about the game, so it
+        // is not an undo step and it does not wake the agent. Chat is
+        // conversation rather than a game action, so it skips undo too.
+        const cosmetic = body.type === "place";
+        const undoable = !cosmetic && body.type !== "chat";
         if (undoable) recordSnapshot();
         let result;
         try {
@@ -241,7 +244,7 @@ const server = Bun.serve({
         // - reaction window on stack traffic and combat during YOUR turn
         // - everything else (draws, taps, life, moves, phases) just lands in
         //   the log and is seen at the agent's next wake
-        if (actor === "you" && game.started) {
+        if (actor === "you" && game.started && !cosmetic) {
           const REACTIVE = new Set([
             "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
             "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",

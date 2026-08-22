@@ -99,14 +99,57 @@
 
 /* ── the board ── */
 .battlefield { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; overflow-y: auto; }
-/* free-placement board — one continuous surface: cards may overhang into the
-   other half, so overflow stays visible */
-.battlefield.freeboard { display: block; position: relative; overflow: visible; }
-/* placement is torn out pending the new drag-and-drop system: every card sits
-   in the top-left corner of its own half */
-.battlefield.freeboard .card.placed { position: absolute; left: 0; top: 0; z-index: 2; }
-.battlefield.freeboard .card.placed.tucked { z-index: 1; filter: brightness(0.85); }
-.battlefield.freeboard .card.placed.tapped { margin: 0; }
+/* the battlefield div reserves each seat's share of the felt; the cards
+   themselves live in #cardlayer, over both seats at once */
+.battlefield { display: block; position: relative; overflow: visible; }
+
+/* ── the card layer ──
+   One surface for the whole table. It spans the felt so that a card's stored
+   fraction converts to a pixel with no per-seat offset; the layer itself is
+   transparent to the pointer, so the hands and rails underneath still work,
+   and each card opts back in. */
+#cardlayer,
+#draglayer {
+  position: absolute; inset: 0; pointer-events: none;
+}
+#cardlayer { z-index: 3; }
+#cardlayer .card.placed { position: absolute; pointer-events: auto; transition: left 0.18s, top 0.18s; }
+#cardlayer .card.placed.grabbable { cursor: grab; }
+#cardlayer .card.placed.tucked { filter: brightness(0.85); }
+#cardlayer .card.placed.tapped { margin: 0; }
+/* the card a drop would tuck under */
+#cardlayer .card.placed.tuckover { outline: 2px solid var(--gold-hi); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 208, 120, 0.7); }
+
+/* the carried card rides above the hands and command zones, which is the
+   whole reason it is a second layer and not a z-index on the first */
+#draglayer { z-index: 60; }
+#draglayer.empty { display: none; }
+#draglayer .card.carried {
+  position: absolute; cursor: grabbing;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.8);
+  transform: scale(1.03);
+}
+/* a pile travels as a pile: the rungs keep their cascade and stay behind the
+   card you actually grabbed */
+#draglayer .card.carried.tucked { transform: none; filter: brightness(0.85); }
+
+/* The card layer sits over the felt, so everything that must stay reachable
+   ON TOP of the cards is raised past it here. The rail and the midline do not
+   overlap the placeable area, but they are raised anyway — a card mid-drag
+   crosses them. (The command zone and the token button carry z-index 45 of
+   their own further down.) */
+.rail { position: relative; z-index: 10; }
+.handrow.fan { position: relative; z-index: 12; }
+#midline { z-index: 14; }
+
+/* armed drop targets: the region under the carried card says so */
+.handrow.fan.armed,
+.pile.armed {
+  border-color: var(--gold-hi);
+  background: rgba(226, 179, 85, 0.14);
+  box-shadow: 0 0 16px rgba(240, 208, 120, 0.45);
+}
+.handrow.fan.armed { border-radius: 10px; }
 
 /* ── hands ── */
 .handrow {
@@ -244,6 +287,11 @@
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 9px rgba(226, 179, 85, 0.4);
 }
 .cmdzone .cmdtax:hover { color: var(--gold-hi); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 12px rgba(240, 208, 120, 0.7); }
+/* a commander carried over the socket: it lights up and the cloud thickens */
+.cmdzone.armed { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
+.cmdzone.armed .cmdcloud span { filter: blur(8px) brightness(1.5); }
+.cmdzone.armed .cmdslot:empty { border-color: var(--gold-hi); }
+
 /* card-shaped token creator, bottom-right by your hand */
 #btn-token {
   position: absolute; right: 10px; bottom: 10px; z-index: 45;
