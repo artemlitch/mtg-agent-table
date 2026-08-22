@@ -17,6 +17,8 @@
 // pos -> px -> pos exact, which is what keeps a server ack from nudging a card
 // you just dropped.
 
+import { box, dlog, px } from "./debug";
+
 interface Rect {
   left: number;
   top: number;
@@ -115,6 +117,14 @@ export function measureSurface(): Surface | null {
 
   const place: Rect = { left: l, top: t, width: Math.max(1, r - l), height: Math.max(1, b - t) };
   surface = { felt: { left: 0, top: 0, width: origin.width, height: origin.height }, place };
+  dlog("surface", {
+    felt: `${px(origin.width)} x ${px(origin.height)} @vp ${px(origin.left)}, ${px(origin.top)}`,
+    board: `${px(board.width)} x ${px(board.height)} @felt ${box(board)}`,
+    placeable: `${px(place.width)} x ${px(place.height)} @felt ${box(place)}`,
+    insetBy: `top ${px(place.top - board.top)}, bottom ${px(bottom(board) - bottom(place))}, left ${px(place.left - board.left)}, right ${px(right(board) - right(place))}`,
+    card: `${cw} x ${ch}`,
+    span: `${px(Math.max(1, place.width - cw))} x ${px(Math.max(1, place.height - ch))}`,
+  });
   return surface;
 }
 

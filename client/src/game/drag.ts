@@ -24,6 +24,7 @@ import { act } from "../api";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
+import { box, dlog, fr, pt, px, tag } from "./debug";
 import { CH, CW, cardAt, posToPx, pxToPos, regionAt, snapshotCards, snapshotRegions, type CardBox, type Region } from "./table";
 
 /** How far the pointer travels before this is a drag and not a click. */
@@ -81,8 +82,26 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   let aimedCard: CardBox | null = null;
   let frame = 0;
 
+  // the live translate, sampled rather than streamed: one line per frame is
+  // still 60 a second, and the interesting thing is the trend plus every
+  // boundary crossing (those log unthrottled, below)
+  let loggedAt = 0;
+  const traceMove = () => {
+    const now = performance.now();
+    if (now - loggedAt < 120) return;
+    loggedAt = now;
+    dlog(`move   ${card.name ?? "?"}`, {
+      pointerVp: `${px(last.x)}, ${px(last.y)}`,
+      pointerFelt: `${px(last.x - origin.x)}, ${px(last.y - origin.y)}`,
+      translate: `${px(last.x - startX)}, ${px(last.y - startY)}`,
+      cardPx: box(at),
+      wouldStore: pt(pxToPos(at.left, at.top)),
+    });
+  };
+
   const retarget = () => {
     frame = 0;
+    traceMove();
     const region = regionAt(regions, last.x - origin.x, last.y - origin.y);
     // tucking is a board-to-board gesture: playing a card out of your hand
     // (or pre-placing an unresolved one) should never silently attach it to
@@ -92,11 +111,13 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       aimedAt?.el.classList.remove("armed");
       region?.el.classList.add("armed");
       aimedAt = region;
+      dlog("target", { zone: region ? `${region.kind}:${region.player}${region.zone ? ":" + region.zone : ""}` : "open table" });
     }
     if (target !== aimedCard) {
       aimedCard?.el.classList.remove("tuckover");
       target?.el.classList.add("tuckover");
       aimedCard = target;
+      dlog("target", { tuckUnder: target ? target.id : "none" });
     }
   };
 
@@ -140,6 +161,15 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
         el.style.width = `${CW()}px`;
         el.style.height = `${CH()}px`;
       }
+      dlog(`PICK UP ${tag(card)}`, {
+        mode: onFelt ? "moves itself (left/top)" : "lifted out of flow (fixed)",
+        grabbedAt: `${fr(fx)}, ${fr(fy)} of the card`,
+        startPx: onFelt ? box({ left: startLeft, top: startTop }) : "n/a (no layout box)",
+        startPos: card.pos ? pt(card.pos) : "none",
+        feltOrigin: `${px(origin.x)}, ${px(origin.y)}`,
+        carrying: carriedIds.size,
+        regions: regions.map((r) => `${r.kind}:${r.player}${r.zone ? ":" + r.zone : ""}`).join(" "),
+      });
     }
     last = { x: mv.clientX, y: mv.clientY };
     if (onFelt) {
@@ -189,16 +219,26 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     // a felt card released beyond the placeable rect settles onto its clamped
     // spot NOW — the exact pixel the store will render it at — so the server
     // ack cannot move it
+    const stored = pxToPos(at.left, at.top);
+    const roundTrip = posToPx(stored);
+    dlog(`DROP   ${tag(card)}`, {
+      releasedVp: `${px(up.clientX)}, ${px(up.clientY)}`,
+      cardPx: box(at),
+      "-> stores": pt(stored),
+      "-> renders": box(roundTrip),
+      snap: `${px(roundTrip.left - at.left)}, ${px(roundTrip.top - at.top)}`,
+      onto: over ? `${over.kind}:${over.player}${over.zone ? ":" + over.zone : ""}` : overCard ? `tuck under ${overCard.id}` : "open table",
+    });
     if (onFelt && !over && !overCard) {
-      const px = posToPx(pxToPos(at.left, at.top));
-      el.style.left = `${px.left}px`;
-      el.style.top = `${px.top}px`;
+      el.style.left = `${roundTrip.left}px`;
+      el.style.top = `${roundTrip.top}px`;
     }
     // the card stays where you let go until the server has been told —
     // release it earlier and it flicks back for the round trip
     let moved = false;
     try {
       moved = await drop(card, over, overCard?.id ?? null, at);
+      dlog(`settled ${card.name ?? "?"}`, { moved });
     } finally {
       if (onFelt) {
         el.classList.remove("dragging");

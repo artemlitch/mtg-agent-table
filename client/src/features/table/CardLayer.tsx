@@ -13,6 +13,7 @@
 // same felt-local pixels rendered here, so pickup and drop are seamless.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
+import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { HOME, PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
@@ -160,6 +161,9 @@ function anchorOf(c: Card): { left: number; top: number; depth: number } {
   // a position you just dropped the card at outranks the one in the view: the
   // server has not answered yet, and the card must not flick back meanwhile
   const claimed = useGame.getState().pendingPos.get(top.id);
-  const at = posToPx(claimed ?? top.pos ?? HOME[top.controller]);
-  return { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
+  const pos = claimed ?? top.pos ?? HOME[top.controller];
+  const at = posToPx(pos);
+  const out = { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
+  traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "home", depth);
+  return out;
 }

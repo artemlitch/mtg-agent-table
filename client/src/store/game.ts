@@ -9,6 +9,7 @@
 //     and land the moment the drag ends. Applying one mid-gesture re-renders
 //     the whole table underneath the pointer.
 import { create } from "zustand";
+import { dlog, pt } from "../game/debug";
 import type { BrainEntry, Card, GameView, PlayerId } from "../types";
 
 interface GameStore {
@@ -38,8 +39,13 @@ function reconcile(v: GameView, pending: Map<string, { x: number; y: number }>) 
   const claim = (c: Card) => {
     const pos = pending.get(c.id);
     if (!pos) return;
-    if (samePos(c.pos, pos)) pending.delete(c.id);
-    else c.pos = pos;
+    if (samePos(c.pos, pos)) {
+      pending.delete(c.id);
+      dlog(`server agrees ${c.name ?? "?"}`, { pos: pt(pos), claimReleased: true });
+    } else {
+      dlog(`holding claim ${c.name ?? "?"}`, { claimed: pt(pos), serverSays: c.pos ? pt(c.pos) : "null" });
+      c.pos = pos;
+    }
   };
   for (const p of ["you", "agent"] as PlayerId[]) for (const c of v.players[p].zones.battlefield) claim(c);
   // unresolved cards hold positions too (pre-placed while on the stack)
@@ -68,6 +74,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   expectPos(id, pos) {
+    dlog("claim", { card: id, pos: pt(pos) });
     get().pendingPos.set(id, pos);
   },
 
