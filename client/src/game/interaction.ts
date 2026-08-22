@@ -95,6 +95,9 @@ export const trackHover = (c: Card) => ({
 const rootCS = getComputedStyle(document.documentElement);
 export const CW = parseFloat(rootCS.getPropertyValue("--card-w")) || 92;
 export const CH = parseFloat(rootCS.getPropertyValue("--card-h")) || 128;
+/** A held card is smaller than one on the board. The hand's fan math needs the
+ *  number, so it comes from the same variable the sheet lays out with. */
+export const HAND_W = parseFloat(rootCS.getPropertyValue("--hand-card-w")) || 76;
 
 /** The strip over your hand that a board card can be dropped onto to go back
  *  to hand. Driven imperatively — it only exists mid-drag, and re-rendering

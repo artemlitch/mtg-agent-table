@@ -91,7 +91,7 @@
 }
 /* the fan values are applied before the card enters the DOM, so a transform
    transition here animates the hover lift without replaying the fan-out */
-.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: transform 0.12s ease; }
+.handrow.fan .card.fanned { width: var(--hand-card-w); height: var(--hand-card-h); box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: transform 0.12s ease; }
 /* !important beats the per-card inline z-index. 35 clears its siblings and
    the board (<=30) while staying under the menu, modal and preview */
 .handrow.fan .card.fanned:hover { z-index: 35 !important; }
@@ -130,11 +130,9 @@
 
 /* ── the command zone ── */
 /* A lit socket in the corner of your own half, mirrored into the agent's. The
-   card inside is half a hand card — you read it by hovering, not by squinting.
-   Sized off --cmd-w so the whole thing scales from one line. */
+   card inside is sized like a card in hand — it is a card you hold, not one
+   you have played. */
 .cmdzone {
-  --cmd-w: 38px;
-  --cmd-h: 53px;
   position: absolute; left: 12px; bottom: 12px; z-index: 45;
   padding: 6px; border-radius: 11px;
   display: flex; gap: 4px;
@@ -146,15 +144,12 @@
 /* the agent's mirrors across the midline, into the top corner of its board */
 .cmdzone.theirs { bottom: auto; top: 12px; }
 /* an empty socket still holds its shape — it is the drop target for the way back */
-.cmdzone .cmdslot { display: flex; gap: 4px; min-width: var(--cmd-w); min-height: var(--cmd-h); border-radius: 6px; }
+.cmdzone .cmdslot { display: flex; gap: 4px; min-width: var(--hand-card-w); min-height: var(--hand-card-h); border-radius: 6px; }
 .cmdzone .cmdslot:empty {
   border: 1px dashed rgba(226, 179, 85, 0.35);
-  background: repeating-linear-gradient(135deg, rgba(226, 179, 85, 0.05) 0 4px, transparent 4px 9px);
+  background: repeating-linear-gradient(135deg, rgba(226, 179, 85, 0.05) 0 5px, transparent 5px 11px);
 }
-.cmdzone .card.cmdcard { width: var(--cmd-w); height: var(--cmd-h); border-radius: 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
-.cmdzone .card.cmdcard img { border-radius: 4px; }
-/* the on-card chips are sized for a full card and only get in the way here */
-.cmdzone .card .ctrbtn, .cmdzone .card .badges, .cmdzone .card .tokentag, .cmdzone .card .flipbtn { display: none; }
+.cmdzone .card.cmdcard { width: var(--hand-card-w); height: var(--hand-card-h); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
 
 /* the flare: a slow conic sweep orbiting behind the plate, plus a second one
    the other way so the light never looks like it is simply spinning */
@@ -165,21 +160,21 @@
 .cmdzone .cmdswirl::before,
 .cmdzone .cmdswirl::after {
   content: ""; position: absolute; inset: -40%; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 55%, rgba(226, 179, 85, 0.55) 72%, var(--gold-hi) 80%, rgba(226, 179, 85, 0.55) 88%, transparent 100%);
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(226, 179, 85, 0.83) 72%, var(--gold-hi) 80%, rgba(226, 179, 85, 0.83) 88%, transparent 100%);
   filter: blur(4px);
-  animation: cmdswirl 7s linear infinite;
+  animation: cmdswirl 35s linear infinite;
 }
 .cmdzone .cmdswirl::after {
-  background: conic-gradient(from 180deg, transparent 0 62%, rgba(140, 100, 220, 0.45) 78%, rgba(200, 170, 255, 0.8) 84%, transparent 96%);
-  animation-duration: 11s; animation-direction: reverse; opacity: 0.7;
+  background: conic-gradient(from 180deg, transparent 0 62%, rgba(140, 100, 220, 0.68) 78%, rgba(200, 170, 255, 1) 84%, transparent 96%);
+  animation-duration: 55s; animation-direction: reverse; opacity: 1;
 }
 @keyframes cmdswirl {
   to { transform: rotate(1turn); }
 }
 /* dragging a commander over it: the socket lights up and the swirl quickens */
 .cmdzone.armed { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 208, 120, 0.75); }
-.cmdzone.armed .cmdswirl::before { animation-duration: 1.6s; filter: blur(2px); }
-.cmdzone.armed .cmdswirl::after { animation-duration: 2.4s; }
+.cmdzone.armed .cmdswirl::before { animation-duration: 8s; filter: blur(2px); }
+.cmdzone.armed .cmdswirl::after { animation-duration: 12s; }
 .cmdzone.armed .cmdslot:empty { border-color: var(--gold-hi); }
 
 /* card-shaped token creator, bottom-right by your hand */

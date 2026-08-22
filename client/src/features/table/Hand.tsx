@@ -6,10 +6,9 @@
 import { useEffect, useRef, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { startCastDrag } from "../../game/castDrag";
+import { HAND_W } from "../../game/interaction";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
-
-const CARD_W = 76; // .handrow.fan .card.fanned
 
 export function Hand({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.hand);
@@ -34,8 +33,8 @@ export function Hand({ p }: { p: PlayerId }) {
   const yShift = Math.max(0, mid * mid * dipK - 4);
   let overlap = 22;
   const avail = width - 16;
-  if (n > 1 && CARD_W + (n - 1) * (CARD_W - overlap) > avail) {
-    overlap = Math.min(CARD_W * 0.8, CARD_W - (avail - CARD_W) / (n - 1));
+  if (n > 1 && HAND_W + (n - 1) * (HAND_W - overlap) > avail) {
+    overlap = Math.min(HAND_W * 0.8, HAND_W - (avail - HAND_W) / (n - 1));
   }
 
   return (

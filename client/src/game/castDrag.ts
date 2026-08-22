@@ -18,6 +18,9 @@ export function startCastDrag(down: React.PointerEvent<HTMLDivElement>, c: Card,
   let ghost: HTMLElement | null = null;
 
   const board = () => document.getElementById("bf-you")!;
+  // a card already in the hand has nowhere to go there; anything else dragged
+  // out of a zone can be dropped on the strip to land in it instead
+  const toHand = c.zone !== "hand";
 
   const onMove = (mv: PointerEvent) => {
     if (!ghost) {
@@ -39,6 +42,8 @@ export function startCastDrag(down: React.PointerEvent<HTMLDivElement>, c: Card,
     const bf = board().getBoundingClientRect();
     const over = mv.clientX >= bf.left && mv.clientX <= bf.right && mv.clientY >= bf.top && mv.clientY <= bf.bottom;
     ghost.classList.toggle("overboard", over);
+    // the strip is offered to anything that isn't already in the hand
+    if (toHand) handZone.show(handZone.over(mv.clientX, mv.clientY));
   };
 
   const onUp = async (up: PointerEvent) => {
@@ -51,6 +56,14 @@ export function startCastDrag(down: React.PointerEvent<HTMLDivElement>, c: Card,
     guardClicks();
     noHover.id = c.id;
     handZone.hide();
+    // dropped on the strip over your hand → the card goes to hand instead of
+    // being played. The strip was already being offered mid-drag; before this
+    // the drop was silently a cancel.
+    if (toHand && handZone.over(up.clientX, up.clientY)) {
+      useGame.getState().setDragging(false);
+      await act("move", { card: c.id, toZone: "hand", toPlayer: "you" });
+      return;
+    }
     const bfEl = board();
     const bf = bfEl.getBoundingClientRect();
     const inside = up.clientX >= bf.left && up.clientX <= bf.right && up.clientY >= bf.top && up.clientY <= bf.bottom;
