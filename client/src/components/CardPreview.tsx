@@ -1,5 +1,6 @@
 import { useUI } from "../store/ui";
 import type { Card } from "../types";
+import { TokenFace, drawnHere } from "./TokenFace";
 
 // The full-size card that follows the cursor. One layer, above the board and
 // the modal, below the tooltip.
@@ -23,6 +24,15 @@ export function CardPreviewLayer() {
 }
 
 function Single({ card }: { card: Card }) {
+  // a token we drew has art but no printed card, so blowing up the image alone
+  // gives an icon floating on nothing — the preview draws the same face the
+  // board does, just bigger
+  if (drawnHere(card))
+    return (
+      <div className="pv-token">
+        <TokenFace c={card} />
+      </div>
+    );
   if (card.image) return <img src={card.image} alt="" />;
   return (
     <div className="pv-text">

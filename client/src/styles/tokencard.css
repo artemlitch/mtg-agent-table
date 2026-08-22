@@ -157,3 +157,14 @@
   font-family: var(--font-scroll); font-size: 0.72em; line-height: 1.25; color: var(--text);
 }
 .tokenface .tc-pt { font-size: 0.9em; }
+
+/* the hover preview: the same face at preview size. It brings its own frame
+   and container context, since there is no .card around it here. */
+#cardpreview .pv-token {
+  position: relative; width: 100%; aspect-ratio: 0.716;
+  container-type: inline-size;
+  border: 1px solid transparent; border-radius: 10px; overflow: hidden;
+  background: linear-gradient(180deg, #241d31, #16121e) padding-box, var(--chrome) border-box;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
+}
+#cardpreview .pv-token .tokenface { border-radius: 9px; }
