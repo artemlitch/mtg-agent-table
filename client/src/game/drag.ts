@@ -30,6 +30,20 @@ import { CH, CW, cardAt, posToPx, pxToPos, regionAt, snapshotCards, snapshotRegi
 /** How far the pointer travels before this is a drag and not a click. */
 const THRESHOLD = 6;
 
+/** Would releasing THIS card here actually send it somewhere?
+ *
+ *  Drives the lighting, and it has to be the same question the drop asks or
+ *  the two drift apart — a zone that glows and then declines the card is
+ *  worse than one that never glowed. The drop guards below read the same
+ *  way, region kind by region kind. */
+function offers(region: Region, card: Card): boolean {
+  if (region.kind === "hand") return region.player === card.controller && card.zone !== "hand";
+  // a commander only ever goes home to its OWNER's socket, so only that one
+  // is a place this card could go
+  if (region.kind === "command") return !!card.isCommander && region.player === card.owner;
+  return region.kind === "pile";
+}
+
 // A release always fires a click, so a finished drag would also open the card
 // menu. The dragged card is flagged and its next click is eaten.
 let dragged: string | null = null;
@@ -137,6 +151,10 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
       ]);
       regions = snapshotRegions();
       others = snapshotCards(carriedIds);
+      // light every place this card could go, for as long as it is in the
+      // air. You should be able to see where a card can land the moment you
+      // pick it up, not discover it by dragging over things.
+      for (const r of regions) if (offers(r, card)) r.el.classList.add("offered");
       const felt = document.getElementById("felt")?.getBoundingClientRect();
       origin = { x: felt?.left ?? 0, y: felt?.top ?? 0 };
       if (onFelt) {
@@ -214,6 +232,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     const overCard = !over && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     aimedAt?.el.classList.remove("armed");
     aimedCard?.el.classList.remove("tuckover");
+    for (const r of regions) r.el.classList.remove("offered");
     ui().hidePreview();
     // a felt card released beyond the placeable rect settles onto its clamped
     // spot NOW — the exact pixel the store will render it at — so the server
