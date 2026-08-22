@@ -1833,7 +1833,12 @@ function libraryMenu(p, e) {
     const text = document.createElement("span");
     text.className = "lp-label";
     text.textContent = label;
-    b.append(iconEl(icon), text);
+    // icon and label always share a line; the dial sits beside them on wide
+    // buttons and beneath them on tiles
+    const head = document.createElement("span");
+    head.className = "lp-head";
+    head.append(iconEl(icon), text);
+    b.append(head);
     let n = 1;
     if (counted) {
       const count = document.createElement("span");

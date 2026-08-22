@@ -378,7 +378,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 /* ── library panel: laid out, not a list ── */
 /* --c is the per-action colour; this is the fallback for anything unclassed */
-#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 306px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
+#menu.libpanel { display: flex; flex-direction: column; gap: 5px; width: 262px; padding: 8px; --c: rgba(226, 179, 85, 0.45); }
 #menu.libpanel .lp-title {
   color: var(--accent); font: 700 10px/1 var(--font-fantasy);
   letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 2px 4px;
@@ -501,8 +501,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .lp-stepper.step-down::before { top: 50%; opacity: 1; }
 #menu.libpanel .lp-count { position: relative; z-index: 1; }
 
-/* icon, label and dial all sit on one line */
-#menu.libpanel .lp-tile { gap: 7px; padding: 7px 9px; }
+#menu.libpanel .lp-head { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
+/* tiles stack: icon and label on one line, the dial under them */
+#menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
 #menu.libpanel .lp-draw { justify-content: center; gap: 12px; padding: 7px 12px; }
 
 /* content sits high (not centered): the box and any side palette share the
