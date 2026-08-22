@@ -53,6 +53,7 @@ const css = `/* game-icons.net — Lorc, Delapouite and contributors, CC BY 3.0.
   mask: var(--gi) center / contain no-repeat;
 }
 .gi-rot180 { transform: rotate(180deg); }
+.gi-flipx { transform: scaleX(-1); }
 ${rules.join("\n")}
 `;
 

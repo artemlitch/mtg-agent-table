@@ -130,6 +130,8 @@ function render() {
   processSounds();
   updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
+  // redo only exists while a rewind is still un-branched
+  document.querySelector(".na-redowrap").classList.toggle("hidden", !state.canRedo);
   modalRefresh?.(); // an open zone browser follows the pile it is showing
 }
 
@@ -232,6 +234,7 @@ const ICONS = {
   tap: "gi-clockwise-rotation",
   untap: "gi-anticlockwise-rotation",
   undo: "gi-return-arrow",
+  redo: "gi-return-arrow gi-flipx",
   answer: "gi-chat-bubble",
   takeTurn: "gi-player-next",
   resolve: "gi-check-mark",
@@ -910,7 +913,7 @@ function deckEl(p) {
   return wrap;
 }
 
-function pile(label, count, cards, onClick) {
+function pile(label, count, cards, onClick, onMenu) {
   const d = document.createElement("div");
   d.className = "pile";
   d.innerHTML = `<div class="phead"><span class="pname">${label}</span><span class="pcount">${count}</span></div>`;
@@ -948,7 +951,31 @@ function pile(label, count, cards, onClick) {
     hidePreview();
     onClick(e);
   };
+  if (onMenu) {
+    d.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hidePreview();
+      onMenu(e);
+    };
+  }
   return d;
+}
+
+/** Right-clicking a graveyard: whole-pile actions, one undo step each. */
+function graveyardMenu(p, e) {
+  const ids = state.players[p].zones.graveyard.map((c) => c.id);
+  openMenu(
+    [
+      { label: `${p === "you" ? "Your" : "Agent's"} graveyard`, title: true },
+      { label: "Browse", fn: () => showZoneModal(p, "graveyard") },
+      {
+        label: `Exile all (${ids.length})`,
+        fn: () => ids.length && act("move", { cards: ids, toZone: "exile", note: "exiled the graveyard" }),
+      },
+    ],
+    e
+  );
 }
 
 function renderRail(p) {
@@ -961,7 +988,9 @@ function renderRail(p) {
   // so each element sits at the same distance from the midline on both sides
   rail.appendChild(lifeBox(p));
   rail.appendChild(deckEl(p));
-  rail.appendChild(pile("Graveyard", ps.counts.graveyard, ps.zones.graveyard, () => showZoneModal(p, "graveyard")));
+  rail.appendChild(
+    pile("Graveyard", ps.counts.graveyard, ps.zones.graveyard, () => showZoneModal(p, "graveyard"), (e) => graveyardMenu(p, e))
+  );
   rail.appendChild(pile("Exile", ps.counts.exile, ps.zones.exile, () => showZoneModal(p, "exile")));
 
   for (const c of ps.zones.command) {
@@ -1696,6 +1725,7 @@ function hidePreview() {
 // to collide: the two exiles, the two reveals, top vs bottom of library,
 // set-P/T vs other-counter, delete vs cancel.
 const MENU_LOOK = [
+  [/browse/i, "search", "scry"],
   [/exile face.?down/i, "exileDown", "surveil"],
   [/turn face-(down|up)/i, "facedown", "surveil"],
   [/^show /i, "flip", "surveil"],
@@ -2895,13 +2925,17 @@ $("#btn-endturn").onclick = async () => {
 };
 
 
-const undoLastAction = async () => {
-  const res = await fetch("/api/undo", { method: "POST" });
+const step = (what) => async () => {
+  const res = await fetch(`/api/${what}`, { method: "POST" });
   const data = await res.json();
   if (!data.ok) alert(data.error);
+  refresh();
 };
+const undoLastAction = step("undo");
+const redoLastAction = step("redo");
 $("#btn-undo").onclick = undoLastAction;
 $("#na-undo").onclick = undoLastAction;
+$("#na-redo").onclick = redoLastAction;
 
 function sendChat() {
   const input = $("#chat-input");
@@ -2955,11 +2989,12 @@ document.addEventListener("keydown", (e) => {
   // keybinds are inert while typing
   const t = document.activeElement;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-  // CMD/CTRL+Z undoes the last table action. Below the typing guard on
-  // purpose: inside a text field it stays the browser's text undo.
+  // CMD/CTRL+Z undoes the last table action, +SHIFT walks back forward. Below
+  // the typing guard on purpose: inside a text field it stays the browser's
+  // text undo.
   if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
     e.preventDefault();
-    undoLastAction();
+    (e.shiftKey ? redoLastAction : undoLastAction)();
     return;
   }
   // SPACE takes the floating next action, SHIFT+SPACE skips to the turn pass.

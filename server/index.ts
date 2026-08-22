@@ -5,7 +5,7 @@ import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent, buildSystemPrompt } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
-import { recordSnapshot, dropLastSnapshot, undoLast, clearHistory, getHistory, setHistory } from "./history";
+import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, getHistory, setHistory } from "./history";
 import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 
@@ -92,6 +92,7 @@ const server = Bun.serve({
         view.agentModel = agent.model;
         view.agentTransport = transportChoice();
         view.cliInstalled = !!resolveClaudeBin();
+        view.canRedo = redoSize() > 0;
       }
       return json(view);
     }
@@ -267,6 +268,15 @@ const server = Bun.serve({
       // deliberately NOT waking the agent: it would act immediately and pile
       // new state on top, making it impossible to keep rewinding
       return json({ ok: true, undone });
+    }
+
+    if (path === "/api/redo" && req.method === "POST") {
+      const redone = redoLast();
+      if (redone === null) return json({ ok: false, error: "nothing to redo" }, 400);
+      addLog("system", `↪ Player redid: ${redone}`);
+      saveSoon();
+      broadcast({ type: "update", seq: game.seq });
+      return json({ ok: true, redone });
     }
 
     // end the current game now: archive it and clear the table (no new decks)
