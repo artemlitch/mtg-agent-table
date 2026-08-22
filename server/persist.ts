@@ -36,6 +36,17 @@ export function restoreState(snap: any): PersistedExtra {
   // migrations for snapshots from before the stack existed
   (game as any).stack ??= [];
   (game as any).tokenCatalog ??= {};
+  // Conversation used to live in game.log, where undo could rewind it. Lift
+  // the old entries out into `said` so a game in progress gets the same
+  // guarantee as a new one. Matching on the rendering is only safe because
+  // this runs once per save file, on lines no future code writes.
+  const legacyTalk: any[] = [];
+  game.log = game.log.filter((e: any) => {
+    if (!(e.talk || /^💬 |^❓ | passes — /.test(e.text))) return true;
+    legacyTalk.push({ ...e, talk: true });
+    return false;
+  });
+  if (legacyTalk.length) snap.said = [...legacyTalk, ...(snap.said ?? [])].sort((a, b) => a.seq - b.seq);
   // DFC names follow the active face now — rewrite composite names in place
   for (const c of Object.values(game.cards) as any[]) {
     if (c.faces) c.name = c.faces[c.face ?? 0]?.name ?? c.name;
