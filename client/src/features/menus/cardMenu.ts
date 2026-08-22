@@ -88,9 +88,15 @@ export function cardMenu(c: Card, e: Anchor) {
       },
     });
     if (c.under) items.push({ label: "Pull out of pile", fn: () => void act("tuck", { card: c.id, under: "" }) });
-    if (c.isToken) items.push({ ...destItem("graveyard", c, { note: "token removed" }), label: "🗑 Delete token", sep: true });
-    items.push({ ...destItem("graveyard", c), sep: !c.isToken });
-    items.push(destItem("exile", c), destItem("exileDown", c), destItem("hand", c), destItem("top", c));
+    // A token that leaves the battlefield ceases to exist, so there is nowhere
+    // to send it: no graveyard, no exile, no hand, no library. One row that
+    // says what actually happens.
+    if (c.isToken) {
+      items.push({ ...destItem("graveyard", c, { note: "token removed" }), label: "🗑 Delete token", sep: true });
+    } else {
+      items.push({ ...destItem("graveyard", c), sep: true });
+      items.push(destItem("exile", c), destItem("exileDown", c), destItem("hand", c), destItem("top", c));
+    }
     if (c.isCommander) items.push(destItem("command", c));
     if (c.controller === "agent") items.push(destItem("steal", c));
     if (c.controller === "you" && c.owner === "agent") items.push(destItem("giveBack", c));
