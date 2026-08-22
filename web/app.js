@@ -272,6 +272,7 @@ const ICONS = {
   setpt: "fa-pen-to-square",
   cancel: "fa-xmark",
   cancelAttack: "fa-circle-xmark",
+  battlefield: "fa-chess-board",
 };
 function iconEl(name) {
   const i = document.createElement("i");
@@ -1662,7 +1663,7 @@ function hidePreview() {
 // to collide: the two exiles, the two reveals, top vs bottom of library,
 // set-P/T vs other-counter, delete vs cancel.
 const MENU_LOOK = [
-  [/exile face-down/i, "exileDown", "surveil"],
+  [/exile face.?down/i, "exileDown", "surveil"],
   [/turn face-(down|up)/i, "facedown", "surveil"],
   [/^show /i, "flip", "surveil"],
   [/delete/i, "trash", "mill"],
@@ -1670,6 +1671,7 @@ const MENU_LOOK = [
   [/remove|cancel|clear/i, "cancel", "mill"],
   [/ability/i, "ability", "scry"],
   [/copy/i, "copy", "surveil"],
+  [/create/i, "token", "draw"],
   [/set p\/t/i, "setpt", "scry"],
   [/counter/i, "counters", "scry"],
   [/attack|combat/i, "combat", "exile"],
@@ -1677,15 +1679,18 @@ const MENU_LOOK = [
   [/untap/i, "untap", "mulligan"],
   [/^tap\b/i, "tap", "mulligan"],
   [/play |cast|→ stack/i, "cast", "surveil"],
-  [/graveyard|discard|mill/i, "mill", "mill"],
+  // owner/steal/give before the plain battlefield rule, or "to MY
+  // battlefield" and "to owner bf" would collapse onto one glyph
+  [/steal|take/i, "steal", "exile"],
+  [/give|return|owner bf/i, "give", "draw"],
+  [/\bbf\b|battlefield/i, "battlefield", "draw"],
+  [/graveyard|discard|mill|\bgy\b/i, "mill", "mill"],
   [/exile/i, "exile", "exile"],
   [/token/i, "token", "draw"],
-  [/steal|take/i, "steal", "exile"],
-  [/give|return/i, "give", "draw"],
   [/command/i, "command", "reveal"],
   [/hand/i, "toHand", "draw"],
-  [/top of/i, "top", "scry"],
-  [/bottom of/i, "bottom", "scry"],
+  [/top/i, "top", "scry"],
+  [/bottom/i, "bottom", "scry"],
   [/library/i, "library", "scry"],
   [/reveal to agent/i, "secret", "reveal"],
   [/reveal/i, "reveal", "reveal"],
@@ -2185,8 +2190,15 @@ function modalCardEl(info, buttons) {
   const btns = document.createElement("div");
   btns.className = "mcbtns";
   for (const [label, fn] of buttons) {
+    // same icon/tone table the menus use, so a card's buttons read the same
+    // wherever they appear
+    const [, icon, tone] = MENU_LOOK.find(([re]) => re.test(label)) ?? [];
     const b = document.createElement("button");
-    b.textContent = label;
+    b.className = `mcbtn a-${tone ?? "neutral"}`;
+    const text = document.createElement("span");
+    text.textContent = stripGlyph(label);
+    b.append(iconEl(icon ?? "bullet"), text);
+    b.title = label;
     b.onclick = fn;
     btns.appendChild(b);
   }
