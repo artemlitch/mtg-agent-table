@@ -161,7 +161,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   overflow: visible; background: none; border: none;
   min-height: 96px;
 }
-.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: none; }
+/* the fan values are applied before the card enters the DOM, so a transform
+   transition here animates the hover lift without replaying the fan-out */
+.handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: transform 0.12s ease; }
 .handrow.fan .card.fanned:hover { z-index: 99 !important; }
 #hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
 #hand-you.fan .card.fanned {
@@ -169,16 +171,27 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   transform-origin: 50% 130%;
   transform: rotate(var(--fan-rot)) translateY(var(--fan-y));
 }
+#hand-you.fan .card.fanned:hover { transform: rotate(var(--fan-rot)) translateY(var(--fan-y)) scale(1.06); }
 #hand-agent.fan { align-items: flex-start; padding: 10px 8px 0; }
 #hand-agent.fan .card.fanned {
   margin: 0 -11px -30px;
   transform-origin: 50% -30%;
   transform: rotate(calc(var(--fan-rot) * -1)) translateY(calc(var(--fan-y) * -1));
 }
+#hand-agent.fan .card.fanned:hover { transform: rotate(calc(var(--fan-rot) * -1)) translateY(calc(var(--fan-y) * -1)) scale(1.06); }
 
 .card { width: var(--card-w); height: var(--card-h); border-radius: 6px; position: relative; cursor: pointer; flex: none; transition: transform 0.15s; background: #222; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
 .card img { width: 100%; height: 100%; border-radius: 6px; display: block; object-fit: cover; }
 .card.tapped { transform: rotate(90deg); margin: 0 18px; }
+
+/* a small lift under the cursor, composed with whatever transform the card
+   already carries. Never while dragging — the drag owns the geometry */
+/* !important: pile order sets z-index inline, and the hovered card has to
+   come up over its neighbours to be seen whole */
+.battlefield .card:hover { transform: scale(1.045); z-index: 31 !important; }
+.battlefield .card.tapped:hover { transform: rotate(90deg) scale(1.045); }
+.card.dragging, .card.dragging:hover { transform: none; }
+.card.tapped.dragging, .card.tapped.dragging:hover { transform: rotate(90deg); }
 .card.attacking { outline: 2px solid var(--red); outline-offset: 1px; }
 /* declared attacker, not yet locked in: slight hover + red glow */
 .card.declaring {

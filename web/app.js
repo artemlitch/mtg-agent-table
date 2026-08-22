@@ -859,7 +859,10 @@ function renderHand(p) {
   const row = $(`#hand-${p}`);
   row.innerHTML = "";
   const cards = state.players[p].zones.hand;
-  for (const c of cards) row.appendChild(cardEl(c));
+  // built but NOT yet in the DOM: the fan values below are applied first, so
+  // the cards render already fanned. Appending first and styling after made
+  // every re-render animate the fan out from flat.
+  const els = cards.map((c) => cardEl(c));
   // both hands fan from the center like held cards, poking over the board
   // (the agent's mirrors downward from the top edge). The fan flattens as the
   // hand grows: the end card never tilts past 10° or sinks more than ~24px,
@@ -878,12 +881,13 @@ function renderHand(p) {
   if (n > 1 && CARD_W + (n - 1) * (CARD_W - overlap) > avail) {
     overlap = Math.min(CARD_W * 0.8, CARD_W - (avail - CARD_W) / (n - 1));
   }
-  [...row.children].forEach((el, i) => {
+  els.forEach((el, i) => {
     el.classList.add("fanned");
     el.style.setProperty("--fan-rot", `${(i - mid) * rotStep}deg`);
     el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * dipK - yShift}px`);
     el.style.marginLeft = el.style.marginRight = `${-overlap / 2}px`;
     el.style.zIndex = i + 1;
+    row.appendChild(el);
   });
 }
 
