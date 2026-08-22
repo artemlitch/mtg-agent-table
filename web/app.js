@@ -1561,13 +1561,8 @@ function cardEl(c, opts = {}) {
       render();
       return;
     }
-    // on the battlefield a click is the same gesture as E (tap / attack /
-    // undo), shift-click the same as shift+E (announce an ability). The menu
-    // stays on right-click. Elsewhere a click still opens the menu.
-    if (c.zone === "battlefield") {
-      cardPrimaryAction(c, e.shiftKey);
-      return;
-    }
+    // either button shows the menu — tapping by accident was too easy, so
+    // the keyboard (E / shift+E) owns the quick gestures instead
     cardMenu(c, e);
   };
   // right-click = the same card menu (the browser menu is useless mid-game)
@@ -1691,11 +1686,19 @@ function openMenu(items, e) {
     }
     const [, icon, tone] = MENU_LOOK.find(([re]) => re.test(it.label)) ?? [];
     const b = document.createElement("button");
-    b.className = `mi a-${tone ?? "neutral"}` + (it.sep ? " sep" : "");
+    // the first action is the one you almost always came for — give it size
+    const first = !m.querySelector(".mi:not(.title)");
+    b.className = `mi a-${tone ?? "neutral"}` + (it.sep ? " sep" : "") + (first ? " primary" : "");
     const label = document.createElement("span");
     label.className = "mi-label";
     label.textContent = stripGlyph(it.label);
     b.append(iconEl(icon ?? "bullet"), label);
+    if (it.keys) {
+      const keys = document.createElement("span");
+      keys.className = "na-key mi-keys";
+      keys.append(keyCaps(it.keys));
+      b.append(keys);
+    }
     b.onclick = () => {
       closeMenu();
       it.fn();
@@ -1739,7 +1742,7 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "battlefield") {
-    items.push({ label: c.tapped ? "Untap" : "Tap", fn: () => act("tap", { cards: [c.id], tapped: !c.tapped }) });
+    items.push({ label: c.tapped ? "Untap" : "Tap", keys: ["E"], fn: () => act("tap", { cards: [c.id], tapped: !c.tapped }) });
     const pendingAtk = pendingAttackOf(c.id);
     if (c.controller === "you" && !c.attacking && !pendingAtk) {
       items.push({ label: "⚔ Attack agent", fn: () => act("attack", { pairs: [{ attacker: c.id, target: "agent" }] }) });
@@ -1836,7 +1839,7 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "battlefield") {
-    items.push({ label: "⚡ Ability → stack…", fn: () => abilityModal(c) });
+    items.push({ label: "⚡ Ability → stack…", keys: ["⇧", "E"], fn: () => abilityModal(c) });
   }
 
   if (c.zone === "exile" && !c.hidden) {

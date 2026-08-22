@@ -399,6 +399,24 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 /* hairline above a separated row — a pseudo-element, so it never fights the
    transparent border the hover rim uses */
+/* the first action carries the plate at rest and a little more size */
+#menu .mi.primary {
+  font-size: 12.5px; padding: 8px 10px; margin-bottom: 2px;
+  color: var(--c);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--c) 16%, #211a2c),
+      color-mix(in srgb, var(--c) 7%, #141019)) padding-box,
+    linear-gradient(155deg,
+      color-mix(in srgb, var(--c) 55%, #4a350f),
+      color-mix(in srgb, var(--c) 95%, #f8e7a0) 28%,
+      color-mix(in srgb, var(--c) 70%, #6e4a14) 62%,
+      color-mix(in srgb, var(--c) 85%, #eecf7a) 85%,
+      color-mix(in srgb, var(--c) 55%, #4a350f)) border-box;
+}
+#menu .mi.primary .ico { font-size: 13px; width: 15px; }
+#menu .mi-keys { margin-left: auto; padding-left: 8px; flex: none; }
+
 #menu .mi.sep { margin-top: 7px; }
 #menu .mi.sep::before {
   content: ""; position: absolute; left: 6px; right: 6px; top: -4px; height: 1px;
