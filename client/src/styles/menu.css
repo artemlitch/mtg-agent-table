@@ -145,6 +145,12 @@
 /* tiles stack: icon and label on one line, the dial under them */
 #menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
 
+/* the dial the counted tiles wear is components/Dial.tsx — see dial.css. It
+   picks up each tile's --c on its own, so nothing is repeated here. */
+#menu.libpanel .lp-head { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
+/* tiles stack: icon and label on one line, the dial under them */
+#menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
+
 /* the counter is a big round dial that doubles as the stepper: the + and −
    live inside it, top and bottom, and arm as the pointer crosses the middle.
    The dial is a struck coin: dark well, metallic rim, numeral in the

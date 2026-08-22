@@ -4,7 +4,7 @@ import { ModalFrame } from "../../components/Modal";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import { ModalCard } from "../browsers/ModalCard";
-import { askText } from "./AskText";
+import { askNumber } from "./AskText";
 
 /** Tokens harvested from both imported decks (Scryfall all_parts) show as
  *  clickable cards; anything else can be typed in as a custom token. */
@@ -13,8 +13,8 @@ export function openTokenModal() {
 }
 
 async function create(params: Record<string, unknown>) {
-  const n = Number((await askText("How many?", "1")) || 0);
-  if (n > 0) void act("create_token", { ...params, n, player: "you" }).then(ui().closeModal);
+  const n = await askNumber("How many?", 1, { min: 1, max: 20 });
+  if (n && n > 0) void act("create_token", { ...params, n, player: "you" }).then(ui().closeModal);
 }
 
 function TokenModal() {

@@ -8,7 +8,7 @@ import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
 import type { Card } from "../../types";
 import { openAbilityModal } from "../modals/AbilityModal";
-import { askText } from "../modals/AskText";
+import { askNumber, askText } from "../modals/AskText";
 
 export function cardMenu(c: Card, e: Anchor) {
   const view = gameView();
@@ -82,8 +82,9 @@ export function cardMenu(c: Card, e: Anchor) {
       fn: async () => {
         const kind = await askText("Counter kind (e.g. loyalty, charge)");
         if (!kind) return;
-        const delta = Number((await askText("Delta", "1")) || 1);
-        void act("counters", { card: c.id, kind, delta });
+        // counters come off as well as on, so this one goes negative
+        const delta = await askNumber(`How many ${kind} counters?`, 1, { min: -99 });
+        if (delta) void act("counters", { card: c.id, kind, delta });
       },
     });
     if (c.under) items.push({ label: "Pull out of pile", fn: () => void act("tuck", { card: c.id, under: "" }) });
@@ -106,8 +107,8 @@ export function cardMenu(c: Card, e: Anchor) {
     items.push({
       label: "🪞 Copy as token",
       fn: async () => {
-        const n = Number((await askText(`Token copies of ${c.name}`, "1")) || 0);
-        if (n <= 0) return;
+        const n = await askNumber(`Token copies of ${c.name}`, 1, { min: 1, max: 20 });
+        if (!n || n <= 0) return;
         const face = c.faces?.[c.face ?? 0] ?? ({} as Record<string, unknown>);
         const pick = (k: string) => (face as any)[k] ?? (c as any)[k];
         void act("create_token", {

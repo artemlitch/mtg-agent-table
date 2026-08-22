@@ -20,14 +20,18 @@
 }
 /* compact modals size to content — the fixed-size rule is for card browsers */
 #modal-box.compact { width: auto; height: auto; max-width: 85vw; max-height: 85vh; margin-top: 10vh; }
-/* A one-question box goes in the middle of the TABLE, not the middle of the
-   window. The veil covers the viewport, but the playmat is inset by the rail
-   on the left and the side panel on the right, so centring on the viewport
-   lands it visibly off to one side. Same reasoning as the centred prompt.
-   A margin on a centred flex item moves it by half the margin, so the shift
-   works out to (rail - side) / 2 — exactly the playmat's own offset. */
+/* A modal belongs over the TABLE, not over the window. The veil covers the
+   viewport, but the playmat is inset by the rail on the left and the side
+   panel on the right, so centring on the viewport lands every box visibly off
+   to one side. A margin on a centred flex item moves it by half the margin, so
+   this shift works out to (rail - side) / 2 — the playmat's own offset, the
+   same number the centre prompt uses. It sits on the box rather than the veil
+   so a modal with something beside it (the ability modal's target palette)
+   moves as one group. */
+#modal-box { margin-left: calc(var(--rail-w) - var(--side-w)); }
+/* a one-question box has no reason to hang from the top as well */
 #modal:has(> #modal-box.centred) { align-items: center; padding-top: 0; }
-#modal-box.centred { margin-top: 0; margin-left: calc(var(--rail-w) - var(--side-w)); }
+#modal-box.centred { margin-top: 0; }
 #modal-box h3 { margin-bottom: 10px; font-family: var(--font-fantasy); letter-spacing: 0.05em; color: var(--accent); }
 #modal-box .modalhead { flex: none; }
 #modal-box .modalscroll { overflow-y: auto; flex: 1; min-height: 0; }
@@ -87,6 +91,10 @@
 .askbox { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
 .askbox input { padding: 9px 10px; font-size: var(--fs-body); }
 .askrow { display: flex; gap: 8px; justify-content: flex-end; }
+/* a counted question is the dial and nothing else — it centres rather than
+   filling a row, and the buttons sit under it */
+.askbox.asknum { align-items: center; gap: 14px; min-width: 200px; padding-top: 4px; }
+.askbox.asknum .askrow { justify-content: center; }
 
 /* ability-to-stack modal: card left, input as tall as the card, send below */
 .abilitymodal { display: flex; gap: 12px; align-items: stretch; }

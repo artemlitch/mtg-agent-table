@@ -10,8 +10,9 @@
 // The tile body runs the action with the number shown. The number is also the
 // stepper: hovering its top half arms a + above, the bottom half a − below,
 // and clicking there changes the count instead of firing.
-import { useRef, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { act } from "../../api";
+import { Dial } from "../../components/Dial";
 import { Icon } from "../../components/Icon";
 import { gameView } from "../../store/game";
 import { ui, type Anchor } from "../../store/ui";
@@ -118,49 +119,23 @@ function LibButton({
   onRun: (n: number) => void;
 }) {
   const [n, setN] = useState(1);
-  const [half, setHalf] = useState<"up" | "down" | null>(null);
-  const dial = useRef<HTMLSpanElement>(null);
-
-  // Takes a number, not the event. A synthetic event is only valid for the
-  // duration of its handler — React nulls currentTarget on the way out — so
-  // reading geometry off one inside a deferred setState updater blows up.
-  const topHalf = (clientY: number) => {
-    const r = dial.current?.getBoundingClientRect();
-    return !!r && clientY < r.top + r.height / 2;
-  };
-
-  let stepper: ReactNode = null;
-  if (counted) {
-    stepper = (
-      <span
-        ref={dial}
-        className={`lp-stepper${half === "up" ? " step-up" : half === "down" ? " step-down" : ""}`}
-        // on the dial the click won't run the action, so the button stops
-        // pretending it is hovered
-        onMouseMove={(ev) => setHalf(topHalf(ev.clientY) ? "up" : "down")}
-        onMouseLeave={() => setHalf(null)}
-        onClick={(ev) => {
-          ev.stopPropagation(); // adjust, never fire
-          const up = topHalf(ev.clientY); // resolved here, not inside the updater
-          setN((v) => Math.max(1, up ? v + 1 : v - 1));
-        }}
-      >
-        <span className={`lp-step up${half === "up" ? " armed" : ""}`}>+</span>
-        <span className="lp-count">{n}</span>
-        <span className={`lp-step down${half === "down" ? " armed" : ""}`}>−</span>
-      </span>
-    );
-  }
+  const [onDial, setOnDial] = useState(false);
 
   return (
-    <button className={`${cls} a-${icon}${half ? " on-dial" : ""}`} onClick={() => onRun(n)}>
+    <button className={`${cls} a-${icon}${onDial ? " on-dial" : ""}`} onClick={() => onRun(n)}>
       {/* icon and label always share a line; the dial sits beside them on wide
           buttons and beneath them on tiles */}
       <span className="lp-head">
         <Icon name={icon} />
         <span className="lp-label">{label}</span>
       </span>
-      {stepper}
+      {counted && (
+        // the pointer being on the dial means the click adjusts rather than
+        // fires, so the button stops pretending it is hovered
+        <span onMouseEnter={() => setOnDial(true)} onMouseLeave={() => setOnDial(false)} style={{ display: "contents" }}>
+          <Dial value={n} onChange={setN} min={1} />
+        </span>
+      )}
     </button>
   );
 }
