@@ -444,7 +444,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .a-shuffle:hover { opacity: 1; }
 /* search and reveal are slimmer than the tiles they sit between */
 #menu.libpanel .lp-wide { padding-top: 5px; padding-bottom: 5px; }
-#menu.libpanel .lp-draw { padding-top: 7px; padding-bottom: 7px; }
 
 /* the counter is a big round dial that doubles as the stepper: the + and −
    live inside it, top and bottom, and arm as the pointer crosses the middle.
@@ -507,7 +506,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .lp-head { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
 /* tiles stack: icon and label on one line, the dial under them */
 #menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
-#menu.libpanel .lp-draw { justify-content: center; gap: 12px; padding: 7px 12px; }
 
 /* content sits high (not centered): the box and any side palette share the
    same top edge, and nothing may extend below the viewport */

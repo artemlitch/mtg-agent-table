@@ -1913,14 +1913,23 @@ function libraryMenu(p, e) {
   );
   m.append(grid);
 
-  if (mine) m.append(button("lp-wide lp-draw", "Draw", "draw", (n) => act("draw", { n }), true));
-  m.append(
-    button("lp-wide", "Reveal top", "reveal", async () => {
-      const r = await act("peek", { player: p, n: 1 });
-      if (r.ok && r.cards[0]) act("reveal", { cards: [r.cards[0].id], to: "all" });
-    }),
-    button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p }))
+  // draw and reveal are a matched pair of tiles, counters and all
+  const pair = document.createElement("div");
+  pair.className = "lp-grid";
+  if (mine) pair.append(button("lp-tile", "Draw", "draw", (n) => act("draw", { n }), true));
+  pair.append(
+    button(
+      "lp-tile",
+      "Reveal",
+      "reveal",
+      async (n) => {
+        const r = await act("peek", { player: p, n });
+        if (r.ok && r.cards.length) await act("reveal", { cards: r.cards.map((c) => c.id), to: "all" });
+      },
+      true
+    )
   );
+  m.append(pair, button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p })));
 
   m.classList.remove("hidden");
   const x = Math.min(e.clientX, window.innerWidth - 250);
