@@ -344,7 +344,7 @@ const NEXT_ACTION_STEPS = [
   },
   {
     id: "combat-damage",
-    when: (c) => c.phase === "combat" && c.myAttackers.length > 0,
+    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/COMBAT DAMAGE/),
     step: () => ({
       label: "💥 Announce combat damage",
       skip: true,
@@ -352,9 +352,16 @@ const NEXT_ACTION_STEPS = [
     }),
   },
   {
-    id: "pick-attackers",
+    // never a dead end: attacking is a right-click on a creature, so the
+    // prompt keeps moving the turn along instead of waiting on one
+    id: "past-combat",
     when: (c) => c.phase === "combat",
-    step: () => ({ hint: "right-click a creature to attack — or skip ahead", skip: true }),
+    step: () => ({
+      label: "▶ Main phase 2",
+      title: "right-click a creature to attack instead",
+      skip: true,
+      fn: () => act("set_phase", { phase: "main 2" }),
+    }),
   },
   {
     id: "main-2",
@@ -386,6 +393,7 @@ function renderNextAction() {
   if (a.hint) hint.textContent = a.hint;
   else {
     btn.querySelector(".na-label").textContent = a.label;
+    btn.title = a.title || "";
     btn.classList.toggle("urgent", a.kind === "urgent");
     btn.onclick = a.fn;
   }
