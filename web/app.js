@@ -1265,14 +1265,14 @@ function cardEl(c, opts = {}) {
     d.onmouseenter = (e) => showPreview(c, e);
     d.onmousemove = (e) => positionPreview(e);
     d.onmouseleave = hidePreview;
-    // what a click/keypress does here, spelled out on hover
+    // what a click/keypress does here, as keycaps + symbols: E taps,
+    // shift+E taps and puts the ability on the stack
     if (c.zone === "battlefield") {
       const keys = document.createElement("div");
       keys.className = "cardkeys";
-      const attackable = c.controller === "you" && typeCat(c) === "creature" && !c.attacking && !c.tapped;
       keys.innerHTML =
-        `<span><b>${attackable ? "attack" : c.tapped ? "untap" : "tap"}</b> click · e</span>` +
-        `<span><b>ability</b> ⇧-click · ⇧e</span>`;
+        `<span class="ckrow"><kbd>E</kbd><span class="cksym">↻</span></span>` +
+        `<span class="ckrow"><kbd>⇧E</kbd><span class="cksym">↻<i>⚡</i></span></span>`;
       d.appendChild(keys);
     }
   }
