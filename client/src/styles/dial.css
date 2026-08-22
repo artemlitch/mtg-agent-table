@@ -43,14 +43,14 @@
 .dial::before {
   content: ""; position: absolute; left: -12%; right: -12%; top: -8px;
   height: calc(50% + 8px);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--c, var(--accent)) 38%, transparent), transparent);
-  filter: blur(3px);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--c, var(--accent)) 55%, transparent), transparent);
+  filter: blur(2px);
   opacity: 0; transition: opacity var(--glow-dur) var(--glow-ease); pointer-events: none;
 }
 .dial.step-up::before { opacity: 1; }
 .dial.step-down::before {
   top: auto; bottom: -8px; opacity: 1;
-  background: linear-gradient(to top, color-mix(in srgb, var(--c, var(--accent)) 38%, transparent), transparent);
+  background: linear-gradient(to top, color-mix(in srgb, var(--c, var(--accent)) 55%, transparent), transparent);
 }
 
 /* ── the editable variant ── */
