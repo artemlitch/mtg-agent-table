@@ -166,7 +166,9 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* the fan values are applied before the card enters the DOM, so a transform
    transition here animates the hover lift without replaying the fan-out */
 .handrow.fan .card.fanned { width: 76px; height: 106px; box-shadow: -3px 0 8px rgba(0, 0, 0, 0.55); transition: transform 0.12s ease; }
-.handrow.fan .card.fanned:hover { z-index: 99 !important; }
+/* !important beats the per-card inline z-index. 35 clears its siblings and
+   the board (<=30) while staying under the menu, modal and preview */
+.handrow.fan .card.fanned:hover { z-index: 35 !important; }
 #hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
 #hand-you.fan .card.fanned {
   margin: -30px -11px 0;
