@@ -414,21 +414,29 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .lp-wide { padding-top: 5px; padding-bottom: 5px; }
 #menu.libpanel .lp-draw { padding-top: 7px; padding-bottom: 7px; }
 
-/* the inline counter doubles as the stepper: + above, − below */
+/* the counter is a big round dial that doubles as the stepper: the + and −
+   live inside it, top and bottom, and arm as the pointer crosses the middle.
+   Cursor stays the button's own — this is part of a button, not a slider. */
 #menu.libpanel .lp-stepper {
-  position: relative; display: inline-flex; align-items: center; justify-content: center;
-  min-width: 22px; padding: 1px 3px; border-radius: 5px; cursor: ns-resize; flex: none;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; flex: none; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+  background: color-mix(in srgb, var(--c) 7%, transparent);
 }
-#menu.libpanel .lp-stepper:hover { background: color-mix(in srgb, var(--c) 20%, transparent); }
-#menu.libpanel .lp-count { font: 700 12px/1 var(--font-ui); color: var(--c); }
+#menu.libpanel .lp-stepper:hover { background: color-mix(in srgb, var(--c) 16%, transparent); }
+#menu.libpanel .lp-count { font: 700 24px/1 var(--font-ui); color: var(--c); }
 #menu.libpanel .lp-step {
   position: absolute; left: 50%; transform: translateX(-50%);
-  font: 700 9px/1 var(--font-ui); color: var(--c);
+  font: 700 13px/1 var(--font-ui); color: var(--c);
   opacity: 0; transition: opacity 0.1s;
 }
-#menu.libpanel .lp-step.up { bottom: 100%; margin-bottom: 2px; }
-#menu.libpanel .lp-step.down { top: 100%; margin-top: 2px; }
+#menu.libpanel .lp-step.up { top: 5px; }
+#menu.libpanel .lp-step.down { bottom: 5px; }
 #menu.libpanel .lp-step.armed { opacity: 1; }
+
+/* a 64px dial needs the tile to stack: label over dial, both centred */
+#menu.libpanel .lp-tile { flex-direction: column; gap: 6px; padding: 9px 8px; }
+#menu.libpanel .lp-draw { justify-content: center; gap: 12px; padding: 8px 12px; }
 
 /* content sits high (not centered): the box and any side palette share the
    same top edge, and nothing may extend below the viewport */
@@ -714,6 +722,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
    playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
+#na-primary, #na-skip { font-family: var(--font-fantasy); letter-spacing: 0.05em; }
 #na-primary {
   display: flex; flex-direction: row; align-items: center; gap: 9px;
   padding: 5px 14px 4px; font-size: 12px;
