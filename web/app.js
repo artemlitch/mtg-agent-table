@@ -323,7 +323,7 @@ const NEXT_ACTION_STEPS = [
   {
     id: "draw",
     when: (c) => /untap/.test(c.phase) && state.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
-    step: () => ({ label: "🂠 Draw for turn", skip: true, fn: () => act("draw", { n: 1 }) }),
+    step: () => ({ label: "🂠 Draw 1", skip: true, fn: () => act("draw", { n: 1 }) }),
   },
   {
     id: "main-1",
