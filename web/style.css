@@ -469,16 +469,16 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #menu.libpanel .lp-step.down { bottom: -9px; }
 #menu.libpanel .lp-step.armed { opacity: 1; }
 
-/* pointing at the dial shades the half of the BUTTON the click will act on */
-#menu.libpanel button { position: relative; overflow: hidden; }
-#menu.libpanel button::before {
+/* pointing at the dial shades the half of the DIAL the click will act on */
+#menu.libpanel .lp-stepper { overflow: hidden; }
+#menu.libpanel .lp-stepper::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%;
-  background: color-mix(in srgb, var(--c) 18%, transparent);
+  background: color-mix(in srgb, var(--c) 34%, transparent);
   opacity: 0; transition: opacity 0.1s; pointer-events: none;
 }
-#menu.libpanel button.step-up::before { opacity: 1; }
-#menu.libpanel button.step-down::before { top: 50%; opacity: 1; }
-#menu.libpanel button > * { position: relative; z-index: 1; }
+#menu.libpanel .lp-stepper.step-up::before { opacity: 1; }
+#menu.libpanel .lp-stepper.step-down::before { top: 50%; opacity: 1; }
+#menu.libpanel .lp-count { position: relative; z-index: 1; }
 
 /* a 64px dial needs the tile to stack: label over dial, both centred */
 #menu.libpanel .lp-tile { flex-direction: column; gap: 6px; padding: 9px 8px; }
