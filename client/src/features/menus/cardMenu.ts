@@ -8,7 +8,7 @@ import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
 import type { Card } from "../../types";
 import { openAbilityModal } from "../modals/AbilityModal";
-import { askNumber, askText } from "../modals/AskText";
+import { askNumber, askPT, askText } from "../modals/AskText";
 
 export function cardMenu(c: Card, e: Anchor) {
   const view = gameView();
@@ -68,12 +68,12 @@ export function cardMenu(c: Card, e: Anchor) {
       items.push({
         label: `⚔ Set P/T… (now ${c.power}/${c.toughness})`,
         fn: async () => {
-          const v = await askText(`P/T for ${c.name} (e.g. 4/4 — empty resets to printed)`, `${c.power}/${c.toughness}`);
-          if (v === null) return;
-          const m = v.match(/^\s*([^/\s]+)\s*\/\s*([^/\s]+)\s*$/);
-          if (!v.trim()) void act("set_pt", { card: c.id });
-          else if (m) void act("set_pt", { card: c.id, power: m[1], toughness: m[2] });
-          else alert("Use the form P/T, e.g. 4/4 (or leave empty to reset)");
+          // two dials instead of a "4/4" string to mistype; the printed values
+          // are one button away rather than an empty-box convention
+          const r = await askPT(`P/T for ${c.name}`, Number(c.power) || 0, Number(c.toughness) || 0);
+          if (r === null) return;
+          if (r === "printed") void act("set_pt", { card: c.id });
+          else void act("set_pt", { card: c.id, power: String(r.power), toughness: String(r.toughness) });
         },
       });
     }

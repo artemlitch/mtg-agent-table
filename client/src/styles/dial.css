@@ -91,6 +91,14 @@
   caret-color: var(--c, var(--accent));
 }
 .dial.editable .dial-count::selection { background: transparent; }
+/* two of them fit where one full-size coin would not — the P/T corner of the
+   token maker. The numeral steps down a size with the coin. */
+.dial.editable.compact { width: 42px; height: 42px; }
+.dial.editable.compact .dial-count { font-size: var(--fs-action); height: 20px; }
+.dial.editable.compact .dial-step { font-size: calc(var(--fs-base) * 0.55); }
+.dial.editable.compact .dial-step.up { top: 1px; }
+.dial.editable.compact .dial-step.down { bottom: 1px; }
+
 /* the native number spinner would sit on top of ours */
 .dial .dial-count::-webkit-inner-spin-button,
 .dial .dial-count::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

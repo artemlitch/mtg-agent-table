@@ -117,8 +117,15 @@
   background: linear-gradient(180deg, #2b2231, #17111d) padding-box, var(--chrome-dim) border-box;
   font-weight: var(--fw-heavy); color: var(--gold-hi);
 }
-.tokencard .tc-pt input { width: 1.9em; text-align: center; padding: 0; font-weight: var(--fw-heavy); color: var(--gold-hi); }
-.tokencard .tc-pt span { opacity: 0.65; }
+/* The maker's corner holds two dials, so it is bigger than the printed one and
+   drops the plate — a box around two coins reads as a box of buttons. The
+   printed face keeps the classic small P/T box above. */
+.tokencard .tc-pt {
+  width: auto; height: auto; right: 4%; bottom: 3%;
+  gap: 0.25em; padding: 0; border: none; background: none;
+}
+.tokencard .tc-pt span { opacity: 0.65; font-size: 1.1em; }
+.tokencard .tc-body { bottom: 20%; }
 
 /* the maker sits beside the deck's own tokens rather than under them */
 .tokencustom {

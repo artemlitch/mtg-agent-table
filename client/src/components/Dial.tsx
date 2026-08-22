@@ -24,13 +24,15 @@ export interface DialProps {
   onChange: (n: number) => void;
   /** the middle becomes a text field; the step zones shrink to the quarters */
   editable?: boolean;
+  /** a smaller coin, for places that hold two of them side by side */
+  compact?: boolean;
   step?: number;
   min?: number;
   max?: number;
   autoFocus?: boolean;
 }
 
-export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, autoFocus }: DialProps) {
+export function Dial({ value, onChange, editable, compact, step = 1, min = 0, max = 999, autoFocus }: DialProps) {
   const box = useRef<HTMLSpanElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const [armed, setArmed] = useState<"up" | "down" | null>(null);
@@ -71,7 +73,7 @@ export function Dial({ value, onChange, editable, step = 1, min = 0, max = 999, 
   return (
     <span
       ref={box}
-      className={`dial${editable ? " editable" : ""}${armed ? ` step-${armed}` : ""}`}
+      className={`dial${editable ? " editable" : ""}${compact ? " compact" : ""}${armed ? ` step-${armed}` : ""}`}
       style={edge === null ? undefined : ({ "--dial-edge": `${edge}px` } as React.CSSProperties)}
       onMouseMove={(e) => setArmed(zoneAt(e.clientY))}
       onMouseLeave={() => setArmed(null)}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Dial } from "../../components/Dial";
 import { Icon } from "../../components/Icon";
 import { TOKEN_ICONS, iconArtImage } from "../../game/tokenArt";
 
@@ -17,8 +18,8 @@ export interface CustomToken {
   name: string;
   typeLine: string;
   oracle: string;
-  power: string;
-  toughness: string;
+  power: number;
+  toughness: number;
   icon: string;
 }
 
@@ -26,8 +27,8 @@ export const EMPTY_TOKEN: CustomToken = {
   name: "",
   typeLine: "",
   oracle: "",
-  power: "",
-  toughness: "",
+  power: 1,
+  toughness: 1,
   icon: TOKEN_ICONS[0],
 };
 
@@ -38,7 +39,8 @@ export function tokenParams(t: CustomToken): Record<string, unknown> {
     name: t.name.trim() || "Custom",
     typeLine: t.typeLine.trim() || "Token",
     ...(t.oracle.trim() ? { oracle: t.oracle.trim() } : {}),
-    ...(t.power.trim() && t.toughness.trim() ? { power: t.power.trim(), toughness: t.toughness.trim() } : {}),
+    power: String(t.power),
+    toughness: String(t.toughness),
     ...(image ? { image } : {}),
   };
 }
@@ -81,10 +83,12 @@ export function CustomTokenCard({ value, onChange }: { value: CustomToken; onCha
         </div>
       </div>
 
+      {/* the same dial the library panel and the counted prompts use, at the
+          size two of them fit in a card corner */}
       <div className="tc-pt">
-        <input value={value.power} onChange={(e) => set({ power: e.target.value })} placeholder="1" aria-label="power" />
+        <Dial value={value.power} onChange={(power) => set({ power })} editable compact max={99} />
         <span>/</span>
-        <input value={value.toughness} onChange={(e) => set({ toughness: e.target.value })} placeholder="1" aria-label="toughness" />
+        <Dial value={value.toughness} onChange={(toughness) => set({ toughness })} editable compact max={99} />
       </div>
     </div>
   );

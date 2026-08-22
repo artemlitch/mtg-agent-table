@@ -101,7 +101,10 @@
 /* a counted question is the dial and nothing else — it centres rather than
    filling a row, and the buttons sit under it */
 .askbox.asknum { align-items: center; gap: 14px; min-width: 200px; padding-top: 4px; }
-.askbox.asknum .askrow { justify-content: center; }
+.askbox.asknum .askrow { justify-content: center; flex-wrap: wrap; }
+/* the pair reads as one value, so the slash sits between the coins */
+.askpt { display: flex; align-items: center; gap: 0.4em; }
+.askpt > span { font: var(--fw-heavy) var(--fs-action)/1 var(--font-fantasy); color: var(--dim); }
 
 /* ability-to-stack modal: card left, input as tall as the card, send below */
 .abilitymodal { display: flex; gap: 12px; align-items: stretch; }

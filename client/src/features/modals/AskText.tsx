@@ -111,3 +111,68 @@ function AskNumber({
     </ModalFrame>
   );
 }
+
+/** Power and toughness together: two dials rather than a "4/4" string anyone
+ *  could mistype. Resolves the pair, the string "printed" to clear an override
+ *  and go back to the card's own numbers, or null on cancel. */
+export function askPT(title: string, power: number, toughness: number): Promise<{ power: number; toughness: number } | "printed" | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v: { power: number; toughness: number } | "printed" | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(v);
+    };
+    ui().openModal({
+      compact: true,
+      centred: true,
+      onClose: () => done(null),
+      body: (
+        <AskPT
+          title={title}
+          power={power}
+          toughness={toughness}
+          onDone={(v) => {
+            done(v);
+            ui().closeModal();
+          }}
+        />
+      ),
+    });
+  });
+}
+
+function AskPT({
+  title,
+  power,
+  toughness,
+  onDone,
+}: {
+  title: string;
+  power: number;
+  toughness: number;
+  onDone: (v: { power: number; toughness: number } | "printed") => void;
+}) {
+  const [p, setP] = useState(power);
+  const [t, setT] = useState(toughness);
+  return (
+    <ModalFrame title={title}>
+      <div className="askbox asknum" onKeyDown={(e) => e.key === "Enter" && onDone({ power: p, toughness: t })}>
+        <div className="askpt">
+          <Dial value={p} onChange={setP} editable compact autoFocus max={99} />
+          <span>/</span>
+          <Dial value={t} onChange={setT} editable compact max={99} />
+        </div>
+        <div className="askrow">
+          <button className="accent" onClick={() => onDone({ power: p, toughness: t })}>
+            OK
+          </button>
+          <button onClick={() => onDone("printed")} title="Drop the override and use the card's own P/T">
+            Reset to printed
+          </button>
+          <button onClick={ui().closeModal}>Cancel</button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
