@@ -85,7 +85,14 @@ export function CardEl({ card: c, className = "", style, small, elRef, onPointer
       }}
       {...hover}
     >
-      {c.hidden ? <img className="cardback" src="/card-back.jpg" alt="face-down card" draggable={false} /> : <CardFace c={c} />}
+      {/* The card's face sits in its own box so the float animations have
+          something to move that is not the card. A transform on .card would
+          shift its hit area and its rect, and every rect the table reads —
+          what you are hovering, what a dropped card lands on — would be
+          reading an animation frame instead of where the card is. */}
+      <div className="cardface">
+        {c.hidden ? <img className="cardback" src="/card-back.jpg" alt="face-down card" draggable={false} /> : <CardFace c={c} />}
+      </div>
       {children}
     </div>
   );
