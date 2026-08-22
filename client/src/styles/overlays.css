@@ -96,13 +96,24 @@ body.unfocused .na-key { display: none; }
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
 #na-primary {
-  display: flex; flex-direction: row; align-items: center; gap: 9px; letter-spacing: 0.05em;
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 9px; letter-spacing: 0.05em;
   padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
+  /* the box is a window while its width animates (see useSizeTransition) */
+  overflow: hidden;
   /* every action breathes, so the eye always lands on the thing to press */
   animation: noblockspulse 2s infinite ease-in-out;
 }
+/* The label must not re-wrap while the box animates between two widths, or the
+   text reflows on every frame and the slide reads as a jitter. So the content
+   is taken out of the resize entirely: flex: none stops it being squeezed,
+   max-content lays it out at its natural width whatever the box is doing, and
+   nowrap means there is no wrap point to find. The box is a window that
+   reveals it, centred, rather than a container that reflows it. */
+#na-primary > * { flex: none; }
+#na-primary .na-text { width: max-content; }
+#na-primary .na-label { white-space: nowrap; }
 #na-primary:hover { background: rgb(52, 34, 16); border-color: var(--gold-hi); }
 #na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 /* the stack item's own words, under the action */
