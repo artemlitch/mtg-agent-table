@@ -2235,11 +2235,13 @@ $("#btn-endturn").onclick = async () => {
 };
 
 
-$("#btn-undo").onclick = async () => {
+const undoLastAction = async () => {
   const res = await fetch("/api/undo", { method: "POST" });
   const data = await res.json();
   if (!data.ok) alert(data.error);
 };
+$("#btn-undo").onclick = undoLastAction;
+$("#na-undo").onclick = undoLastAction;
 
 function sendChat() {
   const input = $("#chat-input");
