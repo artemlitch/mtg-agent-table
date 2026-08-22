@@ -2,7 +2,7 @@
 
 import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, leanCard, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
-import { agent, buildSystemPrompt } from "./agent";
+import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, clearHistory, getHistory, setHistory } from "./history";
@@ -328,7 +328,7 @@ const server = Bun.serve({
         addLog("system", "Opening hands drawn. Player goes first (no draw on turn 1).");
 
         const decklist = theirs.cards.flatMap((c) => Array(1).fill(c.isCommander ? `${c.name} (COMMANDER)` : c.name));
-        agent.reset(buildSystemPrompt(theirs.name, decklist, yours.name));
+        agent.reset({ agentDeck: theirs.name, decklist, userDeck: yours.name });
         if (body.model) agent.model = body.model;
         saveSoon();
         broadcast({ type: "update", seq: game.seq });

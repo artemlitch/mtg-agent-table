@@ -84,9 +84,21 @@ export interface AgentUsage {
   calls: number;
 }
 
+/** What the system prompt is built FROM. Saved instead of the built string,
+ *  so the prompt is rebuilt from current code on every request: an edit to
+ *  the rules below used to sit inert until somebody started a new game, and
+ *  the agent would confidently deny having a tool it had been given. */
+export interface PromptArgs {
+  agentDeck: string;
+  decklist: string[];
+  userDeck: string;
+}
+
 export interface AgentSnapshot {
   sessionId?: string | null;
-  systemPrompt: string;
+  /** legacy saves froze the built prompt; new ones save promptArgs */
+  systemPrompt?: string;
+  promptArgs?: PromptArgs | null;
   model: string;
   lastSeenSeq: number;
   brain: BrainEntry[];
@@ -100,7 +112,16 @@ const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cache
 
 export class AgentRunner {
   sessionId: string | null = null; // cli transport conversation
-  systemPrompt = "";
+  promptArgs: PromptArgs | null = null;
+  /** only for games saved before the prompt became rebuildable */
+  legacyPrompt = "";
+  /** Built fresh every time it is read, so changes to the rules reach the
+   *  agent on its next turn rather than its next game. Deterministic, so the
+   *  1h prompt cache still hits until the code itself changes. */
+  get systemPrompt(): string {
+    const a = this.promptArgs;
+    return a ? buildSystemPrompt(a.agentDeck, a.decklist, a.userDeck) : this.legacyPrompt;
+  }
   model = "opus";
   // set by the server at boot — the agent's tools MUST talk to the instance
   // that spawned it (a hardcoded url once let a sandbox agent act on the
@@ -133,7 +154,7 @@ export class AgentRunner {
   serialize(): AgentSnapshot {
     return {
       sessionId: this.sessionId,
-      systemPrompt: this.systemPrompt,
+      promptArgs: this.promptArgs,
       model: this.model,
       lastSeenSeq: this.lastSeenSeq,
       brain: this.brain,
@@ -146,7 +167,8 @@ export class AgentRunner {
 
   restore(snap: AgentSnapshot) {
     this.sessionId = snap.sessionId ?? null;
-    this.systemPrompt = snap.systemPrompt ?? "";
+    this.promptArgs = snap.promptArgs ?? null;
+    this.legacyPrompt = snap.systemPrompt ?? "";
     this.model = snap.model ?? "opus";
     this.lastSeenSeq = snap.lastSeenSeq ?? 0;
     this.brain = snap.brain ?? [];
@@ -156,10 +178,11 @@ export class AgentRunner {
     this.usage = snap.usage ?? emptyUsage();
   }
 
-  reset(systemPrompt: string) {
+  reset(promptArgs: PromptArgs) {
     this.kill();
     this.sessionId = null;
-    this.systemPrompt = systemPrompt;
+    this.promptArgs = promptArgs;
+    this.legacyPrompt = "";
     this.lastSeenSeq = 0;
     this.brain = [];
     this.brainSeq = 0;
@@ -614,7 +637,7 @@ ${decklist.join(", ")}
 
 PLAYER'S DECK: "${agentDeckName === userDeckName ? "the same deck" : userDeckName}" — you know the deck name but NOT its contents beyond what is revealed in play.
 
-THE TABLE has no rules engine. You and Player enforce the rules yourselves, like a paper game. You interact through the "table" MCP tools (get_state, draw, move, tap, attack, life, say, done, and more). The server enforces hidden information: you can never see Player's hand or library except through game effects that reveal them (peek, view_zone when an effect allows it, revealed cards).
+THE TABLE has no rules engine. You and Player enforce the rules yourselves, like a paper game. You interact through the "table" MCP tools (get_state, draw, move, tap, attack, life, place, say, done, and more). It is a physical surface, not a list: your cards have x/y coordinates on it and you arrange your own side. The server enforces hidden information: you can never see Player's hand or library except through game effects that reveal them (peek, view_zone when an effect allows it, revealed cards).
 
 HOW TO PLAY YOUR WINDOW:
 1. Call get_state to see the table when your window opens.
@@ -636,6 +659,7 @@ CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 4. Spells: tap your mana (tap tool), then ONE stack_batch containing [the card, then each of its cast/ETB triggers as text items, bottom-first]. A no-trigger permanent is just a plain cast. The trigger rides in the SAME batch — a trigger you didn't put on the stack DID NOT HAPPEN, and "I'll apply it later" is not a thing at this table.
 5. Call done ONCE. Player accepts the whole batch or responds inside it. NEVER stack_resolve your own items.
 6. After resolution, apply exactly what the stack items said — counters, tokens, life — and nothing that wasn't announced.
+7. PUT IT DOWN somewhere. A permanent that just arrived is stacked in the corner every card defaults to, on top of whatever else landed there. Call place with the coordinates you want it at (see rule 5): lands in a row along your back edge, creatures forward toward the midline, artifacts and enchantments off to one side. You decide where your things sit — the table never arranges them for you, and a heap in the corner is unreadable for both of us.
 
 THE STACK AND PRIORITY (Comprehensive Rules model):
 - USES THE STACK: every spell, every activated ability, every triggered ability. DOES NOT: land plays, untapping, the draw for turn, shuffles, cleanup discards, mana abilities.

@@ -61,7 +61,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   cast: {
     description:
-      "Cast a spell (goes on the stack; declare targets with the targets param — they render on the stack item — then call done so Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing.",
+      "Cast a spell (goes on the stack; declare targets with the targets param — they render on the stack item — then call done so Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses. For a double-faced card pass face (0 front / 1 back) to say which face you are playing. A permanent arrives stacked in the default corner with everything else — follow up with place to put it where you want it on the board.",
     schema: obj({
       card: str("card id"),
       targets: arr(str("card id, or 'you'/'agent' for a player"), "declared targets — ALWAYS pass them for targeted spells; they are shown on the stack item and in the log"),

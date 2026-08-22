@@ -65,7 +65,7 @@ describe("state serialization", () => {
 
   test("agent runner state round-trips", () => {
     const a = new AgentRunner();
-    a.systemPrompt = "you are gonti";
+    a.promptArgs = { agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" };
     a.model = "opus";
     a.lastSeenSeq = 42;
     a.messages = [{ role: "user", content: [{ type: "text", text: "the game has started" }] }];
@@ -77,7 +77,11 @@ describe("state serialization", () => {
     b.restore(extra.agent!);
     expect(b.messages.length).toBe(1);
     expect(b.messages[0].content[0].text).toBe("the game has started");
-    expect(b.systemPrompt).toBe("you are gonti");
+    // the prompt is rebuilt from its inputs, not restored as a frozen string,
+    // so a rules edit reaches a game already in progress
+    expect(b.promptArgs).toEqual({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(b.systemPrompt).toContain("Gonti");
+    expect(b.systemPrompt).toContain("Sol Ring");
     expect(b.lastSeenSeq).toBe(42);
     expect(b.brain.at(-1)!.text).toBe("I am thinking");
     // brain seq continues without collision

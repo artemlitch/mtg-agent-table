@@ -55,7 +55,7 @@ describe("agent transport", () => {
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
-    a.reset("SYSTEM PROMPT");
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
         stop_reason: "tool_use",
@@ -112,7 +112,7 @@ describe("agent transport", () => {
     process.env.CLAUDE_BIN = "/tmp/mtg-agent-nonexistent-claude";
     try {
       const a = new AgentRunner();
-      a.reset("SYSTEM");
+      a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
       modelRequests.length = 0;
       await a.wake("window");
       expect(a.busy).toBe(false);
@@ -125,12 +125,31 @@ describe("agent transport", () => {
     }
   });
 
+  test("the prompt is rebuilt from its inputs, so a rules edit reaches a game in progress", () => {
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    // restoring a save carries the INPUTS, never a frozen prompt string — a
+    // game saved before a rule existed still gets the rule on its next turn
+    const b = new AgentRunner();
+    b.restore(JSON.parse(JSON.stringify(a.serialize())));
+    expect(b.serialize().systemPrompt).toBeUndefined();
+    expect(b.systemPrompt).toBe(a.systemPrompt);
+    // and every tool the agent is offered is named by the rules it plays by
+    expect(b.systemPrompt).toContain("place");
+  });
+
+  test("a save from before rebuildable prompts keeps the prompt it froze", () => {
+    const b = new AgentRunner();
+    b.restore({ systemPrompt: "you are gonti", model: "opus", lastSeenSeq: 0, brain: [], brainSeq: 0 });
+    expect(b.systemPrompt).toBe("you are gonti");
+  });
+
   test("mid-game model switch strips thinking blocks from the replayed history", async () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
-    a.reset("SYSTEM");
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
         stop_reason: "end_turn",
@@ -161,7 +180,7 @@ describe("agent transport", () => {
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
-    a.reset("SYSTEM");
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
         stop_reason: "tool_use",
@@ -194,7 +213,7 @@ describe("agent transport", () => {
       resetGameState();
       const a = new AgentRunner();
       a.tableUrl = `http://localhost:${fakeTable.port}`;
-      a.reset("SYSTEM");
+      a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
       modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from deepseek" }] }];
       modelRequests.length = 0;
       await a.wake("window");
@@ -220,7 +239,7 @@ describe("agent transport", () => {
       const a = new AgentRunner();
       a.tableUrl = `http://localhost:${fakeTable.port}`;
       a.apiUrl = `http://localhost:${bad.port}`;
-      a.reset("SYSTEM");
+      a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
       await a.wake("window");
       expect(a.busy).toBe(false);
       expect(a.brain.some((e) => e.kind === "error" && e.text.includes("rejected the API key"))).toBe(true);
