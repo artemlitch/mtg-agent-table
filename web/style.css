@@ -178,6 +178,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 #turnbanner { font: var(--fw-heading) var(--fs-label)/1.4 var(--font-fantasy); letter-spacing: 0.04em; color: var(--accent); text-shadow: 0 0 12px rgba(226, 179, 85, 0.35); }
 .phasebtns { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .phasebtns button { padding: 3px 8px; font-size: var(--fs-note); }
+/* undo / redo are a pair of glyphs; a spent redo greys out rather than moving */
+#btn-undo, #btn-redo { display: flex; align-items: center; justify-content: center; width: 28px; padding: 3px 0; }
+#btn-redo:disabled { opacity: 0.3; cursor: default; }
+#btn-redo:disabled:hover { background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box; color: #e6d8ae; box-shadow: none; }
 /* the turn as a route: dots on a line, the current stop lit and named */
 #phasetrack { display: flex; align-items: center; }
 #phasetrack .pt-line { width: 16px; height: 1px; background: rgba(226, 179, 85, 0.22); transition: background 0.3s ease; }

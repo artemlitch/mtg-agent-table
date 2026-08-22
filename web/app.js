@@ -130,8 +130,10 @@ function render() {
   processSounds();
   updateKeyUI();
   $("#question").textContent = state.pendingQuestion ? `❓ Agent asks: ${state.pendingQuestion}` : "";
-  // redo only exists while a rewind is still un-branched
+  // redo only exists while a rewind is still un-branched: hidden by the centre
+  // action, greyed in the top bar where the pair has to stay put
   document.querySelector(".na-redowrap").classList.toggle("hidden", !state.canRedo);
+  $("#btn-redo").disabled = !state.canRedo;
   modalRefresh?.(); // an open zone browser follows the pile it is showing
 }
 
@@ -2932,16 +2934,16 @@ $("#btn-endturn").onclick = async () => {
 };
 
 
+// nothing to step to is not an error worth a dialog — the button just sits there
 const step = (what) => async () => {
-  const res = await fetch(`/api/${what}`, { method: "POST" });
-  const data = await res.json();
-  if (!data.ok) alert(data.error);
+  await fetch(`/api/${what}`, { method: "POST" });
   refresh();
 };
 const undoLastAction = step("undo");
 const redoLastAction = step("redo");
 $("#btn-undo").onclick = undoLastAction;
 $("#na-undo").onclick = undoLastAction;
+$("#btn-redo").onclick = redoLastAction;
 $("#na-redo").onclick = redoLastAction;
 
 function sendChat() {
