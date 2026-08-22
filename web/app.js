@@ -894,6 +894,7 @@ function renderHand(p) {
   }
   els.forEach((el, i) => {
     el.classList.add("fanned");
+    if (p === "you" && !cards[i].hidden) makeHandDraggable(el, cards[i]);
     el.style.setProperty("--fan-rot", `${(i - mid) * rotStep}deg`);
     el.style.setProperty("--fan-y", `${(i - mid) * (i - mid) * dipK - yShift}px`);
     el.style.marginLeft = el.style.marginRight = `${-overlap / 2}px`;
@@ -1157,7 +1158,10 @@ function makeDraggable(el, c, bf, opts = {}) {
         // would make them trail the handle by 180ms
         for (const k of kids) k.el.style.transition = "none";
         el.setPointerCapture?.(down.pointerId);
+        // your own cards can go back to hand — offer the strip while dragging
+        if (c.controller === "you") showHandZone(false);
       }
+      if (c.controller === "you") showHandZone(overHandZone(mv.clientX, mv.clientY));
       // pure delta on the layout box: start position + pointer travel.
       // No transform can offset this — tapped cards drag identically.
       left = Math.max(0, Math.min(maxX, startLeft + (mv.clientX - down.clientX)));
@@ -1172,7 +1176,7 @@ function makeDraggable(el, c, bf, opts = {}) {
         k.el.style.top = k.top + dy + "px";
       }
     };
-    const onUp = async () => {
+    const onUp = async (up) => {
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
       if (moved) {
@@ -1180,6 +1184,12 @@ function makeDraggable(el, c, bf, opts = {}) {
         for (const k of kids) k.el.style.transition = "";
         el.dataset.dragged = "1";
         draggingNow = false;
+        hideHandZone();
+        // dropped on the strip over your hand → the card goes back to hand
+        if (c.controller === "you" && up && overHandZone(up.clientX, up.clientY)) {
+          await act("move", { card: c.id, toZone: "hand", toPlayer: "you" });
+          return;
+        }
         // drop onto another card = tuck into its pile (equip, auras, board
         // tidying — one gesture). Center from the layout box (rotation about
         // the center can't move it); target rects are fine to read — they're
@@ -1258,6 +1268,80 @@ function pileChainBelow(id) {
     cur = cardBeneathOf(cur.id);
   }
   return out;
+}
+
+// ── dragging a card out of your hand ──────────────────────────────────────
+// Hand cards sit in a flex row, so there is no left/top to move: the drag
+// carries a fixed-position clone under the cursor and the original dims in
+// place. Dropping on your own half plays the card there; anywhere else is a
+// cancel. Lands land, spells go to the stack — same `cast` either way — and
+// the drop point becomes the card's board position.
+function makeHandDraggable(el, c) {
+  el.addEventListener("pointerdown", (down) => {
+    if (down.button !== 0 || c.controller !== "you") return;
+    let ghost = null;
+    const onMove = (mv) => {
+      if (!ghost) {
+        if (Math.hypot(mv.clientX - down.clientX, mv.clientY - down.clientY) < 8) return;
+        hidePreview();
+        draggingNow = true;
+        ghost = el.cloneNode(true);
+        ghost.className = "card handghost";
+        ghost.style.width = CW + "px";
+        ghost.style.height = CH + "px";
+        document.body.appendChild(ghost);
+        el.classList.add("beingdragged");
+        el.setPointerCapture?.(down.pointerId);
+        showHandZone(false);
+      }
+      ghost.style.left = mv.clientX - CW / 2 + "px";
+      ghost.style.top = mv.clientY - CH / 2 + "px";
+      const bf = $("#bf-you").getBoundingClientRect();
+      const over = mv.clientX >= bf.left && mv.clientX <= bf.right && mv.clientY >= bf.top && mv.clientY <= bf.bottom;
+      ghost.classList.toggle("overboard", over);
+    };
+    const onUp = async (up) => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      if (!ghost) return;
+      ghost.remove();
+      el.classList.remove("beingdragged");
+      el.dataset.dragged = "1"; // the release also fires a click — swallow it
+      draggingNow = false;
+      hideHandZone();
+      const bfEl = $("#bf-you");
+      const bf = bfEl.getBoundingClientRect();
+      const inside = up.clientX >= bf.left && up.clientX <= bf.right && up.clientY >= bf.top && up.clientY <= bf.bottom;
+      if (!inside) {
+        render(); // dropped nowhere — put the fan back the way it was
+        return;
+      }
+      const W = Math.max(bfEl.clientWidth, 400);
+      const H = Math.max(bfEl.clientHeight, 200);
+      const x = Math.max(0, Math.min(1, (up.clientX - bf.left - CW / 2) / Math.max(1, W - CW)));
+      const y = (up.clientY - bf.top - CH / 2) / Math.max(1, H - CH);
+      c.pos = { x, y }; // optimistic, so the ack can't snap it elsewhere
+      await act("cast", { card: c.id });
+      await act("place", { positions: [{ card: c.id, x, y }] });
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+  });
+}
+
+/** The strip over your hand that a battlefield card can be dropped onto to
+ *  go back to hand. `armed` = the pointer is currently over it. */
+function showHandZone(armed) {
+  const z = $("#handzone");
+  z.classList.remove("hidden");
+  z.classList.toggle("armed", !!armed);
+}
+function hideHandZone() {
+  $("#handzone").classList.add("hidden");
+}
+function overHandZone(x, y) {
+  const r = $("#hand-you").getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top - 12 && y <= r.bottom;
 }
 
 function cardEl(c, opts = {}) {
