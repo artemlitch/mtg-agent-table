@@ -56,10 +56,13 @@
   background: none;
 }
 .pile::after {
+  /* the panel purple taken down toward black, so the lip is a shadow the rail
+     casts rather than a light source of its own */
+  --pile-lip: color-mix(in srgb, var(--panel2) 45%, #000);
   content: ""; position: absolute; left: -25%; right: -25%; bottom: -144%;
   /* 160% tall, sunk 144% — 16% of the box shows, which is a tenth of the ellipse */
   height: 160%; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(226, 179, 85, 0.5), rgba(226, 179, 85, 0.14) 45%, transparent 70%);
+  background: radial-gradient(ellipse at center, var(--pile-lip), color-mix(in srgb, var(--pile-lip) 45%, transparent) 45%, transparent 70%);
   opacity: 0.5; transition: opacity 0.25s ease;
 }
 .pile:hover::after { opacity: 1; }
