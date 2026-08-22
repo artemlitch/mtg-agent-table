@@ -240,6 +240,14 @@ const ICONS = {
   end: "fa-moon",
   passTurn: "fa-forward",
   skip: "fa-forward-fast",
+  mulligan: "fa-recycle",
+  search: "fa-magnifying-glass",
+  scry: "fa-eye",
+  surveil: "fa-binoculars",
+  mill: "fa-skull",
+  exile: "fa-ban",
+  reveal: "fa-bullhorn",
+  shuffle: "fa-shuffle",
 };
 function iconEl(name) {
   const i = document.createElement("i");
@@ -1614,6 +1622,7 @@ function hidePreview() {
 
 function openMenu(items, e) {
   const m = $("#menu");
+  m.className = ""; // the library panel restyles this container — reset it
   m.innerHTML = "";
   for (const it of items) {
     const d = document.createElement("div");
@@ -1772,94 +1781,137 @@ function cardMenu(c, e) {
   openMenu(items, e);
 }
 
+// Right-clicking a library opens a laid-out panel, not a text menu:
+//
+//   [ mulligan ]          yours, turn 1 only
+//   [ search   ]
+//   [scry n][mill n]      counter tiles, 2 x 2
+//   [exile n][surveil n]
+//   [ draw n  ]           yours only
+//   [ reveal top ] [ shuffle ]
+//
+// The tile body runs the action with the number shown. The number is also
+// the stepper: hovering its top half arms a + above, the bottom half a −
+// below, and clicking there changes the count instead of firing.
 function libraryMenu(p, e) {
   const mine = p === "you";
-  const items = [{ label: `${mine ? "Your" : "Agent's"} library`, title: true }];
-  if (mine) {
-    items.push({ label: "Draw 1", fn: () => act("draw", { n: 1 }) });
-    items.push({
-      label: "♻ Mulligan (hand → library, draw 7)",
-      fn: async () => {
+  const m = $("#menu");
+  m.innerHTML = "";
+  m.className = "libpanel";
+
+  const run = (fn) => async () => {
+    closeMenu();
+    await fn();
+  };
+  const topRef = `top:${p}`;
+  const millOne = () => act("move", { card: topRef, toZone: "graveyard", toPlayer: p, note: "mill" });
+  // taking cards off the agent's library is a theft effect: face-down, yours to see
+  const exileOne = () =>
+    mine
+      ? act("move", { card: topRef, toZone: "exile", toPlayer: p, note: "exiled from library" })
+      : act("move", { card: topRef, toZone: "exile", toPlayer: "agent", faceDown: true, revealTo: "you", note: "theft effect" });
+  const peekN = async (n) => {
+    const r = await act("peek", { player: p, n });
+    if (r.ok) peekModal(p, r.cards);
+  };
+  const repeat = async (n, once) => {
+    for (let i = 0; i < n; i++) await once();
+  };
+
+  const title = document.createElement("div");
+  title.className = "lp-title";
+  title.textContent = mine ? "Your library" : "Agent's library";
+  m.appendChild(title);
+
+  /** A button with an icon, a label, and optionally an inline counter that
+   *  doubles as a +/- stepper. Returns the element. */
+  const button = (cls, label, icon, onRun, counted) => {
+    const b = document.createElement("button");
+    b.className = cls;
+    const text = document.createElement("span");
+    text.className = "lp-label";
+    text.textContent = label;
+    b.append(iconEl(icon), text);
+    let n = 1;
+    if (counted) {
+      const count = document.createElement("span");
+      count.className = "lp-count";
+      count.textContent = n;
+      const up = document.createElement("span");
+      up.className = "lp-step up";
+      up.textContent = "+";
+      const down = document.createElement("span");
+      down.className = "lp-step down";
+      down.textContent = "−";
+      const stepper = document.createElement("span");
+      stepper.className = "lp-stepper";
+      stepper.append(up, count, down);
+      const topHalf = (ev) => {
+        const r = stepper.getBoundingClientRect();
+        return ev.clientY < r.top + r.height / 2;
+      };
+      stepper.onclick = (ev) => {
+        ev.stopPropagation(); // adjust, never fire
+        n = Math.max(1, topHalf(ev) ? n + 1 : n - 1);
+        count.textContent = n;
+      };
+      stepper.onmousemove = (ev) => {
+        const top = topHalf(ev);
+        up.classList.toggle("armed", top);
+        down.classList.toggle("armed", !top);
+      };
+      stepper.onmouseleave = () => {
+        up.classList.remove("armed");
+        down.classList.remove("armed");
+      };
+      b.append(stepper);
+    }
+    b.onclick = run(() => onRun(n));
+    return b;
+  };
+
+  if (mine && state.turnNumber === 1) {
+    m.append(
+      button("lp-wide", "Mulligan", "mulligan", async () => {
         const hand = state.players.you.zones.hand;
         if (!hand.length) return;
-        if (!confirm(`Mulligan: shuffle ${hand.length} cards back and draw 7?`)) return;
         await act("move", { cards: hand.map((c) => c.id), toZone: "library", note: "mulligan" });
         await act("shuffle", { player: "you" });
         await act("draw", { n: 7 });
-      },
-    });
-    items.push({
-      label: "Draw N…",
-      fn: async () => {
-        const n = Number((await askText("Draw how many?", "1")) || 0);
-        if (n > 0) act("draw", { n });
-      },
-    });
-    items.push({
-      label: "Scry / peek N…",
-      fn: async () => {
-        const n = Number((await askText("Look at how many?", "3")) || 0);
-        if (n > 0) {
-          const r = await act("peek", { player: p, n });
-          if (r.ok) peekModal(p, r.cards);
-        }
-      },
-    });
-    items.push({
-      label: "Search library…",
-      fn: async () => {
-        const r = await act("view_zone", { player: p, zone: "library" });
-        if (r.ok) searchModal(p, r.cards);
-      },
-    });
-  } else {
-    // interacting with the agent's library = your theft effects
-    items.push(moveItem("😈 Exile top face-down (theft)", { id: "top:agent" }, { toZone: "exile", toPlayer: "agent", faceDown: true, revealTo: "you", note: "theft effect" }));
-    items.push({ label: "😈 Reveal top card", fn: async () => {
-      const r = await act("peek", { player: "agent", n: 1 });
-      if (r.ok && r.cards[0]) act("reveal", { cards: [r.cards[0].id], to: "all" });
-    }});
-    items.push({
-      label: "😈 Look at top N…",
-      fn: async () => {
-        const n = Number((await askText("Look at how many?", "1")) || 0);
-        if (n > 0) {
-          const r = await act("peek", { player: p, n });
-          if (r.ok) peekModal(p, r.cards);
-        }
-      },
-    });
-    items.push({
-      label: "😈 Search agent's library…",
-      fn: async () => {
-        const r = await act("view_zone", { player: p, zone: "library" });
-        if (r.ok) searchModal(p, r.cards);
-      },
-    });
+      })
+    );
   }
-  items.push({ label: "Reveal top card to all", fn: async () => {
-    const r = await act("peek", { player: p, n: 1 });
-    if (r.ok && r.cards[0]) act("reveal", { cards: [r.cards[0].id], to: "all" });
-  }});
-  items.push({ label: "Mill / discard top", fn: () => act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" }) });
-  items.push({
-    label: "Mill N…",
-    fn: async () => {
-      const n = Number((await askText("Mill how many?", "3")) || 0);
-      for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "graveyard", toPlayer: p, note: "mill" });
-    },
-  });
-  items.push({ label: "Exile top", fn: () => act("move", { card: `top:${p}`, toZone: "exile", toPlayer: p, note: "exiled from library" }) });
-  items.push({
-    label: "Exile N…",
-    fn: async () => {
-      const n = Number((await askText("Exile how many from the top?", "1")) || 0);
-      // one call per card: 'top:p' resolves against the library as it stands
-      for (let i = 0; i < n; i++) await act("move", { card: `top:${p}`, toZone: "exile", toPlayer: p, note: "exiled from library" });
-    },
-  });
-  items.push({ label: "Shuffle", fn: () => act("shuffle", { player: p }) });
-  openMenu(items, e);
+  m.append(
+    button("lp-wide", "Search", "search", async () => {
+      const r = await act("view_zone", { player: p, zone: "library" });
+      if (r.ok) searchModal(p, r.cards);
+    })
+  );
+
+  const grid = document.createElement("div");
+  grid.className = "lp-grid";
+  grid.append(
+    button("lp-tile", "Scry", "scry", peekN, true),
+    button("lp-tile", "Mill", "mill", (n) => repeat(n, millOne), true),
+    button("lp-tile", "Exile", "exile", (n) => repeat(n, exileOne), true),
+    button("lp-tile", "Surveil", "surveil", peekN, true)
+  );
+  m.append(grid);
+
+  if (mine) m.append(button("lp-wide lp-draw", "Draw", "draw", (n) => act("draw", { n }), true));
+  m.append(
+    button("lp-wide", "Reveal top", "reveal", async () => {
+      const r = await act("peek", { player: p, n: 1 });
+      if (r.ok && r.cards[0]) act("reveal", { cards: [r.cards[0].id], to: "all" });
+    }),
+    button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p }))
+  );
+
+  m.classList.remove("hidden");
+  const x = Math.min(e.clientX, window.innerWidth - 250);
+  const y = Math.min(e.clientY, window.innerHeight - m.offsetHeight - 10);
+  m.style.left = x + "px";
+  m.style.top = Math.max(4, y) + "px";
 }
 
 // ---------------------------------------------------------------------------
