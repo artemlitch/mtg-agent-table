@@ -1896,24 +1896,7 @@ function libraryMenu(p, e) {
       })
     );
   }
-  m.append(
-    button("lp-wide", "Search", "search", async () => {
-      const r = await act("view_zone", { player: p, zone: "library" });
-      if (r.ok) searchModal(p, r.cards);
-    })
-  );
-
-  const grid = document.createElement("div");
-  grid.className = "lp-grid";
-  grid.append(
-    button("lp-tile", "Scry", "scry", peekN, true),
-    button("lp-tile", "Mill", "mill", (n) => repeat(n, millOne), true),
-    button("lp-tile", "Exile", "exile", (n) => repeat(n, exileOne), true),
-    button("lp-tile", "Surveil", "surveil", peekN, true)
-  );
-  m.append(grid);
-
-  // draw and reveal are a matched pair of tiles, counters and all
+  // draw leads, paired with reveal — both tiles, counters and all
   const pair = document.createElement("div");
   pair.className = "lp-grid";
   if (mine) pair.append(button("lp-tile", "Draw", "draw", (n) => act("draw", { n }), true));
@@ -1929,7 +1912,24 @@ function libraryMenu(p, e) {
       true
     )
   );
-  m.append(pair, button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p })));
+  m.append(pair);
+
+  m.append(
+    button("lp-wide", "Search", "search", async () => {
+      const r = await act("view_zone", { player: p, zone: "library" });
+      if (r.ok) searchModal(p, r.cards);
+    })
+  );
+
+  const grid = document.createElement("div");
+  grid.className = "lp-grid";
+  grid.append(
+    button("lp-tile", "Scry", "scry", peekN, true),
+    button("lp-tile", "Mill", "mill", (n) => repeat(n, millOne), true),
+    button("lp-tile", "Exile", "exile", (n) => repeat(n, exileOne), true),
+    button("lp-tile", "Surveil", "surveil", peekN, true)
+  );
+  m.append(grid, button("lp-wide", "Shuffle", "shuffle", () => act("shuffle", { player: p })));
 
   m.classList.remove("hidden");
   const x = Math.min(e.clientX, window.innerWidth - 250);
