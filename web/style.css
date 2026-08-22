@@ -227,7 +227,6 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .lifebox .liferow { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .lifebox .liferow button { font-size: var(--fs-body); padding: 1px 7px; }
 .lifebox .lname { font: var(--fw-label) var(--fs-micro)/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lifebox .cmdmg { font-size: var(--fs-tiny); color: var(--red); }
 #midline { position: relative; height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 
 .battlefield { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; overflow-y: auto; }
@@ -390,12 +389,19 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 }
 .pile .pstrip .mini + .mini { margin-left: -12px; }
 .pile .pstrip .minitext { display: flex; align-items: center; justify-content: center; font: var(--fw-heading) var(--fs-body) var(--font-fantasy); color: var(--dim); }
-.lifebox {
-  border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; text-align: center;
-  background: var(--panel2);
+.lifebox { border-radius: 8px; padding: 6px 8px; text-align: center; }
+/* Commander damage hangs off the life box on hover, in undo's tooltip. It
+   drops DOWNWARD and wraps: the rail scrolls, so anything that reaches past
+   its 130px would be clipped instead of overhanging. */
+.lifebox .cmdtip {
+  top: 100%; bottom: auto; margin: 5px 0 0;
+  flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
+  white-space: normal; width: max-content; max-width: 106px;
+  transform: translate(-50%, -2px);
 }
+.lifebox .cmdtip b { color: var(--red); font-weight: inherit; }
+.lifebox:hover .cmdtip { opacity: 1; transform: translate(-50%, 0); }
 .lifebox .life { font-size: var(--fs-huge); font-family: var(--font-fantasy); }
-.cmdmg { font-size: var(--fs-micro); color: var(--red); margin-top: 3px; }
 .deckname { font-size: var(--fs-micro); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 #side {
