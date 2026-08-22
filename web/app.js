@@ -254,12 +254,24 @@ const ICONS = {
   trash: "fa-trash",
   bullet: "fa-angle-right",
   search: "fa-magnifying-glass",
-  scry: "fa-layer-group",
+  scry: "fa-glasses",
   surveil: "fa-binoculars",
   mill: "fa-skull",
   exile: "fa-ban",
   reveal: "fa-eye",
   shuffle: "fa-shuffle",
+  // card-menu specifics, so no two rows of one menu share a glyph
+  exileDown: "fa-eye-slash",
+  facedown: "fa-mask",
+  toHand: "fa-hand-holding",
+  top: "fa-angles-up",
+  bottom: "fa-angles-down",
+  library: "fa-book",
+  secret: "fa-user-secret",
+  block: "fa-shield-halved",
+  setpt: "fa-pen-to-square",
+  cancel: "fa-xmark",
+  cancelAttack: "fa-circle-xmark",
 };
 function iconEl(name) {
   const i = document.createElement("i");
@@ -1645,14 +1657,23 @@ function hidePreview() {
 // Menu rows speak the library panel's language: a coloured icon, and the
 // plate and rim arriving on hover. Icon and tone are matched from the label
 // — presentation only, first match wins, anything unmatched stays neutral.
+// Order is specific → general, and the rules are deliberately fine-grained:
+// no two rows of the same menu may land on the same glyph. Pairs that used
+// to collide: the two exiles, the two reveals, top vs bottom of library,
+// set-P/T vs other-counter, delete vs cancel.
 const MENU_LOOK = [
-  // undoing beats the thing being undone: "Remove attacker" is a trash, not
-  // a sword. Same for the other specific-before-general pairs below.
-  [/delete|remove|cancel|clear/i, "trash", "mill"],
+  [/exile face-down/i, "exileDown", "surveil"],
+  [/turn face-(down|up)/i, "facedown", "surveil"],
+  [/^show /i, "flip", "surveil"],
+  [/delete/i, "trash", "mill"],
+  [/cancel attack/i, "cancelAttack", "mill"],
+  [/remove|cancel|clear/i, "cancel", "mill"],
   [/ability/i, "ability", "scry"],
   [/copy/i, "copy", "surveil"],
+  [/set p\/t/i, "setpt", "scry"],
+  [/counter/i, "counters", "scry"],
   [/attack|combat/i, "combat", "exile"],
-  [/block/i, "noBlocks", "scry"],
+  [/block/i, "block", "scry"],
   [/untap/i, "untap", "mulligan"],
   [/^tap\b/i, "tap", "mulligan"],
   [/play |cast|→ stack/i, "cast", "surveil"],
@@ -1662,11 +1683,12 @@ const MENU_LOOK = [
   [/steal|take/i, "steal", "exile"],
   [/give|return/i, "give", "draw"],
   [/command/i, "command", "reveal"],
-  [/hand/i, "draw", "draw"],
-  [/library|top of|bottom of/i, "scry", "scry"],
-  [/face-down|face-up|flip|show /i, "flip", "surveil"],
+  [/hand/i, "toHand", "draw"],
+  [/top of/i, "top", "scry"],
+  [/bottom of/i, "bottom", "scry"],
+  [/library/i, "library", "scry"],
+  [/reveal to agent/i, "secret", "reveal"],
   [/reveal/i, "reveal", "reveal"],
-  [/counter|p\/t/i, "counters", "scry"],
   [/pile/i, "pile", "mill"],
 ];
 /** Labels used to carry their own emoji; the icon says it now. */
@@ -1742,10 +1764,26 @@ function cardMenu(c, e) {
   }
 
   if (c.zone === "battlefield") {
-    items.push({ label: c.tapped ? "Untap" : "Tap", keys: ["E"], fn: () => act("tap", { cards: [c.id], tapped: !c.tapped }) });
     const pendingAtk = pendingAttackOf(c.id);
-    if (c.controller === "you" && !c.attacking && !pendingAtk) {
-      items.push({ label: "⚔ Attack agent", fn: () => act("attack", { pairs: [{ attacker: c.id, target: "agent" }] }) });
+    const canAttack = c.controller === "you" && !c.attacking && !pendingAtk;
+    // in combat E declares the attack rather than tapping, so the menu leads
+    // with attack there and the [E] hint follows the gesture
+    const eAttacks =
+      canAttack && typeCat(c) === "creature" && !c.tapped && /combat|attack/i.test(state.phase || "");
+    const attackItem = {
+      label: "⚔ Attack agent",
+      ...(eAttacks ? { keys: ["E"] } : {}),
+      fn: () => act("attack", { pairs: [{ attacker: c.id, target: "agent" }] }),
+    };
+    const tapItem = {
+      label: c.tapped ? "Untap" : "Tap",
+      ...(eAttacks ? {} : { keys: ["E"] }),
+      fn: () => act("tap", { cards: [c.id], tapped: !c.tapped }),
+    };
+    if (eAttacks) items.push(attackItem, tapItem);
+    else {
+      items.push(tapItem);
+      if (canAttack) items.push(attackItem);
     }
     if (c.controller === "you" && pendingAtk) {
       items.push({ label: "✖ Remove attacker", fn: () => removeAttacker(c, pendingAtk) });
