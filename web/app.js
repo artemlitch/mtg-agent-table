@@ -252,6 +252,24 @@ function didThisTurn(re) {
   return false;
 }
 
+/** The card a stack item is about: the card itself for a spell, or the
+ *  permanent a trigger came from. Only ones we can actually picture. */
+function stackItemCard(item) {
+  const c = item?.card ?? (item?.source ? cardById(item.source) : null);
+  return c && c.image && !c.hidden ? c : null;
+}
+
+/** What the item SAYS, minus the card title and mana cost the agent writes in
+ *  front of it — the picture beside the text already names the card. Targets
+ *  (⟶ …) survive; an item that is nothing but its title comes back empty. */
+function stackSubText(item, card) {
+  let t = String(item?.text || "").split("\n")[0];
+  const name = card?.name || item?.card?.name;
+  if (name && t.toLowerCase().startsWith(name.toLowerCase())) t = t.slice(name.length);
+  t = t.replace(/^\s*(\{[^}]*\}\s*)+/, "").replace(/^\s*[—–:-]\s*/, "");
+  return t.trim();
+}
+
 function nextActionContext() {
   const stack = state.stack || [];
   const top = stack.length ? stack[stack.length - 1] : null;
@@ -291,20 +309,31 @@ const NEXT_ACTION_STEPS = [
   {
     id: "resolve-all",
     when: (c) => c.top?.player === "agent" && !!c.top.groupId && c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length > 1,
-    step: (c) => ({
-      label: `✓ Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
-      kind: "urgent",
-      fn: () => act("stack_resolve_all", { group: c.top.groupId }),
-    }),
+    step: (c) => {
+      const card = stackItemCard(c.top);
+      return {
+        label: `✓ Resolve all (${c.stack.filter((i) => i.groupId === c.top.groupId && i.player === "agent").length})`,
+        kind: "urgent",
+        sub: stackSubText(c.top, card),
+        card,
+        fn: () => act("stack_resolve_all", { group: c.top.groupId }),
+      };
+    },
   },
   {
     id: "resolve-one",
     when: (c) => c.top?.player === "agent",
-    step: (c) => ({
-      label: `✓ Resolve: ${String(c.top.card?.name || c.top.text || "").slice(0, 32)}`,
-      kind: "urgent",
-      fn: () => act("stack_resolve", { item: c.top.id }),
-    }),
+    step: (c) => {
+      const card = stackItemCard(c.top);
+      return {
+        // with no card to picture, the item's own words carry the name
+        label: card ? "✓ Resolve" : `✓ Resolve: ${String(c.top.text || "").slice(0, 32)}`,
+        sub: card ? stackSubText(c.top, card) : "",
+        kind: "urgent",
+        card,
+        fn: () => act("stack_resolve", { item: c.top.id }),
+      };
+    },
   },
   {
     id: "waiting-on-agent-response",
@@ -403,6 +432,20 @@ function renderNextAction() {
     btn.title = a.title || "";
     btn.classList.toggle("urgent", a.kind === "urgent");
     btn.onclick = a.fn;
+    // the stack item's own words, under the action
+    const sub = btn.querySelector(".na-sub");
+    const subText = a.sub && a.sub !== a.label ? String(a.sub).split("\n")[0] : "";
+    sub.textContent = subText;
+    sub.classList.toggle("hidden", !subText);
+    // the card it is about, inside the button — hover it for the full preview
+    const img = $("#na-card");
+    img.classList.toggle("hidden", !a.card);
+    if (a.card) {
+      if (img.src !== a.card.image) img.src = a.card.image;
+      img.onmouseenter = (e) => showPreview(a.card, e);
+      img.onmousemove = (e) => positionPreview(e);
+      img.onmouseleave = hidePreview;
+    }
   }
   const skip = $("#na-skip");
   skip.classList.toggle("hidden", !a.skip);

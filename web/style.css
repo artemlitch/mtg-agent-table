@@ -34,6 +34,9 @@
   --green: #59a86c;
   --card-w: 92px;
   --card-h: 128px;
+  /* the side rails flank the playmat; anything that wants to line up with the
+     cards has to discount them */
+  --rail-w: 130px;
   --gold-hi: #f8e7a0;
   --gold-dk: #6e4a14;
   /* metallic band gradient used for every "chrome" border */
@@ -92,10 +95,15 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
   background-blend-mode: overlay, soft-light, normal, normal;
   box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.55);
 }
-/* combat: the table edges take a red pulse. Quick to arrive, slow to leave,
-   and click-through — the middle stays clear so it never washes out cards */
+/* everything below the topbar; the glow measures itself against this rather
+   than a hardcoded topbar height */
+#felt { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* combat: the leather takes a red pulse. Quick to arrive, slow to leave, and
+   click-through — the middle stays clear so it never washes out cards. Inset
+   past the rail column so it stays on the playmat and off the navy UI */
 #combatglow {
-  position: absolute; inset: 0; z-index: 40; pointer-events: none;
+  position: absolute; inset: 0 0 0 var(--rail-w); z-index: 40; pointer-events: none;
   opacity: 0; transition: opacity 2.2s ease;
   box-shadow: inset 0 0 45px 6px rgba(208, 60, 50, 0.4);
 }
@@ -116,7 +124,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 .seat { flex: 1; display: flex; min-height: 0; }
 .rail {
-  width: 130px; padding: 6px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+  width: var(--rail-w); padding: 6px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
   border-right: 1px solid; border-image: linear-gradient(180deg, #4a350f, #b8892f, #4a350f) 1;
 }
 .boardwrap { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
@@ -135,7 +143,7 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 .lifebox .liferow button { font-size: 12px; padding: 1px 7px; }
 .lifebox .lname { font: 600 10px/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lifebox .cmdmg { font-size: 9px; color: var(--red); }
-#midline { height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
+#midline { position: relative; height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 
 .battlefield { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; overflow-y: auto; }
 .handrow {
@@ -570,8 +578,10 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 /* the next-action prompt: one always-present "most obvious tap", floating
    just under the midline, with a faded skip-to-pass-turn beneath it */
+/* straddles the midline, centred on the PLAYMAT — the midline spans the rail
+   column too, so half a rail-width of offset lines it up with the cards */
 #nextaction {
-  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 45;
+  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 45;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 #nextaction.hidden { display: none; }
@@ -590,17 +600,33 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 /* the arrow's ink sits entirely above the baseline, so a centred line box
    still paints it 1.6px high — nudge the glyph, never the button (that would
    drag the border off-centre too) */
+/* the card being resolved rides inside the button, on the left; hovering it
+   still opens the full-size preview */
+#na-card {
+  width: 40px; border-radius: 3px; display: block; flex: none;
+  border: 1px solid rgba(226, 179, 85, 0.45);
+}
+#na-card.hidden { display: none; }
+#na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* the stack item's own words, under the action */
+#na-primary .na-sub {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px; font-weight: 400; color: var(--dim); letter-spacing: 0.01em;
+}
+#na-primary .na-sub.hidden { display: none; }
 #na-undo span { display: block; transform: translateY(1.6px); }
 #na-undo:hover { opacity: 1; color: var(--accent); }
-/* see-through, just the gold outline (a colour in a non-final background
-   layer is a parse error — hence border-color, not the usual chrome trick) */
+/* opaque, in the leather's own brown so it reads as part of the table: the
+   playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
+   composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
+   non-final background layer is a parse error */
 #na-primary {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 5px 16px 4px; font-size: 12px;
-  background: none; border-color: rgba(226, 179, 85, 0.8);
+  display: flex; flex-direction: row; align-items: center; gap: 9px;
+  padding: 5px 14px 4px; font-size: 12px;
+  background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
 }
-#na-primary:hover { background: rgba(226, 179, 85, 0.14); border-color: var(--gold-hi); }
+#na-primary:hover { background: rgb(52, 34, 16); border-color: var(--gold-hi); }
 /* keyboard affordances are only meaningful while this window has focus */
 #na-primary .na-key {
   font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase;

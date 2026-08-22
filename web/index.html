@@ -9,7 +9,6 @@
 <body>
 <div id="app">
   <div id="table">
-    <div id="combatglow"></div>
     <div id="topbar">
       <div class="setup">
         <button id="btn-newgame">New game</button>
@@ -51,6 +50,9 @@
       </div>
     </div>
 
+    <div id="felt">
+      <div id="combatglow"></div>
+
     <div class="seat" id="seat-agent">
       <div class="rail" id="rail-agent"></div>
       <div class="boardwrap">
@@ -59,26 +61,35 @@
       </div>
     </div>
 
-    <div id="midline"></div>
+    <div id="midline">
+      <div id="nextaction" class="hidden">
+        <div class="na-row">
+          <div class="na-undowrap">
+            <button id="na-undo" title="Undo the last action (⌘Z)"><span>↩</span></button>
+            <span class="na-key">⌘Z</span>
+          </div>
+          <button id="na-primary">
+            <img id="na-card" class="hidden" alt="">
+            <span class="na-text">
+              <span class="na-label"></span>
+              <span class="na-sub hidden"></span>
+              <span class="na-key">space</span>
+            </span>
+          </button>
+          <div id="na-hint" class="hidden"></div>
+        </div>
+        <button id="na-skip" class="hidden"><span>⏭ skip to pass turn</span><span class="na-key">⇧ + space</span></button>
+      </div>
+    </div>
 
     <div class="seat" id="seat-you">
       <div class="rail" id="rail-you"></div>
       <div class="boardwrap">
-        <div id="nextaction" class="hidden">
-          <div class="na-row">
-            <div class="na-undowrap">
-              <button id="na-undo" title="Undo the last action (⌘Z)"><span>↩</span></button>
-              <span class="na-key">⌘Z</span>
-            </div>
-            <button id="na-primary"><span class="na-label"></span><span class="na-key">space</span></button>
-            <div id="na-hint" class="hidden"></div>
-          </div>
-          <button id="na-skip" class="hidden"><span>⏭ skip to pass turn</span><span class="na-key">⇧ + space</span></button>
-        </div>
         <div class="battlefield" id="bf-you"></div>
         <div class="handrow" id="hand-you"></div>
         <button id="btn-token" title="Create a token"><span class="tstar">✦</span><span>Token</span></button>
       </div>
+    </div>
     </div>
   </div>
 
