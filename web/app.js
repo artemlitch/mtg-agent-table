@@ -234,7 +234,7 @@ const ICONS = {
   resolveAll: "fa-check-double",
   damage: "fa-burst",
   noBlocks: "fa-shield-halved",
-  draw: "fa-hand",
+  draw: "fa-share-from-square", // a card lifting out of the deck, not a bare hand
   main: "fa-play",
   combat: "fa-hand-fist",
   end: "fa-moon",
