@@ -211,6 +211,10 @@ $("#btn-delkey").onclick = async () => {
   await fetch("/api/key", { method: "DELETE" });
 };
 
+// declining blocks is per-attack: remembering the signature stops the prompt
+// reappearing for an attack you already waved through
+let noBlocksDeclaredFor = null;
+
 // the space shortcut only works while this window has the keyboard, so the
 // hint inside the button appears and disappears with focus
 const syncWindowFocus = () => document.body.classList.toggle("unfocused", !document.hasFocus());
@@ -248,11 +252,17 @@ function didThisTurn(re) {
 function nextActionContext() {
   const stack = state.stack || [];
   const top = stack.length ? stack[stack.length - 1] : null;
+  const theirAttackers = state.players.agent.zones.battlefield.filter((c) => c.attacking);
   return {
     stack,
     top,
     mine: state.turn === "you",
     phase: state.phase || "",
+    theirAttackers,
+    // one signature per attack, so declining blocks hides the prompt for
+    // THAT attack only — the next one asks again
+    attackSig: theirAttackers.map((c) => c.id).sort().join(","),
+    iAmBlocking: state.players.you.zones.battlefield.some((c) => c.blocking),
     myAttackers: state.players.you.zones.battlefield.filter((c) => c.attacking),
     myTapped: state.players.you.zones.battlefield.some((c) => c.tapped),
   };
@@ -297,6 +307,15 @@ const NEXT_ACTION_STEPS = [
     id: "waiting-on-agent-response",
     when: (c) => !!c.top, // your own item on top — the agent answers it
     step: () => ({ hint: "on the stack — waiting for the agent" }),
+  },
+  {
+    id: "no-blocks",
+    when: (c) => c.theirAttackers.length > 0 && !c.iAmBlocking && noBlocksDeclaredFor !== c.attackSig,
+    step: (c) => ({
+      label: "🛡 No blocks — take the damage",
+      kind: "urgent",
+      fn: () => { noBlocksDeclaredFor = c.attackSig; act("chat", { text: "No blocks." }); },
+    }),
   },
   {
     id: "waiting-on-agent-turn",
@@ -1265,16 +1284,6 @@ function cardEl(c, opts = {}) {
     d.onmouseenter = (e) => showPreview(c, e);
     d.onmousemove = (e) => positionPreview(e);
     d.onmouseleave = hidePreview;
-    // what a click/keypress does here, as keycaps + symbols: E taps,
-    // shift+E taps and puts the ability on the stack
-    if (c.zone === "battlefield") {
-      const keys = document.createElement("div");
-      keys.className = "cardkeys";
-      keys.innerHTML =
-        `<span class="ckrow"><kbd>E</kbd><span class="cksym">↻</span></span>` +
-        `<span class="ckrow"><kbd>⇧E</kbd><span class="cksym">↻<i>⚡</i></span></span>`;
-      d.appendChild(keys);
-    }
   }
   d.onclick = (e) => {
     e.stopPropagation();
