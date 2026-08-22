@@ -102,7 +102,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
   const retarget = () => {
     frame = 0;
     traceMove();
-    const region = regionAt(regions, last.x - origin.x, last.y - origin.y);
+    const region = regionAt(regions, at);
     // tucking is a board-to-board gesture: playing a card out of your hand
     // (or pre-placing an unresolved one) should never silently attach it to
     // whatever is under the drop
@@ -210,8 +210,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     }, 400);
     // resolve the target from where the pointer ACTUALLY came up, not from
     // whatever the last painted frame decided
-    const f = { x: up.clientX - origin.x, y: up.clientY - origin.y };
-    const over = regionAt(regions, f.x, f.y);
+    const over = regionAt(regions, at);
     const overCard = !over && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     aimedAt?.el.classList.remove("armed");
     aimedCard?.el.classList.remove("tuckover");

@@ -17,7 +17,7 @@
 // pos -> px -> pos exact, which is what keeps a server ack from nudging a card
 // you just dropped.
 
-import { box, dlog, px } from "./debug";
+import { box, dlog, fr, px } from "./debug";
 
 interface Rect {
   left: number;
@@ -62,8 +62,14 @@ export const HOME: Record<"you" | "agent", { x: number; y: number }> = {
 interface Surface {
   /** the felt itself, at 0,0 — the origin every other number here shares */
   felt: Rect;
-  /** where cards may come to rest: board area minus the furniture over it */
+  /** the coordinate space: the whole board, so x=0 is its real left edge */
   place: Rect;
+  /** the vertical band a card may come to REST in — the board between the two
+   *  hands. Not a smaller coordinate space (that is what made the left edge
+   *  unreachable), just a clamp on where a dropped card settles, so a card
+   *  can never be laid down behind a hand. */
+  restTop: number;
+  restBottom: number;
 }
 
 let surface: Surface | null = null;
@@ -99,14 +105,40 @@ export function measureSurface(): Surface | null {
   // place. Insetting only makes x=0 mean "84px inside the left edge", which
   // clamps anything dropped further left and snaps it sideways on release.
   const place: Rect = board;
-  surface = { felt: { left: 0, top: 0, width: origin.width, height: origin.height }, place };
+  // the hands bound the resting band top and bottom. They are the only
+  // furniture that does: each is a full-width strip along an edge, so
+  // "cards stop here" is the whole shape. The command zone and the token
+  // button are small things sitting ON the table, and a card may overlap
+  // them the way one card overlaps another.
+  const strip = (id: string) => {
+    const el = document.getElementById(id);
+    return el ? rectOf(el, origin) : null;
+  };
+  const topHand = strip("hand-agent");
+  const botHand = strip("hand-you");
+  const restTop = topHand ? Math.max(place.top, bottom(topHand)) : place.top;
+  const restBottom = botHand ? Math.min(bottom(place), botHand.top) : bottom(place);
+
+  surface = { felt: { left: 0, top: 0, width: origin.width, height: origin.height }, place, restTop, restBottom };
   dlog("surface", {
     felt: `${px(origin.width)} x ${px(origin.height)} @vp ${px(origin.left)}, ${px(origin.top)}`,
     placeable: `${px(place.width)} x ${px(place.height)} @felt ${box(place)}`,
+    restBand: `${px(restTop)} .. ${px(restBottom)} (y ${fr(yLimits().min)} .. ${fr(yLimits().max)})`,
     card: `${cw} x ${ch}`,
     span: `${px(Math.max(1, place.width - cw))} x ${px(Math.max(1, place.height - ch))}`,
   });
   return surface;
+}
+
+/** The stored-y range that keeps a card's whole box inside the resting band. */
+function yLimits(): { min: number; max: number } {
+  const s = surface;
+  if (!s) return { min: 0, max: 1 };
+  const h = Math.max(1, s.place.height - ch);
+  return {
+    min: Math.max(0, Math.min(1, (s.restTop - s.place.top) / h)),
+    max: Math.max(0, Math.min(1, (s.restBottom - ch - s.place.top) / h)),
+  };
 }
 
 const span = (s: Surface) => ({ w: Math.max(1, s.place.width - CW()), h: Math.max(1, s.place.height - CH()) });
@@ -119,13 +151,18 @@ export function posToPx(pos: { x: number; y: number }): { left: number; top: num
   return { left: s.place.left + pos.x * w, top: s.place.top + pos.y * h };
 }
 
-/** Felt-local pixels back to a stored position, clamped onto the table. */
+/** Felt-local pixels back to a stored position. x is clamped to the board's
+ *  own edges; y additionally to the resting band, so a card released over a
+ *  hand settles above it instead of behind it. */
 export function pxToPos(left: number, top: number): { x: number; y: number } {
   const s = surface;
   if (!s) return { x: 0, y: 0 };
   const { w, h } = span(s);
-  const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-  return { x: clamp01((left - s.place.left) / w), y: clamp01((top - s.place.top) / h) };
+  const lim = yLimits();
+  return {
+    x: Math.max(0, Math.min(1, (left - s.place.left) / w)),
+    y: Math.max(lim.min, Math.min(lim.max, (top - s.place.top) / h)),
+  };
 }
 
 // ── drop regions ───────────────────────────────────────────────────────────
@@ -167,9 +204,19 @@ export function snapshotRegions(): Region[] {
   );
 }
 
-/** The region under a felt-local point, or null for the open table. */
-export function regionAt(regions: Region[], x: number, y: number): Region | null {
-  return regions.find((r) => inside(r.rect, x, y)) ?? null;
+/** The region a card released here would go to, or null for the open table.
+ *
+ *  Tested against the CARD's centre, not the pointer. The pointer is where
+ *  your fingers are; the card is the thing being put down, and the two are
+ *  a grab-offset apart. Testing the pointer meant a card grabbed near its
+ *  top edge could be laid down behind the hand while the pointer stayed
+ *  clear of it — and, in reverse, a card grabbed near its bottom edge
+ *  jumped into the hand while its body was nowhere near. One object
+ *  decides both the target and the resting place. */
+export function regionAt(regions: Region[], card: { left: number; top: number }): Region | null {
+  const cx = card.left + cw / 2;
+  const cy = card.top + ch / 2;
+  return regions.find((r) => inside(r.rect, cx, cy)) ?? null;
 }
 
 /** Every board card's box, in the same felt-local space. Snapshotted when a
