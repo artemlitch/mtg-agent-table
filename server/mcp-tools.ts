@@ -148,7 +148,7 @@ export const TOOLS: Record<string, ToolDef> = {
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
   place: {
     description:
-      "Slide cards around the shared table surface. ONE coordinate system covers both halves: x 0 = far left, 1 = far right; y 0 = YOUR back edge (top of the table), 1 = Player's back edge (bottom), so the midline is 0.5 and your own half is roughly y 0 to 0.5. Every battlefield card carries its pos on get_state, so you can read the board's layout and tidy it. A card arriving without a spot is given a clear one automatically, in the row its kind belongs to and beside the last card there, so the board does not need tidying — use this when you want a card somewhere particular. Purely cosmetic: no log entry, no undo step, and it does not pass priority.",
+      "Slide cards around the shared table surface. ONE coordinate system covers both halves: x 0 = far left, 1 = far right; y 0 = YOUR back edge (top of the table), 1 = Player's back edge (bottom), so the midline is 0.5 and your own half is roughly y 0 to 0.5. Every battlefield card carries its pos on get_state, so you can read the board's layout and tidy it. New cards put themselves down tidily — use this when you want a card somewhere particular. Purely cosmetic: no log entry, no undo step, and it does not pass priority.",
     schema: obj(
       {
         positions: arr(
