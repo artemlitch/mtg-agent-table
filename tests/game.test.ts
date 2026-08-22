@@ -837,19 +837,39 @@ describe("the table surface", () => {
     const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: c.id });
     expect(c.zone).toBe("stack");
-    // freshly cast: no position until somebody chooses one
-    expect(c.pos).toBeNull();
+    // the stack is on the table, so it already has a spot like anything else
+    expect(c.pos).toEqual(homePos("you", c));
     applyAction("you", "place", { positions: [{ card: c.id, x: 0.4, y: 0.7 }] });
     applyAction("agent", "stack_resolve", {});
     expect(c.zone).toBe("battlefield");
     expect(c.pos).toEqual({ x: 0.4, y: 0.7 });
   });
 
-  test("an unresolved card nobody placed resolves into its home corner", () => {
+  test("an unresolved card nobody placed resolves where it was already sitting", () => {
     const c = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
     applyAction("you", "cast", { card: c.id });
+    const hovering = { ...c.pos! };
     applyAction("agent", "stack_resolve", {});
+    expect(c.pos).toEqual(hovering);
     expect(c.pos).toEqual(homePos("you", c));
+  });
+
+  test("an instant hovers at a casting spot, not in a permanent row", () => {
+    const bolt = seedCard("Lightning Bolt", "you", "hand", { typeLine: "Instant" });
+    const bear = seedCard("Bear", "you", "hand", { typeLine: "Creature — Bear" });
+    applyAction("you", "cast", { card: bolt.id });
+    applyAction("you", "cast", { card: bear.id });
+    // different kinds of card go to different places on the table
+    expect(bolt.pos).not.toEqual(bear.pos);
+    // the spell sits near the midline on its caster's side. y 0.5 puts a
+    // card's CENTRE on the midline, so just over it is just inside your half
+    expect(bolt.pos!.x).toBe(0.5);
+    expect(bolt.pos!.y).toBeGreaterThan(0.5);
+    expect(bolt.pos!.y).toBeLessThan(0.7);
+    // and it carries no position into the graveyard
+    applyAction("agent", "stack_resolve", { item: game.stack[0].id });
+    expect(bolt.zone).toBe("graveyard");
+    expect(bolt.pos).toBeNull();
   });
 
   test("leaving the battlefield drops the position; coming back re-homes it", () => {

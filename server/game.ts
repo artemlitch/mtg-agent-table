@@ -72,15 +72,29 @@ export interface Card {
  *  hand rather than behind it. */
 const DEFAULT_POS: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
   // the agent's half is the top of the table, so its own edge is y=0
-  agent: { creature: { x: 0.02, y: 0.44 }, land: { x: 0.12, y: 0 }, other: { x: 0.97, y: 0.28 } },
-  you: { creature: { x: 0.02, y: 0.56 }, land: { x: 0.12, y: 1 }, other: { x: 0.97, y: 0.72 } },
+  agent: {
+    creature: { x: 0.02, y: 0.44 },
+    land: { x: 0.12, y: 0 },
+    other: { x: 0.97, y: 0.28 },
+    spell: { x: 0.5, y: 0.38 },
+  },
+  you: {
+    creature: { x: 0.02, y: 0.56 },
+    land: { x: 0.12, y: 1 },
+    other: { x: 0.97, y: 0.72 },
+    spell: { x: 0.5, y: 0.62 },
+  },
 };
 
-type TypeCat = "creature" | "land" | "other";
+type TypeCat = "creature" | "land" | "spell" | "other";
 
-/** Which row a card belongs in. A DFC is whichever face it is showing. */
+/** Which row a card belongs in. A DFC is whichever face it is showing.
+ *  Instants and sorceries are checked first: they never rest on the
+ *  battlefield at all, so they get a casting spot near the midline rather
+ *  than a place in one of the permanent rows. */
 function typeCat(card: Card): TypeCat {
   const t = (card.faces?.[card.face ?? 0]?.typeLine ?? card.typeLine ?? "").toLowerCase();
+  if (/\b(instant|sorcery)\b/.test(t)) return "spell";
   if (t.includes("creature")) return "creature";
   if (t.includes("land")) return "land";
   return "other";
@@ -468,12 +482,13 @@ function relocateCard(card: Card, zone: Zone, player: PlayerId): string[] {
   card.zone = zone;
   card.controller = player;
   card.visibleTo = [];
-  // every zone change re-homes the card: onto the battlefield it takes its
-  // new controller's corner, off the battlefield it has no position at all —
-  // so a battlefield card ALWAYS has a pos and the client never invents one.
-  // The exception is a card resolving off the stack: an unresolved card sits
-  // on the table too, and a spot chosen for it while it waited survives.
-  card.pos = zone === "battlefield" ? (from === "stack" && card.pos ? card.pos : homePos(player, card)) : null;
+  // Every card ON THE TABLE has a position, and the stack is on the table:
+  // an unresolved card is drawn on the board like any other. So both zones
+  // get one and everywhere else clears it — the client never invents a spot.
+  // A card resolving off the stack keeps the one it was already sitting at,
+  // which is what makes a creature resolve exactly where it was hovering.
+  const onTable = zone === "battlefield" || zone === "stack";
+  card.pos = onTable ? (from === "stack" && card.pos ? card.pos : homePos(player, card)) : null;
   return game.players[player].zones[zone];
 }
 

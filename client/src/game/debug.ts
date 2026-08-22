@@ -58,7 +58,7 @@ export function traceDraw(
   name: string | undefined,
   at: { left: number; top: number },
   pos: { x: number; y: number },
-  source: "claim" | "server" | "home",
+  source: "claim" | "server" | "MISSING",
   depth: number
 ) {
   if (!on) return;

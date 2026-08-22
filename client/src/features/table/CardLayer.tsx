@@ -16,7 +16,7 @@ import { CardEl } from "../../components/Card";
 import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
-import { PILE_DX, PILE_DY, measureSurface, posToPx, stackSpot } from "../../game/table";
+import { PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, PlayerId, StackItem } from "../../types";
@@ -64,14 +64,10 @@ export function CardLayer() {
   if (!view || !measured) return null;
 
   const lifts = new Map<string, StackItem>();
-  // an unresolved card has no position until somebody gives it one, so it
-  // hovers at a spot derived from its place in ITS OWN caster's stack —
-  // fanned, because several are up at once all the time
-  const unresolved: { item: StackItem; spot: { x: number; y: number } }[] = [];
+  const unresolved: StackItem[] = [];
   for (const p of PLAYERS) {
     for (const { item, source } of liftedTriggers(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
-    const theirs = stackCardsOf(p);
-    theirs.forEach((item, i) => unresolved.push({ item, spot: stackSpot(p, i, theirs.length) }));
+    unresolved.push(...stackCardsOf(p));
   }
 
   return (
@@ -79,8 +75,8 @@ export function CardLayer() {
       {PLAYERS.flatMap((p) =>
         view.players[p].zones.battlefield.map((c) => <Placed key={c.id} card={c} lift={lifts.get(c.id)} />)
       )}
-      {unresolved.map(({ item, spot }) => (
-        <Placed key={item.card!.id} card={item.card!} item={item} fallback={spot} />
+      {unresolved.map((item) => (
+        <Placed key={item.card!.id} card={item.card!} item={item} />
       ))}
     </div>
   );
@@ -93,8 +89,8 @@ export function CardLayer() {
  *  triggers waits. An unresolved card drags like any other — the spot you
  *  put it in is where it resolves — it just cannot be tapped, because
  *  tapping is not an action it has yet. */
-function Placed({ card: c, lift, item, fallback }: { card: Card; lift?: StackItem; item?: StackItem; fallback?: { x: number; y: number } }) {
-  const { left, top, depth } = anchorOf(c, fallback);
+function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: StackItem }) {
+  const { left, top, depth } = anchorOf(c);
   const mine = item ? item.player === "you" : c.controller === "you";
   const spell = item && resolveZoneOf(item) !== "battlefield";
   // "tuckover" is not in this list on purpose: the drag paints it straight
@@ -152,7 +148,7 @@ function Placed({ card: c, lift, item, fallback }: { card: Card; lift?: StackIte
 
 /** Walk up the pile to the card that actually owns a position, and count the
  *  rungs on the way so the cascade knows how far down this card hangs. */
-function anchorOf(c: Card, fallback?: { x: number; y: number }): { left: number; top: number; depth: number } {
+function anchorOf(c: Card): { left: number; top: number; depth: number } {
   let top: Card = c;
   let depth = 0;
   let guard = 0;
@@ -165,9 +161,11 @@ function anchorOf(c: Card, fallback?: { x: number; y: number }): { left: number;
   // a position you just dropped the card at outranks the one in the view: the
   // server has not answered yet, and the card must not flick back meanwhile
   const claimed = useGame.getState().pendingPos.get(top.id);
-  const pos = claimed ?? top.pos ?? fallback ?? { x: 0.5, y: top.controller === "you" ? 0.62 : 0.38 };
+  // every card on the table has a position — the server gives one to anything
+  // that reaches the battlefield or the stack. The centre is a bug marker.
+  const pos = claimed ?? top.pos ?? { x: 0.5, y: 0.5 };
   const at = posToPx(pos);
   const out = { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
-  traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "home", depth);
+  traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "MISSING", depth);
   return out;
 }

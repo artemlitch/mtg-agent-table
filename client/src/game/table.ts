@@ -51,22 +51,6 @@ export const CH = () => ch;
 export const PILE_DX = 15;
 export const PILE_DY = 26;
 
-/** Where an unresolved card hovers before anybody has placed it: fanned out
- *  along the caster's side of the midline, in stack order.
- *
- *  It has to be a fan rather than a point. Everything that has LANDED gets a
- *  real position from the server, so the only cards that reach this are the
- *  ones on the stack — and the stack is a queue, several at once, by nature.
- *  A single fallback point drew a whole turn's casts as one card.
- *
- *  y 0.5 puts a card's centre on the midline, so each seat sits just inside
- *  its own half. The fan is centred on the table and tightens as it grows, so
- *  a long stack stays on the board. */
-export function stackSpot(player: "you" | "agent", i: number, n: number): { x: number; y: number } {
-  const step = Math.min(0.11, 0.62 / Math.max(1, n));
-  const x = 0.5 + (i - (n - 1) / 2) * step;
-  return { x: Math.max(0, Math.min(1, x)), y: player === "you" ? 0.62 : 0.38 };
-}
 
 interface Surface {
   /** the felt itself, at 0,0 — the origin every other number here shares */
