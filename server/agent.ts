@@ -116,6 +116,44 @@ export interface AgentSnapshot {
 
 const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 });
 
+export const SUPERSEDED_STATE = "(superseded board snapshot — read the newest get_state below for the live board)";
+
+/** Every call resends the whole conversation, so an old get_state is a board
+ *  the game has already moved past that we pay for on every future call. Only
+ *  the newest one describes anything real; the wake prompt narrates each change
+ *  since. Collapse the rest.
+ *
+ *  Rewrites in place, newest-but-one first, and leaves an already-collapsed
+ *  result alone. Prefix caches key on the unchanged head of the conversation,
+ *  so touching only the snapshot that just went stale keeps the invalidation
+ *  point near the tail — a short re-read instead of the whole game. */
+export function collapseSupersededState(messages: any[]) {
+  const snapshotIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const b of m.content) {
+      if (b?.type === "tool_use" && TOOLS[b.name]?.special === "state") snapshotIds.add(b.id);
+    }
+  }
+  let newest = true;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i]?.content;
+    if (!Array.isArray(content)) continue;
+    for (let j = content.length - 1; j >= 0; j--) {
+      const b = content[j];
+      if (b?.type !== "tool_result" || !snapshotIds.has(b.tool_use_id)) continue;
+      // a failed snapshot is small and says why — collapsing it would replace
+      // an error the model still has to reckon with by a pointer to a board
+      if (b.is_error) continue;
+      if (newest) {
+        newest = false;
+      } else if (b.content !== SUPERSEDED_STATE) {
+        content[j] = { ...b, content: SUPERSEDED_STATE };
+      }
+    }
+  }
+}
+
 export class AgentRunner {
   sessionId: string | null = null; // cli transport conversation
   promptArgs: PromptArgs | null = null;
@@ -181,6 +219,8 @@ export class AgentRunner {
     this.brain = snap.brain ?? [];
     this.brainSeq = snap.brainSeq ?? (this.brain.at(-1)?.seq ?? 0);
     this.messages = snap.messages ?? [];
+    // games saved before this collapsed on write carry every stale snapshot
+    collapseSupersededState(this.messages);
     this.historyModel = snap.historyModel ?? "";
     this.usage = snap.usage ?? emptyUsage();
   }
@@ -447,6 +487,7 @@ export class AgentRunner {
         results.push({ type: "tool_result", tool_use_id: t.id, content: text, ...(isError ? { is_error: true } : {}) });
       }
       this.messages.push({ role: "user", content: results });
+      collapseSupersededState(this.messages);
       // done/ask_user END the window — in the CLI transport the result event
       // closes it, but here they are ordinary tool calls, and without this a
       // model happily keeps acting into windows it already passed

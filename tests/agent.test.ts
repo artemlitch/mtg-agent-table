@@ -48,7 +48,7 @@ const fakeTable = Bun.serve({
   },
 });
 
-const { AgentRunner, transportChoice } = await import("../server/agent");
+const { AgentRunner, transportChoice, SUPERSEDED_STATE } = await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
 afterAll(() => {
@@ -253,6 +253,78 @@ describe("agent transport", () => {
     } finally {
       bad.stop(true);
     }
+  });
+});
+
+// Every call resends the whole conversation, so a board snapshot the game has
+// already moved past is dead weight we pay for on every future call.
+describe("superseded board snapshots", () => {
+  const look = (id: string) => ({
+    stop_reason: "tool_use",
+    usage: usage(),
+    content: [{ type: "tool_use", id, name: "get_state", input: {} }],
+  });
+  const resultFor = (a: any, id: string) =>
+    a.messages
+      .flatMap((m: any) => (Array.isArray(m.content) ? m.content : []))
+      .find((b: any) => b.type === "tool_result" && b.tool_use_id === id);
+
+  test("only the newest get_state keeps its board; the older ones collapse to a stub", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    modelScript = [
+      look("tu_a"),
+      { stop_reason: "tool_use", usage: usage(), content: [{ type: "tool_use", id: "tu_say", name: "say", input: { text: "hm" } }] },
+      look("tu_b"),
+      look("tu_c"),
+      { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "seen enough" }] },
+    ];
+    await a.wake("window");
+
+    expect(resultFor(a, "tu_c").content).toContain("stub"); // the live board, untouched
+    expect(resultFor(a, "tu_a").content).toBe(SUPERSEDED_STATE);
+    expect(resultFor(a, "tu_b").content).toBe(SUPERSEDED_STATE);
+    // an ordinary tool result is not a snapshot and is never rewritten
+    expect(resultFor(a, "tu_say").content).not.toBe(SUPERSEDED_STATE);
+  });
+
+  test("collapsing rewrites only the snapshot that just went stale", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    modelScript = [look("tu_1"), look("tu_2"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    await a.wake("window");
+    // the stub object identity is what a prefix cache keys on: leaving it alone
+    // on later passes is what keeps the invalidation point near the tail
+    const stubbed = resultFor(a, "tu_1");
+    expect(stubbed.content).toBe(SUPERSEDED_STATE);
+
+    modelScript = [look("tu_3"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    await a.wake("react");
+    expect(resultFor(a, "tu_1")).toBe(stubbed); // untouched second time around
+    expect(resultFor(a, "tu_2").content).toBe(SUPERSEDED_STATE);
+    expect(resultFor(a, "tu_3").content).toContain("stub");
+  });
+
+  test("a game restored from disk gets its stale snapshots collapsed", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    a.restore({
+      messages: [
+        { role: "assistant", content: [{ type: "tool_use", id: "old", name: "get_state", input: {} }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "old", content: '{"a very large board":1}' }] },
+        { role: "assistant", content: [{ type: "tool_use", id: "new", name: "get_state", input: {} }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "new", content: '{"the current board":1}' }] },
+      ],
+    } as any);
+    expect(resultFor(a, "old").content).toBe(SUPERSEDED_STATE);
+    expect(resultFor(a, "new").content).toBe('{"the current board":1}');
   });
 });
 
