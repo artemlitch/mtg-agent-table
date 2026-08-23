@@ -4,7 +4,7 @@ import { Dropdown } from "../../components/Dropdown";
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
 import { useUI } from "../../store/ui";
-import { ShowChat } from "../side/SideToggle";
+import { SideToggle } from "../side/SideToggle";
 import type { GameView } from "../../types";
 
 // The turn as a route: dots on a line, one lit. The phase itself is free text,
@@ -82,7 +82,7 @@ export function TopBar() {
             show. Its opposite number lives inside the chat — putting both here
             leaves the dismiss button underneath the thing it dismisses once
             the drawer is wide enough to cover this end of the bar. */}
-        {narrow && !sideOpen && <ShowChat />}
+        {narrow && !sideOpen && <SideToggle />}
       </div>
     </div>
   );

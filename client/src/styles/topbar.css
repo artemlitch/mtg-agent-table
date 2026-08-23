@@ -29,7 +29,11 @@
 /* Bring the chat back. It exists only while the chat is away — the dismiss
    half lives inside the chat itself, since this end of the bar is the first
    thing the drawer covers on a narrow window. */
-#btn-panel { position: relative; }
+/* Its own size, rather than the one .phasebtns hands its children: this button
+   is mounted here OR on the chat's tab row, and a size that comes from the
+   neighbourhood is a size that changes when it moves. An id beats both the
+   .phasebtns rule and the tab row's, so it is the same glyph in both places. */
+#btn-panel { position: relative; font-size: var(--fs-note); }
 /* Unseen traffic behind a shut drawer: the button becomes the notification.
    The glow and the gold are static and the DOT does the pulsing, on a scale
    transform — a pulsing box-shadow repaints the button sixty times a second

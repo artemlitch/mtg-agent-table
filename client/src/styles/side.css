@@ -11,28 +11,28 @@
    alignment with the bar is the whole point. */
 #tabs { display: flex; position: relative; height: var(--bar-h); flex: none; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
 
-/* Dismiss, on the chat's own top corner.
+/* Dismiss, on the chat's leading corner — the edge the panel is about to move
+   towards, and the side of the window the felt is on.
    Out of the row's flow, deliberately: the four tabs divide the row between
    them, and a fifth child would take a share and move all four the moment the
-   layout changed under them. This takes no share — it rides over the end of
-   the last tab, in the slack its centred label leaves. */
-/* #tabs #btn-hidechat, not #btn-hidechat: the rule above it sets every tab
-   `position: relative` and outranks a bare id, which left this one in the flex
-   flow taking a fifth of the row — the exact thing it must not do. */
-#tabs #btn-hidechat {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; padding: 0; border-radius: 6px;
-  background: none; border-color: transparent; box-shadow: none;
-  color: var(--dim); font-size: var(--fs-note);
-}
-#tabs #btn-hidechat:hover {
-  color: var(--gold-hi); box-shadow: none;
-  background: linear-gradient(rgba(226, 179, 85, 0.12), rgba(226, 179, 85, 0.12)) padding-box, var(--chrome-dim) border-box;
+   layout changed under them. This takes no share — it rides over the start of
+   the first tab, in the slack its centred label leaves. */
+/* Where it sits, and nothing else: every other property comes from the rules
+   it already wears in the topbar, so the two mountings cannot drift apart.
+   Two ids, because #tabs button outranks a bare one — that is what left the
+   first attempt in the flex flow, taking a fifth of the row. */
+#tabs #btn-panel {
+  position: absolute; left: 6px; top: 50%; transform: translateY(-50%); z-index: 1;
 }
 /* the tab row heads the panel, so it is set at the panel's reading size and
    not at the chrome's — see --fs-read, which #pane-chat also rebases on */
-#tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 0 8px; color: var(--dim); box-shadow: none; font-size: var(--fs-read); position: relative; }
+/* :not(#btn-panel) so the show/hide control keeps the cascade it has in the
+   topbar. This rule strips a button back to a bare tab — no plate, no rim, no
+   radius — and it outranks a bare id, so the toggle mounted in here came out
+   looking like nothing at all. Held out of it, the SAME button with the SAME
+   id picks up the SAME rules in both places, rather than the two looks being
+   kept in step by hand. */
+#tabs button:not(#btn-panel) { flex: 1; border: none; border-radius: 0; background: transparent; padding: 0 8px; color: var(--dim); box-shadow: none; font-size: var(--fs-read); position: relative; }
 #tabs button.active { color: var(--gold-hi); border-bottom: 2px solid var(--accent); text-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 .tabpane { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 
