@@ -45,7 +45,9 @@
 .msg.agent { background: linear-gradient(#2c2437, #2c2437) padding-box, var(--chrome-dim) border-box; align-self: flex-start; }
 .msg.sys { color: var(--dim); font-size: var(--fs-note); align-self: center; background: none; border: none; padding: 1px; }
 .msg.actline { color: var(--dim); font-size: var(--fs-note); align-self: stretch; background: none; border: none; padding: 0 2px; max-width: 100%; }
-.msg .mwho { font: var(--fw-label) var(--fs-tiny)/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
+/* icon and words centred on each other, the house rule for any icon row */
+.msg .mwho { display: flex; align-items: center; gap: 4px;
+  font: var(--fw-label) var(--fs-tiny)/1.6 var(--font-fantasy); letter-spacing: 0.08em; color: var(--dim); margin-bottom: 1px; }
 /* stack traffic surfaced inline in chat */
 .msg.stackmsg { cursor: pointer; font-size: var(--fs-body); }
 .msg.stackmsg.you { background: linear-gradient(#2b2410, #2b2410) padding-box, var(--chrome-dim) border-box; }
@@ -101,7 +103,7 @@
 .logline { font-size: var(--fs-note); color: var(--dim); }
 .logline b { color: var(--text); }
 
-#question { padding: 0 10px; color: #ffd97a; font-size: var(--fs-body); }
+#question { display: flex; align-items: center; gap: 6px; padding: 0 10px; color: #ffd97a; font-size: var(--fs-body); }
 #question:not(:empty) { padding: 6px 10px; background: #33290f; }
 /* How long until the agent thinks. Sits on the composer's top edge, so the
    line that separates you from the input is the same line that fills up. */

@@ -97,7 +97,7 @@ export function SidePanel() {
       {tab === "log" && <LogPane />}
       {needsSetup && <KeySetup />}
 
-      <div id="question">{view?.pendingQuestion ? `❓ Agent asks: ${view.pendingQuestion}` : ""}</div>
+      <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: {view.pendingQuestion}</> : ""}</div>
       <WakeBar />
       {!needsSetup && <Composer />}
     </div>
@@ -202,7 +202,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
       .replace(/ \(on the stack(?: — respond or resolve)?\)/, "");
     return (
       <div className={`msg stackmsg ${e.actor === "you" ? "you" : "agent"}`} title="Open the Stack tab" onClick={onOpenStack}>
-        <div className="mwho">{e.actor === "you" ? "You" : "Agent"} · ⚡ stack</div>
+        <div className="mwho">{e.actor === "you" ? "You" : "Agent"} · <Icon name="pile" /> stack</div>
         {withMana(text)}
       </div>
     );
@@ -361,7 +361,7 @@ function Composer() {
         onKeyDown={(e) => e.key === "Enter" && send()}
       />
       <button id="btn-send" onClick={send}>
-        {stackMode ? "⚡ Stack" : "Send"}
+        {stackMode ? <><Icon name="ability" /> Stack</> : "Send"}
       </button>
     </div>
   );
