@@ -118,6 +118,18 @@ const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cache
 
 export const SUPERSEDED_STATE = "(superseded board snapshot — read the newest get_state below for the live board)";
 
+/** How much dead board has to pile up before it is worth rewriting history.
+ *
+ *  Rewriting drops everything after the edit out of the provider's prefix
+ *  cache, and a re-read is billed at roughly 31x a cached token. Collapsing one
+ *  stale snapshot at a time pays that toll once per snapshot; waiting for a few
+ *  pays it once for all of them, because the edit lands at the oldest either
+ *  way. Simulated over this project's own saved game, collapsing on sight was
+ *  worth about 5c and waiting about 7c, so the gap is small and the curve is
+ *  flat — 80k characters is roughly four board snapshots, chosen from that
+ *  flat region rather than from a sharp optimum. */
+export const COLLAPSE_THRESHOLD_CHARS = 80_000;
+
 /** Room to finish a thought. This was 8192, and a real turn died on it: the
  *  agent was six sentences into working out whether a 50/50 Thromok survives
  *  the crack-back, hit the cap before it emitted a single tool call, and the
@@ -181,7 +193,7 @@ export function trimOldThinking(messages: any[], keepWindows = KEEP_THINKING_WIN
   }
 }
 
-export function collapseSupersededState(messages: any[]) {
+export function collapseSupersededState(messages: any[], threshold = COLLAPSE_THRESHOLD_CHARS) {
   const snapshotIds = new Set<string>();
   for (const m of messages) {
     if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
@@ -189,6 +201,9 @@ export function collapseSupersededState(messages: any[]) {
       if (b?.type === "tool_use" && TOOLS[b.name]?.special === "state") snapshotIds.add(b.id);
     }
   }
+  // find every stale snapshot before rewriting any of them: whether the rewrite
+  // is worth its cache invalidation is a question about all of them together
+  const stale: { content: any[]; j: number }[] = [];
   let newest = true;
   for (let i = messages.length - 1; i >= 0; i--) {
     const content = messages[i]?.content;
@@ -199,13 +214,13 @@ export function collapseSupersededState(messages: any[]) {
       // a failed snapshot is small and says why — collapsing it would replace
       // an error the model still has to reckon with by a pointer to a board
       if (b.is_error) continue;
-      if (newest) {
-        newest = false;
-      } else if (b.content !== SUPERSEDED_STATE) {
-        content[j] = { ...b, content: SUPERSEDED_STATE };
-      }
+      if (newest) newest = false;
+      else if (b.content !== SUPERSEDED_STATE) stale.push({ content, j });
     }
   }
+  const dead = stale.reduce((n, s) => n + String(s.content[s.j].content ?? "").length, 0);
+  if (dead < threshold) return;
+  for (const { content, j } of stale) content[j] = { ...content[j], content: SUPERSEDED_STATE };
 }
 
 export class AgentRunner {

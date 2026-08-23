@@ -32,6 +32,7 @@ const fakeAnthropic = Bun.serve({
 
 // stub table: records actions, answers ok
 const tableActions: any[] = [];
+let statePad = "";
 const fakeTable = Bun.serve({
   port: 0,
   async fetch(req) {
@@ -42,13 +43,16 @@ const fakeTable = Bun.serve({
       return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
     }
     if (url.pathname === "/api/state") {
-      return new Response(JSON.stringify({ players: {}, stub: true }), { headers: { "Content-Type": "application/json" } });
+      // padded on demand: whether a stale board is worth collapsing is a
+      // question about its size, so the size has to be controllable
+      return new Response(JSON.stringify({ players: {}, stub: true, pad: statePad }), { headers: { "Content-Type": "application/json" } });
     }
     return new Response("not found", { status: 404 });
   },
 });
 
-const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING } = await import("../server/agent");
+const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState } =
+  await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
 afterAll(() => {
@@ -271,12 +275,31 @@ describe("superseded board snapshots", () => {
       .flatMap((m: any) => (Array.isArray(m.content) ? m.content : []))
       .find((b: any) => b.type === "tool_result" && b.tool_use_id === id);
 
-  test("only the newest get_state keeps its board; the older ones collapse to a stub", async () => {
+  // each fake board is 45k characters, so two stale ones clear the 80k
+  // threshold and one does not
+  const runner = () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    statePad = "x".repeat(45_000);
+    return a;
+  };
+  afterAll(() => { statePad = ""; });
+
+  test("one stale board is left alone — not worth a cache invalidation", async () => {
+    const a = runner();
+    modelScript = [look("tu_1"), look("tu_2"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    await a.wake("window");
+    // rewriting history drops everything after the edit out of the prefix
+    // cache; one board is not enough dead weight to pay for that
+    expect(resultFor(a, "tu_1").content).not.toBe(SUPERSEDED_STATE);
+    expect(resultFor(a, "tu_2").content).not.toBe(SUPERSEDED_STATE);
+  });
+
+  test("once enough dead board piles up, all of it goes at once", async () => {
+    const a = runner();
     modelScript = [
       look("tu_a"),
       { stop_reason: "tool_use", usage: usage(), content: [{ type: "tool_use", id: "tu_say", name: "say", input: { text: "hm" } }] },
@@ -293,40 +316,50 @@ describe("superseded board snapshots", () => {
     expect(resultFor(a, "tu_say").content).not.toBe(SUPERSEDED_STATE);
   });
 
-  test("collapsing rewrites only the snapshot that just went stale", async () => {
-    resetGameState();
-    const a = new AgentRunner();
-    a.tableUrl = `http://localhost:${fakeTable.port}`;
-    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
-    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-    modelScript = [look("tu_1"), look("tu_2"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+  test("a board already collapsed is never rewritten again", async () => {
+    const a = runner();
+    modelScript = [look("tu_1"), look("tu_2"), look("tu_3"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
     await a.wake("window");
     // the stub object identity is what a prefix cache keys on: leaving it alone
     // on later passes is what keeps the invalidation point near the tail
     const stubbed = resultFor(a, "tu_1");
     expect(stubbed.content).toBe(SUPERSEDED_STATE);
 
-    modelScript = [look("tu_3"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    modelScript = [look("tu_4"), look("tu_5"), { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
     await a.wake("react");
     expect(resultFor(a, "tu_1")).toBe(stubbed); // untouched second time around
-    expect(resultFor(a, "tu_2").content).toBe(SUPERSEDED_STATE);
-    expect(resultFor(a, "tu_3").content).toContain("stub");
+    expect(resultFor(a, "tu_5").content).toContain("stub");
   });
 
   test("a game restored from disk gets its stale snapshots collapsed", async () => {
     resetGameState();
     const a = new AgentRunner();
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const board = (n: number) => `{"board":${n},"pad":"${"x".repeat(45_000)}"}`;
     a.restore({
       messages: [
+        { role: "assistant", content: [{ type: "tool_use", id: "older", name: "get_state", input: {} }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "older", content: board(1) }] },
         { role: "assistant", content: [{ type: "tool_use", id: "old", name: "get_state", input: {} }] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "old", content: '{"a very large board":1}' }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "old", content: board(2) }] },
         { role: "assistant", content: [{ type: "tool_use", id: "new", name: "get_state", input: {} }] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "new", content: '{"the current board":1}' }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "new", content: board(3) }] },
       ],
     } as any);
+    expect(resultFor(a, "older").content).toBe(SUPERSEDED_STATE);
     expect(resultFor(a, "old").content).toBe(SUPERSEDED_STATE);
-    expect(resultFor(a, "new").content).toBe('{"the current board":1}');
+    expect(resultFor(a, "new").content).toBe(board(3));
+  });
+
+  test("the threshold is a knob, so a caller can still collapse on sight", () => {
+    const messages = [
+      { role: "assistant", content: [{ type: "tool_use", id: "old", name: "get_state", input: {} }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "old", content: '{"tiny":1}' }] },
+      { role: "assistant", content: [{ type: "tool_use", id: "new", name: "get_state", input: {} }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "new", content: '{"live":1}' }] },
+    ];
+    collapseSupersededState(messages, 0);
+    expect(messages[1].content[0].content).toBe(SUPERSEDED_STATE);
   });
 });
 
