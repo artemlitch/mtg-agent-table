@@ -51,7 +51,7 @@ const fakeTable = Bun.serve({
   },
 });
 
-const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState } =
+const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState, KEEP_THINKING_WINDOWS } =
   await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
@@ -435,18 +435,20 @@ describe("thinking from closed windows", () => {
     return out.map((w) => w.flatMap((m: any) => (Array.isArray(m.content) ? m.content : [])).filter((b: any) => b.type === "thinking").length);
   };
 
-  test("the last two windows keep their reasoning, older ones lose it", async () => {
+  test("the most recent windows keep their reasoning, older ones lose it", async () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-    for (const n of ["one", "two", "three", "four"]) {
-      modelScript = [thought(`${n} a`, `tu_${n}`), thought(`${n} b`)];
+    // two more windows than are kept, so there is something to strip whatever
+    // the setting is — the boundary is the point, not the number
+    const n = KEEP_THINKING_WINDOWS + 2;
+    for (let i = 0; i < n; i++) {
+      modelScript = [thought(`w${i} a`, `tu_${i}`), thought(`w${i} b`)];
       await a.wake("window");
     }
-    // four windows: the two oldest are stripped, the newest two keep theirs
-    expect(windows(a)).toEqual([0, 0, 2, 2]);
+    expect(windows(a)).toEqual([...Array(2).fill(0), ...Array(KEEP_THINKING_WINDOWS).fill(2)]);
   });
 
   test("what the agent said and did survives the trim", async () => {
@@ -455,15 +457,16 @@ describe("thinking from closed windows", () => {
     a.tableUrl = `http://localhost:${fakeTable.port}`;
     a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-    for (const n of ["one", "two", "three"]) {
-      modelScript = [thought(`${n} a`, `tu_${n}`), thought(`${n} b`)];
+    // one more window than is kept, so the oldest has aged out
+    for (let i = 0; i <= KEEP_THINKING_WINDOWS; i++) {
+      modelScript = [thought(`w${i} a`, `tu_${i}`), thought(`w${i} b`)];
       await a.wake("window");
     }
     const blocks = a.messages.flatMap((m: any) => (Array.isArray(m.content) ? m.content : []));
     // the oldest window kept its action and its result, only the thought went
-    expect(blocks.some((b: any) => b.type === "tool_use" && b.id === "tu_one")).toBe(true);
-    expect(blocks.some((b: any) => b.type === "tool_result" && b.tool_use_id === "tu_one")).toBe(true);
-    expect(blocks.some((b: any) => b.type === "thinking" && b.thinking === "one a")).toBe(false);
+    expect(blocks.some((b: any) => b.type === "tool_use" && b.id === "tu_0")).toBe(true);
+    expect(blocks.some((b: any) => b.type === "tool_result" && b.tool_use_id === "tu_0")).toBe(true);
+    expect(blocks.some((b: any) => b.type === "thinking" && b.thinking === "w0 a")).toBe(false);
   });
 
   test("a message that is nothing but thinking leaves a marker, not an empty message", () => {
@@ -476,7 +479,9 @@ describe("thinking from closed windows", () => {
       { role: "user", content: [{ type: "text", text: "wake 3" }] },
       { role: "user", content: [{ type: "text", text: "wake 4" }] },
     ];
-    trimOldThinking(messages);
+    // keeping one window, so everything before the last is stale — the marker
+    // is what is under test here, not how many windows survive
+    trimOldThinking(messages, 1);
     // an empty content array is not a legal message, and dropping the message
     // would leave two user turns back to back
     expect(messages[1].content).toEqual([{ type: "text", text: DROPPED_THINKING }]);

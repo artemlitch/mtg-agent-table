@@ -151,9 +151,17 @@ export const MAX_OUTPUT_TOKENS = 32768;
  *  result alone. Prefix caches key on the unchanged head of the conversation,
  *  so touching only the snapshot that just went stale keeps the invalidation
  *  point near the tail — a short re-read instead of the whole game. */
-/** How many windows keep their reasoning. The current one needs it to finish
- *  the thought; the one before it holds the plan that thought just produced. */
-export const KEEP_THINKING_WINDOWS = 2;
+/** How many windows keep their reasoning.
+ *
+ *  Two was the minimum that works: the current window needs its reasoning to
+ *  finish the thought, and the one before it holds the plan that thought just
+ *  produced. Four because the margin turned out to be nearly free — with the
+ *  trim running, thinking is about 1.2k of a 49k conversation, so two more
+ *  windows cost roughly a thousand tokens. The thing being protected is a plan
+ *  the agent has formed and not yet said out loud ("hold this for lethal"),
+ *  which lives in the thinking blocks and nowhere else, and is worth more than
+ *  a thousand tokens. */
+export const KEEP_THINKING_WINDOWS = 4;
 
 export const DROPPED_THINKING = "(thought this through in an earlier window; the board has moved on since)";
 
