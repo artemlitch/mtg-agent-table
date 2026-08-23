@@ -8,9 +8,15 @@
   border: 1px solid transparent; border-radius: 8px; padding: 8px; font-size: var(--fs-body); white-space: pre-wrap;
   background: linear-gradient(var(--panel2), var(--panel2)) padding-box, var(--chrome) border-box;
 }
-#cardpreview .pv-faces { display: flex; gap: 6px; align-items: flex-start; }
-#cardpreview .pv-faces img { width: 50%; }
-#cardpreview .pv-faces .pv-active { outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(226, 179, 85, 0.45); }
+/* A double-faced card shows both faces. The one in play is full size; the
+   other is 60% of its height and tucked in behind it. Size and depth say
+   which face you are looking at — a gold frame around the active one was one
+   more line to read on a card you were already squinting at. */
+#cardpreview .pv-faces { display: flex; align-items: center; }
+#cardpreview .pv-faces > * { position: relative; z-index: 0; width: 39%; }
+#cardpreview .pv-faces > * + * { margin-left: -4%; }
+/* the active face is always the first child — see components/CardPreview.tsx */
+#cardpreview .pv-faces .pv-active { width: 65%; z-index: 1; }
 
 /* The app's ONE tooltip: fixed to the viewport, so nothing that scrolls can
    clip it. It sits just under the hover preview — a tooltip naming a card is

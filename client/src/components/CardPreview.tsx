@@ -5,7 +5,9 @@ import { TokenFace, drawnHere } from "./TokenFace";
 // The full-size card that follows the cursor. One layer, above the board and
 // the modal, below the tooltip.
 
-const WIDE = 440;
+// wide enough for a full-size face plus the 60%-height other one tucked in
+// behind it (65% + 39% - 4% overlap = the whole width; see overlays.css)
+const WIDE = 400;
 const NARROW = 260;
 
 export function CardPreviewLayer() {
@@ -13,11 +15,11 @@ export function CardPreviewLayer() {
   if (!preview) return null;
   const { card: c, x, y } = preview;
   const faces = (c.faceCount ?? 1) > 1 ? c.faces : undefined;
-  const wide = !!faces;
-  const left = Math.min(x + 18, window.innerWidth - (wide ? 460 : 280));
+  const width = faces ? WIDE : NARROW;
+  const left = Math.min(x + 18, window.innerWidth - (width + 20));
   const top = Math.max(6, Math.min(y + 12, window.innerHeight - 380));
   return (
-    <div id="cardpreview" style={{ left, top, width: wide ? WIDE : NARROW }}>
+    <div id="cardpreview" style={{ left, top, width }}>
       {faces ? <Faces card={c} faces={faces} /> : <Single card={c} />}
     </div>
   );
@@ -45,7 +47,8 @@ function Single({ card }: { card: Card }) {
   );
 }
 
-/** Active face first (leftmost) with a gold frame; every face fully opaque. */
+/** Active face first, which is the one the CSS draws full size and in front;
+ *  every face fully opaque. */
 function Faces({ card, faces }: { card: Card; faces: NonNullable<Card["faces"]> }) {
   const active = card.face ?? 0;
   const order = faces.map((_, i) => i).sort((a, b) => (a === active ? -1 : b === active ? 1 : a - b));
