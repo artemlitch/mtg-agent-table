@@ -2,8 +2,15 @@
    the board, and the piles in the rail. */
 
 .seat { flex: 1; display: flex; min-height: 0; }
+/* A vertical strip scrolls vertically and never sideways. overflow-x has to be
+   said out loud: setting overflow-y alone promotes the other axis from visible
+   to auto, so anything that paints a pixel past the edge — the commander tax
+   badge hangs 7px off its corner — turns the rail into a horizontal scroller.
+   clip rather than hidden, so it stays a one-axis scroll container and there
+   is no sideways scroll position to land in at all. */
 .rail {
-  width: var(--rail-w); padding: 6px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+  width: var(--rail-w); padding: 6px; background: var(--panel); display: flex; flex-direction: column; gap: 6px;
+  overflow-y: auto; overflow-x: clip;
   border-right: 1px solid; border-image: linear-gradient(180deg, #4a350f, #b8892f, #4a350f) 1;
 }
 .boardwrap { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }

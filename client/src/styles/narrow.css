@@ -137,3 +137,9 @@ body.narrow .pile::after { bottom: -152%; }
 /* the commander comes down with everything else; the tax badge stays legible,
    since it is a number you have to read rather than a decoration */
 body.narrow .cmdzone { --cmd-scale: 0.6; padding: 4px; margin-bottom: 9px; }
+/* At full width the badge hangs 7px off the corner into open rail. Here the
+   rail is 64px of content and the socket takes 55 of it, so 7px lands outside
+   — which the rail now clips rather than scrolls to. Tucked in to where the
+   whole badge is on screen; it sits further over the card's corner, which is
+   where a corner badge belongs anyway. */
+body.narrow .cmdzone .cmdtax { right: -2px; }
