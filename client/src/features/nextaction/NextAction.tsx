@@ -38,8 +38,13 @@ export function NextAction() {
           <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
+              {/* The glyph rides the label's own line so it sits on the words
+                  rather than on the middle of the whole column — but out of
+                  the label's flow, so the words keep the label's centre and
+                  everything below them lines up with the words and not with
+                  the pair. See .na-icon. */}
               <span className="na-label">
-                {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} />}
+                {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} className="na-icon" />}
                 <PhaseLabel text={a.label ?? ""} />
               </span>
               {/* the sub-line is the stack item's own words, so it carries
@@ -125,6 +130,25 @@ function PhaseLabel({ text }: { text: string }) {
  *  then snap when the inline size finally came off. So the inline size comes
  *  off BEFORE measuring, every time.
  */
+/** Slide the whole prompt so the LABEL lands on the playmat's centre, rather
+ *  than the button doing so. Everything else the plate carries — the card
+ *  being resolved, the glyph, a sub-line longer than the action itself — then
+ *  hangs around the words without moving them, and the plate is free to be
+ *  lopsided instead of padded out with dead space to fake a centre.
+ *
+ *  Read at natural size, from inside useSizeTransition: mid-animation the box
+ *  is pinned to a width it does not have yet, and the offset measured off that
+ *  would be wrong in exactly the moments the prompt is changing. */
+function anchorOnLabel(el: HTMLElement) {
+  const root = el.closest<HTMLElement>("#nextaction");
+  const label = el.querySelector<HTMLElement>(".na-label");
+  if (!root) return;
+  if (!label) return void root.style.setProperty("--na-off", "0px");
+  const b = el.getBoundingClientRect();
+  const l = label.getBoundingClientRect();
+  root.style.setProperty("--na-off", `${l.left + l.width / 2 - (b.left + b.width / 2)}px`);
+}
+
 function useSizeTransition(key: string) {
   const ref = useRef<HTMLButtonElement>(null);
   // The last natural size. Layout effects run after React has already written
@@ -152,6 +176,7 @@ function useSizeTransition(key: string) {
     el.style.height = "";
     const to = { w: el.offsetWidth, h: el.offsetHeight };
     natural.current = to;
+    anchorOnLabel(el);
 
     if (!from || (from.w === to.w && from.h === to.h)) {
       el.style.transition = ""; // back to the stylesheet's hover timing

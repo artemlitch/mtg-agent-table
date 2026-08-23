@@ -124,9 +124,6 @@
   --glow-ease: ease;
   /* boxes that resize rather than light up */
   --size-dur: 0.22s;
-  /* the next-action prompt's card thumbnail — declared here because the
-     mirror that keeps the words centred has to match its width exactly */
-  --na-card-w: 40px;
   --hover-transition:
     background var(--glow-dur) var(--glow-ease),
     border-color var(--glow-dur) var(--glow-ease),
