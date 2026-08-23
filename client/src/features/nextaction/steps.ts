@@ -182,9 +182,16 @@ export const NEXT_ACTION_STEPS: Step[] = [
     }),
   },
   {
+    // The agent hands priority back all through its own turn — after a wipe,
+    // after a spell resolves, any time it wants a response. Saying "waiting"
+    // then is backwards: it is waiting on YOU, and with no button to press the
+    // table sits there with each side expecting the other to move.
     id: "waiting-on-agent-turn",
     when: (c) => !c.mine,
-    step: () => ({ hint: "the agent's turn — waiting" }),
+    step: (c) =>
+      c.view.waitingOn === "you"
+        ? { label: "Pass — nothing to add", icon: "skip", fn: () => void act("done", {}) }
+        : { hint: "the agent's turn — waiting" },
   },
 
   // ── your turn, stack settled: the turn structure ──

@@ -125,6 +125,31 @@ describe("when the mulligan offer is on the table", () => {
   });
 });
 
+// During the agent's turn it hands priority back constantly — after a wipe,
+// after a spell resolves, whenever it wants a response. The table has to say
+// so, or the game sits there with each side waiting for the other.
+describe("priority handed back during the agent's turn", () => {
+  const theirTurn = (waitingOn: string) => {
+    const v = view({ log: [line("Agent passes — Player's window", "agent")] });
+    v.turn = "agent";
+    (v as any).waitingOn = waitingOn;
+    return v;
+  };
+
+  it("offers a way to pass back when the agent is waiting on you", () => {
+    const { id, action } = prompt(theirTurn("you"));
+    expect(id).toBe("waiting-on-agent-turn");
+    expect(action?.fn).toBeTypeOf("function"); // a button, not a dead hint
+    expect(action?.hint).toBeUndefined();
+  });
+
+  it("still just says it is waiting while the agent actually has priority", () => {
+    const { action } = prompt(theirTurn("agent"));
+    expect(action?.hint).toMatch(/waiting/i);
+    expect(action?.fn).toBeUndefined();
+  });
+});
+
 describe("the combat prompt, step by step", () => {
   it("asks you to declare as soon as you reach combat", () => {
     const { id, action } = prompt(view({ mine: [creature("bear")], log: [ENTERED()] }));
