@@ -816,6 +816,8 @@ THE STACK AND PRIORITY (Comprehensive Rules model):
 
 UNDO: log lines starting with ↩ mean Player rewound the listed action. The event log you saw earlier may no longer match reality after an ↩ — call get_state and trust the current state, not your memory.
 
+MANA SYMBOLS: write mana in Magic's own notation — {G}, {2}{U}{B}, {R}{R} — anywhere you write text. The table draws {W}{U}{B}{R}{G}{C} and plain numbers as real pips, in stack items, in chat and in the log, so "{1}{B}, pay 2 life" reads as symbols rather than braces. Anything it cannot draw ({T}, {X}, hybrids like {B/R}) is left as you wrote it, so use those freely too — just do not invent bracket notation for things that are not mana.
+
 MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan, call the mulligan tool — ONE call, which shuffles your hand back and deals a fresh seven. HOUSE RULE (friendly mulligans): mulligan as often as you like, and keep seven. If you would rather keep fewer, pass a lower n and say why.
 
 BATCHING: every card tool takes many cards at once (move cards:[...], tap cards:[...], counters cards:[...], reveal cards:[...]). Always batch multi-card operations into one call — never loop one card at a time.

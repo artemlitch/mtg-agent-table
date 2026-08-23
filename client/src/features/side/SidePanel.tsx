@@ -2,6 +2,7 @@
 // with one composer under them that feeds whichever is open.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act, deleteKey, refresh, saveKey, testClaudeCli } from "../../api";
+import { withMana } from "../../components/Mana";
 import { openRevealBrowser } from "../browsers/Browsers";
 import { revealedCards } from "../../game/reveals";
 import { useGame } from "../../store/game";
@@ -201,7 +202,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
     return (
       <div className={`msg stackmsg ${e.actor === "you" ? "you" : "agent"}`} title="Open the Stack tab" onClick={onOpenStack}>
         <div className="mwho">{e.actor === "you" ? "You" : "Agent"} · ⚡ stack</div>
-        {text}
+        {withMana(text)}
       </div>
     );
   }
@@ -209,7 +210,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
     return (
       <div className={`msg ${e.actor === "you" ? "you" : "agent"}`}>
         <div className="mwho">{e.actor === "you" ? "You" : "Agent"}</div>
-        {e.text.replace(/^💬 (Player|Agent): /, "").replace(/^❓ Agent asks: /, "❓ ")}
+        {withMana(e.text.replace(/^💬 (Player|Agent): /, "").replace(/^❓ Agent asks: /, "❓ "))}
       </div>
     );
   if (e.actor === "system") return <div className="msg sys">{e.text}</div>;
@@ -219,7 +220,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
   if (e.cards?.length) return <RevealLine e={e} />;
   // every other action (draws, taps, scries, moves…) shows as a dim line —
   // the chat is the full play-by-play, nothing happens invisibly
-  return <div className="msg actline">{e.text}</div>;
+  return <div className="msg actline">{withMana(e.text)}</div>;
 }
 
 /** A reveal, with its cards one click away. Dead once every card it named has

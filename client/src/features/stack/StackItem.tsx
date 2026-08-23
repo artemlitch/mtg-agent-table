@@ -1,5 +1,6 @@
 import { act } from "../../api";
 import { previewProps } from "../../components/CardPreview";
+import { withMana } from "../../components/Mana";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { StackItem } from "../../types";
@@ -103,13 +104,13 @@ export function StackItemEl({ item, inChat }: { item: StackItem; inChat?: boolea
             )}
             {item.countered && <span className="ctag">COUNTERED</span>}
           </div>
-          <div className="sitext">{headline}</div>
+          <div className="sitext">{withMana(headline)}</div>
           {rows && rows.length > 0 && (
             <div className="sirows">
               {rows.map((r, i) => (
                 <div className="sirow" key={i}>
                   <span className="sirownum">{i + 1}</span>
-                  {r}
+                  {withMana(r)}
                 </div>
               ))}
             </div>
