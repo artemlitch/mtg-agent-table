@@ -155,6 +155,18 @@
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
+/* The words are what you read, and what the space cap below them belongs
+   under — so the words take the middle of the plate and the glyph hangs
+   beside them without shoving them off it. A mirror of the icon's own box on
+   the trailing side does that IN FLOW; hanging the icon out with
+   position: absolute would put it past the button's edge, and the button is
+   overflow: hidden for the width animation, so it would simply be cut off.
+   With the label's own centre now on the words, .na-text centres the keycap
+   under them rather than under the icon-plus-words pair.
+   Only when the first child IS an icon — a phase label leads with a chip. */
+#na-primary .na-label:has(> .ico:first-child)::after {
+  content: ""; flex: none; width: 1em;
+}
 /* The glyph is a drawing that fills its box; the words are capitals sitting on
    a baseline, using none of the room below it. Centring the two boxes there-
    fore hangs the icon low, so it is lifted — the same correction .gi makes
