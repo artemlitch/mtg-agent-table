@@ -74,6 +74,13 @@ export const ICONS: Record<string, string> = {
   phaseArrow: "gi-plain-arrow gi-rot270",
   caret: "gi-plain-arrow",
   caretUp: "gi-plain-arrow gi-rot180",
+  /* the side panel's dismiss tab: the same arrow aimed at where the panel is
+     about to go — right to push it off the edge, left to pull it back. */
+  chevronRight: "gi-plain-arrow gi-rot270",
+  chevronLeft: "gi-plain-arrow gi-rot90",
+  /* the compact rail's two piles. A card going down is the graveyard, a card
+     burning is exile — the pair reads at 12px, which the words do not. */
+  graveyard: "gi-card-discard",
   // card types, for the search filter
   anyType: "gi-circle",
   creature: "gi-dragon-head",

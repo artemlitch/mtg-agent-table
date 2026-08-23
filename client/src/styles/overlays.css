@@ -60,21 +60,9 @@
    the midline used to take the hover and the click off the one button the
    prompt exists to offer. Below the hand and the command zones at 48, and
    below the card layer while a drag is on at 49. */
-/* Anchored by the WORDS, not by the plate.
-   The plate is free to be lopsided — a card thumbnail on one side, a glyph
-   hanging off the label, a sub-line wider than the action itself — and none
-   of that may move the words: the label has to sit at the same point on the
-   playmat from one prompt to the next, so the eye never has to go looking for
-   it. Centring the BUTTON cannot do that, and padding the button out to fake
-   it just leaves dead space on the other side.
-   So the button keeps its natural size and the whole prompt slides by
-   --na-off, which is how far the label's centre sits from the button's.
-   useSizeTransition measures it while it has the box at natural size. */
 #nextaction {
-  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2);
-  transform: translate(calc(-50% - var(--na-off, 0px)), -50%); z-index: 47;
+  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 47;
   display: flex; flex-direction: column; align-items: center;
-  transition: transform var(--size-dur) var(--glow-ease);
 }
 /* Satellites hover around the primary without displacing it: they are taken
    out of flow, so the row's width is the primary's width alone and the whole
@@ -121,6 +109,10 @@
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
 #na-primary {
+  /* 12px of plate, then the 40px thumbnail, then 12px before the words —
+     and the same on the trailing side, since the words sit between them */
+  --na-gutter: calc(12px + 40px + 12px);
+  position: relative;
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 9px; letter-spacing: 0.05em;
   padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
@@ -167,17 +159,24 @@
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
-#na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-/* The glyph is a drawing that fills its box; the words are capitals sitting
-   on a baseline, using none of the room below it. Centring the two boxes
-   against each other therefore hangs the glyph low, so it is lifted — the
-   same correction .gi makes with vertical-align in inline flow, which a flex
-   parent ignores.
-   Lifted with `top`, deliberately, NOT `transform`: this selector outweighs
-   .gi-rot270 and .gi-flipy, and a transform here cancels theirs outright. */
-#na-primary .na-label > .na-icon { position: relative; top: -0.09em; }
-/* the cap belongs to the plate, not to the words — see anchorOnWords */
-#na-primary .na-key { transform: translateX(var(--na-key-off, 0px)); }
+/* ONE centre for everything the plate carries: the action, the sub-line under
+   it and the keycap under that all sit on the middle of the button.
+   The label is the WORDS. The glyph rides their line but not their flow — it
+   hangs off the leading edge — so the words keep the label's own centre and
+   the three of them line up exactly. Its lift is the correction .gi makes
+   with vertical-align in inline flow, which a flex parent ignores; done with
+   `top` and not `transform`, since this selector outweighs .gi-rot270 and
+   .gi-flipy and a transform here would cancel theirs. */
+#na-primary .na-label { position: relative; display: inline-flex; align-items: center; gap: 5px; }
+#na-primary .na-label > .na-icon {
+  position: absolute; right: 100%; margin-right: 5px; top: -0.09em;
+}
+/* The thumbnail is a picture of WHAT you are resolving, not part of the
+   sentence, so it must not shove the sentence off the middle of the plate.
+   It is taken out of flow and the plate opens up an even margin either side
+   to hold it — even, because the words sit between them. */
+#na-primary:has(#na-card) { padding-left: var(--na-gutter); padding-right: var(--na-gutter); }
+#na-primary #na-card { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
 /* every glyph in the label — the leading one and the phase chips' — is set to
    the prompt's own size, so they scale with it and not with the page */
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
@@ -247,10 +246,7 @@
 .quietline:hover { opacity: 1; color: var(--accent); }
 
 #na-skip {
-  /* left: 50% is the middle of the PLATE, which the slide above has already
-     moved off the anchor — adding --na-off back puts this under the words */
-  position: absolute; top: 100%; left: 50%;
-  transform: translateX(calc(-50% + var(--na-off, 0px))); margin-top: 4px;
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
   display: flex; flex-direction: column; align-items: center; gap: 0;
 }
 @keyframes naglow {

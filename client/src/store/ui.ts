@@ -54,6 +54,13 @@ interface UIStore {
   /** card id waiting for a pile target (menu "Tuck under…") */
   pendingTuck: string | null;
   cardsPerRow: number;
+  /** the window is too small for two rails and a column of chat — see NARROW_AT */
+  narrow: boolean;
+  /** narrow only: is the drawer out? Remembered, so dismissing it sticks. */
+  sideOpen: boolean;
+  /** the newest log entry the panel was showing when it was last visible.
+   *  Anything past it while the drawer is shut is what the tab's dot means. */
+  sideSeenSeq: number;
 
   openMenu(items: MenuItem[], at: Anchor, opts?: { plain?: boolean }): void;
   openPanel(render: () => ReactNode, at: Anchor): void;
@@ -66,6 +73,9 @@ interface UIStore {
   setTab(t: TabName): void;
   setPendingTuck(id: string | null): void;
   setCardsPerRow(n: number): void;
+  setNarrow(n: boolean): void;
+  setSideOpen(open: boolean): void;
+  setSideSeen(seq: number): void;
 }
 
 /** The card the pointer is over, for the E keybind. A plain ref, not store
@@ -73,6 +83,21 @@ interface UIStore {
 export const hovered: { card: Card | null } = { card: null };
 
 export type TabName = "stack" | "chat" | "brain" | "log";
+
+/** Below this the table changes shape: the rails collapse to a 68px strip of
+ *  icons and counters, and the side panel stops taking a column and becomes a
+ *  drawer over the felt.
+ *
+ *  The breakpoint is a number here rather than a media query, because the swap
+ *  is not only cosmetic — Rail hands life to a different widget, and the panel
+ *  grows a control that does not exist in the wide layout. JS and CSS have to
+ *  agree on which layout is on, and two copies of 1180 would eventually not.
+ *  So this is the only copy: App watches it and puts `narrow` on <body>, and
+ *  every rule in the sheets hangs off that class. */
+export const NARROW_AT = 1180;
+export const isNarrow = () => window.matchMedia(`(max-width: ${NARROW_AT}px)`).matches;
+
+const SIDE_OPEN_KEY = "sideOpen";
 
 // everything that hangs off the cursor — the hover preview, both menus —
 // sits the same distance from it
@@ -87,6 +112,12 @@ export const useUI = create<UIStore>((set, get) => ({
   activeTab: "chat",
   pendingTuck: null,
   cardsPerRow: Number(localStorage.getItem(PER_ROW_KEY)) || 5,
+  narrow: isNarrow(),
+  // open unless it was dismissed: the drawer's whole point is that it can be
+  // put away, but starting it away would hide the agent talking from someone
+  // who never asked for that
+  sideOpen: localStorage.getItem(SIDE_OPEN_KEY) !== "0",
+  sideSeenSeq: 0,
 
   openMenu(items, at, opts) {
     set({ menu: { kind: "list", items, x: at.clientX, y: at.clientY, plain: opts?.plain }, preview: null });
@@ -127,6 +158,16 @@ export const useUI = create<UIStore>((set, get) => ({
   setCardsPerRow(n) {
     localStorage.setItem(PER_ROW_KEY, String(n));
     set({ cardsPerRow: n });
+  },
+  setNarrow(narrow) {
+    if (get().narrow !== narrow) set({ narrow });
+  },
+  setSideOpen(sideOpen) {
+    localStorage.setItem(SIDE_OPEN_KEY, sideOpen ? "1" : "0");
+    set({ sideOpen });
+  },
+  setSideSeen(sideSeenSeq) {
+    if (get().sideSeenSeq !== sideSeenSeq) set({ sideSeenSeq });
   },
 }));
 

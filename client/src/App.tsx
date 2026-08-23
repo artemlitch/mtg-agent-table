@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { connectWS, loadBrain, redoLastAction, refresh, undoLastAction } from "./api";
 import { CardPreviewLayer } from "./components/CardPreview";
 import { Icon } from "./components/Icon";
@@ -9,7 +9,7 @@ import { cardPrimaryAction } from "./game/interaction";
 import { processReveals } from "./game/reveals";
 import { processSounds } from "./game/sounds";
 import { useGame } from "./store/game";
-import { hovered, menuOpen, ui, useUI } from "./store/ui";
+import { hovered, isNarrow, menuOpen, NARROW_AT, ui, useUI } from "./store/ui";
 import { NextAction } from "./features/nextaction/NextAction";
 import { fireNextAction } from "./features/nextaction/steps";
 import { usePeek } from "./features/side/peek";
@@ -27,6 +27,7 @@ export function App() {
   useBoot();
   useGlobalKeys();
   useWindowFocus();
+  useLayout();
 
   // every log entry that earns a sound gets one, once — and a reveal puts its
   // cards on screen the same way, off the same array
@@ -102,6 +103,36 @@ function useBoot() {
     document.addEventListener("contextmenu", noMenu);
     return () => document.removeEventListener("contextmenu", noMenu);
   }, []);
+}
+
+/** Which layout is on, written once onto <body> for every stylesheet to read.
+ *
+ *  Two classes, not one: `narrow` is the window's size and `side-open` is a
+ *  choice, and the drawer's transform needs both — it only slides in the
+ *  narrow layout, and only when it has not been dismissed. Keeping the choice
+ *  on the body rather than on #side is what lets the toggle tab, which is not
+ *  inside the panel, travel with it.
+ *
+ *  A layout effect, so the classes are on before the first paint rather than
+ *  one frame into it. The store already holds the right answer by then — it
+ *  reads the media query in its initialiser — so React has laid out the
+ *  correct widgets and this is only the stylesheet catching up. */
+function useLayout() {
+  const setNarrow = useUI((s) => s.setNarrow);
+  const narrow = useUI((s) => s.narrow);
+  const sideOpen = useUI((s) => s.sideOpen);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${NARROW_AT}px)`);
+    const sync = () => setNarrow(isNarrow());
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [setNarrow]);
+
+  useLayoutEffect(() => {
+    document.body.classList.toggle("narrow", narrow);
+    document.body.classList.toggle("side-open", sideOpen);
+  }, [narrow, sideOpen]);
 }
 
 /** The space shortcut only works while this window has the keyboard, so every

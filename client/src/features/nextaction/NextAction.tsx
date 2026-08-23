@@ -131,41 +131,6 @@ function PhaseLabel({ text }: { text: string }) {
  *  then snap when the inline size finally came off. So the inline size comes
  *  off BEFORE measuring, every time.
  */
-/** The prompt has two centres, and neither of them is the plate's.
- *
- *  The WORDS hold the playmat's centre: they must sit at the same point from
- *  one prompt to the next, whatever else the plate is carrying — a card being
- *  resolved, a glyph, a sub-line longer than the action itself. So the button
- *  keeps its natural size, is allowed to be lopsided, and the whole prompt
- *  slides by --na-off to put the words where they belong. Padding the plate
- *  out to fake a centre instead is what left dead space beside it.
- *
- *  The KEYCAP belongs to the whole plate, so it takes the button's own centre
- *  — which, the words having taken the anchor, is somewhere else. --na-key-off
- *  is the gap between the button's middle and the column the cap sits in.
- *
- *  Both read at natural size, from inside useSizeTransition: mid-animation the
- *  box is pinned to a width it does not have yet, and anything measured off
- *  that is wrong in exactly the moments the prompt is changing. */
-function anchorOnWords(el: HTMLElement) {
-  const root = el.closest<HTMLElement>("#nextaction");
-  if (!root) return;
-  const words = el.querySelector<HTMLElement>(".na-words");
-  const text = el.querySelector<HTMLElement>(".na-text");
-  if (!words || !text) {
-    root.style.setProperty("--na-off", "0px");
-    root.style.setProperty("--na-key-off", "0px");
-    return;
-  }
-  const mid = (n: HTMLElement) => {
-    const r = n.getBoundingClientRect();
-    return r.left + r.width / 2;
-  };
-  const button = mid(el);
-  root.style.setProperty("--na-off", `${mid(words) - button}px`);
-  root.style.setProperty("--na-key-off", `${button - mid(text)}px`);
-}
-
 function useSizeTransition(key: string) {
   const ref = useRef<HTMLButtonElement>(null);
   // The last natural size. Layout effects run after React has already written
@@ -193,7 +158,6 @@ function useSizeTransition(key: string) {
     el.style.height = "";
     const to = { w: el.offsetWidth, h: el.offsetHeight };
     natural.current = to;
-    anchorOnWords(el);
 
     if (!from || (from.w === to.w && from.h === to.h)) {
       el.style.transition = ""; // back to the stylesheet's hover timing

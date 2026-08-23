@@ -74,34 +74,91 @@ export function SidePanel() {
   const view = useGame((s) => s.view);
   const tab = useUI((s) => s.activeTab);
   const setTab = useUI((s) => s.setTab);
+  const narrow = useUI((s) => s.narrow);
+  const sideOpen = useUI((s) => s.sideOpen);
+  const setSideSeen = useUI((s) => s.setSideSeen);
   const transport = view?.agentTransport ?? "none";
   // without a key the Chat tab becomes a centered paste screen
   const needsSetup = transport === "none" && tab === "chat";
   const n = view?.stack?.length ?? 0;
 
+  // Everything on screen has been seen. The mark moves while the panel is up
+  // and freezes when it goes away, so the tab's dot means "arrived since you
+  // put this away" rather than "arrived at all".
+  const log = view?.log;
+  const showing = !narrow || sideOpen;
+  const lastSeq = log?.length ? log[log.length - 1].seq : 0;
+  useEffect(() => {
+    if (showing) setSideSeen(lastSeq);
+  }, [showing, lastSeq, setSideSeen]);
+
   return (
-    <div id="side">
-      <div id="tabs">
-        {TABS.map((t) => (
-          <button key={t.name} className={tab === t.name ? "active" : ""} onClick={() => setTab(t.name)}>
-            {t.label}
-            {t.name === "stack" && n > 0 && <span className="tabbadge">{n}</span>}
-          </button>
-        ))}
+    <>
+      {narrow && <SideToggle />}
+      <div id="side">
+        <div id="tabs">
+          {TABS.map((t) => (
+            <button key={t.name} className={tab === t.name ? "active" : ""} onClick={() => setTab(t.name)}>
+              {t.label}
+              {t.name === "stack" && n > 0 && <span className="tabbadge">{n}</span>}
+            </button>
+          ))}
+        </div>
+
+        {tab === "brain" && <BrainHeader />}
+        {tab === "stack" && <StackPane />}
+        {tab === "chat" && !needsSetup && <ChatPane />}
+        {tab === "brain" && <BrainPane />}
+        {tab === "log" && <LogPane />}
+        {needsSetup && <KeySetup />}
+
+        <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: {view.pendingQuestion}</> : ""}</div>
+        <WakeBar />
+        {!needsSetup && <Composer />}
       </div>
-
-      {tab === "brain" && <BrainHeader />}
-      {tab === "stack" && <StackPane />}
-      {tab === "chat" && !needsSetup && <ChatPane />}
-      {tab === "brain" && <BrainPane />}
-      {tab === "log" && <LogPane />}
-      {needsSetup && <KeySetup />}
-
-      <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: {view.pendingQuestion}</> : ""}</div>
-      <WakeBar />
-      {!needsSetup && <Composer />}
-    </div>
+    </>
   );
+}
+
+/** The drawer's handle, in the narrow layout only.
+ *
+ *  It lives OUTSIDE #side on purpose. The panel dismisses itself by sliding a
+ *  full width to the right, and a control inside it would leave with it — so
+ *  the handle is pinned to the window and slides the same distance the other
+ *  way, which puts it on the panel's leading corner while the panel is out and
+ *  on the window's edge once it has gone. One control, two places, and the
+ *  arrow always points at where the panel is about to end up.
+ *
+ *  The dot is the price of a dismissible chat: put the panel away and the
+ *  agent goes on talking behind it. Only its own voice counts — a dot for
+ *  every tap and untap in the play-by-play would be a light that is always on. */
+function SideToggle() {
+  const open = useUI((s) => s.sideOpen);
+  const setOpen = useUI((s) => s.setSideOpen);
+  const seen = useUI((s) => s.sideSeenSeq);
+  const unread = useGame((s) => !open && agentSpokeSince(s.view?.log, seen));
+  return (
+    <button
+      id="side-toggle"
+      className="ghost"
+      data-tip={open ? "Hide the panel" : "Show the panel"}
+      onClick={() => setOpen(!open)}
+    >
+      <Icon name={open ? "chevronRight" : "chevronLeft"} />
+      {unread && <span className="side-dot" />}
+    </button>
+  );
+}
+
+/** Walks back from the newest entry and stops at the mark — the log runs to
+ *  hundreds of lines by the late game and this is read on every view update. */
+function agentSpokeSince(log: LogEntry[] | undefined, seen: number): boolean {
+  for (let i = (log?.length ?? 0) - 1; i >= 0; i--) {
+    const e = log![i];
+    if (e.seq <= seen) return false;
+    if (e.actor === "agent") return true;
+  }
+  return false;
 }
 
 // ── stack ─────────────────────────────────────────────────────────────────
