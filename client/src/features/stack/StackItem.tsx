@@ -95,9 +95,12 @@ export function StackItemEl({ item, inChat }: { item: StackItem; inChat?: boolea
       <div className="sihead">
         {card?.image && <img src={card.image} alt="" {...artFallback(card.name)} />}
         <div>
+          {/* whose item it is, and nothing else. Being on top of the stack is
+              said by the lit rim (.stackitem.top) and by the pile's own order
+              — the Stack tab stacks upward and says "top resolves first" — so
+              the word was a third telling of it, in shorthand. */}
           <div className="siwho">
             {item.player === "you" ? "you" : "agent"}
-            {top ? " · TOP" : ""}
             {item.retractable && (
               <span className="siplanned" title="planned follow-up — unwinds if responded below">
                 planned
