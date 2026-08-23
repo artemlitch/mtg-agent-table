@@ -157,7 +157,11 @@ body.dragging .cmdzone .card { pointer-events: none; }
    and a card lying near the edge of the board must not overlap the cards you
    are holding. A card being carried still passes over both — .placed.dragging
    is 60 and .draglift is 80. */
-#midline { z-index: 0; }
+/* No z-index on the line, deliberately: #nextaction hangs off it, and a
+   z-index here would make this 2px strip a stacking context that its z 47
+   could never climb out of. The line already paints under the cards without
+   one — it is positioned, so it sits with the rest of the z-auto furniture
+   in DOM order, and #cardlayer at 46 covers it either way. */
 .rail { position: relative; z-index: 10; }
 .handrow.fan { position: relative; z-index: 48; }
 /* ...except while a card is in the air. #cardlayer is a stacking context, so
