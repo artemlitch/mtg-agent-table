@@ -10,8 +10,24 @@
 // full delay, and the wake fires once the table has been quiet for it. The
 // deadline is public because the client draws it as a countdown above the
 // composer — the wait has to be visible or it reads as the agent being asleep.
+//
+// How long the wait is depends on what you just did, because the actions mean
+// different things. A card moving on the table says you are mid-sequence. A
+// message you pressed enter on says you are finished.
 
 export const WAKE_DELAY_MS = 3000;
+
+/** A sent message is a finished thought — you pressed enter. The only thing
+ *  left to wait out is a second message arriving right behind the first. */
+export const TYPING_DELAY_MS = 300;
+
+/** How long each thing you can do buys before the agent thinks. Absent from
+ *  the table means the full wait: at the table you are usually mid-sequence. */
+const TRIGGER_DELAYS: Record<string, number> = {
+  chat: TYPING_DELAY_MS,
+};
+
+export const wakeDelayFor = (action: string) => TRIGGER_DELAYS[action] ?? WAKE_DELAY_MS;
 
 export type WakeReason = "window" | "react";
 
@@ -27,18 +43,18 @@ export class WakeScheduler {
   ) {}
 
   /** A response-worthy action happened: start or restart the countdown. */
-  schedule(reason: WakeReason) {
+  schedule(reason: WakeReason, delay = WAKE_DELAY_MS) {
     // the burst resolves to one window, so it has to be the more thorough of
     // the reasons raised in it
     if (!this.timer) this.reason = reason;
     else if (reason === "window") this.reason = "window";
-    this.arm();
+    this.arm(delay);
   }
 
   /** Anything else you did. Not worth a window on its own, but you are clearly
    *  still moving, so an already-pending wake waits for you to finish. */
-  defer() {
-    if (this.timer) this.arm();
+  defer(delay = WAKE_DELAY_MS) {
+    if (this.timer) this.arm(delay);
   }
 
   cancel() {
@@ -49,10 +65,12 @@ export class WakeScheduler {
     this.onChange();
   }
 
-  private arm() {
+  // the wait always comes from the most recent action: saying something after a
+  // play means you are done, and playing after saying something means you are not
+  private arm(delay: number) {
     if (this.timer) clearTimeout(this.timer);
-    this.wakeAt = Date.now() + WAKE_DELAY_MS;
-    this.timer = setTimeout(() => this.fire(), WAKE_DELAY_MS);
+    this.wakeAt = Date.now() + delay;
+    this.timer = setTimeout(() => this.fire(), delay);
     this.onChange();
   }
 

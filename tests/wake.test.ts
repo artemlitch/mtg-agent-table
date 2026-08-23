@@ -2,7 +2,20 @@
 // whole conversation, so a window that only acknowledges what you did is the
 // most expensive kind of nothing.
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { WakeScheduler, WAKE_DELAY_MS } from "../server/wake";
+import { WakeScheduler, WAKE_DELAY_MS, TYPING_DELAY_MS, wakeDelayFor } from "../server/wake";
+
+describe("how long each trigger buys", () => {
+  test("a sent message only waits out a fast second message", () => {
+    expect(wakeDelayFor("chat")).toBe(TYPING_DELAY_MS);
+    expect(TYPING_DELAY_MS).toBeLessThan(WAKE_DELAY_MS);
+  });
+
+  test("everything you do at the table gets the full wait", () => {
+    for (const t of ["cast", "done", "tap", "stack_push", "move", "attack"]) {
+      expect(wakeDelayFor(t)).toBe(WAKE_DELAY_MS);
+    }
+  });
+});
 
 describe("wake debounce", () => {
   let fired: string[];
@@ -97,5 +110,29 @@ describe("wake debounce", () => {
 
   test("the deadline is null before anything is pending", () => {
     expect(s.wakeAt).toBeNull();
+  });
+
+  test("a sent message answers almost at once", () => {
+    s.schedule("window", TYPING_DELAY_MS);
+    vi.advanceTimersByTime(TYPING_DELAY_MS);
+    expect(fired).toEqual(["window"]);
+  });
+
+  test("the most recent action sets the wait, so a message after a play is still quick", () => {
+    s.schedule("react"); // a play: three seconds
+    vi.advanceTimersByTime(1000);
+    s.schedule("window", TYPING_DELAY_MS); // then you say something: you are done
+    vi.advanceTimersByTime(TYPING_DELAY_MS);
+    expect(fired).toEqual(["window"]);
+  });
+
+  test("...and a play after a message goes back to the full wait", () => {
+    s.schedule("window", TYPING_DELAY_MS);
+    vi.advanceTimersByTime(100);
+    s.defer(); // still moving
+    vi.advanceTimersByTime(TYPING_DELAY_MS);
+    expect(fired).toEqual([]);
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual(["window"]); // the reason survives, the wait does not
   });
 });

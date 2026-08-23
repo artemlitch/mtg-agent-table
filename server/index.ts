@@ -9,7 +9,7 @@ import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, history
 import { loadKey, saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
-import { WakeScheduler, WAKE_DELAY_MS } from "./wake";
+import { WakeScheduler, wakeDelayFor } from "./wake";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -122,9 +122,10 @@ const server = Bun.serve({
           ready: transportChoice(value) !== "none",
         }));
         view.agentTransport = transportChoice(agent.model);
-        // the countdown the client draws above the composer
+        // the countdown the client draws above the composer. Only the deadline:
+        // how long the wait was depends on what triggered it, and the bar
+        // measures what is left rather than the fraction of a fixed span.
         view.wakeAt = wakes.wakeAt;
-        view.wakeDelay = WAKE_DELAY_MS;
         view.cliInstalled = !!resolveClaudeBin();
         view.canRedo = redoSize() > 0;
         view.undoDepth = historySize();
@@ -285,9 +286,10 @@ const server = Bun.serve({
             "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
             "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",
           ]);
-          if (body.type === "done" || body.type === "chat" || game.turn === "agent") wakes.schedule("window");
-          else if (REACTIVE.has(body.type)) wakes.schedule("react");
-          else wakes.defer();
+          const delay = wakeDelayFor(body.type);
+          if (body.type === "done" || body.type === "chat" || game.turn === "agent") wakes.schedule("window", delay);
+          else if (REACTIVE.has(body.type)) wakes.schedule("react", delay);
+          else wakes.defer(delay);
         }
         broadcast({ type: "update", seq: game.seq });
         // mid-window injection: anything Player did/said while the agent was
