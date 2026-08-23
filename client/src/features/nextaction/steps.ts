@@ -10,7 +10,7 @@
 //   skip: true adds the faded skip-to-pass-turn line underneath.
 import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
-import { didThisTurn, gameView, lastLogIndex } from "../../store/game";
+import { didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, StackItem } from "../../types";
 
@@ -94,6 +94,7 @@ export function nextActionContext(view: GameView): Ctx {
     lockedAt: lastLogIndex(log, /^Attacks locked in:/),
     damageAt: lastLogIndex(log, /combat damage|go to damage/i),
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
+    agentBusy: useGame.getState().agentBusy,
   };
 }
 
@@ -168,7 +169,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // Tested by the type of the top item, not its identity: every creature you
     // tap pushes its own declaration, so the top one is not the first one.
     when: (c) => !!c.top && !(c.top.player === "you" && !!c.top.attackPairs),
-    step: () => ({ hint: "on the stack — waiting for the agent" }),
+    step: (c) => ({ hint: waitingHint(c, "on the stack") }),
   },
   {
     id: "no-blocks",
@@ -208,7 +209,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: (c) =>
       c.view.waitingOn === "you" && !c.view.wakeAt
         ? { label: "Pass — nothing to add", icon: "skip", fn: () => void act("done", {}) }
-        : { hint: "the agent's turn — waiting" },
+        : { hint: waitingHint(c, "the agent's turn") },
   },
 
   // ── your turn, stack settled: the turn structure ──
@@ -269,7 +270,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
       // so pressing four times because nothing seemed to happen is exactly
       // what stops anything from happening. Say who we are waiting on instead.
       c.view.waitingOn === "agent"
-        ? { hint: "declared — waiting for the agent to lock it in" }
+        ? { hint: waitingHint(c, "declared") }
         : {
             label: "Finish declaring attackers",
             icon: "combat",

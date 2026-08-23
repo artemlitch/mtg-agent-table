@@ -169,6 +169,17 @@ describe("the combat prompt, step by step", () => {
     expect(action?.sub).toBeUndefined(); // nothing declared yet
   });
 
+  it("says the agent is thinking while it is, not just that we are waiting", () => {
+    // the press DID land and the agent DID wake — it just took a minute, and
+    // an unchanged prompt through a sixty-second window reads as a dead press
+    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], log: [ENTERED()] });
+    (v as any).waitingOn = "agent";
+    useGame.setState({ agentBusy: true });
+    expect(prompt(v).action?.hint).toMatch(/thinking/i);
+    useGame.setState({ agentBusy: false });
+    expect(prompt(v).action?.hint).toMatch(/waiting/i);
+  });
+
   it("stops offering the button once you have handed over", () => {
     // pressing it again cannot help — you have already passed — and each press
     // preempted the agent mid-thought and restarted it. Four presses meant
