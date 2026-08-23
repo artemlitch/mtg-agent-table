@@ -48,6 +48,11 @@
 .keyplus { font-size: var(--fs-nano); color: var(--dim); opacity: 0.5; }
 /* keyboard affordances are only meaningful while this window has focus */
 body.unfocused .na-key { display: none; }
+/* …and while the space bar is ours to take. Typing in a field owns it, and
+   useGlobalKeys stands every keybind down while one has focus — answering the
+   agent leaves the chat box focused, so the hint would otherwise sit there
+   promising a key that does nothing until you click away. */
+body:has(input:focus, textarea:focus) .na-key { display: none; }
 
 /* the next-action prompt: one always-present "most obvious tap", floating
    just under the midline, with a faded skip-to-pass-turn beneath it.

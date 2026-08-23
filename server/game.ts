@@ -1233,12 +1233,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const b = getCard(pair.blocker);
       parts.push(`${publicDesc(b)} blocks ${publicDesc(getCard(pair.attacker))}`);
     }
+    // declaring nothing is a real declaration — say so, rather than leaving a
+    // stack item that trails off after the colon
+    const blocks = parts.length ? parts.join("; ") : "no blocks";
     pushStackItem(ctx.actor, {
       cardId: null,
-      text: `BLOCKS: ${parts.join("; ")}`,
+      text: `BLOCKS: ${blocks}`,
       apply: { type: "block", pairs: p.pairs },
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${parts.join("; ")}`);
+    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${blocks}`);
     return { ok: true, stackSize: game.stack.length };
   },
 
@@ -1298,6 +1301,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       t === "you" || t === "agent" ? who(t as PlayerId) : publicDesc(getCard(t))
     );
     const targetText = targetNames.length ? ` ⟶ ${targetNames.join(", ")}` : "";
+    // The {2}-per-previous-cast surcharge, charged where the cast happens
+    // rather than left for whoever remembers. It was a counter both seats had
+    // to bump by hand, and in a real game neither did. A land played off the
+    // command zone returned above, so this is only reached by a real cast.
+    if (card.zone === "command") game.players[card.owner].commanderTax = (game.players[card.owner].commanderTax ?? 0) + 2;
     // recasting something already on the stack drops its old item first
     if (card.zone === "stack") game.stack = game.stack.filter((i) => i.cardId !== card.id);
     placeCard(card, "stack", ctx.actor);

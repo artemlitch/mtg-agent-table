@@ -169,7 +169,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   commander_tax: {
     description:
-      "Read/adjust a player's commander tax — the {2}-per-previous-cast surcharge on casting a commander out of the command zone. The current value for both players is on every get_state as players.<id>.commanderTax. Bump it by 2 (delta) each time that player casts their commander; use set to correct it.",
+      "Correct a player's commander tax — the {2}-per-previous-cast surcharge on casting a commander out of the command zone. Casting from the command zone already charges it, so you do NOT need to bump it yourself; this is for fixing it after a take-back or a miscount. The current value for both players is on every get_state as players.<id>.commanderTax.",
     schema: obj({ player: PLAYER, delta: num("change, normally +2 per cast"), set: num("absolute value") }, ["player"]),
   },
   commander_damage: {

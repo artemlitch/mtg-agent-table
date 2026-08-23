@@ -290,6 +290,13 @@ describe("MDFC face display", () => {
 });
 
 describe("turn hygiene", () => {
+  test("declaring no blocks says so instead of trailing off", () => {
+    // seen three times in one game: the agent had nothing to block with and
+    // the stack item read "BLOCKS: " with nothing after the colon
+    applyAction("agent", "block", { pairs: [] });
+    expect(game.stack.at(-1)!.text).toMatch(/no blocks/i);
+  });
+
   test("set_turn is rejected while the stack is non-empty", () => {
     const c = seedCard("Pending Spell", "agent", "hand", { typeLine: "Sorcery" });
     applyAction("agent", "cast", { card: c.id });
