@@ -130,7 +130,11 @@ function DeckPile({ p }: { p: PlayerId }) {
               void act("draw", { n: 1 });
             }}
           >
-            🂠 Draw 1
+            {/* two elements, so the flex row can centre them on each other —
+                one text node would just be a single run with the glyph sitting
+                wherever its font metrics put it */}
+            <span aria-hidden="true">🂠</span>
+            <span>Draw</span>
           </button>
         )}
       </div>

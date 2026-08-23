@@ -154,12 +154,23 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
    hover. For the things that are available rather than expected — skipping to
    the turn pass, and the mulligan above your hand. Shared so the two cannot
    drift apart; each owns its own placement. */
+/* Icon and words centred on each other, the way every other icon row here is
+   done — .gi is a 1em block nudged onto the baseline by a fixed -0.125em,
+   which only approximates centring and drifts as the two font sizes diverge
+   (and is ignored outright inside a flex parent). A flex row centres them at
+   any size, with no magic number and no margin standing in for a gap.
+   The inner span is for #na-skip, which stacks its row over its keycaps and
+   so keeps its own column layout on the button itself. */
+.quietline,
+.quietline > span {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
 .quietline {
   padding: 1px 8px; font-size: var(--fs-note); letter-spacing: 0.04em; white-space: nowrap;
   color: var(--dim); opacity: 0.5;
   font-family: var(--font-fantasy);
 }
-.quietline .ico { font-size: var(--fs-micro); margin-right: 2px; }
+.quietline .ico { font-size: var(--fs-micro); }
 .quietline:hover { opacity: 1; color: var(--accent); }
 
 #na-skip {
