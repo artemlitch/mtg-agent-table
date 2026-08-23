@@ -25,9 +25,12 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
-/* The conversation is prose — names, numbers, whole exchanges worth quoting
-   out of the app. It is the one surface here that reads like a document. */
-#pane-chat {
+/* The side panel is where this app stops being a table and starts being a
+   document: chat, the agent's thinking, the raw log, the stack read-out. All
+   of it is prose worth quoting out — a card name, a number, a whole exchange
+   — so the whole pane selects, whichever tab is showing. Scoped to .tabpane
+   rather than one id so a new tab is selectable the day it is added. */
+.tabpane {
   user-select: text;
   -webkit-user-select: text;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act, deleteKey, refresh, saveKey, testClaudeCli } from "../../api";
 import { withMana } from "../../components/Mana";
+import { Icon } from "../../components/Icon";
 import { openRevealBrowser } from "../browsers/Browsers";
 import { revealedCards } from "../../game/reveals";
 import { useGame } from "../../store/game";
@@ -232,7 +233,7 @@ function RevealLine({ e }: { e: LogEntry }) {
   return (
     <div className="msg actline revealline" title="Open the revealed cards" onClick={() => openRevealBrowser(cards)}>
       {e.text}
-      <span className="revealopen">👁 {cards.length}</span>
+      <span className="revealopen"><Icon name="reveal" /> {cards.length}</span>
     </div>
   );
 }
@@ -315,7 +316,7 @@ function BrainPane() {
     <div className="tabpane" id="pane-brain" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {brain.map((e) => (
         <div key={e.seq} className={`brain ${e.kind}`} id={`brain-${e.seq}`}>
-          {e.kind === "tool" ? `🔧 ${e.text}` : e.text}
+          {e.kind === "tool" ? <><Icon name="tool" /> {e.text}</> : e.text}
         </div>
       ))}
     </div>

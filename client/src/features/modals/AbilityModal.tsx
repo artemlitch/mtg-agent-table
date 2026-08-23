@@ -2,6 +2,7 @@ import { createRef, useState, type RefObject } from "react";
 import { act } from "../../api";
 import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
+import { Icon } from "../../components/Icon";
 import { ModalFrame } from "../../components/Modal";
 import { isLand } from "../../game/rules";
 import { useGame } from "../../store/game";
@@ -31,7 +32,7 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
     ui().closeModal();
   };
   return (
-    <ModalFrame title={`⚡ ${c.hidden ? "Hidden card" : c.name}`}>
+    <ModalFrame title={<><Icon name="ability" /> {c.hidden ? "Hidden card" : c.name}</>}>
       <div className="abilitymodal">
         {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <div className="amoracle">{c.oracle || "(no rules text)"}</div>}
         <div className="amcol">
@@ -49,11 +50,11 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
           />
           <div className="ambtns">
             <button className="ambtn" onClick={() => submit(true)}>
-              <span>⚡ Tap + Stack</span>
+              <span><Icon name="tap" /> Tap + Stack</span>
               <small>⇧⏎</small>
             </button>
             <button className="ambtn accent" onClick={() => submit(false)}>
-              <span>⚡ Stack</span>
+              <span><Icon name="ability" /> Stack</span>
               <small>⏎</small>
             </button>
           </div>

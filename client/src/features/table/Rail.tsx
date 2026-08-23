@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { act } from "../../api";
 import { artFallback } from "../../components/cardArt";
+import { Icon } from "../../components/Icon";
 import { previewProps } from "../../components/CardPreview";
 import { useGame } from "../../store/game";
 import { menuOpen, ui, type Anchor } from "../../store/ui";
@@ -130,10 +131,7 @@ function DeckPile({ p }: { p: PlayerId }) {
               void act("draw", { n: 1 });
             }}
           >
-            {/* two elements, so the flex row can centre them on each other —
-                one text node would just be a single run with the glyph sitting
-                wherever its font metrics put it */}
-            <span aria-hidden="true">🂠</span>
+            <Icon name="draw" />
             <span>Draw</span>
           </button>
         )}

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { connectWS, loadBrain, redoLastAction, refresh, undoLastAction } from "./api";
 import { CardPreviewLayer } from "./components/CardPreview";
+import { Icon } from "./components/Icon";
 import { MenuLayer } from "./components/Menu";
 import { ModalLayer } from "./components/Modal";
 import { TooltipLayer } from "./components/Tooltip";
@@ -64,7 +65,7 @@ export function App() {
                   <Battlefield p="you" />
                   <Hand p="you" />
                   <button id="btn-token" title="Create a token" onClick={openTokenModal}>
-                    <span className="tstar">✦</span>
+                    <Icon name="token" className="tstar" />
                     <span>Token</span>
                   </button>
                 </div>

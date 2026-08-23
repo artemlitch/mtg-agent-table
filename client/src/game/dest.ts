@@ -27,8 +27,8 @@ export const DEST: Record<string, Dest> = {
   // companion aimed at the owner's side: a card you put into play is yours to
   // play, and handing it over afterwards is what steal/give are for.
   myBattlefield: () => ["Play — to my battlefield", { toZone: "battlefield", toPlayer: "you" }],
-  steal: () => ["😈 Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
-  give: () => ["🎁 Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
+  steal: () => ["Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
+  give: () => ["Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
   giveBack: () => ["Return to agent's battlefield", { toZone: "battlefield", toPlayer: "agent" }],
 };
 

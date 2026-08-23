@@ -61,7 +61,11 @@ export function MenuLayer() {
               {stripGlyph(it.label)}
             </div>
           );
-        const look = menuLook(it.label);
+        // matched on the label as DISPLAYED. Several MENU_LOOK rules are
+        // anchored (/^show /), so a leading glyph on the label silently sank
+        // them to the fallback bullet while the row rendered without it —
+        // "⟳ Show <other face>" drew no icon at all for exactly that reason.
+        const look = menuLook(stripGlyph(it.label));
         // the first action is the one you almost always came for — give it
         // size. A dropdown's list is a list of equals, so it opts out.
         const primary = firstAction && !menu.plain;

@@ -7,6 +7,7 @@ import { cardById } from "../store/game";
 import { menuOpen, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
+import { Icon } from "./Icon";
 import { previewProps } from "./CardPreview";
 import { TokenFace, drawnHere } from "./TokenFace";
 
@@ -132,19 +133,19 @@ function CardFace({ c }: { c: Card }) {
   if (c.attacking)
     badges.push(
       <span className="badge att" key="att">
-        ⚔ {c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}
+        <Icon name="combat" /> {c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}
       </span>
     );
   if (c.blocking)
     badges.push(
       <span className="badge blk" key="blk">
-        🛡
+        <Icon name="block" />
       </span>
     );
   if (c.under)
     badges.push(
       <span className="badge eq" key="eq">
-        ↳ {tucked && !tucked.hidden ? (tucked.name || "?").split(",")[0] : "?"}
+        <Icon name="pile" /> {tucked && !tucked.hidden ? (tucked.name || "?").split(",")[0] : "?"}
       </span>
     );
   if (c.isCommander)

@@ -55,6 +55,10 @@ export const ICONS: Record<string, string> = {
   cancel: "gi-cancel",
   cancelAttack: "gi-sword-break",
   battlefield: "gi-empty-chessboard",
+  /* the agent reaching for one of its tools, in the brain feed. Shares gears
+     with the artifact type below — they never appear in the same list, and
+     gears is the only machinery in the vendored set. */
+  tool: "gi-gears",
   caret: "gi-plain-arrow",
   caretUp: "gi-plain-arrow gi-rot180",
   // card types, for the search filter
