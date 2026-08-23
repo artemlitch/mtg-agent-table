@@ -109,12 +109,8 @@
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
 #na-primary {
-  /* 12px of plate, then the 40px thumbnail, then 12px before the words —
-     and the same on the trailing side, since the words sit between them */
-  --na-gutter: calc(12px + 40px + 12px);
-  position: relative;
-  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 9px; letter-spacing: 0.05em;
-  padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; letter-spacing: 0.05em;
+  padding: 7px 12px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
   /* the box is a window while its width animates (see useSizeTransition) */
@@ -169,14 +165,13 @@
    .gi-flipy and a transform here would cancel theirs. */
 #na-primary .na-label { position: relative; display: inline-flex; align-items: center; gap: 5px; }
 #na-primary .na-label > .na-icon {
-  position: absolute; right: 100%; margin-right: 5px; top: -0.09em;
+  position: absolute; right: 100%; margin-right: 5px;
+  /* centred on the label's line, then lifted: on an absolutely positioned box
+     `top` places the edge rather than nudging it, so the half-height has to be
+     taken off by hand or the glyph's height decides where it lands. */
+  top: 50%; margin-top: calc(-0.5em - 0.09em);
 }
-/* The thumbnail is a picture of WHAT you are resolving, not part of the
-   sentence, so it must not shove the sentence off the middle of the plate.
-   It is taken out of flow and the plate opens up an even margin either side
-   to hold it — even, because the words sit between them. */
-#na-primary:has(#na-card) { padding-left: var(--na-gutter); padding-right: var(--na-gutter); }
-#na-primary #na-card { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+
 /* every glyph in the label — the leading one and the phase chips' — is set to
    the prompt's own size, so they scale with it and not with the page */
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
