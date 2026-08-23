@@ -4,11 +4,10 @@
 import { useState } from "react";
 import { act, refresh } from "../../api";
 import { ModalFrame } from "../../components/Modal";
-import { destButton } from "../../game/dest";
+import { destButton, runDest } from "../../game/dest";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, MoveParams, PlayerId } from "../../types";
-import { playCard } from "../nextaction/steps";
 import { EMPTY_FILTER, FilterBar, matches, type Filter } from "./FilterBar";
 import { HiddenCard, ModalCard, type CardAction } from "./ModalCard";
 
@@ -48,14 +47,13 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
   // piles read newest-first: the last card added is the top of the pile
   const list = [...cards].reverse();
   const actionsFor = (c: Card): CardAction[] => {
-    // Only PLAYING a card uses the stack. Every other row is bookkeeping for
-    // an effect that has already resolved, so it just moves the card. Refresh
-    // rather than wait for the poll — the card should leave the pile the
-    // moment you send it somewhere.
-    const move = (params: MoveParams) => void act("move", { card: c.id, ...params }).then(refresh);
+    // runDest casts anything arriving in play and moves everything else, so
+    // the battlefield row here is a real play rather than a silent relocation.
+    // Refresh rather than wait for the poll — the card should leave the pile
+    // the moment you send it somewhere.
+    const move = (params: MoveParams) => void runDest(c, params).then(refresh);
     return [
-      ["Play ⚡", () => void playCard({ card: c.id, note: `played from ${zone}` }).then(ui().closeModal)],
-      destButton("myBattlefield", c, move),
+      destButton("myBattlefield", c, (params) => void runDest(c, { ...params, note: `played from ${zone}` }).then(refresh)),
       // the same row twice when you own the card
       ...(c.owner === "you" ? [] : [destButton("ownerBattlefield", c, move)]),
       destButton("hand", c, move),
@@ -79,7 +77,7 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
   const [cards, setCards] = useState(initial);
   const actionsFor = (c: Card): CardAction[] => {
     const move = (params: MoveParams) =>
-      void act("move", { card: c.id, ...params }).then(() => setCards((cs) => cs.filter((x) => x.id !== c.id)));
+      void runDest(c, params).then(() => setCards((cs) => cs.filter((x) => x.id !== c.id)));
     // a found card always comes to YOUR hand — searching the agent's library
     // is a theft effect, and taking the card is the point
     const found = (params: MoveParams) => move({ ...params, note: "from library search" });
@@ -111,9 +109,7 @@ function RevealBrowser({ initial }: { initial: Card[] }) {
   const [cards, setCards] = useState(initial);
   const actionsFor = (c: Card): CardAction[] => {
     const move = (params: MoveParams) =>
-      void act("move", { card: c.id, ...params, note: "revealed" }).then(() =>
-        setCards((cs) => cs.filter((x) => x.id !== c.id))
-      );
+      void runDest(c, { ...params, note: "revealed" }).then(() => setCards((cs) => cs.filter((x) => x.id !== c.id)));
     return [
       destButton("hand", c, move),
       destButton("myBattlefield", c, move),
@@ -142,7 +138,7 @@ function PeekBrowser({ p, cards }: { p: PlayerId; cards: Card[] }) {
       <div className="modalcards">
         {cards.map((c) => {
           const leave = (params: MoveParams) => {
-            void act("move", { card: c.id, ...params });
+            void runDest(c, params);
             mark(c.id, true);
           };
           return (

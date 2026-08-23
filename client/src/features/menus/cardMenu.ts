@@ -105,8 +105,9 @@ export function cardMenu(c: Card, e: Anchor) {
   }
 
   if (c.zone === "command") {
+    // no "straight to battlefield" companion: a commander arriving in play is
+    // cast like anything else, so that row was this row under another name
     items.push({ label: "🌀 Cast → stack", fn: () => void playCard({ card: c.id, note: "from command zone" }) });
-    items.push(destItem("play", c));
   }
 
   if (!c.hidden) {
