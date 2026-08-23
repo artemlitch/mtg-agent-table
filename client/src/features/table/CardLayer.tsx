@@ -15,7 +15,8 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
-import { liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { chonkyPiles, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { openPileBrowser } from "../browsers/Browsers";
 import { settleUnplaced } from "../../game/settle";
 import { PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
 import { cardById, useGame } from "../../store/game";
@@ -78,6 +79,8 @@ export function CardLayer() {
     for (const { item, source } of liftedTriggers(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
     unresolved.push(...stackCardsOf(p));
   }
+  const board = PLAYERS.flatMap((p) => view.players[p].zones.battlefield);
+  const { size: pileSize, swallowed } = chonkyPiles(board);
 
   return (
     <div id="cardlayer">
@@ -85,10 +88,13 @@ export function CardLayer() {
           which comes later here, and the one you put down last should be the
           one lying on top. Both seats sort together — the table is one
           surface, so it cannot be "my cards over yours". */}
-      {PLAYERS.flatMap((p) => view.players[p].zones.battlefield)
+      {board
+        // a deep pile draws as one chonky stack, so the cards it swallowed are
+        // not drawn at all — they are reachable through the pile browser
+        .filter((c) => !swallowed.has(c.id))
         .sort((a, b) => (a.z ?? 0) - (b.z ?? 0))
         .map((c) => (
-          <Placed key={c.id} card={c} lift={lifts.get(c.id)} />
+          <Placed key={c.id} card={c} lift={lifts.get(c.id)} pile={pileSize.get(c.id)} />
         ))}
       {unresolved.map((item) => (
         <Placed key={item.card!.id} card={item.card!} item={item} />
@@ -104,7 +110,7 @@ export function CardLayer() {
  *  triggers waits. An unresolved card drags like any other — the spot you
  *  put it in is where it resolves — it just cannot be tapped, because
  *  tapping is not an action it has yet. */
-function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: StackItem }) {
+function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; item?: StackItem; pile?: number }) {
   const anchor = anchorOf(c);
   // not placed yet: it gets a spot in this same commit, before the frame is
   // painted, so it appears where it belongs rather than sliding there
@@ -121,6 +127,7 @@ function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: 
     item?.countered && "countered",
     spell && "spell",
     depth > 0 && "tucked",
+    pile && "piled",
     lift && "lifted",
     !item && pendingAttackOf(c.id) && "declaring",
   ]
@@ -131,6 +138,7 @@ function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: 
       card={c}
       className={classes}
       style={{ left, top, zIndex: item ? 22 : depth > 0 ? Math.max(1, 20 - depth) : 21 }}
+      tip={pile ? `Pile of ${pile}\nclick to look through it` : undefined}
       onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
       onClick={
         item
@@ -138,9 +146,17 @@ function Placed({ card: c, lift, item }: { card: Card; lift?: StackItem; item?: 
               ui().hidePreview();
               ui().setTab("stack");
             }
-          : undefined
+          : pile
+            ? () => {
+                // the cards underneath are not drawn, so this is the only way
+                // in. Right-click still opens the top card's own menu.
+                ui().hidePreview();
+                openPileBrowser(c.id);
+              }
+            : undefined
       }
     >
+      {pile && <span className="pilecount">{pile}</span>}
       {lift && (
         <div className="liftpanel">
           <div

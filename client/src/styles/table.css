@@ -127,6 +127,30 @@ body.dragging .handrow .card,
 body.dragging .cmdzone .card { pointer-events: none; }
 #cardlayer .card.placed.grabbable { cursor: grab; }
 #cardlayer .card.placed.tucked { filter: brightness(0.85); }
+
+/* A pile past a few cards draws as one chonky stack instead of a cascade of
+   peeking corners — see chonkyPiles in game/rules.ts. Two slabs behind the top
+   card carry the thickness, the way the library does, and the count says what
+   is in there. The slabs are pseudo-elements on .card rather than real nodes
+   so they cost no layout and cannot be hit: the whole pile is one target. */
+#cardlayer .card.placed.piled::before,
+#cardlayer .card.placed.piled::after {
+  content: ""; position: absolute; inset: 0; border-radius: 8px;
+  background: #26190c; border: 1px solid #4a350f; pointer-events: none;
+}
+#cardlayer .card.placed.piled::before { transform: translate(4px, 4px); z-index: -1; }
+#cardlayer .card.placed.piled::after { transform: translate(8px, 8px); opacity: 0.6; z-index: -2; }
+/* the top card has to paint over its own slabs, and a negative z-index child
+   only stays behind if the card itself is not a stacking context of its own */
+#cardlayer .card.placed.piled > .cardface { position: relative; z-index: 1; }
+#cardlayer .card.placed.piled { cursor: pointer; }
+.pilecount {
+  position: absolute; z-index: 2; right: -5px; top: -7px; min-width: 20px; padding: 1px 5px;
+  border-radius: 999px; text-align: center;
+  background: linear-gradient(180deg, #f0d078, #b8862c); color: #2a1c04;
+  font: var(--fw-heading) var(--fs-micro)/1.5 var(--font-fantasy);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
+}
 #cardlayer .card.placed.tapped { margin: 0; }
 /* the card a drop would tuck under */
 #cardlayer .card.placed.tuckover { outline: 2px solid var(--gold-hi); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 208, 120, 0.7); }

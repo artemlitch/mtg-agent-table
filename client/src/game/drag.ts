@@ -22,7 +22,7 @@
 // data-drop (see snapshotRegions) and each kind owns its drop rule below.
 import { act } from "../api";
 import { playCard } from "../features/nextaction/steps";
-import { pileChainBelow, useGame } from "../store/game";
+import { pileChainBelow, pileTopOf, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
 import { alignY, type Box } from "./autoplace";
@@ -104,6 +104,16 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     });
   };
 
+  /** Tucking always aims at the TOP of a pile. The cards below keep a corner
+   *  poking out, and the hit test walks paint order, so dropping on one of
+   *  those corners used to light up a buried card as the target. The server
+   *  normalises to the top of the pile anyway — this makes the ring say so. */
+  const tuckTarget = (boxes: CardBox[], x: number, y: number): CardBox | null => {
+    const hit = cardAt(boxes, x, y);
+    const top = hit && pileTopOf(hit.id);
+    return (top && boxes.find((b) => b.id === top.id)) ?? hit;
+  };
+
   const retarget = () => {
     frame = 0;
     traceMove();
@@ -111,7 +121,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     // tucking is a board-to-board gesture: playing a card out of your hand
     // (or pre-placing an unresolved one) should never silently attach it to
     // whatever is under the drop
-    const target = !region && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
+    const target = !region && card.zone === "battlefield" ? tuckTarget(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     if (target !== aimedCard) {
       aimedCard?.el.classList.remove("tuckover");
       target?.el.classList.add("tuckover");
@@ -214,7 +224,7 @@ export function startDrag(down: React.PointerEvent<HTMLElement>, card: Card) {
     // resolve the target from where the pointer ACTUALLY came up, not from
     // whatever the last painted frame decided
     const over = regionAt(regions, at);
-    const overCard = !over && card.zone === "battlefield" ? cardAt(others, at.left + CW() / 2, at.top + CH() / 2) : null;
+    const overCard = !over && card.zone === "battlefield" ? tuckTarget(others, at.left + CW() / 2, at.top + CH() / 2) : null;
     aimedCard?.el.classList.remove("tuckover");
     ui().hidePreview();
     // Released on the open felt — not into a zone, not onto a card to tuck

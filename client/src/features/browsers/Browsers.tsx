@@ -5,7 +5,8 @@ import { useState } from "react";
 import { act, refresh } from "../../api";
 import { ModalFrame } from "../../components/Modal";
 import { destButton, runDest } from "../../game/dest";
-import { useGame } from "../../store/game";
+import { cardById, pileChainBelow, useGame } from "../../store/game";
+import { cardMenu } from "../menus/cardMenu";
 import { ui } from "../../store/ui";
 import type { Card, MoveParams, PlayerId } from "../../types";
 import { EMPTY_FILTER, FilterBar, matches, type Filter } from "./FilterBar";
@@ -65,6 +66,37 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
 
 export function openZoneBrowser(p: PlayerId, zone: "graveyard" | "exile") {
   ui().openModal({ body: <ZoneBrowser p={p} zone={zone} /> });
+}
+
+// ── a pile on the board ───────────────────────────────────────────────────
+// A pile deep enough to be drawn as one chonky stack has to be openable, or
+// the cards inside it are unreachable. No filter bar: a pile is a handful of
+// cards you stacked yourself, in an order that means something, so it lists
+// top to bottom exactly as it sits.
+//
+// A VIEW, like the zone browsers: pulling a card out or sending it to the
+// graveyard changes the pile you are looking at while you look at it.
+function PileBrowser({ topId }: { topId: string }) {
+  const view = useGame((s) => s.view); // re-read the pile as it changes
+  const top = view && cardById(topId);
+  const cards = top ? [top, ...pileChainBelow(topId)] : [];
+  return (
+    <ModalFrame title={`Pile (${cards.length})`}>
+      <div className="modalcards">
+        {!cards.length && "(the pile is gone)"}
+        {cards.map((c) =>
+          // the whole board menu, because these cards ARE on the board: tap,
+          // attack, counters, and "Pull out of pile" to lay it back on the
+          // felt. Nothing here is a special case of what a card can do.
+          c.hidden ? <HiddenCard key={c.id} /> : <ModalCard key={c.id} info={c} actions={[]} menu={(e) => cardMenu(c, e)} />
+        )}
+      </div>
+    </ModalFrame>
+  );
+}
+
+export function openPileBrowser(topId: string) {
+  ui().openModal({ body: <PileBrowser topId={topId} /> });
 }
 
 // ── searching a library ───────────────────────────────────────────────────

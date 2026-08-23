@@ -46,6 +46,35 @@ export function resolveZoneOf(item: StackItem): string {
   return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
 }
 
+/** A pile deeper than this stops being drawn as a cascade of peeking corners
+ *  and becomes one chonky stack. Past a few cards the corners cover the board
+ *  and none of them can be read anyway. */
+export const CHONKY_PILE_AT = 3;
+
+/** Which board cards a chonky stack swallows, and how many cards each pile
+ *  that earns one is holding.
+ *
+ *  Keyed by the card that owns the position — `under` points at the card
+ *  ABOVE, so the anchor is the one without it, and it is the only card in the
+ *  pile still drawn. Pure in its argument rather than reading the store, so
+ *  the board it describes is the board it was handed. */
+export function chonkyPiles(board: Card[]): { size: Map<string, number>; swallowed: Set<string> } {
+  const beneath = new Map<string, Card>();
+  for (const c of board) if (c.under) beneath.set(c.under, c);
+  const size = new Map<string, number>();
+  const swallowed = new Set<string>();
+  for (const top of board) {
+    if (top.under) continue;
+    const chain: Card[] = [];
+    // guarded: a malformed `under` must not lock the board up
+    for (let cur = beneath.get(top.id), n = 0; cur && n < 50; cur = beneath.get(cur.id), n++) chain.push(cur);
+    if (chain.length + 1 <= CHONKY_PILE_AT) continue;
+    size.set(top.id, chain.length + 1);
+    for (const c of chain) swallowed.add(c.id);
+  }
+  return { size, swallowed };
+}
+
 /** The pending (unresolved) attack declaration containing this card, if any. */
 export function pendingAttackOf(cardId: string): StackItem | null {
   for (const it of gameView()?.stack ?? []) {

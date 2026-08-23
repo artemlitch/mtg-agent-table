@@ -7,11 +7,24 @@ export type CardAction = [label: string, run: () => void];
 /** One card in a browser. No button strip under the art: clicking the card
  *  opens THE menu, exactly like the battlefield, and clicking again dismisses
  *  it. A card with a single action just runs it. */
-export function ModalCard({ info, actions, className = "" }: { info: Card; actions: CardAction[]; className?: string }) {
+export function ModalCard({
+  info,
+  actions,
+  className = "",
+  menu,
+}: {
+  info: Card;
+  actions: CardAction[];
+  className?: string;
+  /** open something other than the actions list — the pile browser hands over
+   *  the card's whole board menu, since a pile is on the board */
+  menu?: (e: React.MouseEvent) => void;
+}) {
   const open = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (menuOpen()) return ui().closeMenu(); // second click dismisses, same as the board
     ui().hidePreview();
+    if (menu) return menu(e);
     if (actions.length === 1) return actions[0][1]();
     ui().openMenu([{ label: info.name ?? "", title: true }, ...actions.map(([label, fn]) => ({ label, fn }))], e);
   };

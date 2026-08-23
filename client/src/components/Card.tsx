@@ -19,6 +19,9 @@ export interface CardElProps {
   onPointerDown?: (e: RPointerEvent<HTMLDivElement>) => void;
   /** unresolved cards open the Stack tab rather than the card menu */
   onClick?: (e: React.MouseEvent) => void;
+  /** hover text, for a card that is standing in for something — a chonky pile
+   *  saying how many are in it. Read off the DOM by the tooltip singleton. */
+  tip?: string;
   /** the stack panel that rides below a lifted card */
   children?: ReactNode;
 }
@@ -26,7 +29,7 @@ export interface CardElProps {
 /** THE card. One element, every state as a class: tapped, attacking,
  *  unresolved, lifted, tucked, face-down. Used in hands, on the board, in the
  *  rail and on the stack — the geometry never changes, only the classes. */
-export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, children }: CardElProps) {
+export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, tip, children }: CardElProps) {
   const pendingTuck = useUI((s) => s.pendingTuck);
   const classes = ["card", c.tapped && "tapped", c.attacking && "attacking", c.blocking && "blocking", pendingTuck === c.id && "tuck-source", className]
     .filter(Boolean)
@@ -75,6 +78,7 @@ export function CardEl({ card: c, className = "", style, small, elRef, onPointer
       className={classes}
       style={{ ...smallStyle, ...style }}
       data-card-id={c.id}
+      data-tip={tip}
       onPointerDown={onPointerDown}
       onClick={handleClick}
       onContextMenu={(e) => {

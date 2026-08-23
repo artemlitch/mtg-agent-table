@@ -110,6 +110,19 @@ export function cardBeneathOf(id: string): Card | null {
 }
 
 /** The chain hanging beneath `id`, top-down. */
+/** Walk a pile up to the card that owns the position — `under` points at the
+ *  card above, so the top is the one without it. */
+export function pileTopOf(id: string): Card | null {
+  let cur = cardById(id) ?? null;
+  let guard = 0;
+  while (cur?.under && guard++ < 50) {
+    const next = cardById(cur.under);
+    if (!next) break;
+    cur = next;
+  }
+  return cur;
+}
+
 export function pileChainBelow(id: string): Card[] {
   const out: Card[] = [];
   let cur = cardBeneathOf(id);
