@@ -111,7 +111,7 @@
 #na-primary {
   /* named, because the shifts that undo their push have to match them */
   --na-card-w: 40px;
-  --na-card-gap: 9px;
+  --na-card-gap: 14px;
   /* how far the card carries what sits beside it off the middle: half its own
      footprint. Zero unless it is actually there. */
   --na-icon-gap: 5px; /* == .na-label's own gap, further down */
