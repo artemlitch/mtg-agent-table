@@ -10,7 +10,7 @@
 //   skip: true adds the faded skip-to-pass-turn line underneath.
 import { act, type ActionResult } from "../../api";
 import { stackItemCard, stackSubText } from "../../game/rules";
-import { didThisTurn, gameView } from "../../store/game";
+import { didThisTurn, gameView, lastLogIndex } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, StackItem } from "../../types";
 
@@ -41,6 +41,13 @@ export interface Ctx {
   myAttackDecls: StackItem[];
   /** how many creatures those declarations add up to */
   declared: number;
+  /** Where this combat is, as log positions rather than "has it happened yet".
+   *  A turn can hold two combats — undoing back past combat and swinging again
+   *  is the ordinary way in — so what matters is the ORDER of these, not
+   *  whether each occurred. -1 means not this round. */
+  enteredCombatAt: number;
+  lockedAt: number;
+  damageAt: number;
   myTapped: boolean;
 }
 
@@ -55,6 +62,7 @@ export const noBlocks: { declaredFor: string | null } = { declaredFor: null };
 
 export function nextActionContext(view: GameView): Ctx {
   const stack = view.stack || [];
+  const log = view.log ?? [];
   const myAttackDecls = stack.filter((it) => it.player === "you" && !!it.attackPairs);
   const theirAttackers = view.players.agent.zones.battlefield.filter((c) => c.attacking);
   return {
@@ -71,6 +79,9 @@ export function nextActionContext(view: GameView): Ctx {
     myAttackers: view.players.you.zones.battlefield.filter((c) => c.attacking),
     myAttackDecls,
     declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
+    enteredCombatAt: lastLogIndex(log, /moves to combat/i),
+    lockedAt: lastLogIndex(log, /^Attacks locked in:/),
+    damageAt: lastLogIndex(log, /combat damage|go to damage/i),
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
   };
 }
@@ -223,7 +234,12 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // the attack, and the agent cannot lock in a declaration you are still
     // adding to. Pressing it with nothing declared means you are not attacking.
     id: "finish-attacks",
-    when: (c) => c.phase === "combat" && c.myAttackers.length === 0 && !didThisTurn(/combat damage|go to damage/i),
+    // Declarations on the stack always mean you are still declaring, whatever
+    // happened earlier in the turn. With none, this is the entry state, which
+    // lasts until damage — and it is damage since you ENTERED combat, so a
+    // second swing after an undo gets its own declare window.
+    when: (c) =>
+      c.phase === "combat" && c.myAttackers.length === 0 && (c.declared > 0 || c.damageAt < c.enteredCombatAt),
     step: (c) => ({
       label: "Finish declaring attackers",
       icon: "combat",
@@ -237,9 +253,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "combat-damage",
-    // the guard has to match what the button actually pushes, or the step
-    // never stands down and combat cannot advance
-    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && !didThisTurn(/combat damage|go to damage/i),
+    // Damage is owed while the last one asked for came BEFORE these attackers
+    // were locked in. "Not yet this turn" was wrong twice over: it stood the
+    // step down for a second combat in the same turn, and the pattern has to
+    // match what the button pushes or the step never stands down at all.
+    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && c.damageAt < c.lockedAt,
     // one click straight onto the stack — the agent works out the numbers, the
     // player never types damage. The text spells out what is being asked:
     // a bare "go to damage" left the agent resolving the item and stopping,
