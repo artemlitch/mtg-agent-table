@@ -9,6 +9,7 @@ import { ui, type Anchor, type MenuItem } from "../../store/ui";
 import type { Card } from "../../types";
 import { openAbilityModal } from "../modals/AbilityModal";
 import { askNumber, askPT, askText } from "../modals/AskText";
+import { playCard } from "../nextaction/steps";
 
 export function cardMenu(c: Card, e: Anchor) {
   const view = gameView();
@@ -18,9 +19,9 @@ export function cardMenu(c: Card, e: Anchor) {
   if (c.zone === "hand" && c.controller === "you") {
     if ((c.faceCount ?? 1) > 1 && c.faces) {
       // one Play per face — the chosen face decides land-drop vs stack
-      c.faces.forEach((f, i) => items.push({ label: `🌀 Play ${f.name}`, fn: () => void act("cast", { card: c.id, face: i }) }));
+      c.faces.forEach((f, i) => items.push({ label: `🌀 Play ${f.name}`, fn: () => void playCard({ card: c.id, face: i }) }));
     } else {
-      items.push({ label: "🌀 Play → stack", fn: () => void act("cast", { card: c.id }) });
+      items.push({ label: "🌀 Play → stack", fn: () => void playCard({ card: c.id }) });
     }
     items.push(destItem("graveyard", c, { note: "discard" }));
     items.push(destItem("exile", c));
@@ -104,7 +105,7 @@ export function cardMenu(c: Card, e: Anchor) {
   }
 
   if (c.zone === "command") {
-    items.push({ label: "🌀 Cast → stack", fn: () => void act("cast", { card: c.id, note: "from command zone" }) });
+    items.push({ label: "🌀 Cast → stack", fn: () => void playCard({ card: c.id, note: "from command zone" }) });
     items.push(destItem("play", c));
   }
 

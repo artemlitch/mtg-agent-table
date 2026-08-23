@@ -21,6 +21,7 @@
 // chain of special cases in the gesture: zones declare themselves with
 // data-drop (see snapshotRegions) and each kind owns its drop rule below.
 import { act } from "../api";
+import { playCard } from "../features/nextaction/steps";
 import { pileChainBelow, useGame } from "../store/game";
 import { ui } from "../store/ui";
 import type { Card } from "../types";
@@ -312,7 +313,7 @@ async function drop(card: Card, over: Region | null, overCard: string | null, po
     // the stack in their unresolved state — and either way the card takes
     // the spot you chose: a land immediately, an unresolved card as the
     // pre-chosen place it will resolve into.
-    const res = await act("cast", { card: card.id, ...(card.zone === "command" ? { note: "from command zone" } : {}) });
+    const res = await playCard({ card: card.id, ...(card.zone === "command" ? { note: "from command zone" } : {}) });
     if (!res.ok) return false;
     useGame.getState().expectPos(card.id, pos);
     await act("place", { positions: [{ card: card.id, x: pos.x, y: pos.y }] });

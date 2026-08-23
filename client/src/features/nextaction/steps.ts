@@ -8,7 +8,7 @@
 // { hint } for a nudge at something the table can't do in one click.
 //   icon: a key into ICONS, drawn before the label.
 //   skip: true adds the faded skip-to-pass-turn line underneath.
-import { act } from "../../api";
+import { act, type ActionResult } from "../../api";
 import { stackItemCard, stackSubText } from "../../game/rules";
 import { didThisTurn, gameView } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -241,6 +241,19 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: () => ({ label: "Pass turn to agent", icon: "passTurn", fn: passTurnToAgent }),
   },
 ];
+
+/** Cast a card, and if that was the thing the next-action prompt was waiting
+ *  on — "Begin main phase 1", still parked in the beginning step — skip the
+ *  click and go straight there. Playing a card already says you're moving
+ *  on; no reason to make the player advance the phase by hand first. */
+export async function playCard(params: Record<string, any>): Promise<ActionResult> {
+  const view = gameView();
+  const ctx = view ? nextActionContext(view) : null;
+  const shouldAdvance = !!ctx && NEXT_ACTION_STEPS.find((r) => r.when(ctx))?.id === "main-1";
+  const res = await act("cast", params);
+  if (res.ok && shouldAdvance) void act("set_phase", { phase: "main 1" });
+  return res;
+}
 
 /** The action the table is asking for right now, or null. */
 export function currentNextAction(): NextAction | null {

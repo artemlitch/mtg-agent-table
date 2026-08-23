@@ -5,6 +5,7 @@ import { cardById, gameView } from "../store/game";
 import { hovered } from "../store/ui";
 import type { Card } from "../types";
 import { openAbilityModal } from "../features/modals/AbilityModal";
+import { playCard } from "../features/nextaction/steps";
 import { pendingAttackOf, removeAttacker, typeCat } from "./rules";
 
 /** What E — and a left-click on a battlefield card — does to a card.
@@ -16,7 +17,7 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
   // on a hand card this plays it (lands = land drop, spells = onto the stack;
   // a DFC plays whichever face it's showing)
   if (cur.zone === "hand" && cur.controller === "you") {
-    void act("cast", { card: cur.id });
+    void playCard({ card: cur.id });
     return;
   }
   if (cur.zone !== "battlefield") return;

@@ -8,6 +8,7 @@ import { destButton } from "../../game/dest";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, MoveParams, PlayerId } from "../../types";
+import { playCard } from "../nextaction/steps";
 import { EMPTY_FILTER, FilterBar, matches, type Filter } from "./FilterBar";
 import { HiddenCard, ModalCard, type CardAction } from "./ModalCard";
 
@@ -53,7 +54,7 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
     // moment you send it somewhere.
     const move = (params: MoveParams) => void act("move", { card: c.id, ...params }).then(refresh);
     return [
-      ["Play ⚡", () => void act("cast", { card: c.id, note: `played from ${zone}` }).then(ui().closeModal)],
+      ["Play ⚡", () => void playCard({ card: c.id, note: `played from ${zone}` }).then(ui().closeModal)],
       destButton("myBattlefield", c, move),
       // the same row twice when you own the card
       ...(c.owner === "you" ? [] : [destButton("ownerBattlefield", c, move)]),
