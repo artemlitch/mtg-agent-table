@@ -117,8 +117,20 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
   color: var(--gold-hi);
   /* the box is a window while its width animates (see useSizeTransition) */
   overflow: hidden;
-  /* every action breathes, so the eye always lands on the thing to press */
-  animation: noblockspulse 2s infinite ease-in-out;
+}
+/* The prompt breathes so the eye lands on the thing to press. The glow is a
+   layer of its own whose OPACITY animates, not a box-shadow that animates:
+   a shadow is painted, so animating one redraws the element every frame,
+   while opacity on a promoted layer is the compositor's own job.
+   It cannot be a pseudo of the button — #na-primary clips its descendants
+   while its width animates — so it rides on the row, which is exactly the
+   primary's width because the undo/redo satellites are out of flow. :has()
+   keeps it off the rows that are showing a hint rather than a button. */
+.na-row:has(#na-primary)::before {
+  content: ""; position: absolute; inset: 0; border-radius: 7px; pointer-events: none;
+  box-shadow: 0 0 16px rgba(240, 208, 120, 0.9);
+  will-change: opacity;
+  animation: naglow 2s infinite ease-in-out;
 }
 /* The label must not re-wrap while the box animates between two widths, or the
    text reflows on every frame and the slide reads as a jitter. So the content
@@ -215,7 +227,7 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
   position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
   display: flex; flex-direction: column; align-items: center; gap: 0;
 }
-@keyframes noblockspulse {
-  0%, 100% { box-shadow: 0 0 5px rgba(240, 208, 120, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(240, 208, 120, 0.9); }
+@keyframes naglow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
 }

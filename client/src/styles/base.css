@@ -96,6 +96,18 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 .hidden { display: none !important; }
 
+/* Decoration stops when nobody is watching. These run forever by design — the
+   command-zone weather, the prompt's breathing, the combat glow, the stack
+   badge — and forever is a long time to spend compositing a window that is
+   behind another one. Named rather than blanket, because the wake countdown
+   above the composer is a clock: pausing that would make it lie about when
+   the agent starts. body.unfocused is already set for the keycaps. */
+body.unfocused .cmdzone .cmdcloud span,
+body.unfocused .na-row::before,
+body.unfocused #combatglow::after,
+body.unfocused .tabbadge,
+body.unfocused .tdot { animation-play-state: paused; }
+
 /* ── the pointer is a promise ──────────────────────────────────────────────
    Anything that responds to a click says so. Listed here rather than left to
    each component, because "I added an onClick and forgot the cursor" is the
@@ -151,17 +163,29 @@ textarea { cursor: text; }
 /* combat: the leather takes a red pulse. Quick to arrive, slow to leave, and
    click-through — the middle stays clear so it never washes out cards. Inset
    past the rail column so it stays on the playmat and off the navy UI */
+/* The element carries the fade in and out; the shadow itself never changes.
+   This used to animate an inset box-shadow, and a shadow is painted — on an
+   overlay the size of the whole playmat that meant repainting the felt every
+   frame, for as long as combat lasted. The breathing is a second layer whose
+   OPACITY animates instead, which the compositor does without redrawing
+   anything. Two layers because the parent's opacity is the arrive/leave fade
+   and the child's is the pulse; multiplying them keeps both. */
 #combatglow {
   position: absolute; inset: 0 0 0 var(--rail-w); z-index: 40; pointer-events: none;
   opacity: 0; transition: opacity 2.2s ease;
-  box-shadow: inset 0 0 22px 3px rgba(208, 60, 50, 0.2);
 }
-#combatglow.on { opacity: 1; transition: opacity 0.7s ease; animation: combatpulse 3.2s ease-in-out infinite; }
+#combatglow.on { opacity: 1; transition: opacity 0.7s ease; }
+#combatglow::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 32px 6px rgba(214, 64, 52, 0.32);
+  opacity: 0.56; will-change: opacity;
+}
 /* half the reach of the first pass, fainter, and a narrower swing between the
    two ends so it breathes rather than throbs */
+#combatglow.on::after { animation: combatpulse 3.2s ease-in-out infinite; }
 @keyframes combatpulse {
-  0%, 100% { box-shadow: inset 0 0 20px 2px rgba(208, 60, 50, 0.18); }
-  50% { box-shadow: inset 0 0 32px 6px rgba(214, 64, 52, 0.32); }
+  0%, 100% { opacity: 0.56; }
+  50% { opacity: 1; }
 }
 
 /* Anything mounted fresh replays its animation, so the fades below need no

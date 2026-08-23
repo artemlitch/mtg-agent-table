@@ -15,11 +15,16 @@
   position: absolute; top: 2px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 9px; background: linear-gradient(180deg, #f0d078, #b8862c);
   color: #2a1c04; font: var(--fw-heading) var(--fs-micro)/16px var(--font-fantasy);
+  /* the glow is fixed and the scale does the pulsing — the shadow used to
+     animate too, which repaints the badge every frame for no visible gain
+     next to a 15% scale swing */
+  box-shadow: 0 0 9px rgba(240, 208, 120, 0.8);
+  will-change: transform;
   animation: badgepulse 1.4s infinite ease-in-out;
 }
 @keyframes badgepulse {
-  0%, 100% { box-shadow: 0 0 3px rgba(240, 208, 120, 0.5); transform: scale(1); }
-  50% { box-shadow: 0 0 12px rgba(240, 208, 120, 0.95); transform: scale(1.15); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 /* ── chat ── */
