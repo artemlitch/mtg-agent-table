@@ -258,11 +258,26 @@ body.dragging .handrow.fan { border-radius: 10px; }
 #hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
 /* Rides just above the hand it is offering to replace, out of flow so the fan
    keeps every pixel of its row — the hand has about 4px of slack and the arc
-   already uses it. Above the fanned cards, which climb to z-index n. */
+   already uses it. Above the fanned cards, which climb to z-index n.
+
+   It keeps the quiet line's type and colour but earns a plate, which the skip
+   line does not need: that one sits against the lit next-action box, and this
+   one sits on bare leather with card art fanning up behind it. Dim ink at half
+   opacity on that background is not subtle, it is invisible — the first
+   version of this could be hit-tested and still not be found by eye. */
+/* Clearing the row is not the same as clearing the cards: the fan climbs out
+   of its own box on a -30px top margin, and the arc's rotation adds a few
+   more — 38px for a seven-card hand, measured. Sitting at the row's edge put
+   the label across the card faces. */
 #hand-mulligan {
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px;
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 46px;
   z-index: 60;
+  opacity: 0.8;
+  padding: 3px 12px; border-radius: 10px;
+  background: rgba(15, 10, 6, 0.82);
+  border: 1px solid rgba(226, 179, 85, 0.22);
 }
+#hand-mulligan:hover { opacity: 1; border-color: rgba(226, 179, 85, 0.5); background: rgba(28, 19, 9, 0.92); }
 #hand-you.fan .card.fanned {
   margin: -30px -11px 0;
   transform-origin: 50% 130%;
