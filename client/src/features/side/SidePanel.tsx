@@ -85,11 +85,18 @@ export function SidePanel() {
   // Everything on screen has been seen. The mark moves while the panel is up
   // and freezes when it goes away, so the tab's dot means "arrived since you
   // put this away" rather than "arrived at all".
+  //
+  // The first view is a special case: reloading with the drawer already shut
+  // would otherwise light the dot over a game you have read every line of.
+  // A reload is not a notification, so the mark starts wherever the log is.
   const log = view?.log;
   const showing = !narrow || sideOpen;
   const lastSeq = log?.length ? log[log.length - 1].seq : 0;
+  const booted = useRef(false);
   useEffect(() => {
-    if (showing) setSideSeen(lastSeq);
+    if (!lastSeq) return;
+    if (showing || !booted.current) setSideSeen(lastSeq);
+    booted.current = true;
   }, [showing, lastSeq, setSideSeen]);
 
   return (

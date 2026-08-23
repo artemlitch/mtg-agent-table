@@ -32,8 +32,11 @@
   font: var(--fw-dial) var(--fs-tiny)/1 var(--font-action); color: var(--c, var(--accent));
   opacity: 0; transition: opacity var(--glow-dur) var(--glow-ease);
 }
-.dial .dial-step.up { top: -9px; }
-.dial .dial-step.down { bottom: -9px; }
+/* Inside the coin, not hanging off it. These used to sit at -9px, which the
+   coin's own overflow: hidden clipped away — so arming a zone lit a sign that
+   was never on screen, and the shading below was doing the whole job alone. */
+.dial .dial-step.up { top: 3px; }
+.dial .dial-step.down { bottom: 3px; }
 .dial .dial-step.armed { opacity: 1; }
 /* Pointing at the dial shades the part the click will act on. It fades out
    toward the number rather than ending on a line — a flat block cut the coin

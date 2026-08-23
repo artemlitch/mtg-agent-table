@@ -24,10 +24,10 @@ const NAMES = [
   "card-random", "castle", "chat-bubble", "check-mark", "checklist", "chess-king",
   "circle", "crossed-swords", "crown", "dragon-head", "empty-chessboard",
   "fast-forward-button", "gears", "gemini", "gems", "hidden", "hood", "hourglass", "invisible",
-  "magic-swirl", "magnifying-glass", "moon", "mountains", "pencil", "plain-arrow", "plain-circle",
+  "magic-portal", "magic-swirl", "magnifying-glass", "moon", "mountains", "pencil", "plain-arrow", "plain-circle",
   "play-button", "player-next", "recycle", "return-arrow", "scroll-unfurled", "shaking-hands",
   "semi-closed-eye", "shield", "shield-disabled", "sight-disabled", "snatch", "sparkles", "spectacles", "stack", "sword-break",
-  "sword-clash", "token", "trash-can", "up-card",
+  "sword-clash", "token", "tombstone", "trash-can", "up-card",
 ];
 
 const svgFor = async (name) => {
@@ -59,6 +59,7 @@ const css = `/* game-icons.net — Lorc, Delapouite and contributors, CC BY 3.0.
 .gi-flipx { transform: scaleX(-1); }
 .gi-flipy { transform: scaleY(-1); }
 .gi-rot270 { transform: rotate(270deg); }
+.gi-rot90 { transform: rotate(90deg); }
 ${rules.join("\n")}
 `;
 

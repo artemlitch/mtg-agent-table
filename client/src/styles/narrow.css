@@ -1,0 +1,160 @@
+/* The narrow layout. Below --narrow-at (store/ui.ts puts `narrow` on <body>)
+   the table stops being three columns of furniture around a board and becomes
+   a board with a strip of counters down one side and a drawer on the other.
+
+   Loaded last so every rule here wins on order rather than on weight — an
+   alternative layout should not have to out-specify the layout it replaces.
+
+   Two things change, and they are separate: the rails fold down to 68px, which
+   always happens, and the side panel lifts out of the flow, which the reader
+   then opens and shuts. */
+
+/* ── the drawer ─────────────────────────────────────────────────────────── */
+/* One number for how far the panel travels: the toggle tab slides the same
+   distance the other way, and the two must not disagree by a pixel. The panel
+   also stops taking the full 360 on a phone-width window — its own width is a
+   comfortable reading measure, not a share of the screen. */
+body.narrow {
+  --drawer-w: min(var(--side-w), 76vw);
+}
+/* How much of the right-hand side is currently spoken for. The drawer floats
+   over the felt on purpose — a card lying under it is a card you close the
+   drawer to see — but a CONTROL under it is simply gone, and there is nothing
+   on screen to tell you where it went. So the three that live on the right
+   step aside by this much while the drawer is out, and take the whole window
+   back when it is dismissed. */
+body.narrow { --drawer-inset: 0px; }
+body.narrow.side-open { --drawer-inset: var(--drawer-w); }
+body.narrow #topbar {
+  padding-right: calc(10px + var(--drawer-inset));
+  transition: padding-right var(--size-dur) var(--glow-ease);
+}
+body.narrow #btn-token {
+  right: calc(10px + var(--drawer-inset));
+  transition: right var(--size-dur) var(--glow-ease);
+}
+/* the prompt is centred on the playmat, and while the drawer is out the
+   playmat is the part of it you can still see */
+body.narrow #nextaction { left: calc(50% + var(--rail-w) / 2 - var(--drawer-inset) / 2); }
+/* the drawer needs a containing block, and #app is the only ancestor that
+   spans the window without being the table's own stacking context */
+body.narrow #app { position: relative; }
+body.narrow #side {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: var(--drawer-w);
+  /* over the topbar (50) as well as the felt: it is full height, and a drawer
+     that stops short of the top reads as a panel that failed to open */
+  z-index: 55;
+  box-shadow: -16px 0 38px rgba(0, 0, 0, 0.62);
+  /* transform, so opening and shutting is the compositor's job — the panel is
+     a tall box full of text and animating its width would relayout every line
+     of chat on every frame */
+  transform: translateX(100%);
+  transition: transform var(--size-dur) var(--glow-ease);
+}
+body.narrow.side-open #side { transform: none; }
+
+/* The handle. Fixed to the window rather than parented to the panel, because
+   the panel leaves and the handle must not — see SideToggle. It carries the
+   panel's own border and plate so that, while the drawer is out, the two read
+   as one shape with a tab on its corner. */
+#side-toggle {
+  position: fixed; top: 8px; right: 0; z-index: 56;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 44px; padding: 0;
+  border-radius: 8px 0 0 8px;
+  border: 1px solid transparent; border-right: none;
+  color: var(--dim); font-size: var(--fs-note);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.45);
+  transition: transform var(--size-dur) var(--glow-ease), var(--hover-transition);
+}
+/* .ghost switches the plate off at rest AND on hover, which is what keeps a
+   quiet control quiet — but this one is not quiet furniture, it is the ONLY
+   way back to a dismissed panel, and it spends half its life sitting on the
+   topbar, which is the same colour it is. So it keeps a plate and the house
+   gold rim in both states. */
+#side-toggle.ghost,
+#side-toggle.ghost:hover {
+  background: linear-gradient(180deg, var(--panel2), var(--panel)) padding-box, var(--chrome-dim) border-box;
+}
+#side-toggle:hover { color: var(--gold-hi); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.45), 0 0 10px rgba(226, 179, 85, 0.3); }
+body.side-open #side-toggle { transform: translateX(calc(-1 * var(--drawer-w))); }
+/* the agent went on talking behind a shut drawer */
+#side-toggle .side-dot {
+  position: absolute; top: -3px; left: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px rgba(226, 179, 85, 0.9);
+}
+
+/* A modal centres itself over the playmat by discounting the rail on one side
+   and the panel on the other (see modal.css). With the panel out of the flow
+   there is nothing to discount on the right — the felt runs to the window's
+   edge — so only the rail's half remains. */
+body.narrow #modal-box { margin-left: var(--rail-w); }
+
+/* ── the rail ───────────────────────────────────────────────────────────── */
+/* 64px of content between 2px margins. Everything below is that budget being
+   spent: the piles lose their names and their fans, the deck and the commander
+   shrink, and life folds into a coin. */
+body.narrow { --rail-w: 68px; }
+body.narrow .rail { padding: 2px; gap: 4px; }
+
+/* Life as a struck coin — the ± are its own halves, so it costs the width of
+   the number instead of the number plus two buttons. Bigger than the library
+   panel's dial: this is the loudest number on the table and it has the room. */
+body.narrow .lifebox.mini { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 0 2px; }
+body.narrow .lifebox.mini .dial { width: 56px; height: 56px; }
+body.narrow .lifebox.mini .dial .dial-count { font-size: var(--fs-title); }
+/* The plain dial only shows its signs once the pointer arms one of them. That
+   is right for a chip in a menu you are already reading; it is wrong here,
+   where the widget it replaced wore a − and a + at all times and this is the
+   most-clicked control on the table. They stay out, faintly, and the pointer
+   still lights the half it is over. */
+body.narrow .lifebox.mini .dial-step { opacity: 0.5; font-size: var(--fs-note); }
+body.narrow .lifebox.mini .dial-step.armed { opacity: 1; }
+/* the running total sits over the coin's shoulder rather than in the plate's
+   corner, which the coin no longer has */
+body.narrow .lifebox.mini .lifedelta { top: -2px; right: 0; font-size: var(--fs-note); }
+
+/* the word is the only thing on the deck that does not survive 58px */
+body.narrow .deckstack .drawbtn span { display: none; }
+body.narrow .deckstack .drawbtn { left: 12px; right: 12px; }
+body.narrow .deckcount { font-size: var(--fs-label); }
+
+/* A pile becomes one tile: the zone drawn full-size and washed back until it
+   is texture, with the count sitting on top of it. The glyph is the label —
+   there is no room for the word — so it has to be big enough to recognise
+   rather than a 12px mark beside a number, and faint enough that the number
+   is still the thing you read.
+   The two glyphs are PLACES, not the actions that fill them: a headstone and
+   a gate, never the discard and burn marks the menus use. */
+body.narrow { --pile-tile: 52px; }
+body.narrow .pile { padding: 0; }
+/* Rail stops building the fan in this layout, so its five card images are
+   never fetched to sit behind a display: none — but the empty strip still
+   holds its 42px open, and the tile is the whole tile. */
+body.narrow .pile .pstrip { display: none; }
+body.narrow .pile .pname { display: none; }
+body.narrow .pile .phead { display: block; position: relative; height: var(--pile-tile); }
+body.narrow .pile .picon {
+  display: block; position: absolute; left: 50%; top: 50%;
+  /* the .gi mask is a 1em square, so the tile's height IS the type size */
+  font-size: var(--pile-tile); line-height: 1;
+  color: var(--dim); opacity: 0.3;
+  transition: opacity var(--glow-dur) var(--glow-ease);
+}
+/* the mask's own transform slot is taken by .gi-rot* on some glyphs, so the
+   centring is done with margins rather than a translate that would cancel one */
+body.narrow .pile .picon { margin: calc(var(--pile-tile) / -2) 0 0 calc(var(--pile-tile) / -2); }
+body.narrow .pile:hover .picon { opacity: 0.5; }
+body.narrow .pile .pcount {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-title);
+  /* read against the glyph behind it, whatever part of it lands under a digit */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 9px rgba(0, 0, 0, 0.85);
+}
+/* the lit lip was an ellipse sized for a box with a fan of cards in it */
+body.narrow .pile::after { bottom: -152%; }
+
+/* the commander comes down with everything else; the tax badge stays legible,
+   since it is a number you have to read rather than a decoration */
+body.narrow .cmdzone { --cmd-scale: 0.6; padding: 4px; margin-bottom: 9px; }

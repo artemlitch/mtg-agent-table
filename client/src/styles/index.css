@@ -12,3 +12,6 @@
 @import "./tokencard.css";
 @import "./side.css";
 @import "./overlays.css";
+/* last: the narrow layout replaces rules from every sheet above it, and it
+   should win on load order rather than by out-specifying each one */
+@import "./narrow.css";

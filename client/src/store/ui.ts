@@ -95,7 +95,11 @@ export type TabName = "stack" | "chat" | "brain" | "log";
  *  So this is the only copy: App watches it and puts `narrow` on <body>, and
  *  every rule in the sheets hangs off that class. */
 export const NARROW_AT = 1180;
-export const isNarrow = () => window.matchMedia(`(max-width: ${NARROW_AT}px)`).matches;
+/** Read at module load, to give the store its first answer before anything
+ *  renders. The guard is for the test runner, which is a plain node
+ *  environment: the next-action tests reach this store through steps.ts and
+ *  there is no matchMedia there to ask. */
+export const isNarrow = () => typeof window !== "undefined" && window.matchMedia(`(max-width: ${NARROW_AT}px)`).matches;
 
 const SIDE_OPEN_KEY = "sideOpen";
 

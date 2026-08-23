@@ -36,7 +36,7 @@ export function Rail({ p }: { p: PlayerId }) {
       />
       <Pile
         label="Exile"
-        icon="exile"
+        icon="exileZone"
         zone="exile"
         p={p}
         count={ps.counts.exile}

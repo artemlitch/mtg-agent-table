@@ -90,6 +90,9 @@
 .pile:hover::after { opacity: 1; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
+/* the glyph is the narrow rail's name for the pile; at full width the word
+   itself is there and a second label for the same thing is noise */
+.pile .picon { display: none; }
 .pile .pcount { font-size: var(--fs-label); font-family: var(--font-fantasy); }
 /* tiny face-up fan of the pile's most recent cards; clipped, never scrolls.
    Fixed height whether or not there is anything in it — an empty graveyard

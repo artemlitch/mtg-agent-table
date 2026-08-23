@@ -78,9 +78,13 @@ export const ICONS: Record<string, string> = {
      about to go — right to push it off the edge, left to pull it back. */
   chevronRight: "gi-plain-arrow gi-rot270",
   chevronLeft: "gi-plain-arrow gi-rot90",
-  /* the compact rail's two piles. A card going down is the graveyard, a card
-     burning is exile — the pair reads at 12px, which the words do not. */
-  graveyard: "gi-card-discard",
+  /* The compact rail's two piles, and the reason they are not `mill` and
+     `exile` above: those two are ACTIONS — a card being discarded, a card
+     being burned — and a rail names PLACES. A menu row says "exile this"; the
+     rail says "the exile zone", and drawing the same glyph for both would say
+     the pile is a verb. So the graveyard is a headstone and exile is a gate. */
+  graveyard: "gi-tombstone",
+  exileZone: "gi-magic-portal",
   // card types, for the search filter
   anyType: "gi-circle",
   creature: "gi-dragon-head",
