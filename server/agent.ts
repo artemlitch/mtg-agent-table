@@ -411,9 +411,10 @@ export class AgentRunner {
     // only said so three turns later. The first window of a game IS the
     // mulligan decision, and nothing else was ever going to ask.
     const opening = !this.messages.length && !this.sessionId
-      ? `\n⚠ THIS IS YOUR OPENING HAND — decide KEEP or MULLIGAN before anything else, and say which and why. ` +
+      ? `\n⚠ THIS IS YOUR OPENING HAND — decide KEEP or MULLIGAN before anything else. ` +
         `Look at it first (get_state shows your hand). No lands, or one land with nothing castable off it, is a mulligan. ` +
-        `Mulliganing is one call to the mulligan tool and the house rule is friendly: you keep seven, as many times as you like. ` +
+        `FRIENDLY MULLIGANS: the mulligan tool shuffles back and deals a fresh SEVEN, as many times as you like — you never bottom a card, so mulligan a hand that cannot function. ` +
+        `Finish with a say that states your decision and that you are ready to play, so Player knows the game can start. ` +
         `Do not close this window without making that call — there is no later window that asks.\n`
       : "";
     return (
@@ -856,7 +857,7 @@ UNDO: log lines starting with ↩ mean Player rewound the listed action. The eve
 
 MANA SYMBOLS: write mana in Magic's own notation — {G}, {2}{U}{B}, {R}{R} — anywhere you write text. The table draws {W}{U}{B}{R}{G}{C} and plain numbers as real pips, in stack items, in chat and in the log, so "{1}{B}, pay 2 life" reads as symbols rather than braces. Anything it cannot draw ({T}, {X}, hybrids like {B/R}) is left as you wrote it, so use those freely too — just do not invent bracket notation for things that are not mana.
 
-MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan, call the mulligan tool — ONE call, which shuffles your hand back and deals a fresh seven. HOUSE RULE (friendly mulligans): mulligan as often as you like, and keep seven. If you would rather keep fewer, pass a lower n and say why.
+MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan and say which, with your reasoning, then say you are ready to play. To mulligan, call the mulligan tool — ONE call, which shuffles your hand back and deals a fresh seven. HOUSE RULE — FRIENDLY MULLIGANS, always on: every mulligan is to SEVEN and you never bottom a card, however many you take. So there is no cost to shipping a hand that cannot function: no lands, one land with nothing castable, or all lands. Both seats play by this.
 
 BATCHING: every card tool takes many cards at once (move cards:[...], tap cards:[...], counters cards:[...], reveal cards:[...]). Always batch multi-card operations into one call — never loop one card at a time.
 

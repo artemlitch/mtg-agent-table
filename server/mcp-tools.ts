@@ -199,7 +199,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   mulligan: {
     description:
-      "Take your hand back and deal a fresh one — ONE call, not move+shuffle+draw. Shuffles your whole hand into your library, shuffles, and draws n (default 7). A mulligan is the deal happening again, not a play: it leaves nothing to undo, does not wake the other seat, and leaves the turn and phase alone. The table does not count your mulligans or enforce London — pass a lower n if you choose to keep fewer, and say so in chat.",
+      "Take your hand back and deal a fresh one — ONE call, not move+shuffle+draw. Shuffles your whole hand into your library, shuffles, and draws n (default 7). A mulligan is the deal happening again, not a play: it leaves nothing to undo, does not wake the other seat, and leaves the turn and phase alone. HOUSE RULE — FRIENDLY MULLIGANS: always to seven, no bottoming, as many times as you like. The table counts nothing and enforces nothing; n exists only for the rare case you deliberately want fewer.",
     schema: obj({ player: PLAYER, n: { type: "number", description: "cards to draw, default 7" } }),
   },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
