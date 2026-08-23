@@ -6,6 +6,7 @@ import { trackHover } from "../game/interaction";
 import { cardById } from "../store/game";
 import { menuOpen, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
+import { artFallback } from "./cardArt";
 import { previewProps } from "./CardPreview";
 import { TokenFace, drawnHere } from "./TokenFace";
 
@@ -106,7 +107,7 @@ function CardFace({ c }: { c: Card }) {
   const art = drawnHere(c) ? (
     <TokenFace c={c} />
   ) : c.image ? (
-    <img src={c.image} alt={c.name} draggable={false} />
+    <img src={c.image} alt={c.name} draggable={false} {...artFallback(c.name)} />
   ) : (
     <div className="textcard">
       <b>{c.name}</b>

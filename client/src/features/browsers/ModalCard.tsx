@@ -1,3 +1,4 @@
+import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { menuOpen, ui } from "../../store/ui";
 import type { Card } from "../../types";
@@ -39,7 +40,7 @@ export function ModalCard({
       }}
     >
       {info.image ? (
-        <img src={info.image} title={info.name} alt="" />
+        <img src={info.image} title={info.name} alt="" {...artFallback(info.name)} />
       ) : (
         <div className="textcard" style={{ height: "auto", minHeight: 60 }}>
           <b>{info.name}</b>

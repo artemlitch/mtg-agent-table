@@ -1,4 +1,5 @@
 import { act } from "../../api";
+import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { withMana } from "../../components/Mana";
 import { useGame } from "../../store/game";
@@ -92,7 +93,7 @@ export function StackItemEl({ item, inChat }: { item: StackItem; inChat?: boolea
   return (
     <div className={cls} {...(card ? previewProps(card) : {})}>
       <div className="sihead">
-        {card?.image && <img src={card.image} alt="" />}
+        {card?.image && <img src={card.image} alt="" {...artFallback(card.name)} />}
         <div>
           <div className="siwho">
             {item.player === "you" ? "you" : "agent"}

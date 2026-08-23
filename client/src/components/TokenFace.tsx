@@ -1,4 +1,5 @@
 import type { Card } from "../types";
+import { hideOnError } from "./cardArt";
 
 /** A token we drew ourselves rather than one with a printed card: the frame,
  *  the name, the type line, the rules text and the P/T in their card
@@ -11,7 +12,7 @@ export function TokenFace({ c }: { c: Card }) {
   return (
     <div className="tokenface">
       <div className="tc-title">{c.name}</div>
-      <div className="tc-art">{c.image && <img src={c.image} alt="" draggable={false} />}</div>
+      <div className="tc-art">{c.image && <img src={c.image} alt="" draggable={false} {...hideOnError} />}</div>
       <div className="tc-body">
         <div className="tc-type">{c.typeLine || "Token"}</div>
         {c.oracle && <div className="tc-text">{c.oracle}</div>}

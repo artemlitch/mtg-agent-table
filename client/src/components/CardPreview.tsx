@@ -1,5 +1,6 @@
 import { useUI } from "../store/ui";
 import type { Card } from "../types";
+import { artFallback } from "./cardArt";
 import { TokenFace, drawnHere } from "./TokenFace";
 
 // The full-size card that follows the cursor. One layer, above the board and
@@ -36,7 +37,7 @@ function Single({ card }: { card: Card }) {
         <TokenFace c={card} />
       </div>
     );
-  if (card.image) return <img src={card.image} alt="" />;
+  if (card.image) return <img src={card.image} alt="" {...artFallback(card.name)} />;
   return (
     <div className="pv-text">
       <b>{card.name}</b> {card.mana || ""}
@@ -59,7 +60,7 @@ function Faces({ card, faces }: { card: Card; faces: NonNullable<Card["faces"]> 
         const f = faces[i];
         const cls = i === active ? "pv-active" : "";
         return f.image ? (
-          <img key={i} className={cls} src={f.image} alt="" />
+          <img key={i} className={cls} src={f.image} alt="" {...artFallback(f.name, i !== 0)} />
         ) : (
           <div key={i} className={`pv-text ${cls}`}>
             <b>{f.name}</b>

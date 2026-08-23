@@ -4,6 +4,7 @@
 // distance from the midline on both sides.
 import { useEffect, useRef, useState } from "react";
 import { act } from "../../api";
+import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { useGame } from "../../store/game";
 import { menuOpen, ui, type Anchor } from "../../store/ui";
@@ -190,7 +191,7 @@ function Pile({
           const style = { zIndex: recent.length - i };
           const hover = c.hidden ? {} : previewProps(c);
           if (c.hidden || c.faceDown) return <img key={c.id} className="mini" src="/card-back.jpg" style={style} alt="" {...hover} />;
-          if (c.image) return <img key={c.id} className="mini" src={c.image} style={style} alt="" {...hover} />;
+          if (c.image) return <img key={c.id} className="mini" src={c.image} style={style} alt="" {...hover} {...artFallback(c.name)} />;
           return (
             <div key={c.id} className="mini minitext" style={style} {...hover}>
               {c.name?.[0] ?? "?"}

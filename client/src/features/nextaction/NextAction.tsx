@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { redoLastAction, undoLastAction } from "../../api";
+import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
@@ -34,7 +35,7 @@ export function NextAction() {
           <div id="na-hint">{a.hint}</div>
         ) : (
           <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
-            {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} />}
+            {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
               <span className="na-label">
                 {a.icon && <Icon name={a.icon} />}
