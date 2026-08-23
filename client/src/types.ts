@@ -107,6 +107,9 @@ export interface GameView {
    *  picking it would actually give the agent something to think with */
   models?: { value: string; name: string; note: string; provider: string; ready: boolean }[];
   agentTransport?: "none" | "cli" | "api" | "custom";
+  /** epoch ms the agent wakes at, null when nothing is pending */
+  wakeAt?: number | null;
+  wakeDelay?: number;
   cliInstalled?: boolean;
   canRedo?: boolean;
 }

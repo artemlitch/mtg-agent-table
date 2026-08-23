@@ -91,6 +91,18 @@
 
 #question { padding: 0 10px; color: #ffd97a; font-size: var(--fs-body); }
 #question:not(:empty) { padding: 6px 10px; background: #33290f; }
+/* How long until the agent thinks. Sits on the composer's top edge, so the
+   line that separates you from the input is the same line that fills up. */
+#wakebar { height: 3px; margin-bottom: -1px; background: rgba(226, 179, 85, 0.12); overflow: hidden; }
+/* scaleX rather than width: this animates for three seconds every time you
+   touch anything, and it must never cost a layout pass mid-drag */
+#wakebar .wakefill {
+  width: 100%; height: 100%; transform-origin: left;
+  background: linear-gradient(90deg, rgba(226, 179, 85, 0.5), var(--gold-hi));
+  animation-name: wakefill; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes wakefill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
 #composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
 #composer input { flex: 1; padding: 11px 10px; font-size: var(--fs-body); }
 

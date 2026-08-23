@@ -62,6 +62,7 @@ export function SidePanel() {
       {needsSetup && <KeySetup />}
 
       <div id="question">{view?.pendingQuestion ? `❓ Agent asks: ${view.pendingQuestion}` : ""}</div>
+      <WakeBar />
       {!needsSetup && <Composer />}
     </div>
   );
@@ -97,6 +98,27 @@ function StackPane() {
       {[...stack].reverse().map((item) => (
         <StackItemEl key={item.id} item={item} />
       ))}
+    </div>
+  );
+}
+
+// The countdown to the agent's next window. It waits for you to stop moving
+// (server/wake.ts) because every wake resends the whole conversation, and a
+// run of three taps used to buy three of them. Without the bar the wait just
+// looks like the agent being asleep.
+//
+// The fill is a CSS animation keyed on the deadline, not a per-frame render:
+// a new deadline means a new element, which starts the animation over from
+// zero. The server nulls the deadline when it fires, so the bar clears itself.
+function WakeBar() {
+  const wakeAt = useGame((s) => s.view?.wakeAt) ?? null;
+  const busy = useGame((s) => s.agentBusy);
+  if (!wakeAt || busy) return null;
+  const left = wakeAt - Date.now();
+  if (left <= 0) return null;
+  return (
+    <div id="wakebar" title="the agent thinks when you stop — anything you do resets this">
+      <div key={wakeAt} className="wakefill" style={{ animationDuration: `${left}ms` }} />
     </div>
   );
 }

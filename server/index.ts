@@ -9,6 +9,7 @@ import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, history
 import { loadKey, saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
+import { WakeScheduler, WAKE_DELAY_MS } from "./wake";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -18,6 +19,9 @@ const WEB_DIR = new URL("../web/", import.meta.url).pathname;
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
+// The agent thinks once, when you stop moving — see wake.ts. Declared before
+// broadcast() exists, so the change hook reaches it lazily.
+const wakes = new WakeScheduler(wakeAgent, () => broadcast({ type: "update", seq: game.seq }));
 agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
@@ -118,6 +122,9 @@ const server = Bun.serve({
           ready: transportChoice(value) !== "none",
         }));
         view.agentTransport = transportChoice(agent.model);
+        // the countdown the client draws above the composer
+        view.wakeAt = wakes.wakeAt;
+        view.wakeDelay = WAKE_DELAY_MS;
         view.cliInstalled = !!resolveClaudeBin();
         view.canRedo = redoSize() > 0;
         view.undoDepth = historySize();
@@ -263,6 +270,25 @@ const server = Bun.serve({
           throw e;
         }
         saveSoon();
+        // Wake policy. Every wake resends the whole conversation — ~100k
+        // tokens by mid-game — so only response-worthy actions arm it:
+        // - full window on done/chat, and on ANY action during the agent's
+        //   turn (acting hands the table back so it continues its turn)
+        // - reaction window on stack traffic and combat during YOUR turn
+        // - everything else (draws, taps, life, moves, phases) just lands in
+        //   the log and is seen at the agent's next wake
+        // Armed or not, the countdown restarts on anything you do: a run of
+        // taps is one window, not one per tap. Scheduled BEFORE the broadcast
+        // so the update carries the new deadline for the client's countdown.
+        if (actor === "you" && game.started && !cosmetic) {
+          const REACTIVE = new Set([
+            "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
+            "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",
+          ]);
+          if (body.type === "done" || body.type === "chat" || game.turn === "agent") wakes.schedule("window");
+          else if (REACTIVE.has(body.type)) wakes.schedule("react");
+          else wakes.defer();
+        }
         broadcast({ type: "update", seq: game.seq });
         // mid-window injection: anything Player did/said while the agent was
         // working rides back inside the agent's next tool result, so it can
@@ -278,25 +304,6 @@ const server = Bun.serve({
             agent.lastSeenSeq = game.seq;
           }
         }
-        // Wake policy. Every wake costs a fresh CLI spawn + a full-context
-        // inference (10s+, and it grows the session that slows later wakes),
-        // so only response-worthy actions wake the agent:
-        // - full window on done/chat, and on ANY action during the agent's
-        //   turn (acting hands the table back so it continues its turn)
-        // - reaction window on stack traffic and combat during YOUR turn
-        // - everything else (draws, taps, life, moves, phases) just lands in
-        //   the log and is seen at the agent's next wake
-        if (actor === "you" && game.started && !cosmetic) {
-          const REACTIVE = new Set([
-            "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
-            "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",
-          ]);
-          if (body.type === "done" || body.type === "chat" || game.turn === "agent") {
-            queueMicrotask(() => wakeAgent("window"));
-          } else if (REACTIVE.has(body.type)) {
-            queueMicrotask(() => wakeAgent("react"));
-          }
-        }
         return json(result);
       } catch (e: any) {
         return json({ ok: false, error: e.message }, 400);
@@ -308,9 +315,11 @@ const server = Bun.serve({
       if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);
       addLog("system", `↩ Player undid: ${undone}`);
       saveSoon();
-      broadcast({ type: "update", seq: game.seq });
       // deliberately NOT waking the agent: it would act immediately and pile
-      // new state on top, making it impossible to keep rewinding
+      // new state on top, making it impossible to keep rewinding. A wake armed
+      // before the rewind waits for it to finish for the same reason.
+      wakes.defer();
+      broadcast({ type: "update", seq: game.seq });
       return json({ ok: true, undone });
     }
 
@@ -319,6 +328,7 @@ const server = Bun.serve({
       if (redone === null) return json({ ok: false, error: "nothing to redo" }, 400);
       addLog("system", `↪ Player redid: ${redone}`);
       saveSoon();
+      wakes.defer();
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true, redone });
     }
@@ -329,6 +339,7 @@ const server = Bun.serve({
       const archived = await backupAndArchive();
       resetGameState();
       clearHistory();
+      wakes.cancel();
       agent.kill();
       addLog("system", "— Game ended and archived —");
       saveSoon();
@@ -373,8 +384,10 @@ const server = Bun.serve({
         agent.reset({ agentDeck: theirs.name, decklist, userDeck: yours.name });
         if (body.model) agent.model = body.model;
         saveSoon();
+        wakes.cancel(); // nothing from the last game gets to fire into this one
         broadcast({ type: "update", seq: game.seq });
-        // let the agent look at its hand and decide keep/mull
+        // let the agent look at its hand and decide keep/mull — the only wake
+        // that skips the countdown, since you did not act to cause it
         queueMicrotask(wakeAgent);
         return json({ ok: true, you: yours.name, agent: theirs.name });
       } catch (e: any) {
