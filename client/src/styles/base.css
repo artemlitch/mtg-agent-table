@@ -187,8 +187,13 @@ textarea { cursor: text; }
    whatever text it is sitting in. Lives here rather than beside either caller
    because the stack, the chat and the log all draw them. */
 .pip {
-  display: inline-block; width: 1.02em; height: 1.02em; vertical-align: -0.16em;
-  margin: 0 0.5px; border-radius: 50%;
+  /* middle, not a baseline nudge: a symbol's baseline depends on whether it
+     has text in it, so the empty colour discs and the numbered chip landed
+     5px apart from each other. Aligning the BOXES makes every symbol in a
+     cost sit on the same line whatever is inside it. */
+  display: inline-block; width: calc(var(--pip-em) * 1em); height: calc(var(--pip-em) * 1em);
+  vertical-align: middle;
+  margin: 0 0.5px 0.12em; border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 .pipW { background: url("/pip-W.svg") center/100% no-repeat; }
@@ -197,9 +202,16 @@ textarea { cursor: text; }
 .pipR { background: url("/pip-R.svg") center/100% no-repeat; }
 .pipG { background: url("/pip-G.svg") center/100% no-repeat; }
 .pipC { background: url("/pip-C.svg") center/100% no-repeat; }
-/* generic cost: the stone-coloured chip a number sits in */
+/* Generic cost: the stone-coloured chip a number sits in. The digit is set
+   smaller than the surrounding text, and the box has to undo that — width in
+   em resolves against the element's OWN font-size, so shrinking the type
+   shrank the disc to 72% of a colour pip beside it. Dividing by the same
+   factor keeps every symbol the same size. */
 .pipnum {
   display: inline-flex; align-items: center; justify-content: center;
   background: #c9c0b0; color: #17100a;
-  font: var(--fw-heading) 0.72em/1 var(--font-ui); font-style: normal; letter-spacing: 0;
+  font: var(--fw-heading) calc(var(--pipnum-scale) * 1em) / 1 var(--font-ui);
+  font-style: normal; letter-spacing: 0;
+  width: calc(var(--pip-em) / var(--pipnum-scale) * 1em);
+  height: calc(var(--pip-em) / var(--pipnum-scale) * 1em);
 }

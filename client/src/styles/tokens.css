@@ -84,6 +84,12 @@
      whole scale for its subtree — see #pane-chat, which keeps the old size. */
   --fs-base: 13px;
   --fs-nano:  calc(var(--fs-base) * 0.5);  /* keycaps — the quietest text there is */
+
+  /* mana pips (components/Mana.tsx): the disc's size relative to the text it
+     sits in, and how much smaller the digit inside a generic cost is set. The
+     chip divides its box by the scale so every symbol renders the same size. */
+  --pip-em: 1.02;
+  --pipnum-scale: 0.72;
   --fs-tiny:  calc(var(--fs-base) * 0.73); /* card badges */
   --fs-micro: calc(var(--fs-base) * 0.8);  /* tooltips */
   --fs-note:  calc(var(--fs-base) * 0.87); /* dense chrome: counts, tags */
