@@ -18,20 +18,52 @@ const TABS: { name: TabName; label: string }[] = [
 const NEAR_BOTTOM = 90; // px — within this of the bottom counts as "following"
 
 /** Keep a pane pinned to its newest entry while the reader is at the bottom;
- *  hold position when they have scrolled up to read. */
-function useStickToBottom(dep: unknown, always = false) {
+ *  hold position when they have scrolled up to read.
+ *
+ *  Pinning is driven by the pane HAVING RENDERED, not by an entry count. A
+ *  count misses every way a pane can grow without gaining a row — a live
+ *  stack widget collapsing into a line of text, a card image arriving late,
+ *  the wake bar taking its 2px off the top of the composer — and, worst of
+ *  all, arithmetic on a count can land on the SAME number across exactly the
+ *  change that matters: `log.length + busy` is unchanged at the moment the
+ *  agent's message replaces the agent's own typing bubble, so the effect
+ *  never re-ran and the reply it was waiting for arrived below the fold.
+ *  Re-pinning after every render costs one scrollTop write, and the panes
+ *  only render when the view changes. */
+function useStickToBottom() {
   const ref = useRef<HTMLDivElement>(null);
   const following = useRef(true);
+
+  const pin = () => {
+    const el = ref.current;
+    if (el && following.current) el.scrollTop = el.scrollHeight;
+  };
+
+  // after the DOM is updated and before it is painted, so the pane is never
+  // seen in the un-pinned position
+  useLayoutEffect(pin);
+
+  // the pane's own box changing — the wake bar and the question strip mount
+  // and unmount underneath it, and the window resizes — moves the bottom
+  // without re-rendering anything inside the pane
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (always || following.current) el.scrollTop = el.scrollHeight;
-  }, [dep, always]);
+    const ro = new ResizeObserver(pin);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const onScroll = () => {
     const el = ref.current;
     if (el) following.current = el.scrollTop + el.clientHeight >= el.scrollHeight - NEAR_BOTTOM;
   };
-  return { ref, onScroll };
+  // late-loading card images grow the pane after we've pinned to the bottom —
+  // re-pin as each one lands (capture: load events don't bubble)
+  const onLoadCapture = (e: React.SyntheticEvent) => {
+    if ((e.target as HTMLElement).tagName === "IMG") pin();
+  };
+  return { ref, onScroll, onLoadCapture };
 }
 
 export function SidePanel() {
@@ -72,10 +104,10 @@ export function SidePanel() {
 
 function StackPane() {
   const stack = useGame((s) => s.view?.stack) ?? [];
-  const { ref, onScroll } = useStickToBottom(stack.length);
+  const { ref, onScroll, onLoadCapture } = useStickToBottom();
   if (!stack.length)
     return (
-      <div className="tabpane" id="pane-stack" ref={ref} onScroll={onScroll}>
+      <div className="tabpane" id="pane-stack" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
         <div className="stackempty">The stack is empty.</div>
         <div className="stackhint">Type below to announce a trigger or ability onto the stack.</div>
       </div>
@@ -84,7 +116,7 @@ function StackPane() {
   const agentRun = [];
   for (let i = stack.length - 1; i >= 0 && stack[i].player === "agent"; i--) agentRun.push(stack[i]);
   return (
-    <div className="tabpane" id="pane-stack" ref={ref} onScroll={onScroll}>
+    <div className="tabpane" id="pane-stack" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       <span className="stacklabel">THE STACK — top resolves first</span>
       {agentRun.length > 1 && (
         <button
@@ -136,22 +168,10 @@ function ChatPane() {
   const busy = useGame((s) => s.agentBusy);
   const setTab = useUI((s) => s.setTab);
   const log = view?.log ?? [];
-  const { ref, onScroll } = useStickToBottom(log.length + (busy ? 1 : 0));
+  const { ref, onScroll, onLoadCapture } = useStickToBottom();
 
   return (
-    <div
-      className="tabpane"
-      id="pane-chat"
-      ref={ref}
-      onScroll={onScroll}
-      // late-loading images grow the pane after we've pinned to the bottom —
-      // re-pin as each one lands (capture: load events don't bubble)
-      onLoadCapture={(e) => {
-        const pane = ref.current;
-        if (!pane || (e.target as HTMLElement).tagName !== "IMG") return;
-        if (pane.scrollTop + pane.clientHeight >= pane.scrollHeight - NEAR_BOTTOM) pane.scrollTop = pane.scrollHeight;
-      }}
-    >
+    <div className="tabpane" id="pane-chat" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {log.map((e) => (
         <ChatLine key={e.seq} e={e} onOpenStack={() => setTab("stack")} />
       ))}
@@ -269,9 +289,9 @@ function BrainHeader() {
 
 function BrainPane() {
   const brain = useGame((s) => s.brain);
-  const { ref, onScroll } = useStickToBottom(brain.length);
+  const { ref, onScroll, onLoadCapture } = useStickToBottom();
   return (
-    <div className="tabpane" id="pane-brain" ref={ref} onScroll={onScroll}>
+    <div className="tabpane" id="pane-brain" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {brain.map((e) => (
         <div key={e.seq} className={`brain ${e.kind}`} id={`brain-${e.seq}`}>
           {e.kind === "tool" ? `🔧 ${e.text}` : e.text}
@@ -283,9 +303,9 @@ function BrainPane() {
 
 function LogPane() {
   const log = useGame((s) => s.view?.log) ?? [];
-  const { ref, onScroll } = useStickToBottom(log.length);
+  const { ref, onScroll, onLoadCapture } = useStickToBottom();
   return (
-    <div className="tabpane" id="pane-log" ref={ref} onScroll={onScroll}>
+    <div className="tabpane" id="pane-log" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {log.map((e) => (
         <div className="logline" key={e.seq}>
           <b>{e.seq}</b> {e.text}
