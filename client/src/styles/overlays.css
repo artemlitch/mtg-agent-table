@@ -54,8 +54,12 @@ body.unfocused .na-key { display: none; }
    just under the midline, with a faded skip-to-pass-turn beneath it.
    Straddles the midline, centred on the PLAYMAT — the midline spans the rail
    column too, so half a rail-width of offset lines it up with the cards */
+/* 47: above the cards at rest (#cardlayer is 46), because a card lying near
+   the midline used to take the hover and the click off the one button the
+   prompt exists to offer. Below the hand and the command zones at 48, and
+   below the card layer while a drag is on at 49. */
 #nextaction {
-  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 45;
+  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 47;
   display: flex; flex-direction: column; align-items: center;
 }
 /* Satellites hover around the primary without displacing it: they are taken
