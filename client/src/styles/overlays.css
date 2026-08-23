@@ -109,11 +109,14 @@
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
 #na-primary {
-  /* named, because the shift that undoes the card's push has to match them */
+  /* named, because the shifts that undo their push have to match them */
   --na-card-w: 40px;
   --na-card-gap: 9px;
+  /* how far the card carries what sits beside it off the middle: half its own
+     footprint. Zero unless it is actually there. */
+  --na-push-card: 0px;
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: var(--na-card-gap); letter-spacing: 0.05em;
-  padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
+  padding: 7px 12px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
   /* the box is a window while its width animates (see useSizeTransition) */
@@ -160,14 +163,16 @@
 }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
 /* The card takes real room at the head of the plate, which carries everything
-   beside it half its own width off the middle. The action and its keycap take
-   that half back, so they sit where the plate's centre is rather than where
-   the card left them. The sub-line does not: it fills the column, and moving
-   it would run it into the card. */
-#na-primary:has(#na-card) .na-label,
-#na-primary:has(#na-card) .na-key {
-  transform: translateX(calc((var(--na-card-w) + var(--na-card-gap)) / -2));
-}
+   beside it half its own width off the middle. The title and its keycap take
+   that half straight back — the SAME shift for both, so the cap stays under
+   the title whatever else moves. Nothing moves in layout, so nothing can
+   collide. The glyph is left to sit inside the title and push its words along
+   as it likes; the two travel together either way.
+   The sub-line is left alone on purpose: it fills the column, and shifting it
+   would run it into the card. */
+#na-primary:has(#na-card) { --na-push-card: calc((var(--na-card-w) + var(--na-card-gap)) / -2); }
+#na-primary .na-label,
+#na-primary .na-key { transform: translateX(var(--na-push-card)); }
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
 /* the arrow between two phase names is punctuation, not a second action —
    smaller than the leading icon and dimmer than the words it joins */
