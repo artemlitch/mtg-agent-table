@@ -1,27 +1,39 @@
-// Shows and hides the side panel. It belongs to the panel, but it lives in
-// the topbar beside undo and redo — a control that is only reachable while the
-// thing it controls is on screen is not a control, and in the narrow layout
-// the panel is a drawer that leaves.
+// Showing the chat and hiding it are two controls, not one, because the one
+// place a single control could live is the place the chat covers.
+//
+// The old version sat in the topbar and stayed there while the drawer was out.
+// That works until the window is narrow enough that the drawer takes most of
+// the bar with it, and then the only way to dismiss the chat is underneath the
+// chat. So: SHOW lives in the bar, where there is nothing in front of it
+// because the drawer is away. HIDE lives in the chat, which is the one surface
+// guaranteed to be on top when there is something to hide.
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
 import { useUI } from "../../store/ui";
 import type { GameView } from "../../types";
 import { STACK_CHAT_RE } from "./SidePanel";
 
-export function SideToggle() {
-  const open = useUI((s) => s.sideOpen);
+/** In the topbar, beside undo and redo, and only while the chat is away. */
+export function ShowChat() {
   const setOpen = useUI((s) => s.setSideOpen);
   const seen = useUI((s) => s.sideSeenSeq);
-  const waiting = useGame((s) => (open ? null : pending(s.view, seen)));
+  const waiting = useGame((s) => pending(s.view, seen));
   return (
-    <button
-      id="btn-panel"
-      className={`${open ? "on" : ""}${waiting ? " unread" : ""}`}
-      data-tip={open ? "Hide chat" : waiting ?? "Show chat"}
-      onClick={() => setOpen(!open)}
-    >
+    <button id="btn-panel" className={waiting ? "unread" : ""} data-tip={waiting ?? "Show chat"} onClick={() => setOpen(true)}>
       <Icon name="panel" />
       {waiting && <span className="side-dot" />}
+    </button>
+  );
+}
+
+/** In the chat's own tab row, and out of its flow: the four tabs sit where
+ *  they sit whether this is there or not, so nothing shifts as the layout
+ *  changes under them. See #btn-hidechat. */
+export function HideChat() {
+  const setOpen = useUI((s) => s.setSideOpen);
+  return (
+    <button id="btn-hidechat" data-tip="Hide chat" onClick={() => setOpen(false)}>
+      <Icon name="panel" />
     </button>
   );
 }

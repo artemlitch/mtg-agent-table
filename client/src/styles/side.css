@@ -9,7 +9,27 @@
    the top of the window, so they share --bar-h and read as one band. Exact
    height, not a minimum — four one-word tabs will never need more, and the
    alignment with the bar is the whole point. */
-#tabs { display: flex; height: var(--bar-h); flex: none; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
+#tabs { display: flex; position: relative; height: var(--bar-h); flex: none; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
+
+/* Dismiss, on the chat's own top corner.
+   Out of the row's flow, deliberately: the four tabs divide the row between
+   them, and a fifth child would take a share and move all four the moment the
+   layout changed under them. This takes no share — it rides over the end of
+   the last tab, in the slack its centred label leaves. */
+/* #tabs #btn-hidechat, not #btn-hidechat: the rule above it sets every tab
+   `position: relative` and outranks a bare id, which left this one in the flex
+   flow taking a fifth of the row — the exact thing it must not do. */
+#tabs #btn-hidechat {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border-radius: 6px;
+  background: none; border-color: transparent; box-shadow: none;
+  color: var(--dim); font-size: var(--fs-note);
+}
+#tabs #btn-hidechat:hover {
+  color: var(--gold-hi); box-shadow: none;
+  background: linear-gradient(rgba(226, 179, 85, 0.12), rgba(226, 179, 85, 0.12)) padding-box, var(--chrome-dim) border-box;
+}
 /* the tab row heads the panel, so it is set at the panel's reading size and
    not at the chrome's — see --fs-read, which #pane-chat also rebases on */
 #tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 0 8px; color: var(--dim); box-shadow: none; font-size: var(--fs-read); position: relative; }

@@ -4,7 +4,7 @@ import { Dropdown } from "../../components/Dropdown";
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
 import { useUI } from "../../store/ui";
-import { SideToggle } from "../side/SideToggle";
+import { ShowChat } from "../side/SideToggle";
 import type { GameView } from "../../types";
 
 // The turn as a route: dots on a line, one lit. The phase itself is free text,
@@ -32,6 +32,7 @@ const modelOptions = (view: GameView | null) =>
 export function TopBar() {
   const view = useGame((s) => s.view);
   const narrow = useUI((s) => s.narrow);
+  const sideOpen = useUI((s) => s.sideOpen);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
 
@@ -76,9 +77,12 @@ export function TopBar() {
         <button id="btn-redo" data-tip="Redo" data-tip-keys="⌘,⇧,Z" disabled={!view?.canRedo} onClick={() => void redoLastAction()}>
           <Icon name="redo" />
         </button>
-        {/* only where the panel can be put away — at full width it is a column
-            of the layout and there is nothing to show or hide */}
-        {narrow && <SideToggle />}
+        {/* Only while the chat is away, and only where it can be: at full
+            width the panel is a column of the layout and there is nothing to
+            show. Its opposite number lives inside the chat — putting both here
+            leaves the dismiss button underneath the thing it dismisses once
+            the drawer is wide enough to cover this end of the bar. */}
+        {narrow && !sideOpen && <ShowChat />}
       </div>
     </div>
   );

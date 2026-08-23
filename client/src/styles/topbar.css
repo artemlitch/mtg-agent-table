@@ -26,14 +26,10 @@
 #btn-undo, #btn-redo, #btn-panel { display: flex; align-items: center; justify-content: center; width: 28px; padding: 3px 0; }
 #btn-redo:disabled { opacity: 0.3; cursor: default; }
 
-/* The panel toggle. Pressed-in while the drawer is out, so the button says
-   which state you are in rather than which way it will go — the glyph is a
-   picture of the panel, and a picture cannot point. */
+/* Bring the chat back. It exists only while the chat is away — the dismiss
+   half lives inside the chat itself, since this end of the bar is the first
+   thing the drawer covers on a narrow window. */
 #btn-panel { position: relative; }
-#btn-panel.on {
-  background: linear-gradient(180deg, #1b1626, #262033) padding-box, var(--chrome) border-box;
-  color: var(--gold-hi); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.65);
-}
 /* Unseen traffic behind a shut drawer: the button becomes the notification.
    The glow and the gold are static and the DOT does the pulsing, on a scale
    transform — a pulsing box-shadow repaints the button sixty times a second
