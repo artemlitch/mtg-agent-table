@@ -153,6 +153,26 @@ describe("agent transport", () => {
     expect(b.systemPrompt).toContain("place");
   });
 
+  test("the first window of a game is the mulligan decision, and says so", () => {
+    // the game opens on PLAYER's turn 1, so the agent's first wake reads as an
+    // ordinary reaction window. It kept a seven-card hand with no lands in it
+    // and only realised three turns later, because nothing ever asked.
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const first = a.composeWakePrompt("window");
+    expect(first).toMatch(/opening hand/i);
+    expect(first).toMatch(/keep or mulligan/i);
+  });
+
+  test("and every window after it is not", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    a.messages.push({ role: "user", content: [{ type: "text", text: "the first window happened" }] });
+    expect(a.composeWakePrompt("window")).not.toMatch(/opening hand/i);
+  });
+
   test("a save from before rebuildable prompts keeps the prompt it froze", () => {
     const b = new AgentRunner();
     b.restore({ systemPrompt: "you are gonti", model: "opus", lastSeenSeq: 0, brain: [], brainSeq: 0 });

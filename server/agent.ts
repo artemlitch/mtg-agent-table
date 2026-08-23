@@ -396,8 +396,20 @@ export class AgentRunner {
       ? `(Your previous window was INTERRUPTED mid-thought because the table changed. Any actions you completed before the cut are already applied — re-check the state rather than assuming your plan finished.)\n`
       : "";
     this.interruptNote = false;
+    // The game opens on PLAYER's turn, so without this the agent's first
+    // window reads as an ordinary reaction window — it checks for instant-speed
+    // responses, finds none, and passes, having never decided whether to keep
+    // its hand. It kept a seven-card hand with no lands in it that way and
+    // only said so three turns later. The first window of a game IS the
+    // mulligan decision, and nothing else was ever going to ask.
+    const opening = !this.messages.length && !this.sessionId
+      ? `\n⚠ THIS IS YOUR OPENING HAND — decide KEEP or MULLIGAN before anything else, and say which and why. ` +
+        `Look at it first (get_state shows your hand). No lands, or one land with nothing castable off it, is a mulligan. ` +
+        `Mulliganing is one call to the mulligan tool and the house rule is friendly: you keep seven, as many times as you like. ` +
+        `Do not close this window without making that call — there is no later window that asks.\n`
+      : "";
     return (
-      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}\n${situation} ${directive}\n` +
+      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}${opening}\n${situation} ${directive}\n` +
       `Narrate your reasoning in plain text BEFORE each action. ` +
       `Speak to Player with the say tool — plain response text is your visible thought process, not chat.`
     );
