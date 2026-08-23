@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef } from "react";
-import { redoLastAction, undoLastAction } from "../../api";
 import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
@@ -8,8 +7,9 @@ import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
 import { nextActionContext, passTurnToAgent, NEXT_ACTION_STEPS } from "./steps";
 
-/** The centred prompt: the one thing the table is asking you to do, with undo
- *  and redo as satellites that don't shift it, and a faded skip beneath. */
+/** The centred prompt: the one thing the table is asking you to do, with a
+ *  faded skip beneath it. Undo and redo used to flank it as satellites; the
+ *  top bar carries both, and one set is enough. */
 export function NextAction() {
   const view = useGame((s) => s.view);
   const ctx = view?.started ? nextActionContext(view) : null;
@@ -26,12 +26,6 @@ export function NextAction() {
   return (
     <div id="nextaction">
       <div className="na-row">
-        <div className="na-undowrap">
-          <button id="na-undo" className="ghost" data-tip="Undo" data-tip-keys="⌘,Z" onClick={() => void undoLastAction()}>
-            <Icon name="undo" />
-          </button>
-        </div>
-
         {a.hint ? (
           <div id="na-hint">{a.hint}</div>
         ) : (
@@ -48,15 +42,6 @@ export function NextAction() {
               <KeyCaps keys={["space"]} />
             </span>
           </button>
-        )}
-
-        {/* redo only exists while a rewind is still un-branched */}
-        {view?.canRedo && (
-          <div className="na-redowrap">
-            <button id="na-redo" className="ghost" data-tip="Redo" data-tip-keys="⌘,⇧,Z" onClick={() => void redoLastAction()}>
-              <Icon name="redo" />
-            </button>
-          </div>
         )}
       </div>
 
