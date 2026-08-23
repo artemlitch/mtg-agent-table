@@ -985,6 +985,28 @@ describe("the table surface", () => {
     // and it survives the lean trim that strips art urls
     expect(leanCard(seen).pos).toEqual({ x: 0.3, y: 0.15 });
   });
+
+  test("lean drops the fields a card at rest has nothing to say about", () => {
+    // a library listing repeats these ~90 times, and every one of them is the
+    // default: nothing in a library is tapped, attacking, or anywhere
+    const idle = leanCard({
+      id: "c1", name: "Sheltered Thicket", typeLine: "Land", oracle: "…", zone: "library",
+      tapped: false, faceDown: false, attacking: null, blocking: null, under: null,
+      pos: null, z: 0, counters: {}, isToken: false, isCommander: false,
+    });
+    expect(idle).toEqual({ id: "c1", name: "Sheltered Thicket", typeLine: "Land", oracle: "…", zone: "library" });
+  });
+
+  test("…but keeps every one of them that is actually saying something", () => {
+    const busy = leanCard({
+      id: "c2", name: "Bear", tapped: true, faceDown: true, attacking: "you", blocking: "c9",
+      under: "c8", pos: { x: 0.3, y: 0.15 }, z: 4, counters: { "+1/+1": 2 }, isToken: true, isCommander: true,
+    });
+    expect(busy).toEqual({
+      id: "c2", name: "Bear", tapped: true, faceDown: true, attacking: "you", blocking: "c9",
+      under: "c8", pos: { x: 0.3, y: 0.15 }, z: 4, counters: { "+1/+1": 2 }, isToken: true, isCommander: true,
+    });
+  });
 });
 
 describe("batch move with top: refs", () => {

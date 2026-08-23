@@ -351,6 +351,37 @@ describe("superseded board snapshots", () => {
     expect(resultFor(a, "new").content).toBe(board(3));
   });
 
+  test("a stale library listing collapses too — it is a snapshot of a zone", () => {
+    // three library searches were 45% of a real game's whole conversation
+    const listing = (n: number) => `{"cards":[${"x".repeat(45_000)}],"n":${n}}`;
+    const messages = [
+      { role: "assistant", content: [{ type: "tool_use", id: "v1", name: "view_zone", input: { player: "agent", zone: "library" } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "v1", content: listing(1) }] },
+      { role: "assistant", content: [{ type: "tool_use", id: "v2", name: "view_zone", input: { player: "agent", zone: "library" } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "v2", content: listing(2) }] },
+      { role: "assistant", content: [{ type: "tool_use", id: "v3", name: "view_zone", input: { player: "agent", zone: "library" } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "v3", content: listing(3) }] },
+    ];
+    collapseSupersededState(messages);
+    expect(messages[1].content[0].content).toBe(SUPERSEDED_STATE);
+    expect(messages[3].content[0].content).toBe(SUPERSEDED_STATE);
+    expect(messages[5].content[0].content).toBe(listing(3)); // the live one stays
+  });
+
+  test("a different zone is not superseded by a library search", () => {
+    // reading a graveyard says nothing about what is left in the library
+    const big = (s: string) => `{"${s}":"${"x".repeat(45_000)}"}`;
+    const messages = [
+      { role: "assistant", content: [{ type: "tool_use", id: "g1", name: "view_zone", input: { player: "you", zone: "graveyard" } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "g1", content: big("gy") }] },
+      { role: "assistant", content: [{ type: "tool_use", id: "l1", name: "view_zone", input: { player: "agent", zone: "library" } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "l1", content: big("lib") }] },
+    ];
+    collapseSupersededState(messages);
+    expect(messages[1].content[0].content).toBe(big("gy"));
+    expect(messages[3].content[0].content).toBe(big("lib"));
+  });
+
   test("the threshold is a knob, so a caller can still collapse on sight", () => {
     const messages = [
       { role: "assistant", content: [{ type: "tool_use", id: "old", name: "get_state", input: {} }] },

@@ -116,7 +116,7 @@ export interface AgentSnapshot {
 
 const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 });
 
-export const SUPERSEDED_STATE = "(superseded board snapshot — read the newest get_state below for the live board)";
+export const SUPERSEDED_STATE = "(superseded — a newer look at the same thing appears below; read that one)";
 
 /** How much dead board has to pile up before it is worth rewriting history.
  *
@@ -193,28 +193,42 @@ export function trimOldThinking(messages: any[], keepWindows = KEEP_THINKING_WIN
   }
 }
 
+/** What a snapshot is a snapshot OF, or null if the tool is not one.
+ *
+ *  get_state is the whole board, so there is only ever one current answer. A
+ *  zone listing is only current for the zone it read: a graveyard search says
+ *  nothing about what is left in the library, so those supersede separately. */
+function snapshotKey(name: string, input: any): string | null {
+  if (TOOLS[name]?.special === "state") return "state";
+  if (name === "view_zone") return `zone:${input?.player ?? "?"}:${input?.zone ?? "?"}`;
+  return null;
+}
+
 export function collapseSupersededState(messages: any[], threshold = COLLAPSE_THRESHOLD_CHARS) {
-  const snapshotIds = new Set<string>();
+  const keyOf = new Map<string, string>();
   for (const m of messages) {
     if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
     for (const b of m.content) {
-      if (b?.type === "tool_use" && TOOLS[b.name]?.special === "state") snapshotIds.add(b.id);
+      if (b?.type !== "tool_use") continue;
+      const key = snapshotKey(b.name, b.input);
+      if (key) keyOf.set(b.id, key);
     }
   }
   // find every stale snapshot before rewriting any of them: whether the rewrite
   // is worth its cache invalidation is a question about all of them together
   const stale: { content: any[]; j: number }[] = [];
-  let newest = true;
+  const seen = new Set<string>();
   for (let i = messages.length - 1; i >= 0; i--) {
     const content = messages[i]?.content;
     if (!Array.isArray(content)) continue;
     for (let j = content.length - 1; j >= 0; j--) {
       const b = content[j];
-      if (b?.type !== "tool_result" || !snapshotIds.has(b.tool_use_id)) continue;
+      const key = b?.type === "tool_result" ? keyOf.get(b.tool_use_id) : undefined;
+      if (!key) continue;
       // a failed snapshot is small and says why — collapsing it would replace
       // an error the model still has to reckon with by a pointer to a board
       if (b.is_error) continue;
-      if (newest) newest = false;
+      if (!seen.has(key)) seen.add(key);
       else if (b.content !== SUPERSEDED_STATE) stale.push({ content, j });
     }
   }

@@ -389,8 +389,33 @@ export function serializeCard(card: Card, viewer: PlayerId, opts: { reveal?: boo
  * each face. Board position is NOT trimmed: the agent shares the table surface
  * and places its own cards on it. Not a second card shape: a transport trim,
  * applied by the lean state view and by the granted peeks. */
+/** What a card at rest has nothing to say about. A library listing repeats
+ *  these for every card in the deck and every one of them is the default —
+ *  nothing in a library is tapped, attacking, or anywhere on the table. Three
+ *  library searches were 45% of the agent's whole conversation, and most of
+ *  each card was this. Omitted when they are at their default and kept the
+ *  moment they mean something. */
+const AT_REST: Record<string, unknown> = {
+  tapped: false,
+  faceDown: false,
+  hidden: false,
+  attacking: null,
+  blocking: null,
+  under: null,
+  pos: null,
+  z: 0,
+  isToken: false,
+  isCommander: false,
+};
+
 export function leanCard({ image, faces, ...rest }: any) {
-  return { ...rest, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
+  const out: any = {};
+  for (const [k, v] of Object.entries(rest)) {
+    if (k in AT_REST && v === AT_REST[k]) continue;
+    if (k === "counters" && v && typeof v === "object" && !Object.keys(v).length) continue;
+    out[k] = v;
+  }
+  return { ...out, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
 }
 
 /** Full table snapshot as one viewer is allowed to see it. */
