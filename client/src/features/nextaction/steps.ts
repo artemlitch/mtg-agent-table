@@ -194,7 +194,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "main-1",
     when: (c) => /untap/.test(c.phase),
-    step: () => ({ label: "Main phase 1", icon: "main", skip: true, fn: () => void act("set_phase", { phase: "main 1" }) }),
+    step: () => ({ label: "Begin main phase 1", icon: "main", skip: true, fn: () => void act("set_phase", { phase: "main 1" }) }),
   },
   {
     id: "to-combat",
@@ -223,7 +223,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
     id: "past-combat",
     when: (c) => c.phase === "combat",
     step: () => ({
-      label: "Main phase 2",
+      label: "Begin main phase 2",
       icon: "main",
       title: "tap [e] a creature to attack instead",
       skip: true,
@@ -233,7 +233,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "main-2",
     when: (c) => c.phase === "main 2",
-    step: () => ({ label: "End step", icon: "end", skip: true, fn: () => void act("set_phase", { phase: "end" }) }),
+    step: () => ({ label: "Go to end step", icon: "end", skip: true, fn: () => void act("set_phase", { phase: "end" }) }),
   },
   {
     id: "pass-turn",
