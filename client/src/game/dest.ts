@@ -23,10 +23,10 @@ export const DEST: Record<string, Dest> = {
   top: (c) => ["Top of library", { toZone: "library", toPlayer: c.owner, position: "top" }],
   bottom: (c) => ["Bottom of library", { toZone: "library", toPlayer: c.owner, position: "bottom" }],
   command: (c) => ["Command zone", { toZone: "command", toPlayer: c.owner }],
-  // both of these PLAY the card — the label says play because that is what
-  // clicking it does, wherever the card is coming from
-  myBattlefield: () => ["Play ⚡ — to my battlefield", { toZone: "battlefield", toPlayer: "you" }],
-  ownerBattlefield: (c) => ["Play ⚡ — to owner's battlefield", { toZone: "battlefield", toPlayer: c.owner }],
+  // both of these PLAY the card (see isPlay) — the row says where it lands and
+  // the glyph says the rest, the way every other destination reads
+  myBattlefield: () => ["To my battlefield", { toZone: "battlefield", toPlayer: "you" }],
+  ownerBattlefield: (c) => ["To owner's battlefield", { toZone: "battlefield", toPlayer: c.owner }],
   steal: () => ["😈 Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
   give: () => ["🎁 Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
   giveBack: () => ["Return to agent's battlefield", { toZone: "battlefield", toPlayer: "agent" }],
