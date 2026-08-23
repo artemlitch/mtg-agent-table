@@ -79,14 +79,18 @@
 /* the agent's latest thought, one hot-swapped line beside the typing dots */
 .peek-line {
   margin-left: 7px; flex: 1; min-width: 0; cursor: pointer;
-  font-family: var(--font-scroll); font-style: italic; font-size: var(--fs-body); color: var(--dim);
+  font-family: var(--font-ui); font-style: italic; font-size: var(--fs-body); color: var(--dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .peek-line:hover { color: var(--text); }
 
 /* ── the agent's brain ── */
 .brain { font-size: var(--fs-body); white-space: pre-wrap; word-wrap: break-word; }
-.brain.thinking { color: var(--dim); font-family: var(--font-scroll); font-style: italic; }
+/* the agent thinking, in its own voice — italic, but the UI sans. IM Fell
+   English is a stylised old-style face and its italic is a handful at body
+   size: this is the longest-running text in the app and has to be read, not
+   admired. */
+.brain.thinking { color: var(--dim); font-family: var(--font-ui); font-style: italic; }
 .brain.text { color: var(--text); }
 .brain.tool { font-family: ui-monospace, monospace; font-size: var(--fs-note); color: var(--green); background: #16211a; border-radius: 4px; padding: 2px 6px; }
 .brain.status { color: var(--accent); font-size: var(--fs-note); }
