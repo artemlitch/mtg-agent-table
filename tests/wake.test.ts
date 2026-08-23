@@ -35,6 +35,18 @@ describe("what your action buys the agent", () => {
     for (const a of ["tap", "move", "draw", "life", "set_phase"]) expect(onYourTurn(a)).toBeNull();
   });
 
+  test("passing again when you have already passed wakes nothing", () => {
+    // seen in play: the prompt does not change until the agent answers, so a
+    // second press looks reasonable — and each one preempted the agent
+    // mid-thought and restarted it. Four presses, four interrupted windows,
+    // nothing ever finished. A pass that changes nothing must wake nothing.
+    expect(wakePlanFor("done", false, "agent").reason).toBeNull();
+  });
+
+  test("...but the first pass still hands over", () => {
+    expect(wakePlanFor("done", false, "you").reason).toBe("window");
+  });
+
   test("the plan carries the delay too, so the caller asks once", () => {
     expect(wakePlanFor("chat", false)).toEqual({ reason: "window", delay: TYPING_DELAY_MS });
     expect(wakePlanFor("cast", false)).toEqual({ reason: "react", delay: WAKE_DELAY_MS });

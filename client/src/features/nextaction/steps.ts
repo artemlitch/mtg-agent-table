@@ -232,12 +232,12 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "main-1",
     when: (c) => /untap/.test(c.phase),
-    step: () => ({ label: "Begin main phase 1", icon: "main", skip: true, fn: () => void act("set_phase", { phase: "main 1" }) }),
+    step: () => ({ label: "untap → main phase 1", icon: "main", skip: true, fn: () => void act("set_phase", { phase: "main 1" }) }),
   },
   {
     id: "to-combat",
     when: (c) => c.phase === "main 1",
-    step: () => ({ label: "Go to combat", icon: "combat", skip: true, fn: () => void act("set_phase", { phase: "combat" }) }),
+    step: () => ({ label: "main phase → combat", icon: "combat", skip: true, fn: () => void act("set_phase", { phase: "combat" }) }),
   },
   {
     // Declaring attackers is yours to finish. Tapping creatures no longer
@@ -252,16 +252,23 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // second swing after an undo gets its own declare window.
     when: (c) =>
       c.phase === "combat" && c.myAttackers.length === 0 && (c.declared > 0 || c.damageAt < c.enteredCombatAt),
-    step: (c) => ({
-      label: "Finish declaring attackers",
-      icon: "combat",
-      sub: c.declared ? `${c.declared} attacking` : undefined,
-      title: "tap [e] a creature to attack",
-      skip: true,
-      // nothing declared means you are not attacking, so the button is the way
-      // out of combat rather than a hand-over
-      fn: () => void (c.declared ? act("done", {}) : act("set_phase", { phase: "main 2" })),
-    }),
+    step: (c) =>
+      // Already handed over: pressing again cannot help, and it does harm —
+      // a pass while the agent is mid-thought preempts it and starts it over,
+      // so pressing four times because nothing seemed to happen is exactly
+      // what stops anything from happening. Say who we are waiting on instead.
+      c.view.waitingOn === "agent"
+        ? { hint: "declared — waiting for the agent to lock it in" }
+        : {
+            label: "Finish declaring attackers",
+            icon: "combat",
+            sub: c.declared ? `${c.declared} attacking` : undefined,
+            title: "tap [e] a creature to attack",
+            skip: true,
+            // nothing declared means you are not attacking, so the button is the
+            // way out of combat rather than a hand-over
+            fn: () => void (c.declared ? act("done", {}) : act("set_phase", { phase: "main 2" })),
+          },
   },
   {
     id: "combat-damage",
@@ -287,7 +294,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
     id: "past-combat",
     when: (c) => c.phase === "combat",
     step: () => ({
-      label: "Begin main phase 2",
+      label: "combat → main phase 2",
       icon: "main",
       skip: true,
       fn: () => void act("set_phase", { phase: "main 2" }),
@@ -296,7 +303,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "main-2",
     when: (c) => c.phase === "main 2",
-    step: () => ({ label: "Go to end step", icon: "end", skip: true, fn: () => void act("set_phase", { phase: "end" }) }),
+    step: () => ({ label: "main phase 2 → end step", icon: "end", skip: true, fn: () => void act("set_phase", { phase: "end" }) }),
   },
   {
     id: "pass-turn",
@@ -306,7 +313,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
 ];
 
 /** Cast a card, and if that was the thing the next-action prompt was waiting
- *  on — "Begin main phase 1", still parked in the beginning step — skip the
+ *  on — "untap → main phase 1", still parked in the beginning step — skip the
  *  click and go straight there. Playing a card already says you're moving
  *  on; no reason to make the player advance the phase by hand first. */
 export async function playCard(params: Record<string, any>): Promise<ActionResult> {

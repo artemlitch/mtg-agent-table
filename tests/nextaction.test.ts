@@ -76,7 +76,7 @@ describe("the first turn", () => {
   it("opens on the main phase once you have actually played something", () => {
     const { id, action } = prompt(fresh([line("Player mulliganed to 7"), line("Player played Island — land drop")]));
     expect(id).toBe("main-1");
-    expect(action?.label).toBe("Begin main phase 1");
+    expect(action?.label).toBe("untap → main phase 1");
   });
 
   it("never offers the first-turn draw", () => {
@@ -169,6 +169,22 @@ describe("the combat prompt, step by step", () => {
     expect(action?.sub).toBeUndefined(); // nothing declared yet
   });
 
+  it("stops offering the button once you have handed over", () => {
+    // pressing it again cannot help — you have already passed — and each press
+    // preempted the agent mid-thought and restarted it. Four presses meant
+    // four interrupted windows and no progress.
+    const v = view({
+      mine: [creature("bear"), creature("wolf")],
+      stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
+      log: [ENTERED()],
+    });
+    (v as any).waitingOn = "agent";
+    const { id, action } = prompt(v);
+    expect(id).toBe("finish-attacks");
+    expect(action?.fn).toBeUndefined();
+    expect(action?.hint).toMatch(/waiting/i);
+  });
+
   it("counts every declaration, because each tap pushes its own", () => {
     const { id, action } = prompt(
       view({
@@ -231,7 +247,7 @@ describe("what used to break it", () => {
 
   it("still shows the declare prompt with attackers declared after an earlier combat", () => {
     // the case actually hit in play: two declarations live, damage earlier in
-    // the turn, and the prompt had fallen through to "Begin main phase 2"
+    // the turn, and the prompt had fallen through to "combat → main phase 2"
     const v = view({
       mine: [creature("bear"), creature("wolf")],
       stack: [declaration("d1", "bear"), declaration("d2", "wolf")],

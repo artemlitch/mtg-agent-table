@@ -50,8 +50,20 @@ const REACTIVE = new Set([
  *
  *  Acting during the agent's turn always hands the table back, whatever the
  *  action was, because it is the agent's to continue. */
-export function wakePlanFor(action: string, agentsTurn: boolean): { reason: WakeReason | null; delay: number } {
+export function wakePlanFor(
+  action: string,
+  agentsTurn: boolean,
+  /** who held priority BEFORE this action — game.waitingOn as it was */
+  heldPriority?: string
+): { reason: WakeReason | null; delay: number } {
   const delay = wakeDelayFor(action);
+  // Passing when you have already passed changes nothing, so it must wake
+  // nothing. The prompt does not change until the agent answers, which makes a
+  // second press look reasonable, and a wake while the agent is mid-thought
+  // preempts it and starts it over. Four presses in a row meant four
+  // interrupted windows and no progress at all — the fix has to be here rather
+  // than in the button, because the button is only one way to send a pass.
+  if (action === "done" && heldPriority === "agent") return { reason: null, delay };
   if (action === "done" || action === "chat" || agentsTurn) return { reason: "window", delay };
   return { reason: REACTIVE.has(action) ? "react" : null, delay };
 }

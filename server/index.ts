@@ -264,6 +264,9 @@ const server = Bun.serve({
         // three.
         const undoable = !NOT_UNDOABLE.has(body.type);
         if (undoable) recordSnapshot();
+        // who held priority BEFORE this — done overwrites it, and the wake
+        // policy needs to know whether a pass actually handed anything over
+        const heldPriority = game.waitingOn;
         let result;
         try {
           result = applyAction(actor, body.type, body.params);
@@ -278,7 +281,7 @@ const server = Bun.serve({
         // Scheduled BEFORE the broadcast so the update carries the new deadline
         // for the client's countdown.
         if (actor === "you" && game.started && !cosmetic) {
-          const { reason, delay } = wakePlanFor(body.type, game.turn === "agent");
+          const { reason, delay } = wakePlanFor(body.type, game.turn === "agent", heldPriority ?? undefined);
           if (reason) wakes.schedule(reason, delay);
           else wakes.defer(delay);
         }
