@@ -4,6 +4,7 @@ import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
+import { withMana } from "../../components/Mana";
 import { useGame } from "../../store/game";
 import { nextActionContext, passTurnToAgent, NEXT_ACTION_STEPS } from "./steps";
 
@@ -41,7 +42,9 @@ export function NextAction() {
                 {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} />}
                 <PhaseLabel text={a.label ?? ""} />
               </span>
-              {a.sub && a.sub !== a.label && <span className="na-sub">{String(a.sub).split("\n")[0]}</span>}
+              {/* the sub-line is the stack item's own words, so it carries
+                  mana the same way the Stack tab and the chat do */}
+              {a.sub && a.sub !== a.label && <span className="na-sub">{withMana(String(a.sub).split("\n")[0])}</span>}
               <KeyCaps keys={["space"]} />
             </span>
           </button>

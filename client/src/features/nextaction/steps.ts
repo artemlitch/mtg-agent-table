@@ -207,7 +207,12 @@ export const NEXT_ACTION_STEPS: Step[] = [
     id: "waiting-on-agent-turn",
     when: (c) => !c.mine,
     step: (c) =>
-      c.view.waitingOn === "you" && !c.view.wakeAt
+      // Nothing else coming: no countdown armed AND not already mid-window.
+      // wakeAt goes back to null the moment the countdown FIRES, and waitingOn
+      // stays "you" until the agent passes, so checking the countdown alone
+      // brought the button back while the agent was actively thinking — where
+      // pressing it preempts and restarts the very window you are waiting for.
+      c.view.waitingOn === "you" && !c.view.wakeAt && !c.agentBusy
         ? { label: "Pass — nothing to add", icon: "skip", fn: () => void act("done", {}) }
         : { hint: waitingHint(c, "the agent's turn") },
   },

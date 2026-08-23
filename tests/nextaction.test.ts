@@ -154,6 +154,19 @@ describe("priority handed back during the agent's turn", () => {
     expect(action?.hint).toMatch(/waiting/i);
   });
 
+  it("says nothing while the agent is mid-window either", () => {
+    // wakeAt goes back to null the moment the countdown fires, and waitingOn
+    // stays "you" until the agent passes — so the countdown alone let the
+    // button reappear while the agent was thinking, where pressing it
+    // preempts the very window being waited on
+    const v = theirTurn("you");
+    useGame.setState({ agentBusy: true });
+    const { action } = prompt(v);
+    useGame.setState({ agentBusy: false });
+    expect(action?.fn).toBeUndefined();
+    expect(action?.hint).toMatch(/thinking/i);
+  });
+
   it("still just says it is waiting while the agent actually has priority", () => {
     const { action } = prompt(theirTurn("agent"));
     expect(action?.hint).toMatch(/waiting/i);
