@@ -12,11 +12,12 @@
 #cardpreview .pv-faces img { width: 50%; }
 #cardpreview .pv-faces .pv-active { outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 14px rgba(226, 179, 85, 0.45); }
 
-/* The app's ONE tooltip: fixed to the viewport and above every other layer,
-   so nothing that scrolls can clip it and nothing painted later can cover it.
-   Never a sibling of the thing it describes — see components/Tooltip.tsx. */
+/* The app's ONE tooltip: fixed to the viewport, so nothing that scrolls can
+   clip it. It sits just under the hover preview — a tooltip naming a card is
+   never worth covering the card it names. Never a sibling of the thing it
+   describes — see components/Tooltip.tsx. */
 #tooltip {
-  position: fixed; z-index: 200; pointer-events: none; max-width: 280px;
+  position: fixed; z-index: 69; pointer-events: none; max-width: 280px;
   display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
   padding: 5px 9px; border-radius: 7px;
   background: rgba(15, 10, 6, 0.95); border: 1px solid rgba(226, 179, 85, 0.35);
