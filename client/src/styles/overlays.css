@@ -114,11 +114,9 @@
   --na-card-gap: 14px;
   /* how far the card carries what sits beside it off the middle: half its own
      footprint. Zero unless it is actually there. */
-  --na-icon-gap: 5px; /* == .na-label's own gap, further down */
   /* What each thing in front of the words pushes them by, to be given back.
      Zero unless that thing is actually on screen. */
   --na-push-card: 0px;
-  --na-push-icon: 0px;
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: var(--na-card-gap); letter-spacing: 0.05em;
   padding: 7px 12px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
@@ -173,22 +171,16 @@
 }
 #na-primary .keycap { font-family: var(--font-ui); }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-/* Two things sit in front of the words and each carries them off the middle
-   by half its own width: the card at the head of the plate, the glyph at the
-   head of the title. The card's push is given back in full; the glyph's by
-   half — see below for why.
+/* The card takes real room at the head of the plate, which carries everything
+   beside it half its own width off the middle. The title and its keycap take
+   that half straight back — the SAME shift for both, so the cap stays under
+   the title. The glyph inside the title is left to push its words along as it
+   likes; the two travel together either way.
    Nothing moves in layout, so nothing can collide. The sub-line is left alone
    on purpose: it fills the column, and shifting it would run it into the
    card. */
 #na-primary:has(#na-card) { --na-push-card: calc((var(--na-card-w) + var(--na-card-gap)) / -2); }
-/* HALF of the glyph's push, not all of it: giving it all back puts the words
-   dead centre but throws the title's own block that far left, and the block is
-   what the eye reads as "the title". Half splits the difference — the words
-   come most of the way back and the block stays close to the middle. */
-#na-primary:has(.na-label > .ico:first-child) { --na-push-icon: calc((1em + var(--na-icon-gap)) / -4); }
-/* the title takes back the card in full and the glyph by half; the cap only
-   ever answers the card, so it stays on the plate's middle */
-#na-primary .na-label { transform: translateX(calc(var(--na-push-card) + var(--na-push-icon))); }
+#na-primary .na-label,
 #na-primary .na-key { transform: translateX(var(--na-push-card)); }
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
 /* the arrow between two phase names is punctuation, not a second action —
