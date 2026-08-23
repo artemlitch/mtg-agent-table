@@ -6,8 +6,9 @@ import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, historySize, clearHistory, getHistory, setHistory } from "./history";
-import { loadApiKey, saveApiKey, deleteApiKey, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
+import { loadKey, saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
+import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -105,9 +106,18 @@ const server = Bun.serve({
         delete view.lastDecks;
       }
       if (viewer === "you" && !url.searchParams.get("lean")) {
-        view.keyConfigured = !!loadApiKey();
+        view.keys = configuredKeys();
         view.agentModel = agent.model;
-        view.agentTransport = transportChoice();
+        // "ready" is the same question the wake asks: would this model have a
+        // brain if you picked it right now?
+        view.models = Object.entries(MODELS).map(([value, m]) => ({
+          value,
+          name: m.name,
+          note: m.note,
+          provider: m.provider,
+          ready: transportChoice(value) !== "none",
+        }));
+        view.agentTransport = transportChoice(agent.model);
         view.cliInstalled = !!resolveClaudeBin();
         view.canRedo = redoSize() > 0;
         view.undoDepth = historySize();
@@ -119,42 +129,52 @@ const server = Bun.serve({
       return json({ entries: agent.brain, busy: agent.busy, usage: agent.usage });
     }
 
-    // Anthropic API key: pasted in the UI, stored server-side (0600 file in
-    // the data dir). The key itself is never sent back to the client.
+    // One key endpoint for every provider in the catalog — Anthropic and
+    // DeepSeek differ by a query param. Keys are pasted in the UI, stored
+    // server-side (0600 file in the data dir), and never sent back.
+    const whichProvider = () => {
+      const p = url.searchParams.get("provider") ?? "anthropic";
+      return isProviderId(p) ? p : null;
+    };
     if (path === "/api/key" && req.method === "GET") {
-      return json({ configured: !!loadApiKey() });
+      return json({ keys: configuredKeys() });
     }
     if (path === "/api/key" && req.method === "POST") {
       let body: any = {};
       try {
         body = await req.json();
       } catch {}
+      const id: ProviderId | null = isProviderId(body.provider) ? body.provider : whichProvider();
+      if (!id) return json({ ok: false, error: "unknown provider" }, 400);
+      const provider = PROVIDERS[id];
       const key = String(body.key ?? "").trim();
-      if (!key.startsWith("sk-ant-") || key.length < 20) {
-        return json({ ok: false, error: "that doesn't look like an Anthropic API key (sk-ant-…)" }, 400);
+      if (!provider.looksLikeKey(key)) {
+        return json({ ok: false, error: `that doesn't look like a ${provider.name} API key (${provider.keyHint})` }, 400);
       }
+      // spend one cheap request to find out now, rather than have the agent
+      // sit down at the table and fail on its first window
       try {
-        const res = await fetch("https://api.anthropic.com/v1/models", {
-          headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
-        });
-        if (res.status === 401 || res.status === 403) return json({ ok: false, error: "Anthropic rejected that key" }, 400);
+        const res = await fetch(probeUrl(id), { headers: provider.probeHeaders(key) });
+        if (res.status === 401 || res.status === 403) return json({ ok: false, error: `${provider.name} rejected that key` }, 400);
         if (!res.ok) return json({ ok: false, error: `could not validate key (HTTP ${res.status})` }, 502);
       } catch {
-        return json({ ok: false, error: "could not reach Anthropic to validate the key" }, 502);
+        return json({ ok: false, error: `could not reach ${provider.name} to validate the key` }, 502);
       }
-      saveApiKey(key);
+      saveKey(id, key);
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true });
     }
     if (path === "/api/key" && req.method === "DELETE") {
-      deleteApiKey();
+      const id = whichProvider();
+      if (!id) return json({ ok: false, error: "unknown provider" }, 400);
+      deleteKey(id);
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true });
     }
 
-    // custom provider: any Anthropic-Messages-compatible endpoint (DeepSeek's
-    // /anthropic skin, OpenRouter, llama.cpp, LM Studio…). Configuring one
-    // outranks every other transport; the key never returns to the client.
+    // custom provider: a Messages-compatible endpoint the catalog does not
+    // know (OpenRouter, llama.cpp, LM Studio…). Configuring one outranks the
+    // model picker and every other transport; the key never returns.
     if (path === "/api/provider" && req.method === "GET") {
       const p = loadProvider();
       return json(p ? { configured: true, baseUrl: p.baseUrl, model: p.model } : { configured: false });

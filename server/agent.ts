@@ -9,6 +9,10 @@
 //    tracking. Used whenever a key is configured — pasting a key is an
 //    explicit choice that outranks the CLI.
 //
+// Every brain in the catalog (models.ts) rides that one API loop: Claude and
+// DeepSeek differ by a row in a table — base url, key, wire model id — not by
+// a code path. Only Claude can also be reached over the CLI.
+//
 // Wake windows, preemption, the brain panel, and persistence are shared.
 // Preemption aborts the in-flight API request or interrupts the CLI child;
 // completed tool calls stay applied either way.
@@ -18,10 +22,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { game, renderLogFor, transcript, triggerLines } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
-import { loadApiKey, isCliVerified, loadProvider } from "./keystore";
+import { loadKey, isCliVerified, loadProvider } from "./keystore";
+import { DEFAULT_MODEL, PROVIDERS, modelSpec, type ProviderId } from "./models";
 
-const API_URL = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
-const MODELS: Record<string, string> = { opus: "claude-opus-5", sonnet: "claude-sonnet-5", haiku: "claude-haiku-4-5-20251001" };
 const MAX_LOOP = 60; // API tool-loop iterations per window — runaway backstop
 
 const PROJECT_DIR = new URL("..", import.meta.url).pathname;
@@ -45,20 +48,23 @@ export function resolveClaudeBin(): string | null {
 
 export type Transport = "api" | "cli" | "custom" | "none";
 
-/** Which transport a wake would use right now. A configured custom provider
- * wins, then a pasted Anthropic key; the CLI needs a one-time verified test
- * call (Chat tab) before it counts. */
-export function transportChoice(): Transport {
+/** Which transport a wake on this model would use right now. A configured
+ * custom provider wins, then the model's own key; the CLI needs a one-time
+ * verified test call (Chat tab) before it counts, and can only ever run
+ * Claude — a DeepSeek brain lives or dies by a DeepSeek key. */
+export function transportChoice(model = DEFAULT_MODEL): Transport {
   const forced = process.env.AGENT_TRANSPORT;
   if (forced === "api" || forced === "cli") return forced;
   if (loadProvider()) return "custom";
-  if (loadApiKey()) return "api";
+  const { provider } = modelSpec(model);
+  if (provider !== "anthropic") return loadKey(provider) ? "api" : "none";
+  if (loadKey("anthropic")) return "api";
   if (resolveClaudeBin() && isCliVerified()) return "cli";
   return "none";
 }
 
-/** Where a model-API wake goes: a custom provider verbatim, or Anthropic with
- * the game's model alias resolved. `anthropic` gates the fields only
+/** Where a model-API wake goes: a custom provider verbatim, or the catalog
+ * entry for the game's model. `anthropic` gates the fields only
  * api.anthropic.com understands (cache_control, the beta header). */
 interface Endpoint {
   baseUrl: string;
@@ -122,12 +128,13 @@ export class AgentRunner {
     const a = this.promptArgs;
     return a ? buildSystemPrompt(a.agentDeck, a.decklist, a.userDeck) : this.legacyPrompt;
   }
-  model = "opus";
+  model = DEFAULT_MODEL;
   // set by the server at boot — the agent's tools MUST talk to the instance
   // that spawned it (a hardcoded url once let a sandbox agent act on the
   // live table)
   tableUrl = "http://localhost:4780";
-  apiUrl = API_URL;
+  /** per-provider base-url overrides; the tests point these at local fakes */
+  baseUrls: Partial<Record<ProviderId, string>> = {};
   busy = false;
   pendingWake = false;
   pendingReason: "window" | null = null;
@@ -169,7 +176,7 @@ export class AgentRunner {
     this.sessionId = snap.sessionId ?? null;
     this.promptArgs = snap.promptArgs ?? null;
     this.legacyPrompt = snap.systemPrompt ?? "";
-    this.model = snap.model ?? "opus";
+    this.model = snap.model ?? DEFAULT_MODEL;
     this.lastSeenSeq = snap.lastSeenSeq ?? 0;
     this.brain = snap.brain ?? [];
     this.brainSeq = snap.brainSeq ?? (this.brain.at(-1)?.seq ?? 0);
@@ -314,22 +321,26 @@ export class AgentRunner {
       }
       return;
     }
-    const transport = transportChoice();
+    const transport = transportChoice(this.model);
     if (transport === "none") {
-      this.push("error", "The agent has no brain yet — set up Claude Code or paste an API key in the Chat tab.");
+      this.push("error", this.noBrainMessage());
+      return;
+    }
+    const custom = transport === "custom" ? loadProvider() : null;
+    const endpoint: Endpoint | null =
+      transport === "custom" && custom
+        ? { baseUrl: custom.baseUrl, apiKey: custom.apiKey, model: custom.model, anthropic: custom.baseUrl.startsWith("https://api.anthropic.com") }
+        : transport === "api"
+          ? this.endpoint()
+          : null;
+    if (transport === "api" && !endpoint) {
+      this.push("error", this.noBrainMessage());
       return;
     }
     this.busy = true;
     this.pendingWake = false;
     reason = this.pendingReason ?? reason;
     this.pendingReason = null;
-    const provider = transport === "custom" ? loadProvider() : null;
-    const endpoint: Endpoint | null =
-      transport === "custom" && provider
-        ? { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model, anthropic: provider.baseUrl.startsWith("https://api.anthropic.com") }
-        : transport === "api"
-          ? { baseUrl: this.apiUrl, apiKey: loadApiKey()!, model: MODELS[this.model] ?? this.model, anthropic: true }
-          : null;
     if (endpoint) {
       // thinking-block signatures are model-specific: a mid-game model switch
       // must strip them from the replayed history or the API rejects it
@@ -362,6 +373,29 @@ export class AgentRunner {
   }
 
   // ───────────────────────── api transport ─────────────────────────
+
+  /** The catalog entry for the game's model, resolved to a call. Null when
+   *  that provider has no key — the caller says so rather than posting to a
+   *  stranger with someone else's credentials. */
+  private endpoint(): Endpoint | null {
+    const spec = modelSpec(this.model);
+    const key = loadKey(spec.provider);
+    if (!key) return null;
+    const provider = PROVIDERS[spec.provider];
+    return {
+      baseUrl: this.baseUrls[spec.provider] ?? provider.baseUrl(),
+      apiKey: key,
+      model: spec.wire,
+      anthropic: provider.anthropic,
+    };
+  }
+
+  private noBrainMessage(): string {
+    const { provider } = modelSpec(this.model);
+    return provider === "anthropic"
+      ? "The agent has no brain yet — set up Claude Code or paste an API key in the Chat tab."
+      : `The agent has no brain yet — paste a ${PROVIDERS[provider].name} API key in the Chat tab.`;
+  }
 
   /** The tool loop: call the model, apply its tool calls, repeat to end_turn. */
   private async runApiTurn(endpoint: Endpoint) {

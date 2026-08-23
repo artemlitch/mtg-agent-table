@@ -5,28 +5,39 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR } from "./datadir";
+import { PROVIDER_IDS, type ProviderId } from "./models";
 
-// ── Anthropic API key (pasted in the UI; ANTHROPIC_API_KEY env is a dev fallback)
+// ── One API key per provider (pasted in the UI; the env vars are a dev
+// fallback, and the *_KEY_FILE vars let the tests redirect the store)
 
-const keyFile = () => process.env.ANTHROPIC_KEY_FILE ?? join(DATA_DIR, "anthropic-key");
+const KEY_FILES: Record<ProviderId, { file: string; fileEnv: string; keyEnv: string }> = {
+  anthropic: { file: "anthropic-key", fileEnv: "ANTHROPIC_KEY_FILE", keyEnv: "ANTHROPIC_API_KEY" },
+  deepseek: { file: "deepseek-key", fileEnv: "DEEPSEEK_KEY_FILE", keyEnv: "DEEPSEEK_API_KEY" },
+};
 
-export function loadApiKey(): string | null {
+const keyFile = (p: ProviderId) => process.env[KEY_FILES[p].fileEnv] ?? join(DATA_DIR, KEY_FILES[p].file);
+
+export function loadKey(p: ProviderId): string | null {
   try {
-    const k = readFileSync(keyFile(), "utf8").trim();
+    const k = readFileSync(keyFile(p), "utf8").trim();
     if (k) return k;
   } catch {}
-  return process.env.ANTHROPIC_API_KEY || null;
+  return process.env[KEY_FILES[p].keyEnv] || null;
 }
 
-export function saveApiKey(key: string) {
-  writeFileSync(keyFile(), key.trim(), { mode: 0o600 });
+export function saveKey(p: ProviderId, key: string) {
+  writeFileSync(keyFile(p), key.trim(), { mode: 0o600 });
 }
 
-export function deleteApiKey() {
+export function deleteKey(p: ProviderId) {
   try {
-    unlinkSync(keyFile());
+    unlinkSync(keyFile(p));
   } catch {}
 }
+
+/** Which providers have a key, for the UI — the keys themselves never leave. */
+export const configuredKeys = (): Record<ProviderId, boolean> =>
+  Object.fromEntries(PROVIDER_IDS.map((p) => [p, !!loadKey(p)])) as Record<ProviderId, boolean>;
 
 // ── Claude Code CLI: a marker set by the one-time successful test call in the
 // setup screen — an installed-but-unauthed CLI must not count as a transport
@@ -52,10 +63,11 @@ export function clearCliVerified() {
   } catch {}
 }
 
-// ── Custom provider: any Anthropic-Messages-compatible endpoint (DeepSeek's
-// /anthropic skin, OpenRouter, llama.cpp, LM Studio, Ollama…). Configuring
-// one is an explicit choice that outranks every other transport; deleting it
-// reverts to the Anthropic key / Claude Code order.
+// ── Custom provider: the escape hatch for a Messages-compatible endpoint the
+// catalog in models.ts has never heard of (OpenRouter, llama.cpp, LM Studio,
+// Ollama…). Configuring one is an explicit choice that outranks the model
+// picker and every other transport; deleting it puts the picker back in
+// charge. Anything worth choosing twice belongs in MODELS instead.
 
 export interface Provider {
   baseUrl: string;

@@ -55,16 +55,17 @@ export async function testClaudeCli(): Promise<ActionResult> {
   return (await res.json()) as ActionResult;
 }
 
-export async function saveKey(key: string): Promise<ActionResult> {
+export async function saveKey(key: string, provider = "anthropic"): Promise<ActionResult> {
   const res = await fetch("/api/key", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key }),
+    body: JSON.stringify({ key, provider }),
   });
   return (await res.json()) as ActionResult;
 }
 
-export const deleteKey = () => fetch("/api/key", { method: "DELETE" });
+export const deleteKey = (provider = "anthropic") =>
+  fetch(`/api/key?provider=${encodeURIComponent(provider)}`, { method: "DELETE" });
 
 /** The push channel. `update` means refetch the view; `brain` streams the
  *  agent's thoughts as they happen. Reconnects forever. */

@@ -217,11 +217,15 @@ function openBrainAt(seq: number, setTab: (t: TabName) => void) {
 function BrainHeader() {
   const view = useGame((s) => s.view);
   const transport = view?.agentTransport ?? "none";
+  // the key on the button is the one the agent is actually thinking with
+  const current = view?.models?.find((m) => m.value === view?.agentModel);
+  const provider = current?.provider ?? "anthropic";
+  const hasKey = !!view?.keys?.[provider];
   const label =
     transport === "cli"
       ? "Opponent: Claude Code (subscription)"
       : transport === "api"
-        ? "Opponent: API key"
+        ? `Opponent: ${current?.name ?? view?.agentModel ?? "API key"}`
         : transport === "custom"
           ? "Opponent: custom provider"
           : "Opponent: not set up";
@@ -230,12 +234,12 @@ function BrainHeader() {
       <span className="bh-label">{label}</span>
       <button
         id="btn-delkey"
-        disabled={!view?.keyConfigured}
+        disabled={!hasKey}
         onClick={() => {
-          if (confirm("Delete the stored API key? The agent stops until a new one is pasted.")) void deleteKey();
+          if (confirm("Delete the stored API key? The agent stops until a new one is pasted.")) void deleteKey(provider);
         }}
       >
-        {view?.keyConfigured ? "Delete key" : "No key set"}
+        {hasKey ? "Delete key" : "No key set"}
       </button>
     </div>
   );
@@ -303,11 +307,8 @@ function Composer() {
 
 function KeySetup() {
   const view = useGame((s) => s.view);
-  const [key, setKey] = useState("");
-  const [keyErr, setKeyErr] = useState("");
   const [cliErr, setCliErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const testCli = async () => {
     setCliErr("");
@@ -323,20 +324,6 @@ function KeySetup() {
       if (!data.ok) setCliErr(data.error ?? "");
     } finally {
       setBusy(false);
-    }
-  };
-
-  const save = async () => {
-    const k = key.trim();
-    if (!k) return;
-    setSaving(true);
-    setKeyErr("");
-    try {
-      const data = await saveKey(k);
-      if (!data.ok) setKeyErr(data.error ?? "");
-      else setKey("");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -363,25 +350,57 @@ function KeySetup() {
         </button>
         <div id="cli-error">{cliErr}</div>
         <div className="keydivider">— or —</div>
-        <div className="keysub">Paste an Anthropic API key</div>
-        <input
-          type="password"
-          placeholder="sk-ant-…"
-          autoComplete="off"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void save()}
-        />
-        <button disabled={saving} onClick={() => void save()}>
-          {saving ? "Checking…" : "Save"}
-        </button>
-        <div id="key-error">{keyErr}</div>
+        <PasteKey provider="anthropic" name="Anthropic" hint="sk-ant-…" />
+        <div className="keydivider">— or —</div>
+        <PasteKey provider="deepseek" name="DeepSeek" hint="sk-…" />
         <div className="keyhint">
-          An API key bills your Anthropic Console account per token.
+          An API key bills that account per token; a DeepSeek game costs cents.
           <br />
-          Either choice stays on this machine only.
+          Pick the brain in New game. Every key stays on this machine.
         </div>
       </div>
     </div>
+  );
+}
+
+/** One provider's key box. The server validates the key against that
+ *  provider before it stores it, so a typo is caught here rather than on the
+ *  agent's first window. */
+function PasteKey({ provider, name, hint }: { provider: string; name: string; hint: string }) {
+  const stored = useGame((s) => !!s.view?.keys?.[provider]);
+  const [key, setKey] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const k = key.trim();
+    if (!k) return;
+    setSaving(true);
+    setErr("");
+    try {
+      const data = await saveKey(k, provider);
+      if (!data.ok) setErr(data.error ?? "");
+      else setKey("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="keysub">{name} API key{stored ? " — saved" : ""}</div>
+      <input
+        type="password"
+        placeholder={hint}
+        autoComplete="off"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && void save()}
+      />
+      <button disabled={saving} onClick={() => void save()}>
+        {saving ? "Checking…" : stored ? "Replace" : "Save"}
+      </button>
+      <div className="keyerror">{err}</div>
+    </>
   );
 }

@@ -99,8 +99,13 @@ export interface GameView {
   seq: number;
   tokenCatalog?: Record<string, Card>;
   lastDecks?: { you: number; agent: number } | null;
-  keyConfigured?: boolean;
+  /** which providers have a key stored — the keys themselves never leave the
+   *  server, only this yes/no */
+  keys?: Record<string, boolean>;
   agentModel?: string;
+  /** the brains on offer, straight from the server's catalog: `ready` means
+   *  picking it would actually give the agent something to think with */
+  models?: { value: string; name: string; note: string; provider: string; ready: boolean }[];
   agentTransport?: "none" | "cli" | "api" | "custom";
   cliInstalled?: boolean;
   canRedo?: boolean;

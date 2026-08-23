@@ -1,9 +1,20 @@
 // The Messages-API transport: tool loop, cache breakpoints, auth headers,
 // preemption bookkeeping — against a scripted fake Anthropic endpoint and a
 // stub table server, no network.
-import { describe, test, expect, beforeAll, afterAll } from "vitest";
+import { describe, test, expect, afterAll } from "vitest";
 
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
+// hermetic: the keystore reads the machine's real data dir otherwise, and a
+// developer who has configured a DeepSeek key or a custom provider would see
+// this suite pass or fail on their own credentials
+process.env.ANTHROPIC_KEY_FILE = "/tmp/mtg-agent-test-absent-anthropic-key";
+process.env.DEEPSEEK_KEY_FILE = "/tmp/mtg-agent-test-absent-deepseek-key";
+process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-absent-provider.json";
+const KEY_FILES = {
+  anthropic: process.env.ANTHROPIC_KEY_FILE,
+  deepseek: process.env.DEEPSEEK_KEY_FILE,
+  provider: process.env.PROVIDER_FILE,
+};
 
 // scripted model responses, consumed in order; every request is captured
 const modelRequests: any[] = [];
@@ -37,7 +48,7 @@ const fakeTable = Bun.serve({
   },
 });
 
-const { AgentRunner } = await import("../server/agent");
+const { AgentRunner, transportChoice } = await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
 afterAll(() => {
@@ -54,7 +65,7 @@ describe("agent transport", () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
-    a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
@@ -108,7 +119,6 @@ describe("agent transport", () => {
   test("no API key and no CLI: wake refuses with a brain error, never calls the model", async () => {
     const saved = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_KEY_FILE = "/tmp/mtg-agent-nonexistent-key";
     process.env.CLAUDE_BIN = "/tmp/mtg-agent-nonexistent-claude";
     try {
       const a = new AgentRunner();
@@ -120,7 +130,6 @@ describe("agent transport", () => {
       expect(modelRequests.length).toBe(0);
     } finally {
       process.env.ANTHROPIC_API_KEY = saved;
-      delete process.env.ANTHROPIC_KEY_FILE;
       delete process.env.CLAUDE_BIN;
     }
   });
@@ -148,7 +157,7 @@ describe("agent transport", () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
-    a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
@@ -179,7 +188,7 @@ describe("agent transport", () => {
     resetGameState();
     const a = new AgentRunner();
     a.tableUrl = `http://localhost:${fakeTable.port}`;
-    a.apiUrl = `http://localhost:${fakeAnthropic.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     modelScript = [
       {
@@ -203,30 +212,28 @@ describe("agent transport", () => {
   });
 
   test("custom provider: wins priority, uses the provider model, sends no anthropic-only fields", async () => {
-    process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-provider.json";
     const { saveProvider, deleteProvider } = await import("../server/keystore");
-    const { transportChoice } = await import("../server/agent");
     try {
-      saveProvider({ baseUrl: `http://localhost:${fakeAnthropic.port}`, apiKey: "sk-deepseek-test", model: "deepseek-v4-flash" });
+      saveProvider({ baseUrl: `http://localhost:${fakeAnthropic.port}`, apiKey: "sk-local-test", model: "some-local-model" });
       // ANTHROPIC_API_KEY is set for this whole file — the provider must outrank it
       expect(transportChoice()).toBe("custom");
       resetGameState();
       const a = new AgentRunner();
       a.tableUrl = `http://localhost:${fakeTable.port}`;
       a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from deepseek" }] }];
+      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from a local model" }] }];
       modelRequests.length = 0;
       await a.wake("window");
       const req = modelRequests[0];
-      expect(req.body.model).toBe("deepseek-v4-flash");
-      expect(req.headers["x-api-key"]).toBe("sk-deepseek-test");
+      expect(req.body.model).toBe("some-local-model");
+      expect(req.headers["x-api-key"]).toBe("sk-local-test");
       expect(req.headers["anthropic-beta"]).toBeUndefined();
       expect(JSON.stringify(req.body)).not.toContain("cache_control");
-      expect(a.brain.some((e) => e.kind === "text" && e.text.includes("hello from deepseek"))).toBe(true);
-      expect(a.historyModel).toBe("deepseek-v4-flash");
+      expect(a.brain.some((e) => e.kind === "text" && e.text.includes("hello from a local model"))).toBe(true);
+      expect(a.historyModel).toBe("some-local-model");
     } finally {
       deleteProvider();
-      delete process.env.PROVIDER_FILE;
+      process.env.PROVIDER_FILE = KEY_FILES.provider;
     }
   });
 
@@ -238,7 +245,7 @@ describe("agent transport", () => {
     try {
       const a = new AgentRunner();
       a.tableUrl = `http://localhost:${fakeTable.port}`;
-      a.apiUrl = `http://localhost:${bad.port}`;
+      a.baseUrls = { anthropic: `http://localhost:${bad.port}` };
       a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
       await a.wake("window");
       expect(a.busy).toBe(false);
@@ -246,5 +253,70 @@ describe("agent transport", () => {
     } finally {
       bad.stop(true);
     }
+  });
+});
+
+// The whole point of the catalog: a brain is a row in it, and the tool loop
+// above does not know or care which company answers the POST.
+describe("model catalog", () => {
+  const sitDown = (model: string) => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    a.model = model;
+    modelRequests.length = 0;
+    tableActions.length = 0;
+    return a;
+  };
+
+  test("DeepSeek plays through the same tool loop, on its own endpoint and key", async () => {
+    process.env.DEEPSEEK_API_KEY = "sk-deepseek-test";
+    try {
+      expect(transportChoice("deepseek")).toBe("api");
+      const a = sitDown("deepseek");
+      a.baseUrls = { deepseek: `http://localhost:${fakeAnthropic.port}` };
+      modelScript = [
+        { stop_reason: "tool_use", usage: usage(), content: [{ type: "tool_use", id: "tu_1", name: "say", input: { text: "greetings" } }] },
+        { stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "your move" }] },
+      ];
+      await a.wake("window");
+
+      const req = modelRequests[0];
+      expect(req.body.model).toBe("deepseek-v4-flash");
+      expect(req.headers["x-api-key"]).toBe("sk-deepseek-test");
+      // cache_control and the beta header are Anthropic's alone
+      expect(req.headers["anthropic-beta"]).toBeUndefined();
+      expect(JSON.stringify(req.body)).not.toContain("cache_control");
+      // and it is the same loop: tools offered, tool calls applied to the table
+      expect(req.body.tools.map((t: any) => t.name)).toContain("say");
+      expect(tableActions).toEqual([{ actor: "agent", type: "chat", params: { text: "greetings" } }]);
+      expect(a.historyModel).toBe("deepseek-v4-flash");
+      expect(a.busy).toBe(false);
+    } finally {
+      delete process.env.DEEPSEEK_API_KEY;
+    }
+  });
+
+  test("a DeepSeek brain with no DeepSeek key stays dark — the Anthropic key is not its key", async () => {
+    // ANTHROPIC_API_KEY is set for this whole file, and this machine may well
+    // have a verified Claude Code login: neither one is a DeepSeek brain
+    expect(transportChoice("deepseek")).toBe("none");
+    expect(transportChoice("opus")).toBe("api");
+
+    const a = sitDown("deepseek");
+    await a.wake("window");
+    expect(modelRequests.length).toBe(0);
+    expect(a.busy).toBe(false);
+    expect(a.brain.some((e) => e.kind === "error" && e.text.includes("DeepSeek"))).toBe(true);
+  });
+
+  test("an id the catalog does not know is passed to Anthropic verbatim", async () => {
+    const a = sitDown("claude-opus-4-5-20251101");
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+    modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
+    await a.wake("window");
+    expect(modelRequests[0].body.model).toBe("claude-opus-4-5-20251101");
+    expect(modelRequests[0].headers["x-api-key"]).toBe("sk-ant-test-key");
   });
 });

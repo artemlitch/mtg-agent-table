@@ -3,6 +3,7 @@ import { act, newGame, redoLastAction, undoLastAction } from "../../api";
 import { Dropdown } from "../../components/Dropdown";
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
+import type { GameView } from "../../types";
 
 // The turn as a route: dots on a line, one lit. The phase itself is free text,
 // so each stop owns a pattern rather than an exact string — "declare blockers"
@@ -15,11 +16,16 @@ const PHASES = [
   { key: "end", label: "End", re: /end/i },
 ];
 
-export const MODELS = [
-  { value: "opus", label: "Opus — strongest" },
-  { value: "sonnet", label: "Sonnet — strong" },
-  { value: "haiku", label: "Haiku — casual" },
-];
+// The brains come from the server's catalog — it owns which ones exist and
+// which ones have a key. This is only the fallback for a view that has not
+// arrived yet, so the picker is never empty.
+const FALLBACK_MODEL = { value: "opus", name: "Opus", note: "strongest", provider: "anthropic", ready: true };
+
+const modelOptions = (view: GameView | null) =>
+  (view?.models?.length ? view.models : [FALLBACK_MODEL]).map((m) => ({
+    value: m.value,
+    label: `${m.name} — ${m.ready ? m.note : "needs a key"}`,
+  }));
 
 export function TopBar() {
   const view = useGame((s) => s.view);
@@ -106,7 +112,8 @@ function NewGameOverlay({ onClose }: { onClose: () => void }) {
   const deckUrl = (id?: number) => (id ? `https://archidekt.com/decks/${id}` : "");
   const [you, setYou] = useState(deckUrl(view?.lastDecks?.you));
   const [agent, setAgent] = useState(deckUrl(view?.lastDecks?.agent));
-  const [model, setModel] = useState(MODELS.some((m) => m.value === view?.agentModel) ? view!.agentModel! : "opus");
+  const models = modelOptions(view);
+  const [model, setModel] = useState(models.some((m) => m.value === view?.agentModel) ? view!.agentModel! : "opus");
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
@@ -140,7 +147,7 @@ function NewGameOverlay({ onClose }: { onClose: () => void }) {
       {row("deck-you", "Your deck", you, setYou, view?.lastDecks?.you)}
       <div className="ngrow">
         <label>Opponent</label>
-        <Dropdown options={MODELS} value={model} onPick={setModel} />
+        <Dropdown options={models} value={model} onPick={setModel} />
       </div>
       <div className="ngbtns">
         <button id="btn-loaddecks" disabled={loading} onClick={() => void load()}>

@@ -102,7 +102,7 @@
 .keydivider { color: var(--dim); font-size: var(--fs-note); letter-spacing: 0.2em; margin: 4px 0; }
 #cli-error { color: var(--red); font-size: var(--fs-body); min-height: 15px; max-width: 100%; overflow-wrap: break-word; }
 .keybox input { width: 100%; padding: 10px; font-size: var(--fs-body); text-align: center; }
-#key-error { color: var(--red); font-size: var(--fs-body); min-height: 15px; }
+.keyerror { color: var(--red); font-size: var(--fs-body); min-height: 15px; }
 .keyhint { color: var(--dim); font-size: var(--fs-note); line-height: 1.5; }
 
 /* ── the stack ── */
