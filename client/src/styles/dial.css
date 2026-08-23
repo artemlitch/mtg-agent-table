@@ -50,6 +50,16 @@
   filter: blur(2px);
   opacity: 0; transition: opacity var(--glow-dur) var(--glow-ease); pointer-events: none;
 }
+/* Arriving fades; leaving is instant.
+   Both halves light to full opacity, and only the shading's POSITION tells
+   them apart — so crossing the coin on your way out snapped the glow to the
+   far half and then spent a quarter second fading it, which reads as the +
+   flickering after the pointer has already gone. Cutting it at the moment the
+   pointer leaves means a few milliseconds spent brushing the far half never
+   gets far enough up the fade-in to be seen, and nothing is left glowing
+   behind the cursor. Switching BETWEEN halves keeps the crossfade. */
+.dial:not(.step-up):not(.step-down)::before,
+.dial:not(.step-up):not(.step-down) .dial-step { transition-duration: 0s; }
 .dial.step-up::before { opacity: 1; }
 .dial.step-down::before {
   top: auto; bottom: -8px; opacity: 1;

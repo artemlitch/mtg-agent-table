@@ -201,7 +201,16 @@ body.dragging .cmdzone .card { pointer-events: none; }
    could never climb out of. The line already paints under the cards without
    one — it is positioned, so it sits with the rest of the z-auto furniture
    in DOM order, and #cardlayer at 46 covers it either way. */
-.rail { position: relative; z-index: 10; }
+/* The rail is the table's edge, not a thing lying on the table, so a card at
+   rest near the board's margin goes UNDER it rather than spilling over the
+   life total and the piles. 47 clears #cardlayer's resting 46 and stays below
+   the 49 it takes while a card is in the air.
+   While dragging it gives up being a stacking context altogether, rather than
+   just dropping below the layer: a commander lifted out of the command zone is
+   still a child of the rail, and .draglift's z-index 80 can only outrank the
+   board if it is not trapped inside a context of the rail's own making. */
+.rail { position: relative; z-index: 47; }
+body.dragging .rail { z-index: auto; }
 .handrow.fan { position: relative; z-index: 48; }
 /* ...except while a card is in the air. #cardlayer is a stacking context, so
    the carried card cannot climb out of it on its own z-index — the layer has

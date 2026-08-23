@@ -72,10 +72,13 @@ body.narrow #modal-box { margin-left: var(--rail-w); }
    spent: the piles lose their names and their fans, the deck and the commander
    shrink, and life folds into a coin. */
 body.narrow { --rail-w: 68px; }
-/* 8px between every thing in the strip. The pieces lost their plates and their
-   labels on the way down to 64px, so the space between them is the only thing
-   left saying where one ends and the next begins. */
-body.narrow .rail { padding: 2px; gap: 8px; }
+/* The pieces lost their plates and their labels on the way down to 64px, so
+   the space between them is the only thing left saying where one ends and the
+   next begins — and it is spread rather than fixed, so the strip fills the
+   height it is given instead of piling up at one end. Both life boxes still
+   land on the midline: your rail runs top-down and the agent's is reversed, so
+   the first child of each is the end nearest the line. */
+body.narrow .rail { padding: 2px; gap: 0; justify-content: space-between; }
 
 /* Life as a struck coin — the ± are its own halves, so it costs the width of
    the number instead of the number plus two buttons. Bigger than the library
@@ -97,7 +100,25 @@ body.narrow .lifebox.mini .lifedelta { top: -2px; right: 0; font-size: var(--fs-
 /* the word is the only thing on the deck that does not survive 58px */
 body.narrow .deckstack .drawbtn span { display: none; }
 body.narrow .deckstack .drawbtn { left: 12px; right: 12px; }
-body.narrow .deckcount { font-size: var(--fs-label); }
+
+/* The deck's count sits 3px left of the graveyard's and exile's, because the
+   pile keeps all its horizontal padding on one side to make room for the
+   slabs that give the stack its thickness. Split evenly, the card back centres
+   in the tile like everything else does, and the slabs come in to suit — at
+   +3/+6 they would now hang past the rail, which clips. */
+body.narrow .deckpile { padding: 0 3px 6px; }
+body.narrow .deckstack::before { transform: translate(2px, 2px); }
+body.narrow .deckstack::after { transform: translate(4px, 4px); }
+
+/* One number, whichever pile it is counting. The deck's was a size larger, in
+   gold, and bold; three counts down one strip have no business being three
+   different labels. */
+body.narrow .pile .pcount,
+body.narrow .deckcount {
+  font: var(--fw-ui) var(--fs-title)/1 var(--font-fantasy);
+  color: var(--text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 9px rgba(0, 0, 0, 0.85);
+}
 
 /* A pile becomes one tile: the zone drawn full-size and washed back until it
    is texture, with the count sitting on top of it. The glyph is the label —
@@ -125,11 +146,10 @@ body.narrow .pile .picon {
    centring is done with margins rather than a translate that would cancel one */
 body.narrow .pile .picon { margin: calc(var(--pile-tile) / -2) 0 0 calc(var(--pile-tile) / -2); }
 body.narrow .pile:hover .picon { opacity: 0.5; }
+/* where it sits; how it is set is shared with the deck's count above, so the
+   two cannot drift apart */
 body.narrow .pile .pcount {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-title);
-  /* read against the glyph behind it, whatever part of it lands under a digit */
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 9px rgba(0, 0, 0, 0.85);
 }
 /* the lit lip was an ellipse sized for a box with a fan of cards in it */
 body.narrow .pile::after { bottom: -152%; }

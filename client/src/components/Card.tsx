@@ -150,7 +150,9 @@ function CardFace({ c }: { c: Card }) {
         <Icon name="pile" /> <Text>{tucked && !tucked.hidden ? (tucked.name || "?").split(",")[0] : "?"}</Text>
       </span>
     );
-  if (c.isCommander)
+  // the badge answers "which of these is the commander"; in the command zone
+  // there is nothing to pick it out from, and the socket has already said it
+  if (c.isCommander && c.zone !== "command")
     badges.push(
       <span className="badge" key="cmdr">
         CMDR
