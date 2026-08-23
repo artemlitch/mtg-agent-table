@@ -23,17 +23,30 @@
 .phasebtns { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .phasebtns button { padding: 3px 8px; font-size: var(--fs-note); }
 /* undo / redo are a pair of glyphs; a spent redo greys out rather than moving */
-#btn-undo, #btn-redo, #btn-panel { display: flex; align-items: center; justify-content: center; width: 28px; padding: 3px 0; }
+#btn-undo, #btn-redo, #btn-panel { display: flex; align-items: center; justify-content: center; width: var(--panel-btn-w); padding: 3px 0; }
 #btn-redo:disabled { opacity: 0.3; cursor: default; }
 
-/* Bring the chat back. It exists only while the chat is away — the dismiss
-   half lives inside the chat itself, since this end of the bar is the first
-   thing the drawer covers on a narrow window. */
-/* Its own size, rather than the one .phasebtns hands its children: this button
-   is mounted here OR on the chat's tab row, and a size that comes from the
-   neighbourhood is a size that changes when it moves. An id beats both the
-   .phasebtns rule and the tab row's, so it is the same glyph in both places. */
-#btn-panel { position: relative; font-size: var(--fs-note); }
+/* Shows and hides the chat, and cannot be lost.
+ *
+ * Everything else in the bar is in the flow, so it shrinks, then overflows,
+ * then gets clipped by the bar's overflow: hidden — which takes the rightmost
+ * things first, and this used to be the rightmost thing. At a couple of
+ * hundred pixels the only control that could bring the chat back was the one
+ * the window had eaten.
+ *
+ * So it is out of the flow: pinned to the bar's right edge, inside its own
+ * padding box, holding its place while the row behind it truncates and clips
+ * away to nothing. --drawer-inset keeps it clear of the chat while the chat is
+ * out; the bar keeps its width of room free so nothing in the row runs under
+ * it. It is the last thing on screen, not the first thing to go.
+ *
+ * Its own font-size, not the one .phasebtns hands its children, since it is
+ * not one of them any more. */
+#btn-panel {
+  position: absolute; right: calc(10px + var(--drawer-inset, 0px)); top: 50%; transform: translateY(-50%);
+  font-size: var(--fs-note); z-index: 2;
+  transition: right var(--size-dur) var(--glow-ease), var(--hover-transition);
+}
 /* Unseen traffic behind a shut drawer: the button becomes the notification.
    The glow and the gold are static and the DOT does the pulsing, on a scale
    transform — a pulsing box-shadow repaints the button sixty times a second

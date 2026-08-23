@@ -11,7 +11,6 @@ import { useUI, type TabName } from "../../store/ui";
 import type { LogEntry } from "../../types";
 import { StackItemEl } from "../stack/StackItem";
 import { usePeek } from "./peek";
-import { SideToggle } from "./SideToggle";
 
 const TABS: { name: TabName; label: string }[] = [
   { name: "stack", label: "Stack" },
@@ -109,12 +108,6 @@ export function SidePanel() {
             {t.name === "stack" && n > 0 && <span className="tabbadge">{n}</span>}
           </button>
         ))}
-        {/* The same button the topbar shows when the chat is away — mounted
-            here instead while it is out, so it can never end up underneath the
-            panel it dismisses. Exactly one of the two is ever mounted, which
-            is what lets them share an id. Out of the row's flow on purpose:
-            the four tabs hold their places whether this is here or not. */}
-        {narrow && sideOpen && <SideToggle />}
       </div>
 
       {tab === "brain" && <BrainHeader />}

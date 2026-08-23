@@ -25,8 +25,10 @@ body.narrow {
    back when it is dismissed. */
 body.narrow { --drawer-inset: 0px; }
 body.narrow.side-open { --drawer-inset: var(--drawer-w); }
+/* room for the drawer, plus room for the panel button that is pinned in front
+   of it — the row has to stop before both, not run under either */
 body.narrow #topbar {
-  padding-right: calc(10px + var(--drawer-inset));
+  padding-right: calc(18px + var(--panel-btn-w) + var(--drawer-inset));
   transition: padding-right var(--size-dur) var(--glow-ease);
 }
 body.narrow #btn-token {
