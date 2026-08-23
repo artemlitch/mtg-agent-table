@@ -127,6 +127,48 @@ export const SUPERSEDED_STATE = "(superseded board snapshot — read the newest 
  *  result alone. Prefix caches key on the unchanged head of the conversation,
  *  so touching only the snapshot that just went stale keeps the invalidation
  *  point near the tail — a short re-read instead of the whole game. */
+/** How many windows keep their reasoning. The current one needs it to finish
+ *  the thought; the one before it holds the plan that thought just produced. */
+export const KEEP_THINKING_WINDOWS = 2;
+
+export const DROPPED_THINKING = "(thought this through in an earlier window; the board has moved on since)";
+
+/** A window opens with a wake prompt — the only user message that is prose
+ *  rather than tool results. */
+const isWakePrompt = (m: any) => m?.role === "user" && Array.isArray(m.content) && m.content[0]?.type === "text";
+
+/** Deliberation about a board the game has moved past, dropped once the window
+ *  it belongs to is two windows old.
+ *
+ *  It is graded rather than total because the agent's plan is not always
+ *  written down: "hold Fling for lethal" can live in a thinking block and
+ *  nowhere else until the turn it pays off. What it SAID and what it DID
+ *  always survive — only the private reasoning goes, and only once it is stale.
+ *  The match history survives too, in the log every get_state carries and in
+ *  the events every wake prompt opens with.
+ *
+ *  Like the snapshot collapse, this settles: after the first pass only the
+ *  window that just aged out still has thinking to remove, so the edit stays
+ *  near the tail and the prefix cache keeps most of its head. */
+export function trimOldThinking(messages: any[], keepWindows = KEEP_THINKING_WINDOWS) {
+  const starts: number[] = [];
+  messages.forEach((m, i) => isWakePrompt(m) && starts.push(i));
+  if (starts.length <= keepWindows) return;
+  const cutoff = starts[starts.length - keepWindows];
+  for (let i = 0; i < cutoff; i++) {
+    const m = messages[i];
+    if (m?.role !== "assistant" || !Array.isArray(m.content)) continue;
+    const kept = m.content.filter((b: any) => b?.type !== "thinking" && b?.type !== "redacted_thinking");
+    if (kept.length === m.content.length) continue;
+    // A message stripped to nothing cannot be sent, and dropping it would leave
+    // two user turns back to back. It gets a marker instead — and it is worth
+    // the trouble, because a thinking-only message is usually a thought that
+    // hit max_tokens before it could act: the biggest and least useful block
+    // in the conversation.
+    messages[i] = { ...m, content: kept.length ? kept : [{ type: "text", text: DROPPED_THINKING }] };
+  }
+}
+
 export function collapseSupersededState(messages: any[]) {
   const snapshotIds = new Set<string>();
   for (const m of messages) {
@@ -395,6 +437,9 @@ export class AgentRunner {
     this.push("status", this.messages.length || this.sessionId ? "Agent waking up (new events)…" : "Agent sitting down at the table…");
     if (endpoint) {
       this.messages.push({ role: "user", content: [{ type: "text", text: prompt }] });
+      // the window that just closed is now one back; whatever was two back has
+      // nothing left to reason about
+      trimOldThinking(this.messages);
       try {
         await this.runApiTurn(endpoint);
       } catch (e: any) {

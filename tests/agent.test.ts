@@ -48,7 +48,7 @@ const fakeTable = Bun.serve({
   },
 });
 
-const { AgentRunner, transportChoice, SUPERSEDED_STATE } = await import("../server/agent");
+const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING } = await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
 afterAll(() => {
@@ -325,6 +325,87 @@ describe("superseded board snapshots", () => {
     } as any);
     expect(resultFor(a, "old").content).toBe(SUPERSEDED_STATE);
     expect(resultFor(a, "new").content).toBe('{"the current board":1}');
+  });
+});
+
+// Deliberation about a board the game has moved past is the largest thing left
+// in the context. The plan still in flight is not, so the trim is graded.
+describe("thinking from closed windows", () => {
+  const thought = (text: string, tool?: string) => ({
+    stop_reason: tool ? "tool_use" : "end_turn",
+    usage: usage(),
+    content: [
+      { type: "thinking", thinking: text },
+      ...(tool ? [{ type: "tool_use", id: tool, name: "say", input: { text } }] : []),
+    ],
+  });
+  // a window is a wake prompt and everything the agent did in reply to it
+  const windows = (a: any) => {
+    const out: any[][] = [];
+    for (const m of a.messages) {
+      if (m.role === "user" && m.content[0]?.type === "text") out.push([]);
+      if (out.length) out[out.length - 1].push(m);
+    }
+    return out.map((w) => w.flatMap((m: any) => (Array.isArray(m.content) ? m.content : [])).filter((b: any) => b.type === "thinking").length);
+  };
+
+  test("the last two windows keep their reasoning, older ones lose it", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    for (const n of ["one", "two", "three", "four"]) {
+      modelScript = [thought(`${n} a`, `tu_${n}`), thought(`${n} b`)];
+      await a.wake("window");
+    }
+    // four windows: the two oldest are stripped, the newest two keep theirs
+    expect(windows(a)).toEqual([0, 0, 2, 2]);
+  });
+
+  test("what the agent said and did survives the trim", async () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.tableUrl = `http://localhost:${fakeTable.port}`;
+    a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    for (const n of ["one", "two", "three"]) {
+      modelScript = [thought(`${n} a`, `tu_${n}`), thought(`${n} b`)];
+      await a.wake("window");
+    }
+    const blocks = a.messages.flatMap((m: any) => (Array.isArray(m.content) ? m.content : []));
+    // the oldest window kept its action and its result, only the thought went
+    expect(blocks.some((b: any) => b.type === "tool_use" && b.id === "tu_one")).toBe(true);
+    expect(blocks.some((b: any) => b.type === "tool_result" && b.tool_use_id === "tu_one")).toBe(true);
+    expect(blocks.some((b: any) => b.type === "thinking" && b.thinking === "one a")).toBe(false);
+  });
+
+  test("a message that is nothing but thinking leaves a marker, not an empty message", () => {
+    const messages = [
+      { role: "user", content: [{ type: "text", text: "wake 1" }] },
+      // what a max_tokens truncation leaves behind: a long thought, no action
+      { role: "assistant", content: [{ type: "thinking", thinking: "only a thought" }] },
+      { role: "user", content: [{ type: "text", text: "wake 2" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "b" }, { type: "text", text: "said" }] },
+      { role: "user", content: [{ type: "text", text: "wake 3" }] },
+      { role: "user", content: [{ type: "text", text: "wake 4" }] },
+    ];
+    trimOldThinking(messages);
+    // an empty content array is not a legal message, and dropping the message
+    // would leave two user turns back to back
+    expect(messages[1].content).toEqual([{ type: "text", text: DROPPED_THINKING }]);
+    expect(messages[3].content).toEqual([{ type: "text", text: "said" }]);
+  });
+
+  test("a short game keeps every thought", () => {
+    const messages = [
+      { role: "user", content: [{ type: "text", text: "wake 1" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "a" }, { type: "text", text: "x" }] },
+      { role: "user", content: [{ type: "text", text: "wake 2" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "b" }, { type: "text", text: "y" }] },
+    ];
+    trimOldThinking(messages);
+    expect(messages.flatMap((m) => m.content).filter((b: any) => b.type === "thinking")).toHaveLength(2);
   });
 });
 
