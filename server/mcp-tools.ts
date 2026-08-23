@@ -198,7 +198,7 @@ export const TOOLS: Record<string, ToolDef> = {
     schema: obj({ card: str("card id") }, ["card"]),
   },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
-  set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Player resolves it. Rejected while anything else is on the stack.", schema: obj({ player: PLAYER }, ["player"]) },
+  set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Player resolves it. `player` is who the turn goes TO, which on your own turn means 'you' (Player) — passing it to whoever already has it is rejected. Rejected while anything else is on the stack. For a spell that grants an extra turn, pass extra: true.", schema: obj({ player: PLAYER, extra: { type: "boolean", description: "true = a spell is granting an extra turn, so the same seat may keep it" } }, ["player"]) },
   attack: {
     description:
       "Declare attackers — goes ON THE STACK like everything else: pairs of {attacker: cardId, target: 'you'|'agent'|planeswalker cardId}. The defender resolves the item to lock attacks in (attackers tap then), or responds on top first. After declaring, call done.",

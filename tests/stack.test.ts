@@ -293,10 +293,13 @@ describe("turn hygiene", () => {
   test("set_turn is rejected while the stack is non-empty", () => {
     const c = seedCard("Pending Spell", "agent", "hand", { typeLine: "Sorcery" });
     applyAction("agent", "cast", { card: c.id });
-    expect(() => applyAction("agent", "set_turn", { player: "you" })).toThrow(/stack/i);
+    // it is the player's turn here, so the pass under test is the one that
+    // hands it over — passing it to the seat that already has it is its own
+    // error now, and would mask this one
+    expect(() => applyAction("you", "set_turn", { player: "agent" })).toThrow(/stack/i);
     expect(game.turn).toBe("you");
     applyAction("you", "stack_resolve", {});
-    applyAction("agent", "set_turn", { player: "you" }); // fine once empty
+    applyAction("you", "set_turn", { player: "agent" }); // fine once empty
   });
 });
 

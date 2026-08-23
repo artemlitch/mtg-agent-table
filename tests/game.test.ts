@@ -649,6 +649,24 @@ describe("reset", () => {
     expect(game.log.length).toBe(0);
   });
 
+  test("the turn cannot be handed to whoever already has it", () => {
+    resetGameState();
+    game.turn = "agent";
+    // seen in play: the agent aimed set_turn at "agent" on its own turn, took a
+    // second turn, and the round counter did not move because it only bumps
+    // when the turn comes back round to the player
+    expect(() => applyAction("agent", "set_turn", { player: "agent" })).toThrow(/already/i);
+    expect(game.stack.length).toBe(0);
+  });
+
+  test("...unless it is deliberately an extra turn", () => {
+    resetGameState();
+    game.turn = "agent";
+    applyAction("agent", "set_turn", { player: "agent", extra: true });
+    expect(game.stack.length).toBe(1);
+    expect(game.stack[0].text).toMatch(/extra turn/i);
+  });
+
   test("a new game opens where every other turn opens", () => {
     resetGameState();
     // turn 1 used to start at "main 1" and skip the step the turn pass gives

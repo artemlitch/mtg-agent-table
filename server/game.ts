@@ -1187,12 +1187,25 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       );
     }
     const player: PlayerId = asPlayer(p.player);
+    // Handing the turn to whoever already has it is almost always a slip of
+    // the wrist, and it does not read as one: the round counter only moves
+    // when the turn comes back round to the player, so a seat passing to
+    // itself silently replays the same round. An extra turn IS a real thing,
+    // so it stays available — it just has to be meant.
+    const extra = p.extra === true;
+    if (player === game.turn && !extra) {
+      throw new Error(
+        `it is already ${who(player)}'s turn — pass to the other seat, or if a spell is granting an extra turn, pass extra: true`
+      );
+    }
     pushStackItem(ctx.actor, {
       cardId: null,
-      text: `TURN PASS: ${who(player)}'s turn begins when this resolves`,
+      text: extra && player === game.turn
+        ? `EXTRA TURN: ${who(player)} takes another turn when this resolves`
+        : `TURN PASS: ${who(player)}'s turn begins when this resolves`,
       apply: { type: "turn", player },
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares the turn pass to ${who(player)} (on the stack)`);
+    addLog(ctx.actor, `${who(ctx.actor)} declares ${extra && player === game.turn ? "an extra turn for" : "the turn pass to"} ${who(player)} (on the stack)`);
     return { ok: true, stackSize: game.stack.length };
   },
 
