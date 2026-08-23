@@ -68,6 +68,12 @@
      cards has to discount them — and so does the side panel on the right */
   --rail-w: 130px;
   --side-w: 360px;
+  /* The topbar's height, and the side panel's tab row with it. One number
+     because the two sit shoulder to shoulder across the top of the window and
+     have to read as one band — and in the narrow layout the drawer covers the
+     bar's right end, where a tab row of a different height would look like a
+     misprint rather than a continuation. */
+  --bar-h: 45px;
   --gold-hi: #f8e7a0;
   --gold-dk: #6e4a14;
   /* metallic band gradient used for every "chrome" border */

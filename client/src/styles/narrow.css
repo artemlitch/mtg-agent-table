@@ -54,36 +54,10 @@ body.narrow #side {
 }
 body.narrow.side-open #side { transform: none; }
 
-/* The handle. Fixed to the window rather than parented to the panel, because
-   the panel leaves and the handle must not — see SideToggle. It carries the
-   panel's own border and plate so that, while the drawer is out, the two read
-   as one shape with a tab on its corner. */
-#side-toggle {
-  position: fixed; top: 8px; right: 0; z-index: 56;
-  display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 44px; padding: 0;
-  border-radius: 8px 0 0 8px;
-  border: 1px solid transparent; border-right: none;
-  color: var(--dim); font-size: var(--fs-note);
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.45);
-  transition: transform var(--size-dur) var(--glow-ease), var(--hover-transition);
-}
-/* .ghost switches the plate off at rest AND on hover, which is what keeps a
-   quiet control quiet — but this one is not quiet furniture, it is the ONLY
-   way back to a dismissed panel, and it spends half its life sitting on the
-   topbar, which is the same colour it is. So it keeps a plate and the house
-   gold rim in both states. */
-#side-toggle.ghost,
-#side-toggle.ghost:hover {
-  background: linear-gradient(180deg, var(--panel2), var(--panel)) padding-box, var(--chrome-dim) border-box;
-}
-#side-toggle:hover { color: var(--gold-hi); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.45), 0 0 10px rgba(226, 179, 85, 0.3); }
-body.side-open #side-toggle { transform: translateX(calc(-1 * var(--drawer-w))); }
-/* the agent went on talking behind a shut drawer */
-#side-toggle .side-dot {
-  position: absolute; top: -3px; left: -3px; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 8px rgba(226, 179, 85, 0.9);
-}
+/* The drawer's tab row lands exactly on the topbar's band, since the two share
+   --bar-h — so the covered right end of the bar reads as continuing into
+   Stack / Chat / Agent / Log rather than as a panel dropped on top of it. The
+   handle for all this is #btn-panel, over in the bar beside undo and redo. */
 
 /* A modal centres itself over the playmat by discounting the rail on one side
    and the panel on the other (see modal.css). With the panel out of the flow
@@ -96,7 +70,10 @@ body.narrow #modal-box { margin-left: var(--rail-w); }
    spent: the piles lose their names and their fans, the deck and the commander
    shrink, and life folds into a coin. */
 body.narrow { --rail-w: 68px; }
-body.narrow .rail { padding: 2px; gap: 4px; }
+/* 8px between every thing in the strip. The pieces lost their plates and their
+   labels on the way down to 64px, so the space between them is the only thing
+   left saying where one ends and the next begins. */
+body.narrow .rail { padding: 2px; gap: 8px; }
 
 /* Life as a struck coin — the ± are its own halves, so it costs the width of
    the number instead of the number plus two buttons. Bigger than the library

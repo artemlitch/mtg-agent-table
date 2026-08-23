@@ -106,6 +106,7 @@ body.unfocused .cmdzone .cmdcloud span,
 body.unfocused .na-row::before,
 body.unfocused #combatglow::after,
 body.unfocused .tabbadge,
+body.unfocused .side-dot,
 body.unfocused .tdot { animation-play-state: paused; }
 
 /* ── the pointer is a promise ──────────────────────────────────────────────

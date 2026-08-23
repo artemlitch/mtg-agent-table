@@ -3,6 +3,8 @@ import { act, newGame, redoLastAction, undoLastAction } from "../../api";
 import { Dropdown } from "../../components/Dropdown";
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
+import { useUI } from "../../store/ui";
+import { SideToggle } from "../side/SideToggle";
 import type { GameView } from "../../types";
 
 // The turn as a route: dots on a line, one lit. The phase itself is free text,
@@ -29,6 +31,7 @@ const modelOptions = (view: GameView | null) =>
 
 export function TopBar() {
   const view = useGame((s) => s.view);
+  const narrow = useUI((s) => s.narrow);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
 
@@ -73,6 +76,9 @@ export function TopBar() {
         <button id="btn-redo" data-tip="Redo" data-tip-keys="⌘,⇧,Z" disabled={!view?.canRedo} onClick={() => void redoLastAction()}>
           <Icon name="redo" />
         </button>
+        {/* only where the panel can be put away — at full width it is a column
+            of the layout and there is nothing to show or hide */}
+        {narrow && <SideToggle />}
       </div>
     </div>
   );
