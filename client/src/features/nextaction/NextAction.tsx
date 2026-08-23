@@ -39,7 +39,7 @@ export function NextAction() {
             <span className="na-text">
               <span className="na-label">
                 {a.icon && <Icon name={a.icon} />}
-                {a.label}
+                <PhaseLabel text={a.label ?? ""} />
               </span>
               {a.sub && a.sub !== a.label && <span className="na-sub">{String(a.sub).split("\n")[0]}</span>}
               <KeyCaps keys={["space"]} />
@@ -66,6 +66,23 @@ export function NextAction() {
         </button>
       )}
     </div>
+  );
+}
+
+/** A phase step reads as a transition — "main phase → combat". The arrow is
+ *  the one part of that worth drawing rather than typing, so the label keeps
+ *  the character (it is still the plain string the size key and the tooltip
+ *  want) and only the rendering swaps it for the glyph. Anything without an
+ *  arrow passes straight through. */
+function PhaseLabel({ text }: { text: string }) {
+  const at = text.indexOf(" → ");
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <Icon name="phaseArrow" className="na-arrow" />
+      {text.slice(at + 3)}
+    </>
   );
 }
 

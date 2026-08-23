@@ -144,6 +144,9 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
 }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
+/* the arrow between two phase names is punctuation, not a second action —
+   smaller than the leading icon and dimmer than the words it joins */
+#na-primary .na-label .na-arrow { font-size: calc(var(--fs-next) * 0.62); opacity: 0.55; }
 #na-hint {
   padding: 4px 12px; font-size: var(--fs-note); font-style: italic; color: var(--dim);
   background: rgba(15, 10, 6, 0.72); border-radius: 10px;

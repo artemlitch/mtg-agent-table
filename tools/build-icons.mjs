@@ -7,23 +7,26 @@
 //
 //   node tools/build-icons.mjs
 //
-// Add a name to ICONS in web/app.js, list it here, re-run, commit the result.
+// Add a name to ICONS in client/src/icons.ts, list it here, re-run, commit.
 import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "web", "vendor", "gameicons");
+// client/public is the SOURCE; vite copies it to web/ on build. This used to
+// write straight into web/, which meant a regenerated icons.css was thrown
+// away by the next build and never reached the tree at all.
+const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "client", "public", "vendor", "gameicons");
 
-// every game-icons name the app references (see ICONS in web/app.js)
+// every game-icons name the app references (see ICONS in client/src/icons.ts)
 const NAMES = [
-  "all-seeing-eye", "anticlockwise-rotation", "arcing-bolt", "binoculars", "bolt-spell-cast",
+  "all-seeing-eye", "arcing-bolt", "arrow-dunk", "binoculars", "bolt-spell-cast",
   "book-pile", "cancel", "card-burn", "card-discard", "card-draw", "card-exchange", "card-pickup",
   "card-random", "castle", "chat-bubble", "check-mark", "checklist", "chess-king",
-  "circle", "clockwise-rotation", "crossed-swords", "crown", "dragon-head", "empty-chessboard",
+  "circle", "crossed-swords", "crown", "dragon-head", "empty-chessboard",
   "fast-forward-button", "gears", "gemini", "gems", "hidden", "hood", "hourglass", "invisible",
   "magic-swirl", "magnifying-glass", "moon", "mountains", "pencil", "plain-arrow", "plain-circle",
   "play-button", "player-next", "recycle", "return-arrow", "scroll-unfurled", "shaking-hands",
-  "shield", "shield-disabled", "snatch", "sparkles", "spectacles", "stack", "sword-break",
+  "semi-closed-eye", "shield", "shield-disabled", "sight-disabled", "snatch", "sparkles", "spectacles", "stack", "sword-break",
   "sword-clash", "token", "trash-can", "up-card",
 ];
 
@@ -54,6 +57,8 @@ const css = `/* game-icons.net — Lorc, Delapouite and contributors, CC BY 3.0.
 }
 .gi-rot180 { transform: rotate(180deg); }
 .gi-flipx { transform: scaleX(-1); }
+.gi-flipy { transform: scaleY(-1); }
+.gi-rot270 { transform: rotate(270deg); }
 ${rules.join("\n")}
 `;
 

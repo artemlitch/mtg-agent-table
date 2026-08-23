@@ -3,11 +3,12 @@
 // per-action --c tint and the existing font-size rules keep sizing it.
 // Add a name here, list it in that script, re-run it.
 //
-// A tapped card's top ends at 3 o'clock, so tap turns clockwise and untap
-// turns back the other way.
+// Tapping turns a card down; untapping brings it back. One arc glyph and the
+// same arc mirrored across the x axis says exactly that — the pair reads as a
+// motion and its reverse, which two rotation arrows never quite did.
 export const ICONS: Record<string, string> = {
-  tap: "gi-clockwise-rotation",
-  untap: "gi-anticlockwise-rotation",
+  tap: "gi-arrow-dunk",
+  untap: "gi-arrow-dunk gi-flipy",
   undo: "gi-return-arrow",
   redo: "gi-return-arrow gi-flipx",
   answer: "gi-chat-bubble",
@@ -44,7 +45,10 @@ export const ICONS: Record<string, string> = {
   shuffle: "gi-card-random",
   // card-menu specifics, so no two rows of one menu share a glyph
   exileDown: "gi-hidden",
-  facedown: "gi-invisible",
+  // hiding a card and revealing it are opposite actions, so they take one
+  // visual idea and its negation: the same eye, struck through or open.
+  facedown: "gi-sight-disabled",
+  faceup: "gi-semi-closed-eye",
   toHand: "gi-card-pickup",
   // top and bottom of a library are one gesture and its opposite, so they are
   // one glyph and its opposite: a card leaving the deck, turned over. The set
@@ -64,6 +68,10 @@ export const ICONS: Record<string, string> = {
      with the artifact type below — they never appear in the same list, and
      gears is the only machinery in the vendored set. */
   tool: "gi-gears",
+  /* the arrow inside a phase-transition label ("main phase -> combat").
+     plain-arrow points down by default, so a quarter turn aims it along the
+     line of text. */
+  phaseArrow: "gi-plain-arrow gi-rot270",
   caret: "gi-plain-arrow",
   caretUp: "gi-plain-arrow gi-rot180",
   // card types, for the search filter
@@ -96,7 +104,10 @@ export function iconClass(name: string): string {
 export const MENU_LOOK: [RegExp, string, string][] = [
   [/browse/i, "search", "scry"],
   [/exile face.?down/i, "exileDown", "surveil"],
-  [/turn face-(down|up)/i, "facedown", "surveil"],
+  // split, because they are two different actions — one hides the card, the
+  // other shows it, and only one of the two is ever offered at a time
+  [/turn face-up/i, "faceup", "reveal"],
+  [/turn face-down/i, "facedown", "surveil"],
   [/^show /i, "flip", "surveil"],
   [/delete/i, "trash", "mill"],
   [/cancel attack/i, "cancelAttack", "mill"],
