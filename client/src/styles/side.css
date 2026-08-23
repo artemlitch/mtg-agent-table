@@ -10,7 +10,9 @@
    height, not a minimum — four one-word tabs will never need more, and the
    alignment with the bar is the whole point. */
 #tabs { display: flex; height: var(--bar-h); flex: none; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
-#tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 0 8px; color: var(--dim); box-shadow: none; font-size: var(--fs-note); position: relative; }
+/* the tab row heads the panel, so it is set at the panel's reading size and
+   not at the chrome's — see --fs-read, which #pane-chat also rebases on */
+#tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 0 8px; color: var(--dim); box-shadow: none; font-size: var(--fs-read); position: relative; }
 #tabs button.active { color: var(--gold-hi); border-bottom: 2px solid var(--accent); text-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 .tabpane { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 
@@ -39,7 +41,7 @@
    already frozen at the root's base by the time they inherit. Same
    multipliers as tokens.css — only the base differs. */
 #pane-chat {
-  --fs-base: 15px;
+  --fs-base: var(--fs-read);
   --fs-tiny:  calc(var(--fs-base) * 0.73);
   --fs-micro: calc(var(--fs-base) * 0.8);
   --fs-note:  calc(var(--fs-base) * 0.87);

@@ -89,6 +89,10 @@
      size of its own. Re-declaring --fs-base on any element re-derives the
      whole scale for its subtree — see #pane-chat, which keeps the old size. */
   --fs-base: 13px;
+  /* The side panel is read rather than glanced at, so it runs a size above the
+     chrome — the chat pane rebases the whole scale on this, and the tab row
+     over it takes it directly so the header matches what it heads. */
+  --fs-read: 15px;
   --fs-nano:  calc(var(--fs-base) * 0.5);  /* keycaps — the quietest text there is */
 
   /* mana pips (components/Mana.tsx): the disc's size relative to the text it
