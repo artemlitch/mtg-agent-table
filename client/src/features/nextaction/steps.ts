@@ -35,8 +35,12 @@ export interface Ctx {
   attackSig: string;
   iAmBlocking: boolean;
   myAttackers: Card[];
-  /** my attack declaration sitting on the stack, not yet locked in */
-  myPendingAttack: StackItem | null;
+  /** my attack declarations sitting on the stack, not yet locked in. Each tap
+   *  pushes its OWN item (see attack() in server/game.ts), so declaring three
+   *  creatures leaves three of them */
+  myAttackDecls: StackItem[];
+  /** how many creatures those declarations add up to */
+  declared: number;
   myTapped: boolean;
 }
 
@@ -51,6 +55,7 @@ export const noBlocks: { declaredFor: string | null } = { declaredFor: null };
 
 export function nextActionContext(view: GameView): Ctx {
   const stack = view.stack || [];
+  const myAttackDecls = stack.filter((it) => it.player === "you" && !!it.attackPairs);
   const theirAttackers = view.players.agent.zones.battlefield.filter((c) => c.attacking);
   return {
     view,
@@ -64,7 +69,8 @@ export function nextActionContext(view: GameView): Ctx {
     attackSig: theirAttackers.map((c) => c.id).sort().join(","),
     iAmBlocking: view.players.you.zones.battlefield.some((c) => c.blocking),
     myAttackers: view.players.you.zones.battlefield.filter((c) => c.attacking),
-    myPendingAttack: stack.find((it) => it.player === "you" && !!it.attackPairs) ?? null,
+    myAttackDecls,
+    declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
   };
 }
@@ -137,7 +143,9 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // declaration you have not finished: that one is on the stack but has not
     // been handed over, and the agent is deliberately not looking at it (see
     // wakePlanFor in server/wake.ts), so saying it is waiting would be a lie.
-    when: (c) => !!c.top && c.top.id !== c.myPendingAttack?.id,
+    // Tested by the type of the top item, not its identity: every creature you
+    // tap pushes its own declaration, so the top one is not the first one.
+    when: (c) => !!c.top && !(c.top.player === "you" && !!c.top.attackPairs),
     step: () => ({ hint: "on the stack — waiting for the agent" }),
   },
   {
@@ -216,19 +224,16 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // adding to. Pressing it with nothing declared means you are not attacking.
     id: "finish-attacks",
     when: (c) => c.phase === "combat" && c.myAttackers.length === 0 && !didThisTurn(/combat damage|go to damage/i),
-    step: (c) => {
-      const pairs = c.myPendingAttack?.attackPairs ?? [];
-      return {
-        label: "Finish declaring attackers",
-        icon: "combat",
-        sub: pairs.length
-          ? `${pairs.length} attacking — the agent locks it in`
-          : "none declared — skips to main phase 2",
-        title: "tap [e] a creature to attack",
-        skip: true,
-        fn: () => void (pairs.length ? act("done", {}) : act("set_phase", { phase: "main 2" })),
-      };
-    },
+    step: (c) => ({
+      label: "Finish declaring attackers",
+      icon: "combat",
+      sub: c.declared ? `${c.declared} attacking` : undefined,
+      title: "tap [e] a creature to attack",
+      skip: true,
+      // nothing declared means you are not attacking, so the button is the way
+      // out of combat rather than a hand-over
+      fn: () => void (c.declared ? act("done", {}) : act("set_phase", { phase: "main 2" })),
+    }),
   },
   {
     id: "combat-damage",
