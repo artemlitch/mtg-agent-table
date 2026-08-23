@@ -46,8 +46,13 @@ export const ICONS: Record<string, string> = {
   exileDown: "gi-hidden",
   facedown: "gi-invisible",
   toHand: "gi-card-pickup",
+  // top and bottom of a library are one gesture and its opposite, so they are
+  // one glyph and its opposite: a card leaving the deck, turned over. The set
+  // has no down-card to pair with up-card, and the bare plain-arrow that used
+  // to sit here matched nothing — a different subject, and much heavier on the
+  // page at the same font size.
   top: "gi-up-card",
-  bottom: "gi-plain-arrow", // game-icons' plain-arrow points down; rot180 is the up one
+  bottom: "gi-up-card gi-rot180",
   library: "gi-book-pile",
   secret: "gi-hood",
   block: "gi-shield",
