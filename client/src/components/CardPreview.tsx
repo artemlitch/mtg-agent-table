@@ -1,6 +1,7 @@
 import { useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
+import { Text } from "./Text";
 import { TokenFace, drawnHere } from "./TokenFace";
 
 // The full-size card that follows the cursor. One layer, above the board and
@@ -40,11 +41,11 @@ function Single({ card }: { card: Card }) {
   if (card.image) return <img src={card.image} alt="" {...artFallback(card.name)} />;
   return (
     <div className="pv-text">
-      <b>{card.name}</b> {card.mana || ""}
+      <Text as="b">{card.name}</Text> <Text>{card.mana}</Text>
       {"\n"}
-      {card.typeLine || ""}
+      <Text>{card.typeLine}</Text>
       {"\n\n"}
-      {card.oracle || ""}
+      <Text>{card.oracle}</Text>
     </div>
   );
 }
@@ -63,11 +64,11 @@ function Faces({ card, faces }: { card: Card; faces: NonNullable<Card["faces"]> 
           <img key={i} className={cls} src={f.image} alt="" {...artFallback(f.name, i !== 0)} />
         ) : (
           <div key={i} className={`pv-text ${cls}`}>
-            <b>{f.name}</b>
+            <Text as="b">{f.name}</Text>
             {"\n"}
-            {f.typeLine || ""}
+            <Text>{f.typeLine}</Text>
             {"\n\n"}
-            {f.oracle || ""}
+            <Text>{f.oracle}</Text>
           </div>
         );
       })}

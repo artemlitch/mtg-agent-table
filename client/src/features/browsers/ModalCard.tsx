@@ -1,5 +1,6 @@
 import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
+import { Text } from "../../components/Text";
 import { menuOpen, ui } from "../../store/ui";
 import type { Card } from "../../types";
 
@@ -40,12 +41,12 @@ export function ModalCard({
       }}
     >
       {info.image ? (
-        <img src={info.image} title={info.name} alt="" {...artFallback(info.name)} />
+        <img src={info.image} data-tip={info.name} alt="" {...artFallback(info.name)} />
       ) : (
         <div className="textcard" style={{ height: "auto", minHeight: 60 }}>
-          <b>{info.name}</b>
+          <Text as="b">{info.name}</Text>
           <br />
-          {info.typeLine || ""}
+          <Text>{info.typeLine}</Text>
         </div>
       )}
     </div>

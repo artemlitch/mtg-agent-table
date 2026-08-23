@@ -1,7 +1,7 @@
 import { act } from "../../api";
 import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
-import { withMana } from "../../components/Mana";
+import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { StackItem } from "../../types";
@@ -105,13 +105,13 @@ export function StackItemEl({ item, inChat }: { item: StackItem; inChat?: boolea
             )}
             {item.countered && <span className="ctag">COUNTERED</span>}
           </div>
-          <div className="sitext">{withMana(headline)}</div>
+          <Text as="div" className="sitext">{headline}</Text>
           {rows && rows.length > 0 && (
             <div className="sirows">
               {rows.map((r, i) => (
                 <div className="sirow" key={i}>
                   <span className="sirownum">{i + 1}</span>
-                  {withMana(r)}
+                  <Text>{r}</Text>
                 </div>
               ))}
             </div>

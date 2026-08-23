@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect } from "react";
 import { connectWS, loadBrain, redoLastAction, refresh, undoLastAction } from "./api";
 import { CardPreviewLayer } from "./components/CardPreview";
 import { Icon } from "./components/Icon";
+import { watchForRawMana } from "./components/Mana";
 import { MenuLayer } from "./components/Menu";
 import { ModalLayer } from "./components/Modal";
 import { TooltipLayer } from "./components/Tooltip";
@@ -91,6 +92,9 @@ export function App() {
 }
 
 function useBoot() {
+  // the one rule <Text> exists to keep, watched rather than trusted
+  useEffect(watchForRawMana, []);
+
   useEffect(() => {
     void refresh();
     void loadBrain();

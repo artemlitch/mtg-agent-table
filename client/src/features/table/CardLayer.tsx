@@ -13,6 +13,7 @@
 // same felt-local pixels rendered here, so pickup and drop are seamless.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
+import { Text } from "../../components/Text";
 import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { chonkyPiles, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
@@ -159,16 +160,20 @@ function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; i
       {pile && <span className="pilecount">{pile}</span>}
       {lift && (
         <div className="liftpanel">
-          <div
+          {/* data-tip, not title: a tooltip goes through Tooltip.tsx and can
+              hold a pip, and this is the agent's own sentence — "{1}{G}" and
+              all */}
+          <Text
+            as="div"
             className="trigchip"
-            title={lift.text}
-            onClick={(e) => {
+            data-tip={lift.text}
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               ui().setTab("stack");
             }}
           >
             {lift.text.length > 110 ? lift.text.slice(0, 110) + "…" : lift.text}
-          </div>
+          </Text>
           <StackItemButtons item={lift} />
         </div>
       )}

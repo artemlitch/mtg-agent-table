@@ -4,6 +4,7 @@ import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
 import { ModalFrame } from "../../components/Modal";
+import { Text } from "../../components/Text";
 import { isLand } from "../../game/rules";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -32,9 +33,9 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
     ui().closeModal();
   };
   return (
-    <ModalFrame title={<><Icon name="ability" /> {c.hidden ? "Hidden card" : c.name}</>}>
+    <ModalFrame title={<><Icon name="ability" /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>
       <div className="abilitymodal">
-        {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <div className="amoracle">{c.oracle || "(no rules text)"}</div>}
+        {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <Text as="div" className="amoracle">{c.oracle || "(no rules text)"}</Text>}
         <div className="amcol">
           <textarea
             ref={inputRef}
@@ -121,7 +122,7 @@ function TargetColumn({
   const item = (c: Card) =>
     c.hidden || !c.name ? null : (
       <div key={c.id} className="titem" {...previewProps(c)} onClick={() => onPick(c.name!)}>
-        {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <span>{c.name}</span>}
+        {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <Text>{c.name}</Text>}
       </div>
     );
   return (

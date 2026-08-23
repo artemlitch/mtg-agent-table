@@ -8,6 +8,8 @@ import { menuOpen, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
 import { Icon } from "./Icon";
+import { plainMana } from "./Mana";
+import { Text } from "./Text";
 import { previewProps } from "./CardPreview";
 import { TokenFace, drawnHere } from "./TokenFace";
 
@@ -108,16 +110,16 @@ function CardFace({ c }: { c: Card }) {
   const art = drawnHere(c) ? (
     <TokenFace c={c} />
   ) : c.image ? (
-    <img src={c.image} alt={c.name} draggable={false} {...artFallback(c.name)} />
+    <img src={c.image} alt={plainMana(c.name ?? "")} draggable={false} {...artFallback(c.name)} />
   ) : (
     <div className="textcard">
-      <b>{c.name}</b>
+      <Text as="b">{c.name}</Text>
       <br />
-      {c.mana || ""}
+      <Text>{c.mana}</Text>
       <br />
-      {c.typeLine || ""}
+      <Text>{c.typeLine}</Text>
       <br />
-      {(c.oracle || "").slice(0, 120)}
+      <Text>{(c.oracle || "").slice(0, 120)}</Text>
       {c.power !== undefined && c.power !== null && (
         <div className="textpt">
           {c.power}/{c.toughness}
@@ -145,7 +147,7 @@ function CardFace({ c }: { c: Card }) {
   if (c.under)
     badges.push(
       <span className="badge eq" key="eq">
-        <Icon name="pile" /> {tucked && !tucked.hidden ? (tucked.name || "?").split(",")[0] : "?"}
+        <Icon name="pile" /> <Text>{tucked && !tucked.hidden ? (tucked.name || "?").split(",")[0] : "?"}</Text>
       </span>
     );
   if (c.isCommander)
@@ -201,7 +203,7 @@ function CardFace({ c }: { c: Card }) {
       {(c.faceCount ?? 1) > 1 && c.faces && (
         <button
           className="flipbtn"
-          title={`Flip to ${c.faces[((c.face ?? 0) + 1) % c.faceCount!].name}`}
+          title={plainMana(`Flip to ${c.faces[((c.face ?? 0) + 1) % c.faceCount!].name}`)}
           onClick={(e) => {
             e.stopPropagation();
             ui().hidePreview();

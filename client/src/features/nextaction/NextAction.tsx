@@ -4,7 +4,7 @@ import { artFallback } from "../../components/cardArt";
 import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
-import { withMana } from "../../components/Mana";
+import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
 import { nextActionContext, passTurnToAgent, NEXT_ACTION_STEPS } from "./steps";
 
@@ -44,7 +44,7 @@ export function NextAction() {
               </span>
               {/* the sub-line is the stack item's own words, so it carries
                   mana the same way the Stack tab and the chat do */}
-              {a.sub && a.sub !== a.label && <span className="na-sub">{withMana(String(a.sub).split("\n")[0])}</span>}
+              {a.sub && a.sub !== a.label && <Text className="na-sub">{String(a.sub).split("\n")[0]}</Text>}
               <KeyCaps keys={["space"]} />
             </span>
           </button>
@@ -93,12 +93,14 @@ export const isPhaseMove = (label: string) => label.includes(" → ");
  *  the tooltip want. Anything without an arrow passes straight through. */
 function PhaseLabel({ text }: { text: string }) {
   const at = text.indexOf(" → ");
-  if (at < 0) return <>{text}</>;
+  // a plain label can be the stack item's own sentence — see the resolve step
+  // in steps.ts, which slices c.top.text straight into it
+  if (at < 0) return <Text>{text}</Text>;
   const [from, to] = [text.slice(0, at), text.slice(at + 3)];
   const chip = (name: string, which: "from" | "to") => (
     <span className={`na-phase na-${which}`}>
       {PHASE_ICON[name] && <Icon name={PHASE_ICON[name]} />}
-      {name}
+      <Text>{name}</Text>
     </span>
   );
   return (

@@ -2,8 +2,8 @@
 // with one composer under them that feeds whichever is open.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act, deleteKey, refresh, saveKey, testClaudeCli } from "../../api";
-import { withMana } from "../../components/Mana";
 import { Icon } from "../../components/Icon";
+import { Text } from "../../components/Text";
 import { openRevealBrowser } from "../browsers/Browsers";
 import { revealedCards } from "../../game/reveals";
 import { useGame } from "../../store/game";
@@ -117,7 +117,7 @@ export function SidePanel() {
       {tab === "log" && <LogPane />}
       {needsSetup && <KeySetup />}
 
-      <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: {view.pendingQuestion}</> : ""}</div>
+      <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: <Text>{view.pendingQuestion}</Text></> : ""}</div>
       <WakeBar />
       {!needsSetup && <Composer />}
     </div>
@@ -223,7 +223,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
     return (
       <div className={`msg stackmsg ${e.actor === "you" ? "you" : "agent"}`} title="Open the Stack tab" onClick={onOpenStack}>
         <div className="mwho">{e.actor === "you" ? "You" : "Agent"} · <Icon name="pile" /> stack</div>
-        {withMana(text)}
+        <Text>{text}</Text>
       </div>
     );
   }
@@ -231,17 +231,17 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
     return (
       <div className={`msg ${e.actor === "you" ? "you" : "agent"}`}>
         <div className="mwho">{e.actor === "you" ? "You" : "Agent"}</div>
-        {withMana(e.text.replace(/^💬 (Player|Agent): /, "").replace(/^❓ Agent asks: /, "❓ "))}
+        <Text>{e.text.replace(/^💬 (Player|Agent): /, "").replace(/^❓ Agent asks: /, "❓ ")}</Text>
       </div>
     );
-  if (e.actor === "system") return <div className="msg sys">{e.text}</div>;
+  if (e.actor === "system") return <Text as="div" className="msg sys">{e.text}</Text>;
   // a reveal names its cards in the line and CARRIES them on the entry — the
   // line is the way back into them, for one that arrived while something else
   // was open, or one you have scrolled back to
   if (e.cards?.length) return <RevealLine e={e} />;
   // every other action (draws, taps, scries, moves…) shows as a dim line —
   // the chat is the full play-by-play, nothing happens invisibly
-  return <div className="msg actline">{withMana(e.text)}</div>;
+  return <Text as="div" className="msg actline">{e.text}</Text>;
 }
 
 /** A reveal, with its cards one click away. Dead once every card it named has
@@ -249,10 +249,10 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
 function RevealLine({ e }: { e: LogEntry }) {
   useGame((s) => s.view); // re-resolve as cards move
   const cards = revealedCards(e);
-  if (!cards.length) return <div className="msg actline">{e.text}</div>;
+  if (!cards.length) return <Text as="div" className="msg actline">{e.text}</Text>;
   return (
     <div className="msg actline revealline" title="Open the revealed cards" onClick={() => openRevealBrowser(cards)}>
-      {e.text}
+      <Text>{e.text}</Text>
       <span className="revealopen"><Icon name="reveal" /> {cards.length}</span>
     </div>
   );
@@ -279,7 +279,7 @@ function TypingBubble() {
         title={cur ? "Open in the Agent tab" : undefined}
         onClick={() => cur && openBrainAt(cur.seq, setTab)}
       >
-        {cur?.text ?? ""}
+        <Text>{cur?.text}</Text>
       </span>
     </div>
   );
@@ -336,7 +336,7 @@ function BrainPane() {
     <div className="tabpane" id="pane-brain" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {brain.map((e) => (
         <div key={e.seq} className={`brain ${e.kind}`} id={`brain-${e.seq}`}>
-          {e.kind === "tool" ? <><Icon name="tool" /> {e.text}</> : e.text}
+          {e.kind === "tool" ? <><Icon name="tool" /> <Text>{e.text}</Text></> : <Text>{e.text}</Text>}
         </div>
       ))}
     </div>
@@ -350,7 +350,7 @@ function LogPane() {
     <div className="tabpane" id="pane-log" ref={ref} onScroll={onScroll} onLoadCapture={onLoadCapture}>
       {log.map((e) => (
         <div className="logline" key={e.seq}>
-          <b>{e.seq}</b> {e.text}
+          <b>{e.seq}</b> <Text>{e.text}</Text>
         </div>
       ))}
     </div>

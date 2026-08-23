@@ -3,6 +3,7 @@ import { menuLook, stripGlyph } from "../icons";
 import { CURSOR_GAP, useUI } from "../store/ui";
 import { Icon } from "./Icon";
 import { KeyCaps } from "./KeyCaps";
+import { Text } from "./Text";
 
 // THE menu. Right-clicking a card, clicking a card in a browser, opening a
 // dropdown and right-clicking a library all land here — one plate, one look,
@@ -57,9 +58,12 @@ export function MenuLayer() {
       {menu.items.map((it, i) => {
         if (it.title)
           return (
-            <div className="mi title" key={i}>
+            /* every menu label in the app passes through here and the row
+               below — a card name, "Play <face>", "Set P/T…" — so the two of
+               them cover the whole menu system at once */
+            <Text as="div" className="mi title" key={i}>
               {stripGlyph(it.label)}
-            </div>
+            </Text>
           );
         // matched on the label as DISPLAYED. Several MENU_LOOK rules are
         // anchored (/^show /), so a leading glyph on the label silently sank
@@ -80,7 +84,7 @@ export function MenuLayer() {
             }}
           >
             <Icon name={it.icon ?? look.icon} />
-            <span className="mi-label">{stripGlyph(it.label)}</span>
+            <Text className="mi-label">{stripGlyph(it.label)}</Text>
             {it.keys && <KeyCaps keys={it.keys} className="mi-keys" />}
           </button>
         );

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { KeyCaps } from "./KeyCaps";
+import { Text } from "./Text";
 
 // ONE floating layer, fixed to the viewport, above everything else in the app.
 // Never a sibling of the thing it describes: as a sibling it gets clipped by
@@ -51,10 +52,14 @@ export function TooltipLayer() {
   const keys = el.dataset.tipKeys?.split(",");
   return createPortal(
     <div id="tooltip" ref={box}>
+      {/* One place, and every data-tip in the app is covered — a tooltip is a
+          string in an attribute right up until it lands here, which is the
+          first moment it can hold a pip. This is why card text belongs in
+          data-tip and not in title: title has no such moment. */}
       {lines.map((line, i) => (
-        <div className="tt-row" key={i}>
+        <Text as="div" className="tt-row" key={i}>
           {line}
-        </div>
+        </Text>
       ))}
       {keys && <KeyCaps keys={keys} />}
     </div>,
