@@ -1169,6 +1169,41 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true };
   },
 
+  /** Take the hand back and deal a fresh one.
+   *
+   *  One action rather than the move/shuffle/draw it used to be, because a
+   *  mulligan is not a play — it is the deal happening again. Three actions
+   *  left three undo steps to walk back through and three log lines, one of
+   *  which ("Player moved…") is exactly what the next-action prompt reads as
+   *  "the player has started", so mulliganing jumped the prompt off its
+   *  opening silence and into the turn. Afterwards the table looks the way it
+   *  looked when New game dealt it: same turn, same phase, empty stack,
+   *  nothing to undo, and one line in the log saying what happened. */
+  mulligan(ctx, p) {
+    const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
+    const n = Math.max(0, Math.min(20, Number(p.n ?? 7)));
+    for (const id of [...game.players[player].zones.hand]) {
+      const card = game.cards[id];
+      placeCard(card, "library", player);
+      card.tapped = false;
+      card.faceDown = false;
+    }
+    shuffleZone(player);
+    const drawn: Card[] = [];
+    for (let i = 0; i < n; i++) {
+      const lib = game.players[player].zones.library;
+      if (!lib.length) break;
+      const card = game.cards[lib[0]];
+      placeCard(card, "hand", player);
+      card.tapped = false;
+      drawn.push(card);
+    }
+    addLog(ctx.actor, `${who(player)} mulliganed to ${drawn.length}`, {
+      [player]: `${who(player)} mulliganed to ${drawn.length}: ${drawn.map((c) => c.name).join(", ") || "(library empty)"}`,
+    });
+    return { ok: true, hand: drawn.length };
+  },
+
   /** Declare a phase/step change — applies immediately. The only turn-structure
    * stack item is the TURN PASS (set_turn); attack/block declarations and any
    * announced triggers still create their own priority windows. */

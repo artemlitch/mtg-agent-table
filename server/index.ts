@@ -27,7 +27,7 @@ agent.tableUrl = `http://localhost:${PORT}`;
 let lastDecks: { you: number; agent: number } | null = null;
 
 /** Actions that never become an undo step — see the note where it is used. */
-const NOT_UNDOABLE = new Set(["place", "chat", "done"]);
+const NOT_UNDOABLE = new Set(["place", "chat", "done", "mulligan"]);
 
 // Everything persisted beside the game itself. A backup carries the table as
 // it stands; the live state file adds the undo history.
@@ -254,8 +254,9 @@ const server = Bun.serve({
           }
         }
         // Sliding a card around the table changes nothing about the game, so
-        // it does not wake the agent either.
-        const cosmetic = body.type === "place";
+        // it does not wake the agent either — and neither does a mulligan,
+        // which is the deal happening again rather than a move in the game.
+        const cosmetic = body.type === "place" || body.type === "mulligan";
         // What cmd+Z steps back through. Undo is for taking back a PLAY, so
         // the things that are not plays stay out of the history: layout,
         // conversation, and passing priority — nobody reaches for undo to

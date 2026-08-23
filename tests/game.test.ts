@@ -649,6 +649,48 @@ describe("reset", () => {
     expect(game.log.length).toBe(0);
   });
 
+  test("a mulligan puts the table back where the deal left it", () => {
+    resetGameState();
+    seedLibrary("you", Array.from({ length: 20 }, (_, i) => `Card ${i}`));
+    applyAction("you", "draw", { n: 7 });
+    const opening = [...game.players.you.zones.hand];
+    game.log.length = 0;
+
+    applyAction("you", "mulligan", {});
+
+    expect(game.players.you.zones.hand).toHaveLength(7);
+    // a fresh seven, not the same seven handed back
+    expect(game.players.you.zones.hand).not.toEqual(opening);
+    for (const id of opening) expect(game.cards[id].zone).not.toBe("stack");
+    // ONE line, so the log does not read as a turn's worth of play
+    expect(game.log).toHaveLength(1);
+    expect(game.log[0].text).toMatch(/mulligan/i);
+    // and the turn structure is untouched
+    expect(game.turnNumber).toBe(1);
+    expect(game.phase).toBe("untap/upkeep");
+    expect(game.stack).toHaveLength(0);
+  });
+
+  test("a mulligan can go down to fewer cards", () => {
+    resetGameState();
+    seedLibrary("you", Array.from({ length: 20 }, (_, i) => `Card ${i}`));
+    applyAction("you", "draw", { n: 7 });
+    applyAction("you", "mulligan", { n: 5 });
+    expect(game.players.you.zones.hand).toHaveLength(5);
+  });
+
+  test("the log line a mulligan leaves is not one the prompt reads as a play", () => {
+    // game-start in features/nextaction/steps.ts stands the prompt down until
+    // the player has actually done something; a mulligan must not count
+    resetGameState();
+    seedLibrary("you", Array.from({ length: 20 }, (_, i) => `Card ${i}`));
+    applyAction("you", "draw", { n: 7 });
+    game.log.length = 0;
+    applyAction("you", "mulligan", {});
+    const STARTED = /^Player (played|cast|tapped|untapped|moved|created|declares|put on the stack|moves to)/;
+    for (const e of game.log) expect(e.text).not.toMatch(STARTED);
+  });
+
   test("the turn cannot be handed to whoever already has it", () => {
     resetGameState();
     game.turn = "agent";

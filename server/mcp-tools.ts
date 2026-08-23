@@ -197,6 +197,11 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Read ONE card's full details (oracle text, type, P/T, faces) by card id — any card you can legally see: battlefields, graveyards, stack, your hand, revealed cards. Free and unlogged. This is the tool for checking what a card does; peek is only for library tops.",
     schema: obj({ card: str("card id") }, ["card"]),
   },
+  mulligan: {
+    description:
+      "Take your hand back and deal a fresh one — ONE call, not move+shuffle+draw. Shuffles your whole hand into your library, shuffles, and draws n (default 7). A mulligan is the deal happening again, not a play: it leaves nothing to undo, does not wake the other seat, and leaves the turn and phase alone. HOUSE RULE (friendly mulligans): your FIRST mulligan is free — mulligan to 7. From the second on it is London, so pass n one lower each time (6, then 5…).",
+    schema: obj({ player: PLAYER, n: { type: "number", description: "cards to draw, default 7" } }),
+  },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("phase label") }, ["phase"]) },
   set_turn: { description: "Declare the turn pass — goes ON THE STACK as the end-of-turn priority window; the turn changes when Player resolves it. `player` is who the turn goes TO, which on your own turn means 'you' (Player) — passing it to whoever already has it is rejected. Rejected while anything else is on the stack. For a spell that grants an extra turn, pass extra: true.", schema: obj({ player: PLAYER, extra: { type: "boolean", description: "true = a spell is granting an extra turn, so the same seat may keep it" } }, ["player"]) },
   attack: {

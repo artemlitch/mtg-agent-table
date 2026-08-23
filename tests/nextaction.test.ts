@@ -64,16 +64,22 @@ describe("the first turn", () => {
     expect(prompt(fresh()).action).toBeNull();
   });
 
-  it("opens on the main phase once you have touched the table, mulligan included", () => {
-    // a mulligan is hand → library → shuffle → draw, done by hand, so what it
-    // leaves in the log is a move
-    const { id, action } = prompt(fresh([line("Player moved 7 cards from hand to library")]));
+  it("still says nothing after a mulligan — that is the deal, not a play", () => {
+    // one action leaving one line (mulligan() in server/game.ts). It used to
+    // be move + shuffle + draw, and the "Player moved…" line read as the
+    // player having started, so mulliganing jumped the prompt into the turn
+    expect(prompt(fresh([line("Player mulliganed to 7")])).action).toBeNull();
+    expect(prompt(fresh([line("Player mulliganed to 7"), line("Player mulliganed to 6")])).action).toBeNull();
+  });
+
+  it("opens on the main phase once you have actually played something", () => {
+    const { id, action } = prompt(fresh([line("Player mulliganed to 7"), line("Player played Island — land drop")]));
     expect(id).toBe("main-1");
     expect(action?.label).toBe("Begin main phase 1");
   });
 
   it("never offers the first-turn draw", () => {
-    expect(prompt(fresh([line("Player moved 7 cards from hand to library")])).id).not.toBe("draw");
+    expect(prompt(fresh([line("Player played Island — land drop")])).id).not.toBe("draw");
   });
 });
 

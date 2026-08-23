@@ -55,11 +55,11 @@ function LibraryPanel({ p }: { p: PlayerId }) {
           label="Mulligan"
           icon="mulligan"
           onRun={run(async () => {
-            const hand = gameView()?.players.you.zones.hand ?? [];
-            if (!hand.length) return;
-            await act("move", { cards: hand.map((c) => c.id), toZone: "library", note: "mulligan" });
-            await act("shuffle", { player: "you" });
-            await act("draw", { n: 7 });
+            // one action, so there is nothing to undo and the next-action
+            // prompt still reads the table as freshly dealt — see mulligan()
+            // in server/game.ts. House rule: the first is free, then London.
+            const taken = (gameView()?.log ?? []).filter((e) => /^Player mulliganed/.test(e.text)).length;
+            await act("mulligan", { n: Math.max(0, 7 - taken) });
           })}
         />
       )}
