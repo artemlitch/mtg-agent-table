@@ -74,10 +74,10 @@ export const ICONS: Record<string, string> = {
   phaseArrow: "gi-plain-arrow gi-rot270",
   caret: "gi-plain-arrow",
   caretUp: "gi-plain-arrow gi-rot180",
-  /* the side panel's dismiss tab: the same arrow aimed at where the panel is
-     about to go — right to push it off the edge, left to pull it back. */
-  chevronRight: "gi-plain-arrow gi-rot270",
-  chevronLeft: "gi-plain-arrow gi-rot90",
+  /* Shows and hides the side panel. Not from the game set — a picture of the
+     thing it acts on beats any arrow, and game-icons has no UI furniture, so
+     the mask for this one is drawn in base.css. */
+  panel: "gi-panel-right",
   /* The compact rail's two piles, and the reason they are not `mill` and
      `exile` above: those two are ACTIONS — a card being discarded, a card
      being burned — and a rail names PLACES. A menu row says "exile this"; the

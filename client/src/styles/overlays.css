@@ -101,7 +101,7 @@
 /* the card being resolved rides inside the button, on the left; hovering it
    still opens the full-size preview */
 #na-card {
-  width: 40px; border-radius: 3px; display: block; flex: none;
+  width: var(--na-card-w); border-radius: 3px; display: block; flex: none;
   border: 1px solid rgba(226, 179, 85, 0.45);
 }
 /* opaque, in the leather's own brown so it reads as part of the table: the
@@ -109,8 +109,11 @@
    composites to rgb(37,24,12). Gold outline, no chrome trick — a colour in a
    non-final background layer is a parse error */
 #na-primary {
-  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12px; letter-spacing: 0.05em;
-  padding: 7px 12px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
+  /* named, because the shift that undoes the card's push has to match them */
+  --na-card-w: 40px;
+  --na-card-gap: 9px;
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: var(--na-card-gap); letter-spacing: 0.05em;
+  padding: 7px 18px 6px; font: var(--fw-next) var(--fs-next)/1.25 var(--font-next);
   background: rgb(37, 24, 12); border-color: rgba(226, 179, 85, 0.8);
   color: var(--gold-hi);
   /* the box is a window while its width animates (see useSizeTransition) */
@@ -155,25 +158,16 @@
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
-/* ONE centre for everything the plate carries: the action, the sub-line under
-   it and the keycap under that all sit on the middle of the button.
-   The label is the WORDS. The glyph rides their line but not their flow — it
-   hangs off the leading edge — so the words keep the label's own centre and
-   the three of them line up exactly. Its lift is the correction .gi makes
-   with vertical-align in inline flow, which a flex parent ignores; done with
-   `top` and not `transform`, since this selector outweighs .gi-rot270 and
-   .gi-flipy and a transform here would cancel theirs. */
-#na-primary .na-label { position: relative; display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label > .na-icon {
-  position: absolute; right: 100%; margin-right: 5px;
-  /* centred on the label's line, then lifted: on an absolutely positioned box
-     `top` places the edge rather than nudging it, so the half-height has to be
-     taken off by hand or the glyph's height decides where it lands. */
-  top: 50%; margin-top: calc(-0.5em - 0.09em);
+#na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
+/* The card takes real room at the head of the plate, which carries everything
+   beside it half its own width off the middle. The action and its keycap take
+   that half back, so they sit where the plate's centre is rather than where
+   the card left them. The sub-line does not: it fills the column, and moving
+   it would run it into the card. */
+#na-primary:has(#na-card) .na-label,
+#na-primary:has(#na-card) .na-key {
+  transform: translateX(calc((var(--na-card-w) + var(--na-card-gap)) / -2));
 }
-
-/* every glyph in the label — the leading one and the phase chips' — is set to
-   the prompt's own size, so they scale with it and not with the page */
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
 /* the arrow between two phase names is punctuation, not a second action —
    smaller than the leading icon and dimmer than the words it joins */

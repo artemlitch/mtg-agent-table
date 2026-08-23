@@ -38,15 +38,9 @@ export function NextAction() {
           <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
-              {/* The glyph sits in flow beside the words, taking real room —
-                  nothing has to be padded out or hung over an edge for it.
-                  What keeps it from moving the words is the anchor, which
-                  measures .na-words and slides the whole prompt to suit. */}
               <span className="na-label">
-                {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} className="na-icon" />}
-                <span className="na-words">
-                  <PhaseLabel text={a.label ?? ""} />
-                </span>
+                {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} />}
+                <PhaseLabel text={a.label ?? ""} />
               </span>
               {/* the sub-line is the stack item's own words, so it carries
                   mana the same way the Stack tab and the chat do */}
