@@ -102,10 +102,10 @@ export const MENU_LOOK: [RegExp, string, string][] = [
   [/untap/i, "untap", "mulligan"],
   [/^tap\b/i, "tap", "mulligan"],
   [/play |cast|→ stack/i, "cast", "surveil"],
-  // owner/steal/give before the plain battlefield rule, or "to my battlefield"
-  // and "to owner's battlefield" would collapse onto one glyph
+  // steal and give before the plain battlefield rule: all of these name a
+  // battlefield, and the specific ones must not collapse onto its glyph
   [/steal|take/i, "steal", "exile"],
-  [/give|return|owner's battlefield/i, "give", "draw"],
+  [/give|return/i, "give", "draw"],
   [/battlefield/i, "battlefield", "draw"],
   [/graveyard|discard|mill/i, "mill", "mill"],
   [/exile/i, "exile", "exile"],

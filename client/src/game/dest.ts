@@ -23,10 +23,10 @@ export const DEST: Record<string, Dest> = {
   top: (c) => ["Top of library", { toZone: "library", toPlayer: c.owner, position: "top" }],
   bottom: (c) => ["Bottom of library", { toZone: "library", toPlayer: c.owner, position: "bottom" }],
   command: (c) => ["Command zone", { toZone: "command", toPlayer: c.owner }],
-  // both of these PLAY the card (see isPlay) — the row says where it lands and
-  // the glyph says the rest, the way every other destination reads
-  myBattlefield: () => ["To my battlefield", { toZone: "battlefield", toPlayer: "you" }],
-  ownerBattlefield: (c) => ["To owner's battlefield", { toZone: "battlefield", toPlayer: c.owner }],
+  // this PLAYS the card (see isPlay), and says so. There is deliberately no
+  // companion aimed at the owner's side: a card you put into play is yours to
+  // play, and handing it over afterwards is what steal/give are for.
+  myBattlefield: () => ["Play — to my battlefield", { toZone: "battlefield", toPlayer: "you" }],
   steal: () => ["😈 Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
   give: () => ["🎁 Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
   giveBack: () => ["Return to agent's battlefield", { toZone: "battlefield", toPlayer: "agent" }],
@@ -53,12 +53,10 @@ const isPlay = (c: Card, params: MoveParams) => params.toZone === "battlefield" 
  *  rule cannot be forgotten at a call site. */
 export function runDest(c: Card, params: MoveParams): Promise<ActionResult> {
   if (!isPlay(c, params)) return act("move", { card: c.id, ...params });
-  // toZone/toPlayer are the server's business once this is a cast: it decides
-  // stack vs land drop. Only the note carries over. Handing a card to the
-  // OWNER's side is an effect rather than your own play, so that one resolves
-  // where it was aimed — and, being an effect, uses the stack even for a land.
-  const toOwner = params.toPlayer && params.toPlayer !== "you" ? { resolveTo: "battlefield", resolveToPlayer: params.toPlayer } : {};
-  return playCard({ card: c.id, ...(params.note ? { note: params.note } : {}), ...toOwner });
+  // toZone/toPlayer stop mattering once this is a cast: the server decides
+  // stack vs land drop, and every play lands on your own side. Only the note
+  // carries over, to say in the log where the card came from.
+  return playCard({ card: c.id, ...(params.note ? { note: params.note } : {}) });
 }
 
 /** A menu row that sends the card somewhere. `extra` only ever adds a log note. */

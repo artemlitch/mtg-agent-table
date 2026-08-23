@@ -54,8 +54,6 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
     const move = (params: MoveParams) => void runDest(c, params).then(refresh);
     return [
       destButton("myBattlefield", c, (params) => void runDest(c, { ...params, note: `played from ${zone}` }).then(refresh)),
-      // the same row twice when you own the card
-      ...(c.owner === "you" ? [] : [destButton("ownerBattlefield", c, move)]),
       destButton("hand", c, move),
       destButton(zone === "exile" ? "graveyard" : "exile", c, move),
       destButton("top", c, move),
