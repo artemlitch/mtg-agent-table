@@ -17,6 +17,33 @@ body {
     radial-gradient(900px 600px at 50% 105%, rgba(180, 130, 40, 0.10), transparent 65%),
     var(--bg);
   color: var(--text); font: var(--fw-ui) var(--fs-body)/1.45 var(--font-ui); overflow: hidden;
+  /* This is a table you drag cards across, not a document. A drag that starts
+     on the felt means "pick this up", so the browser answering it with a
+     marquee left the board smeared in highlight and put a text caret where a
+     card should have been. Selection is off by default and switched back on
+     for the things actually worth reading and copying. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* The conversation is prose — names, numbers, whole exchanges worth quoting
+   out of the app. It is the one surface here that reads like a document. */
+#pane-chat {
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* Anything you type into stays selectable wherever it lives. Inherited
+   user-select: none reaches inside a field in Chromium and takes double-click
+   -to-select-a-word with it, so you could no longer fix a typo mid-sentence. */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* A card image is a game object, not a picture to peel out of the window. The
+   table runs its own pointer drag (game/drag.ts); the browser's native image
+   drag starts on the same gesture and fights it for the card. */
+img {
+  -webkit-user-drag: none;
 }
 button {
   border: 1px solid transparent; border-radius: 7px; padding: 4px 11px; cursor: pointer;
@@ -153,4 +180,26 @@ textarea { cursor: text; }
 @keyframes previewIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Mana symbols inside a line of prose — see components/Mana.tsx. The same six
+   SVGs the search filter's colour buttons use, sized in em so a pip matches
+   whatever text it is sitting in. Lives here rather than beside either caller
+   because the stack, the chat and the log all draw them. */
+.pip {
+  display: inline-block; width: 1.02em; height: 1.02em; vertical-align: -0.16em;
+  margin: 0 0.5px; border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.pipW { background: url("/pip-W.svg") center/100% no-repeat; }
+.pipU { background: url("/pip-U.svg") center/100% no-repeat; }
+.pipB { background: url("/pip-B.svg") center/100% no-repeat; }
+.pipR { background: url("/pip-R.svg") center/100% no-repeat; }
+.pipG { background: url("/pip-G.svg") center/100% no-repeat; }
+.pipC { background: url("/pip-C.svg") center/100% no-repeat; }
+/* generic cost: the stone-coloured chip a number sits in */
+.pipnum {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #c9c0b0; color: #17100a;
+  font: var(--fw-heading) 0.72em/1 var(--font-ui); font-style: normal; letter-spacing: 0;
 }
