@@ -306,6 +306,22 @@ const server = Bun.serve({
       }
     }
 
+    // You are mid-sentence in the composer. Not an event — nothing happened at
+    // the table, nothing is logged, nothing is undoable — but it is proof you
+    // have not finished, so a countdown already running waits for you.
+    //
+    // defer() and not schedule(): typing must never CREATE a window. Idle
+    // keystrokes with nothing pending would otherwise summon the agent, and
+    // typing into a chat you decide not to send would wake it for nothing.
+    //
+    // It matters most right after a message, where the wait is 300ms: that is
+    // short because pressing enter says you are finished, and it is exactly
+    // wrong when you are already typing the next line.
+    if (path === "/api/typing" && req.method === "POST") {
+      wakes.defer();
+      return json({ ok: true, wakeAt: wakes.wakeAt });
+    }
+
     if (path === "/api/undo" && req.method === "POST") {
       const undone = undoLast();
       if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);

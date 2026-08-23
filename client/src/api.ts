@@ -21,6 +21,22 @@ export async function act(type: string, params: Record<string, any> = {}): Promi
   return data;
 }
 
+/** Tell the table you are still typing, so a countdown already running waits
+ *  for you to finish. Never starts one — see /api/typing.
+ *
+ *  Throttled, because it rides keystrokes: one call, then silence until the
+ *  window is up. The countdown only needs to hear from you often enough to
+ *  keep being pushed back, and the server extends by the full wait each time.
+ *  Failures are swallowed on purpose — this is a hint, and a dropped hint is
+ *  worth less than a dialog about it. */
+let typedAt = 0;
+export function sendTyping(): void {
+  const now = Date.now();
+  if (now - typedAt < 700) return;
+  typedAt = now;
+  void fetch("/api/typing", { method: "POST" }).catch(() => {});
+}
+
 export async function refresh(): Promise<void> {
   const res = await fetch("/api/state?viewer=you");
   useGame.getState().applyView((await res.json()) as GameView);
