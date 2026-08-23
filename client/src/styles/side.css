@@ -53,6 +53,18 @@
 .msg.stackmsg .mwho { color: var(--accent); }
 .msg.stackmsg:hover { background: linear-gradient(#332a12, #332a12) padding-box, var(--chrome) border-box; }
 
+/* a reveal keeps the dim actline weight — it is still play-by-play, not a
+   message — and earns only a cursor and a count chip saying there is
+   something behind it */
+.msg.actline.revealline { cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
+.msg.actline.revealline:hover { color: var(--accent); }
+.revealline .revealopen {
+  flex: none; margin-left: auto; padding: 1px 6px; border-radius: 999px;
+  font-size: var(--fs-tiny); color: var(--accent);
+  background: rgba(226, 179, 85, 0.1);
+}
+.msg.actline.revealline:hover .revealopen { background: rgba(226, 179, 85, 0.2); color: var(--gold-hi); }
+
 /* typing indicator bubble */
 .typing-bubble { display: flex; gap: 4px; align-items: center; padding: 10px 14px; width: fit-content; max-width: 95%; }
 .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: tpulse 1.2s infinite ease-in-out; }

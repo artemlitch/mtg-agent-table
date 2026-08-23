@@ -93,6 +93,10 @@ export interface LogEntry {
   actor: PlayerId | "system";
   text: string; // public rendering
   private?: Partial<Record<PlayerId, string>>; // richer rendering for viewers allowed to know
+  /** The cards this entry is ABOUT, as ids — set by reveal, so the client can
+   *  put the actual cards in front of you instead of a list of names in the
+   *  log. Filtered per viewer on the way out; see renderLogFor. */
+  cards?: string[];
   /** Conversation rather than a play: chat, a question, passing priority.
    *  Something one player SAID, not something that happened to the game — so
    *  undo never deletes it and redo never brings it back (see history.ts). */
@@ -438,7 +442,18 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
 }
 
 export function renderLogFor(e: LogEntry, viewer: PlayerId) {
-  return { seq: e.seq, ts: e.ts, actor: e.actor, text: (e.private && e.private[viewer]) || e.text };
+  // the ids ride out only to viewers who may actually see those cards, which
+  // is the same grant reveal just made — so a reveal aimed at one seat never
+  // hands the other seat a way to look the cards up. A card that has since
+  // changed zones has had its grant wiped, and drops out here with it.
+  const cards = e.cards?.filter((id) => game.cards[id] && cardVisibleTo(game.cards[id], viewer));
+  return {
+    seq: e.seq,
+    ts: e.ts,
+    actor: e.actor,
+    text: (e.private && e.private[viewer]) || e.text,
+    ...(cards?.length ? { cards } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1077,12 +1092,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       for (const g of grant) if (!c.visibleTo.includes(g)) c.visibleTo.push(g);
       names.push(c.name);
     }
-    if (to === "all") addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`);
-    else
-      addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, {
-        [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
-        [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
-      });
+    const entry =
+      to === "all"
+        ? addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`)
+        : addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, {
+            [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
+            [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
+          });
+    // the cards themselves, for the client to open in a browser — the log line
+    // says which cards, this says which CARDS
+    entry.cards = [...ids];
     return { ok: true, names };
   },
 

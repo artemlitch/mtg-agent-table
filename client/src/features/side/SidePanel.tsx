@@ -2,6 +2,8 @@
 // with one composer under them that feeds whichever is open.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act, deleteKey, refresh, saveKey, testClaudeCli } from "../../api";
+import { openRevealBrowser } from "../browsers/Browsers";
+import { revealedCards } from "../../game/reveals";
 import { useGame } from "../../store/game";
 import { useUI, type TabName } from "../../store/ui";
 import type { LogEntry } from "../../types";
@@ -211,9 +213,27 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
       </div>
     );
   if (e.actor === "system") return <div className="msg sys">{e.text}</div>;
+  // a reveal names its cards in the line and CARRIES them on the entry — the
+  // line is the way back into them, for one that arrived while something else
+  // was open, or one you have scrolled back to
+  if (e.cards?.length) return <RevealLine e={e} />;
   // every other action (draws, taps, scries, moves…) shows as a dim line —
   // the chat is the full play-by-play, nothing happens invisibly
   return <div className="msg actline">{e.text}</div>;
+}
+
+/** A reveal, with its cards one click away. Dead once every card it named has
+ *  moved on: the ids stop resolving, and it goes back to being a plain line. */
+function RevealLine({ e }: { e: LogEntry }) {
+  useGame((s) => s.view); // re-resolve as cards move
+  const cards = revealedCards(e);
+  if (!cards.length) return <div className="msg actline">{e.text}</div>;
+  return (
+    <div className="msg actline revealline" title="Open the revealed cards" onClick={() => openRevealBrowser(cards)}>
+      {e.text}
+      <span className="revealopen">👁 {cards.length}</span>
+    </div>
+  );
 }
 
 function TypingBubble() {

@@ -73,6 +73,9 @@ export interface LogEntry {
   ts: number;
   actor: PlayerId | "system";
   text: string;
+  /** the cards this entry is about, as ids — set by reveal, and only ever
+   *  carrying ids this viewer is allowed to look up (see renderLogFor) */
+  cards?: string[];
 }
 
 export interface PlayerView {

@@ -5,6 +5,7 @@ import { MenuLayer } from "./components/Menu";
 import { ModalLayer } from "./components/Modal";
 import { TooltipLayer } from "./components/Tooltip";
 import { cardPrimaryAction } from "./game/interaction";
+import { processReveals } from "./game/reveals";
 import { processSounds } from "./game/sounds";
 import { useGame } from "./store/game";
 import { hovered, menuOpen, ui, useUI } from "./store/ui";
@@ -26,9 +27,12 @@ export function App() {
   useGlobalKeys();
   useWindowFocus();
 
-  // every log entry that earns a sound gets one, once
+  // every log entry that earns a sound gets one, once — and a reveal puts its
+  // cards on screen the same way, off the same array
   useEffect(() => {
-    if (view?.log) processSounds(view.log);
+    if (!view?.log) return;
+    processSounds(view.log);
+    processReveals(view.log);
   }, [view?.log]);
 
   return (

@@ -60,6 +60,8 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
       ...(c.owner === "you" ? [] : [destButton("ownerBattlefield", c, move)]),
       destButton("hand", c, move),
       destButton(zone === "exile" ? "graveyard" : "exile", c, move),
+      destButton("top", c, move),
+      destButton("bottom", c, move),
     ];
   };
   return <Browser title={`${whose(p)} ${zone} (${list.length})`} cards={list} actionsFor={actionsFor} />;
@@ -88,6 +90,7 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
       destButton("exile", c, found),
       destButton("exileDown", c, found),
       destButton("top", c, move),
+      destButton("bottom", c, move),
     ];
   };
   return <Browser title={`${whose(p)} library`} cards={cards} actionsFor={actionsFor} />;
@@ -95,6 +98,36 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
 
 export function openSearchBrowser(p: PlayerId, cards: Card[]) {
   ui().openModal({ body: <SearchBrowser p={p} initial={cards} /> });
+}
+
+// ── cards someone just revealed ───────────────────────────────────────────
+// A snapshot of one reveal, the way it was when it happened: the log line
+// names the cards, this puts the cards themselves in front of you. Same
+// window as a search, and the same reason for being a snapshot — the reveal
+// was a moment, and the visibility grant behind it is wiped the instant a
+// card changes zones. Acting on one card drops it from the grid; the rest
+// stay, and the window closes on Esc or ✕.
+function RevealBrowser({ initial }: { initial: Card[] }) {
+  const [cards, setCards] = useState(initial);
+  const actionsFor = (c: Card): CardAction[] => {
+    const move = (params: MoveParams) =>
+      void act("move", { card: c.id, ...params, note: "revealed" }).then(() =>
+        setCards((cs) => cs.filter((x) => x.id !== c.id))
+      );
+    return [
+      destButton("hand", c, move),
+      destButton("myBattlefield", c, move),
+      destButton("graveyard", c, move),
+      destButton("exile", c, move),
+      destButton("top", c, move),
+      destButton("bottom", c, move),
+    ];
+  };
+  return <Browser title={`Revealed (${cards.length})`} cards={cards} actionsFor={actionsFor} emptyText="(nothing left)" />;
+}
+
+export function openRevealBrowser(cards: Card[]) {
+  ui().openModal({ body: <RevealBrowser initial={cards} /> });
 }
 
 // ── scry / surveil ────────────────────────────────────────────────────────
