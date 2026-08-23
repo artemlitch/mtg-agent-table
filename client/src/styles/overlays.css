@@ -167,25 +167,19 @@
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
-/* The label is the WORDS. The glyph rides its line but not its flow, so the
-   words keep the label's own centre — which is what .na-text then lines the
-   sub-line and the keycap up with. right: 100% hangs it off the leading edge;
-   the button opens up room for it below. */
-#na-primary .na-label { position: relative; display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label > .na-icon {
-  position: absolute; right: 100%; margin-right: 5px;
-  top: 50%; margin-top: -0.5em;
-}
-/* the room the out-of-flow glyph needs, or the button's overflow: hidden —
-   which the width animation depends on — would simply cut it off */
-#na-primary:has(.na-icon) { padding-left: calc(18px + 1em + 5px); }
-/* The glyph is a drawing that fills its box; the words are capitals sitting on
-   a baseline, using none of the room below it. Centring the two boxes there-
-   fore hangs the icon low, so it is lifted — the same correction .gi makes
-   with vertical-align in inline flow, which a flex parent ignores.
-   Lifted with top, NOT transform: this selector outweighs .gi-rot270 and
-   .gi-flipy, and a transform here silently cancelled theirs — the phase arrow
-   fell back to pointing down and untap lost its mirror. */
+#na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
+/* The glyph is a drawing that fills its box; the words are capitals sitting
+   on a baseline, using none of the room below it. Centring the two boxes
+   against each other therefore hangs the glyph low, so it is lifted — the
+   same correction .gi makes with vertical-align in inline flow, which a flex
+   parent ignores.
+   Lifted with `top`, deliberately, NOT `transform`: this selector outweighs
+   .gi-rot270 and .gi-flipy, and a transform here cancels theirs outright. */
+#na-primary .na-label > .na-icon { position: relative; top: -0.09em; }
+/* the cap belongs to the plate, not to the words — see anchorOnWords */
+#na-primary .na-key { transform: translateX(var(--na-key-off, 0px)); }
+/* every glyph in the label — the leading one and the phase chips' — is set to
+   the prompt's own size, so they scale with it and not with the page */
 #na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
 /* the arrow between two phase names is punctuation, not a second action —
    smaller than the leading icon and dimmer than the words it joins */
