@@ -101,8 +101,17 @@
 /* the card being resolved rides inside the button, on the left; hovering it
    still opens the full-size preview */
 #na-card {
-  width: 40px; border-radius: 3px; display: block; flex: none;
+  width: var(--na-card-w); border-radius: 3px; display: block; flex: none;
   border: 1px solid rgba(226, 179, 85, 0.45);
+}
+/* The thumbnail is a picture of WHAT you are resolving, not part of the
+   sentence — so like the glyph beside the words, it hangs off the side rather
+   than pushing the words and their keycap off the middle of the plate. Same
+   mirror: a box its width on the trailing edge, with the button's own gap
+   supplying the matching space either side. Without this the words centre
+   inside .na-text, which is only the right-hand half of the button. */
+#na-primary:has(> #na-card)::after {
+  content: ""; flex: none; width: var(--na-card-w);
 }
 /* opaque, in the leather's own brown so it reads as part of the table: the
    playmat's radial-gradient centre rgba(43,27,14,.8) over the #0f0a06 base
@@ -149,15 +158,7 @@
 /* the keycap hint is a separate line, not a suffix — 1px read as touching,
    and a bordered phase chip above it made that obvious */
 #na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-/* The cap labels the whole prompt — glyph and words — not the words alone.
-   The words sit in the middle of the plate (see the mirror below), which puts
-   the label's centre on them, half an icon to the RIGHT of the icon-and-words
-   the cap belongs under. A trailing margin the size of that icon slides the
-   cap back by half of it, onto their shared midpoint. Only when there is an
-   icon to account for; a phase label leads with a chip and needs no shift. */
-#na-primary .na-text:has(> .na-label > .ico:first-child) .na-key {
-  margin-right: calc(1em + 5px);
-}
+
 /* the stack item's own words, under the action */
 #na-primary .na-sub {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
