@@ -186,10 +186,16 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // after a spell resolves, any time it wants a response. Saying "waiting"
     // then is backwards: it is waiting on YOU, and with no button to press the
     // table sits there with each side expecting the other to move.
+    //
+    // But only when nothing else is going to wake it. Acknowledging an item
+    // wakes the agent by itself (stack_resolve is in the reactive set in
+    // server/wake.ts), so after the usual Resolve there is already a countdown
+    // running — asking for a second press then is ceremony on almost every
+    // turn the agent takes. wakeAt is that countdown.
     id: "waiting-on-agent-turn",
     when: (c) => !c.mine,
     step: (c) =>
-      c.view.waitingOn === "you"
+      c.view.waitingOn === "you" && !c.view.wakeAt
         ? { label: "Pass — nothing to add", icon: "skip", fn: () => void act("done", {}) }
         : { hint: "the agent's turn — waiting" },
   },

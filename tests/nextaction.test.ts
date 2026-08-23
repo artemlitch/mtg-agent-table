@@ -136,11 +136,22 @@ describe("priority handed back during the agent's turn", () => {
     return v;
   };
 
-  it("offers a way to pass back when the agent is waiting on you", () => {
+  it("offers a way to pass back only when nothing else will wake the agent", () => {
     const { id, action } = prompt(theirTurn("you"));
     expect(id).toBe("waiting-on-agent-turn");
     expect(action?.fn).toBeTypeOf("function"); // a button, not a dead hint
     expect(action?.hint).toBeUndefined();
+  });
+
+  it("says nothing when a wake is already armed — resolving their item wakes them", () => {
+    // stack_resolve is in the reactive set, so acknowledging an item already
+    // brings the agent back. Asking to press Pass on top of that is ceremony
+    // on almost every turn the agent takes.
+    const v = theirTurn("you");
+    (v as any).wakeAt = Date.now() + 3000;
+    const { action } = prompt(v);
+    expect(action?.fn).toBeUndefined();
+    expect(action?.hint).toMatch(/waiting/i);
   });
 
   it("still just says it is waiting while the agent actually has priority", () => {
