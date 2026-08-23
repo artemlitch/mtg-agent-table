@@ -14,7 +14,6 @@ import { usePeek } from "./features/side/peek";
 import { SidePanel } from "./features/side/SidePanel";
 import { Battlefield } from "./features/table/Battlefield";
 import { CardLayer } from "./features/table/CardLayer";
-import { CommandZone } from "./features/table/CommandZone";
 import { Hand } from "./features/table/Hand";
 import { Rail } from "./features/table/Rail";
 import { openTokenModal } from "./features/modals/TokenModal";
@@ -48,7 +47,6 @@ export function App() {
                 <div className="boardwrap" id="boardwrap-agent">
                   <Hand p="agent" />
                   <Battlefield p="agent" />
-                  <CommandZone p="agent" />
                 </div>
               </div>
 
@@ -61,7 +59,6 @@ export function App() {
                 <div className="boardwrap" id="boardwrap-you">
                   <Battlefield p="you" />
                   <Hand p="you" />
-                  <CommandZone p="you" />
                   <button id="btn-token" title="Create a token" onClick={openTokenModal}>
                     <span className="tstar">✦</span>
                     <span>Token</span>

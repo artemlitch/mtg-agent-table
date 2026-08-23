@@ -152,11 +152,12 @@ body.dragging .cmdzone .card { pointer-events: none; }
    a marking painted ON the table, so a card crossing the midline covers it
    the way a real one would.
 
-   The two places you HOLD cards sit above #cardlayer (46) instead of below
-   it: your hand and the command zones are in front of the table, not on it,
-   and a card lying near the edge of the board must not overlap the cards you
-   are holding. A card being carried still passes over both — .placed.dragging
-   is 60 and .draglift is 80. */
+   Your hand sits above #cardlayer (46) instead of below it: it is the place
+   you HOLD cards, in front of the table rather than on it, and a card lying
+   near the edge of the board must not overlap the cards you are holding. The
+   rail — piles and the command zone in it — stays below, since board cards
+   are laid out inside the boardwraps and never reach it. A card being
+   carried passes over everything — .placed.dragging is 60, .draglift 80. */
 /* No z-index on the line, deliberately: #nextaction hangs off it, and a
    z-index here would make this 2px strip a stacking context that its z 47
    could never climb out of. The line already paints under the cards without
@@ -167,8 +168,8 @@ body.dragging .cmdzone .card { pointer-events: none; }
 /* ...except while a card is in the air. #cardlayer is a stacking context, so
    the carried card cannot climb out of it on its own z-index — the layer has
    to rise as a whole, or a card dragged toward your hand would slide behind
-   it. Cards at rest are held out of the hands by the resting band, so this
-   only shows on the command zones, and only for the length of the drag. */
+   it. Only for the length of the drag; cards at rest are held out of the
+   hands by the resting band. */
 body.dragging #cardlayer { z-index: 49; }
 
 /* Drop targets, while a card is in the air. Every one of them is outlined
@@ -254,15 +255,20 @@ body.dragging .handrow.fan { border-radius: 10px; }
 #hand-agent.fan .card.fanned:hover { transform: rotate(calc(var(--fan-rot) * -1)) translateY(calc(var(--fan-y) * -1)) scale(1.06); }
 
 /* ── the command zone ── */
-/* A lit socket in the corner of your own half, mirrored into the agent's. The
-   card inside is sized off a card in hand — it is a card you hold, not one you
-   have played — and then taken down by --cmd-scale, the one dial for the whole
-   widget. */
+/* A row in the rail, right under Exile — mirrored into the agent's rail by
+   the same column-reverse that mirrors every other row. The card inside is
+   sized off a card in hand — it is a card you hold, not one you have played
+   — and then taken down by --cmd-scale, the one dial for the whole widget.
+   align-self keeps it sized to its own content instead of stretching to the
+   rail's full width, the way it sat as a compact widget before. */
 .cmdzone {
   --cmd-scale: 0.8;
   --cmd-card-w: calc(var(--hand-card-w) * var(--cmd-scale));
   --cmd-card-h: calc(var(--hand-card-h) * var(--cmd-scale));
-  position: absolute; left: 12px; bottom: 12px; z-index: 48;
+  position: relative; align-self: flex-start;
+  /* the tax badge hangs 7px past the bottom-right corner, and the rail
+     scrolls — without the margin the badge is clipped at the end of the rail */
+  margin-bottom: 8px;
   padding: 5px; border-radius: 9px;
   display: flex; gap: 4px;
   border: 1px solid transparent;
@@ -271,8 +277,6 @@ body.dragging .handrow.fan { border-radius: 10px; }
   /* its transition lives with the drop-target rule in the drag section — one
      declaration, so the slow outline fade cannot be overwritten from here */
 }
-/* the agent's mirrors across the midline, into the top corner of its board */
-.cmdzone.theirs { bottom: auto; top: 12px; }
 /* an empty socket still holds its shape — it is the drop target for the way back */
 .cmdzone .cmdslot { display: flex; gap: 4px; min-width: var(--cmd-card-w); min-height: var(--cmd-card-h); border-radius: 5px; }
 /* just the outline — a hatch fill in here read as texture on the card */

@@ -1,6 +1,5 @@
-// The command zone as a place on the table rather than a row in the rail: a
-// small lit socket in the corner of your own half, with the commander sitting
-// in it at half a hand card's size.
+// The command zone: a row in the rail, right under Exile — a small lit socket
+// with the commander sitting in it at half a hand card's size.
 //
 // The socket stays drawn when it is empty — an empty command zone is
 // information too.
@@ -17,7 +16,7 @@ export function CommandZone({ p }: { p: PlayerId }) {
   // dragging never renders this component: the drag dims the picked card and
   // lights the socket by toggling classes on the elements directly
   return (
-    <div className={`cmdzone${mine ? "" : " theirs"}`} id={`cmdzone-${p}`} data-drop={`command:${p}`} data-tip="Command zone">
+    <div className="cmdzone" id={`cmdzone-${p}`} data-drop={`command:${p}`} data-tip="Command zone">
       {/* the nebula: four blobs drifting on their own clocks — see table.css */}
       <div className="cmdcloud" aria-hidden="true">
         <span />

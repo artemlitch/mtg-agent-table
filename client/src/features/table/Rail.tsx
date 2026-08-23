@@ -10,6 +10,7 @@ import { menuOpen, ui, type Anchor } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
 import { openZoneBrowser } from "../browsers/Browsers";
 import { openLibraryPanel } from "../menus/LibraryPanel";
+import { CommandZone } from "./CommandZone";
 
 export function Rail({ p }: { p: PlayerId }) {
   const ps = useGame((s) => s.view!.players[p]);
@@ -27,7 +28,7 @@ export function Rail({ p }: { p: PlayerId }) {
         onMenu={(e) => graveyardMenu(p, e)}
       />
       <Pile label="Exile" zone="exile" p={p} count={ps.counts.exile} cards={ps.zones.exile} onClick={() => openZoneBrowser(p, "exile")} />
-      {/* the command zone is a place on the board now — see CommandZone */}
+      <CommandZone p={p} />
     </div>
   );
 }

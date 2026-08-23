@@ -204,9 +204,8 @@ export function snapshotRegions(): Region[] {
         const [kind, player, zone] = el.dataset.drop!.split(":");
         return { kind: kind as RegionKind, player: player as "you" | "agent", zone, el, rect: rectOf(el, origin) };
       })
-      // smallest first, so the specific target wins where regions overlap: the
-      // command zone sits ON TOP of the hand strip, and in document order the
-      // hand would swallow every drop meant for the socket
+      // smallest first, so the specific target wins wherever regions overlap
+      // and document order would let the larger one swallow the drop
       .sort((a, b) => a.rect.width * a.rect.height - b.rect.width * b.rect.height)
   );
 }
