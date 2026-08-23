@@ -16,7 +16,15 @@ const str = (description: string, enums?: string[]): Schema => ({ type: "string"
 const num = (description: string): Schema => ({ type: "number", description });
 const arr = (items: Schema, description: string): Schema => ({ type: "array", items, description });
 
-const PLAYER = str("which player", ["you", "agent"]); // "you" = Player (the human), "agent" = you
+// The table's two player ids are fixed strings, and one of them is the word
+// "you" — which does NOT mean whoever is calling. "you" is always the human
+// Player; "agent" is always the agent. That has to be said in the DESCRIPTION,
+// because the description is the only part a model reads: a comment here is
+// invisible to it, and an enum offering "you" reads as "me" to a caller who
+// has not been told otherwise. It was not told, and put its own fetched land
+// on the human's battlefield.
+const SEATS = `"you" = the human Player, "agent" = the AI agent — these are fixed names, NOT relative to the caller, so the agent says "agent" for its own side`;
+const PLAYER = str(`which player: ${SEATS}`, ["you", "agent"]);
 const ZONE = str("zone", ["library", "hand", "battlefield", "graveyard", "exile", "command"]);
 
 export interface ToolDef {
@@ -53,7 +61,7 @@ export const TOOLS: Record<string, ToolDef> = {
         toPlayer: PLAYER,
         position: str("top | bottom | index (library placement)"),
         faceDown: { type: "boolean" },
-        revealTo: str("who may see a face-down card", ["you", "agent", "all"]),
+        revealTo: str(`who may see a face-down card: ${SEATS}`, ["you", "agent", "all"]),
         note: str("short reason shown in the log, e.g. 'Gonti trigger'"),
       },
       ["toZone"]
@@ -68,7 +76,7 @@ export const TOOLS: Record<string, ToolDef> = {
       note: str("short cast note for anything targets can't express, e.g. mode choices or X values"),
       face: num("double-faced cards: which face you are playing (0 front / 1 back)"),
       resolveTo: str("where it goes when it resolves — declare for MDFC faces or exile-on-resolve effects; otherwise inferred", ["battlefield", "graveyard", "exile", "hand", "library", "command"]),
-      resolveToPlayer: str("who gets it on resolve, when not the caster", ["you", "agent"]),
+      resolveToPlayer: str(`who gets it on resolve, when not the caster: ${SEATS}`, ["you", "agent"]),
       respondAt: str("stack item id you are responding at (inside Player's proposed sequence) — their retractable planned items above it unwind"),
     }, ["card"]),
   },
@@ -168,7 +176,7 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Track commander combat damage dealt to a player.",
     schema: obj({ to: PLAYER, commander: str("the commander — card id or name"), delta: num("damage dealt") }, ["to", "commander", "delta"]),
   },
-  reveal: { description: "Reveal cards (from your hand etc.) to 'all' or one player.", schema: obj({ cards: arr(str("card id"), "card ids"), to: str("audience", ["all", "you", "agent"]) }, ["cards"]) },
+  reveal: { description: "Reveal cards (from your hand etc.) to 'all' or one player.", schema: obj({ cards: arr(str("card id"), "card ids"), to: str(`audience: ${SEATS}`, ["all", "you", "agent"]) }, ["cards"]) },
   peek: {
     description: "Look at the top N cards of a library privately (scry/surveil/impulse effects). Follow with reorder_top or move.",
     schema: obj({ player: PLAYER, n: num("how many") }, ["n"]),
