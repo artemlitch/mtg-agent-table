@@ -5,9 +5,10 @@ import { TokenFace, drawnHere } from "./TokenFace";
 // The full-size card that follows the cursor. One layer, above the board and
 // the modal, below the tooltip.
 
-// wide enough for a full-size face plus the 60%-height other one tucked in
-// behind it (65% + 39% - 4% overlap = the whole width; see overlays.css)
-const WIDE = 400;
+// wide enough for a full-size face plus the 90%-height other one tucked in
+// behind it (55% + 49.5% - 4.5% overlap = the whole width; see overlays.css),
+// so the face in play measures the same NARROW as any other card
+const WIDE = 470;
 const NARROW = 260;
 
 export function CardPreviewLayer() {
