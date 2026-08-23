@@ -63,7 +63,8 @@
   position: relative; overflow: hidden;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
   background: none;
-  transition: var(--hover-transition);
+  /* its transition lives with the drop-target rule in the drag section — one
+     declaration, so the slow outline fade cannot be overwritten from here */
 }
 .pile::after {
   /* the panel purple part-way to black. Darkness is the pair of this mix and
@@ -168,29 +169,37 @@ body.dragging #cardlayer { z-index: 49; }
 
 /* Drop targets, while a card is in the air. Every one of them is outlined
    for the whole drag — dotted, so it reads as "you could put it here" — and
-   the one the cursor is actually over draws a solid line instead.
+   the one the cursor is actually over comes up in brightness.
    Outline rather than border: these are flex containers, and a border would
-   resize them the instant a drag began. */
+   resize them the instant a drag began.
+   The outline is here at rest too, transparent, and only its colour changes:
+   the transition has to already be on the element when the drag starts, or
+   the dashes are simply there on the first frame. Nothing moves while it
+   fades in, because an outline occupies no space.
+   The repeated outline-color is deliberate — the later entry wins, so the
+   dashes take 0.8s while everything else keeps the house hover timing. */
+.handrow.fan,
+.pile,
+.cmdzone {
+  outline: 1.5px dashed transparent;
+  outline-offset: -2px;
+  transition: var(--hover-transition), outline-color 0.8s ease;
+}
 body.dragging .handrow.fan,
 body.dragging .pile,
-body.dragging .cmdzone {
-  outline: 1.5px dashed rgba(226, 179, 85, 0.6);
-  outline-offset: -2px;
-}
-/* The one under the cursor stays dotted and just comes up in brightness, plus
-   the faintest wash. You are being told which target has you, not shouted at. */
+body.dragging .cmdzone { outline-color: rgba(226, 179, 85, 0.6); }
+/* The one under the cursor comes up in brightness, plus the faintest wash.
+   You are being told which target has you, not shouted at. Half a second:
+   this answers the cursor, so it must not lag behind it the way the fade in
+   is meant to. */
 body.dragging .handrow.fan:hover,
 body.dragging .pile:hover,
 body.dragging .cmdzone:hover {
   outline-color: var(--gold-hi);
   background: rgba(226, 179, 85, 0.05);
+  transition-duration: 0.5s;
 }
 body.dragging .handrow.fan { border-radius: 10px; }
-/* half a second, so the change is something you notice settling rather than
-   a flicker as the cursor crosses a boundary */
-body.dragging .handrow.fan,
-body.dragging .pile,
-body.dragging .cmdzone { transition: outline-color 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease; }
 
 /* ── hands ── */
 .handrow {
@@ -249,7 +258,8 @@ body.dragging .cmdzone { transition: outline-color 0.5s ease, background-color 0
   border: 1px solid transparent;
   background: linear-gradient(rgba(14, 10, 6, 0.9), rgba(20, 14, 8, 0.9)) padding-box, var(--chrome) border-box;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: var(--hover-transition);
+  /* its transition lives with the drop-target rule in the drag section — one
+     declaration, so the slow outline fade cannot be overwritten from here */
 }
 /* the agent's mirrors across the midline, into the top corner of its board */
 .cmdzone.theirs { bottom: auto; top: 12px; }
