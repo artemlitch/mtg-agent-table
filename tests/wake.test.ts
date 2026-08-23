@@ -2,7 +2,45 @@
 // whole conversation, so a window that only acknowledges what you did is the
 // most expensive kind of nothing.
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { WakeScheduler, WAKE_DELAY_MS, TYPING_DELAY_MS, wakeDelayFor } from "../server/wake";
+import { WakeScheduler, WAKE_DELAY_MS, TYPING_DELAY_MS, wakeDelayFor, wakePlanFor } from "../server/wake";
+
+describe("what your action buys the agent", () => {
+  const onYourTurn = (a: string) => wakePlanFor(a, false).reason;
+  const onTheirTurn = (a: string) => wakePlanFor(a, true).reason;
+
+  test("declaring attackers does not wake it — they are not locked in until you say so", () => {
+    // tapping creature after creature used to fire a reaction window each time,
+    // and the agent would resolve the declaration while you were still adding
+    // to it. Finishing is now an explicit press.
+    expect(onYourTurn("attack")).toBeNull();
+  });
+
+  test("but a spell cast in the middle of declaring still does", () => {
+    expect(onYourTurn("cast")).toBe("react");
+    expect(onYourTurn("stack_push")).toBe("react");
+    expect(onYourTurn("block")).toBe("react");
+  });
+
+  test("finishing, or saying something, is a full window", () => {
+    expect(onYourTurn("done")).toBe("window");
+    expect(onYourTurn("chat")).toBe("window");
+  });
+
+  test("during the agent's turn anything hands the table back — including an attack", () => {
+    expect(onTheirTurn("tap")).toBe("window");
+    expect(onTheirTurn("attack")).toBe("window");
+  });
+
+  test("moving your own cards around only pushes the countdown back", () => {
+    for (const a of ["tap", "move", "draw", "life", "set_phase"]) expect(onYourTurn(a)).toBeNull();
+  });
+
+  test("the plan carries the delay too, so the caller asks once", () => {
+    expect(wakePlanFor("chat", false)).toEqual({ reason: "window", delay: TYPING_DELAY_MS });
+    expect(wakePlanFor("cast", false)).toEqual({ reason: "react", delay: WAKE_DELAY_MS });
+    expect(wakePlanFor("attack", false)).toEqual({ reason: null, delay: WAKE_DELAY_MS });
+  });
+});
 
 describe("how long each trigger buys", () => {
   test("a sent message only waits out a fast second message", () => {
@@ -81,12 +119,18 @@ describe("wake debounce", () => {
     expect(fired).toEqual(["window", "react"]);
   });
 
-  test("cancel drops a pending wake", () => {
+  // what undo does: the action being rewound is the one that armed the wake,
+  // so after the rewind there is nothing left to answer
+  test("cancel drops a pending wake, and no later tick revives it", () => {
     s.schedule("window");
     s.cancel();
     vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
     expect(fired).toEqual([]);
     expect(s.wakeAt).toBeNull();
+    // a cancelled wake is gone, not paused: deferring must not bring it back
+    s.defer();
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    expect(fired).toEqual([]);
   });
 
   test("wakeAt carries the deadline so the client can draw the countdown", () => {

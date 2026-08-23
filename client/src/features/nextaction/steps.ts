@@ -35,6 +35,8 @@ export interface Ctx {
   attackSig: string;
   iAmBlocking: boolean;
   myAttackers: Card[];
+  /** my attack declaration sitting on the stack, not yet locked in */
+  myPendingAttack: StackItem | null;
   myTapped: boolean;
 }
 
@@ -62,6 +64,7 @@ export function nextActionContext(view: GameView): Ctx {
     attackSig: theirAttackers.map((c) => c.id).sort().join(","),
     iAmBlocking: view.players.you.zones.battlefield.some((c) => c.blocking),
     myAttackers: view.players.you.zones.battlefield.filter((c) => c.attacking),
+    myPendingAttack: stack.find((it) => it.player === "you" && !!it.attackPairs) ?? null,
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
   };
 }
@@ -130,7 +133,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "waiting-on-agent-response",
-    when: (c) => !!c.top, // your own item on top — the agent answers it
+    // your own item on top — the agent answers it. Except an attack
+    // declaration you have not finished: that one is on the stack but has not
+    // been handed over, and the agent is deliberately not looking at it (see
+    // wakePlanFor in server/wake.ts), so saying it is waiting would be a lie.
+    when: (c) => !!c.top && c.top.id !== c.myPendingAttack?.id,
     step: () => ({ hint: "on the stack — waiting for the agent" }),
   },
   {
@@ -202,6 +209,28 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: () => ({ label: "Go to combat", icon: "combat", skip: true, fn: () => void act("set_phase", { phase: "combat" }) }),
   },
   {
+    // Declaring attackers is yours to finish. Tapping creatures no longer
+    // wakes the agent (see wakePlanFor in server/wake.ts), so nothing looks at
+    // the board until you press this — you get as long as you want to work out
+    // the attack, and the agent cannot lock in a declaration you are still
+    // adding to. Pressing it with nothing declared means you are not attacking.
+    id: "finish-attacks",
+    when: (c) => c.phase === "combat" && c.myAttackers.length === 0 && !didThisTurn(/combat damage|go to damage/i),
+    step: (c) => {
+      const pairs = c.myPendingAttack?.attackPairs ?? [];
+      return {
+        label: "Finish declaring attackers",
+        icon: "combat",
+        sub: pairs.length
+          ? `${pairs.length} attacking — the agent locks it in`
+          : "none declared — skips to main phase 2",
+        title: "tap [e] a creature to attack",
+        skip: true,
+        fn: () => void (pairs.length ? act("done", {}) : act("set_phase", { phase: "main 2" })),
+      };
+    },
+  },
+  {
     id: "combat-damage",
     // the guard has to match what the button actually pushes, or the step
     // never stands down and combat cannot advance
@@ -218,14 +247,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
     }),
   },
   {
-    // never a dead end: attacking is a right-click on a creature, so the
-    // prompt keeps moving the turn along instead of waiting on one
+    // what is left of combat once damage is done — declaring and damage are
+    // handled above, so this is only the way out
     id: "past-combat",
     when: (c) => c.phase === "combat",
     step: () => ({
       label: "Begin main phase 2",
       icon: "main",
-      title: "tap [e] a creature to attack instead",
       skip: true,
       fn: () => void act("set_phase", { phase: "main 2" }),
     }),

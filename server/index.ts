@@ -9,7 +9,7 @@ import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, history
 import { loadKey, saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
-import { WakeScheduler, wakeDelayFor } from "./wake";
+import { WakeScheduler, wakePlanFor } from "./wake";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -271,24 +271,14 @@ const server = Bun.serve({
           throw e;
         }
         saveSoon();
-        // Wake policy. Every wake resends the whole conversation — ~100k
-        // tokens by mid-game — so only response-worthy actions arm it:
-        // - full window on done/chat, and on ANY action during the agent's
-        //   turn (acting hands the table back so it continues its turn)
-        // - reaction window on stack traffic and combat during YOUR turn
-        // - everything else (draws, taps, life, moves, phases) just lands in
-        //   the log and is seen at the agent's next wake
-        // Armed or not, the countdown restarts on anything you do: a run of
-        // taps is one window, not one per tap. Scheduled BEFORE the broadcast
-        // so the update carries the new deadline for the client's countdown.
+        // Wake policy lives in wake.ts — which actions are worth a window, and
+        // how long each one waits first. Armed or not, the countdown restarts
+        // on anything you do: a run of taps is one window, not one per tap.
+        // Scheduled BEFORE the broadcast so the update carries the new deadline
+        // for the client's countdown.
         if (actor === "you" && game.started && !cosmetic) {
-          const REACTIVE = new Set([
-            "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
-            "stack_counter", "stack_remove", "attack", "block", "set_turn", "create_token",
-          ]);
-          const delay = wakeDelayFor(body.type);
-          if (body.type === "done" || body.type === "chat" || game.turn === "agent") wakes.schedule("window", delay);
-          else if (REACTIVE.has(body.type)) wakes.schedule("react", delay);
+          const { reason, delay } = wakePlanFor(body.type, game.turn === "agent");
+          if (reason) wakes.schedule(reason, delay);
           else wakes.defer(delay);
         }
         broadcast({ type: "update", seq: game.seq });
@@ -317,10 +307,12 @@ const server = Bun.serve({
       if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);
       addLog("system", `↩ Player undid: ${undone}`);
       saveSoon();
-      // deliberately NOT waking the agent: it would act immediately and pile
-      // new state on top, making it impossible to keep rewinding. A wake armed
-      // before the rewind waits for it to finish for the same reason.
-      wakes.defer();
+      // Undo does not wake the agent — it would act immediately and pile new
+      // state on top, making it impossible to keep rewinding. It also calls
+      // OFF a wake that is already armed: undo is strictly last-in-first-out,
+      // so the action being rewound is the one that armed it. Nothing happened,
+      // so there is nothing to answer.
+      wakes.cancel();
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true, undone });
     }

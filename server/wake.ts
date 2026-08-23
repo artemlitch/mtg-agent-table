@@ -31,6 +31,31 @@ export const wakeDelayFor = (action: string) => TRIGGER_DELAYS[action] ?? WAKE_D
 
 export type WakeReason = "window" | "react";
 
+/** Things you can do on YOUR turn that the agent gets priority over: stack
+ *  traffic and blocks. Everything else lands in the log and is read at its
+ *  next wake.
+ *
+ *  Declaring attackers is deliberately not here. Tapping creature after
+ *  creature used to buy a reaction window each time, and the agent would
+ *  resolve the declaration while you were still adding to it — the attack is
+ *  on the stack, but it is not locked in until you say you are finished. The
+ *  "Finish declaring attackers" prompt is how you say so, and it calls done. */
+const REACTIVE = new Set([
+  "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
+  "stack_counter", "stack_remove", "block", "set_turn", "create_token",
+]);
+
+/** What one of your actions buys the agent: a full window, a reaction window,
+ *  or nothing but a nudge to the countdown — and how long it waits either way.
+ *
+ *  Acting during the agent's turn always hands the table back, whatever the
+ *  action was, because it is the agent's to continue. */
+export function wakePlanFor(action: string, agentsTurn: boolean): { reason: WakeReason | null; delay: number } {
+  const delay = wakeDelayFor(action);
+  if (action === "done" || action === "chat" || agentsTurn) return { reason: "window", delay };
+  return { reason: REACTIVE.has(action) ? "react" : null, delay };
+}
+
 export class WakeScheduler {
   /** epoch ms the agent will wake at, or null when nothing is pending */
   wakeAt: number | null = null;
