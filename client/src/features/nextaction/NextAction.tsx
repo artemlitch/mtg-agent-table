@@ -92,17 +92,17 @@ function PhaseLabel({ text }: { text: string }) {
   const at = text.indexOf(" → ");
   if (at < 0) return <>{text}</>;
   const [from, to] = [text.slice(0, at), text.slice(at + 3)];
-  const chip = (name: string) => (
-    <span className="na-phase">
+  const chip = (name: string, which: "from" | "to") => (
+    <span className={`na-phase na-${which}`}>
       {PHASE_ICON[name] && <Icon name={PHASE_ICON[name]} />}
       {name}
     </span>
   );
   return (
     <>
-      {chip(from)}
+      {chip(from, "from")}
       <Icon name="phaseArrow" className="na-arrow" />
-      {chip(to)}
+      {chip(to, "to")}
     </>
   );
 }

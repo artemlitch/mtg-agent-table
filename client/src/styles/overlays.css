@@ -136,7 +136,9 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
 #na-primary.sizing {
   transition: width var(--size-dur) var(--glow-ease), height var(--size-dur) var(--glow-ease), var(--hover-transition);
 }
-#na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* the keycap hint is a separate line, not a suffix — 1px read as touching,
+   and a bordered phase chip above it made that obvious */
+#na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 /* the stack item's own words, under the action */
 #na-primary .na-sub {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
@@ -152,17 +154,34 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
    smaller than the prompt's own voice — this is the turn structure ticking
    over, not a play, and it should not shout the way Resolve does. */
 #na-primary .na-phase {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 2px 10px 3px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  /* even top and bottom, and line-height 1 so the pill's height is the content
+     rather than the prompt's inherited 1.25 leading — with leading in play the
+     box is taller than what it holds and the centring has nothing to bite on */
+  padding: 3px 11px; line-height: 1;
+  border-radius: 6px;
   border: 1px solid rgba(226, 179, 85, 0.32);
   font-size: calc(var(--fs-next) * 0.84);
   font-weight: var(--fw-ui);
   letter-spacing: 0.03em;
+  /* letter-spacing is added after the LAST character too, so the words sit a
+     hair left of centre in their own box. Give that space back on the right. */
+  padding-right: calc(11px - 0.03em);
 }
 #na-primary .na-phase .ico { font-size: calc(var(--fs-next) * 0.76); line-height: 1; opacity: 0.8; }
-/* the destination is where you are going, so it takes the brighter rim */
-#na-primary .na-phase + .na-arrow + .na-phase,
-#na-primary .na-arrow + .na-phase { border-color: rgba(226, 179, 85, 0.55); }
+/* Where you are, and where this takes you. The phase you are IN is what you
+   read to orient yourself mid-turn, so it keeps the full size and a lit rim.
+   The destination is smaller and quieter — the arrow already says it is next,
+   and the button being pressed already says you are going there. */
+#na-primary .na-phase.na-from { border-color: rgba(226, 179, 85, 0.6); }
+#na-primary .na-phase.na-to {
+  font-size: calc(var(--fs-next) * 0.72);
+  padding: 2px 9px;
+  padding-right: calc(9px - 0.03em);
+  border-color: rgba(226, 179, 85, 0.24);
+  color: color-mix(in srgb, var(--gold-hi) 74%, transparent);
+}
+#na-primary .na-phase.na-to .ico { font-size: calc(var(--fs-next) * 0.64); opacity: 0.7; }
 #na-hint {
   padding: 4px 12px; font-size: var(--fs-note); font-style: italic; color: var(--dim);
   background: rgba(15, 10, 6, 0.72); border-radius: 10px;
