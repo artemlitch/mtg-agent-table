@@ -149,6 +149,15 @@
 /* the keycap hint is a separate line, not a suffix — 1px read as touching,
    and a bordered phase chip above it made that obvious */
 #na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+/* The cap labels the whole prompt — glyph and words — not the words alone.
+   The words sit in the middle of the plate (see the mirror below), which puts
+   the label's centre on them, half an icon to the RIGHT of the icon-and-words
+   the cap belongs under. A trailing margin the size of that icon slides the
+   cap back by half of it, onto their shared midpoint. Only when there is an
+   icon to account for; a phase label leads with a chip and needs no shift. */
+#na-primary .na-text:has(> .na-label > .ico:first-child) .na-key {
+  margin-right: calc(1em + 5px);
+}
 /* the stack item's own words, under the action */
 #na-primary .na-sub {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
