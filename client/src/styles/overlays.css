@@ -161,10 +161,17 @@
 #na-primary .na-text { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 
 /* the stack item's own words, under the action */
+/* Everything under the action is read, not proclaimed — a card's own words and
+   the key that fires the button. Cinzel is the voice for the ACTION; small
+   running text set in it is more work to read than it is worth, so the
+   sub-line and the keycap drop to the UI sans. Scoped to the prompt: the same
+   keycap turns up in menus and tooltips, which keep the display face. */
 #na-primary .na-sub {
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
+  font-family: var(--font-ui);
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
+#na-primary .keycap { font-family: var(--font-ui); }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
 /* Two things sit in front of the words and each carries them off the middle
    by half its own width: the card at the head of the plate, the glyph at the
