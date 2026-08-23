@@ -256,6 +256,13 @@ body.dragging .handrow.fan { border-radius: 10px; }
    the board (<=30) while staying under the menu, modal and preview */
 .handrow.fan .card.fanned:hover { z-index: 35 !important; }
 #hand-you.fan { align-items: flex-end; padding: 0 8px 10px; }
+/* Rides just above the hand it is offering to replace, out of flow so the fan
+   keeps every pixel of its row — the hand has about 4px of slack and the arc
+   already uses it. Above the fanned cards, which climb to z-index n. */
+#hand-mulligan {
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px;
+  z-index: 60;
+}
 #hand-you.fan .card.fanned {
   margin: -30px -11px 0;
   transform-origin: 50% 130%;

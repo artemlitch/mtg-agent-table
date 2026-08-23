@@ -54,12 +54,11 @@ function LibraryPanel({ p }: { p: PlayerId }) {
           cls="lp-wide"
           label="Mulligan"
           icon="mulligan"
+          // one action, so there is nothing to undo and the next-action prompt
+          // still reads the table as freshly dealt — see mulligan() in
+          // server/game.ts
           onRun={run(async () => {
-            // one action, so there is nothing to undo and the next-action
-            // prompt still reads the table as freshly dealt — see mulligan()
-            // in server/game.ts. House rule: the first is free, then London.
-            const taken = (gameView()?.log ?? []).filter((e) => /^Player mulliganed/.test(e.text)).length;
-            await act("mulligan", { n: Math.max(0, 7 - taken) });
+            await act("mulligan", {});
           })}
         />
       )}

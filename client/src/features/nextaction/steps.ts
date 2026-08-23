@@ -9,7 +9,7 @@
 //   icon: a key into ICONS, drawn before the label.
 //   skip: true adds the faded skip-to-pass-turn line underneath.
 import { act, type ActionResult } from "../../api";
-import { stackItemCard, stackSubText } from "../../game/rules";
+import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
 import { didThisTurn, gameView, lastLogIndex } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, StackItem } from "../../types";
@@ -194,9 +194,8 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // marching the phase along
     id: "game-start",
     when: (c) =>
-      c.mine &&
-      c.view.turnNumber === 1 &&
-      !didThisTurn(/^Player (played|cast|tapped|untapped|moved|created|declares|put on the stack|moves to)/),
+      // same question the mulligan offer asks, so it is the same pattern
+      c.mine && c.view.turnNumber === 1 && !didThisTurn(HAS_STARTED_PLAYING),
     step: () => null,
   },
   {

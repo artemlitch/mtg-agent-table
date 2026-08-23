@@ -4,11 +4,33 @@
 // than ~24px, and wide hands tighten their overlap instead of bleeding past
 // the edges.
 import { useEffect, useRef, useState } from "react";
+import { act } from "../../api";
 import { CardEl } from "../../components/Card";
+import { Icon } from "../../components/Icon";
 import { startDrag } from "../../game/drag";
 import { HAND_W } from "../../game/interaction";
+import { canMulligan } from "../../game/rules";
 import { useGame } from "../../store/game";
 import type { PlayerId } from "../../types";
+
+/** The pre-game offer, sitting over your hand where you are already looking
+ *  when you decide whether to keep. It reads like the skip line under the
+ *  next-action prompt because it is the same kind of thing: quiet, optional,
+ *  and not the move the table expects you to make.
+ *
+ *  Only while a mulligan is a real option — your opening turn, before you have
+ *  played anything. It is gone the moment the game starts, because once a land
+ *  is down the offer would be a lie. The condition is deliberately the same one
+ *  the prompt uses to stay silent at the start of a game. */
+function Mulligan() {
+  const view = useGame((s) => s.view);
+  if (!canMulligan(view)) return null;
+  return (
+    <button id="hand-mulligan" className="ghost quietline" onClick={() => void act("mulligan", {})}>
+      <Icon name="mulligan" /> mulligan
+    </button>
+  );
+}
 
 export function Hand({ p }: { p: PlayerId }) {
   const cards = useGame((s) => s.view!.players[p].zones.hand);
@@ -41,6 +63,7 @@ export function Hand({ p }: { p: PlayerId }) {
   // arms the strip by toggling classes on the elements directly
   return (
     <div className="handrow fan" id={`hand-${p}`} ref={row} data-drop={`hand:${p}`}>
+      {p === "you" && <Mulligan />}
       {cards.map((c, i) => (
         <CardEl
           key={c.id}

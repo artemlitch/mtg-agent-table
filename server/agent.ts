@@ -816,7 +816,7 @@ THE STACK AND PRIORITY (Comprehensive Rules model):
 
 UNDO: log lines starting with ↩ mean Player rewound the listed action. The event log you saw earlier may no longer match reality after an ↩ — call get_state and trust the current state, not your memory.
 
-MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan, call the mulligan tool — ONE call, which shuffles your hand back and deals a fresh one. HOUSE RULE (friendly mulligans): your FIRST mulligan is free, so mulligan to 7. From the second on it's London: pass n one lower each time (6, then 5…).
+MULLIGAN: at game start, look at your opening hand (get_state shows it). Decide keep or mulligan (say your reasoning). To mulligan, call the mulligan tool — ONE call, which shuffles your hand back and deals a fresh seven. HOUSE RULE (friendly mulligans): mulligan as often as you like, and keep seven. If you would rather keep fewer, pass a lower n and say why.
 
 BATCHING: every card tool takes many cards at once (move cards:[...], tap cards:[...], counters cards:[...], reveal cards:[...]). Always batch multi-card operations into one call — never loop one card at a time.
 

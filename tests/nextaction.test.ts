@@ -10,6 +10,7 @@ import type { Card, GameView, LogEntry, StackItem } from "../client/src/types";
 globalThis.localStorage ??= { getItem: () => null, setItem: () => {} } as unknown as Storage;
 
 const { NEXT_ACTION_STEPS, nextActionContext } = await import("../client/src/features/nextaction/steps");
+const { canMulligan } = await import("../client/src/game/rules");
 const { useGame } = await import("../client/src/store/game");
 
 let seq = 0;
@@ -80,6 +81,47 @@ describe("the first turn", () => {
 
   it("never offers the first-turn draw", () => {
     expect(prompt(fresh([line("Player played Island — land drop")])).id).not.toBe("draw");
+  });
+});
+
+// The offer that rides over your hand. Same question the prompt's opening
+// silence asks, so it shares the pattern.
+describe("when the mulligan offer is on the table", () => {
+  const opening = (over: Partial<Parameters<typeof view>[0]> = {}) =>
+    view({ turnNumber: 1, phase: "untap/upkeep", mine: [], ...over });
+  const withHand = (log: LogEntry[] = []) => {
+    const v = opening({ log });
+    v.players.you.zones.hand = [{ id: "h1" } as Card];
+    return v;
+  };
+
+  it("is offered on your opening turn with cards in hand", () => {
+    expect(canMulligan(withHand())).toBe(true);
+  });
+
+  it("stays offered however many times you take it — the table counts nothing", () => {
+    expect(canMulligan(withHand([line("Player mulliganed to 7")]))).toBe(true);
+    expect(canMulligan(withHand([line("Player mulliganed to 7"), line("Player mulliganed to 7")]))).toBe(true);
+  });
+
+  it("is gone the moment you play something", () => {
+    expect(canMulligan(withHand([line("Player played Island — land drop")]))).toBe(false);
+  });
+
+  it("is gone past the opening turn, and on the agent's turn", () => {
+    const later = withHand();
+    later.turnNumber = 2;
+    expect(canMulligan(later)).toBe(false);
+    const theirs = withHand();
+    theirs.turn = "agent";
+    expect(canMulligan(theirs)).toBe(false);
+  });
+
+  it("is not offered with an empty hand, or before the game is dealt", () => {
+    expect(canMulligan(opening())).toBe(false);
+    const undealt = withHand();
+    undealt.started = false;
+    expect(canMulligan(undealt)).toBe(false);
   });
 });
 

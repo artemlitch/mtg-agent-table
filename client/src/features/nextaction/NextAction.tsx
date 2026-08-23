@@ -53,7 +53,7 @@ export function NextAction() {
       </div>
 
       {a.skip && (
-        <button id="na-skip" className="ghost" onClick={() => void passTurnToAgent()}>
+        <button id="na-skip" className="ghost quietline" onClick={() => void passTurnToAgent()}>
           <span>
             <Icon name="skip" /> skip to pass turn
           </span>

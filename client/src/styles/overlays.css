@@ -150,15 +150,22 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
 }
 /* hangs below the primary, out of flow: appearing must not resize the
    centred container and shove the main button upward */
-#na-skip {
-  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
+/* The quiet offer: faded, small, no plate, and only the ink brightens on
+   hover. For the things that are available rather than expected — skipping to
+   the turn pass, and the mulligan above your hand. Shared so the two cannot
+   drift apart; each owns its own placement. */
+.quietline {
   padding: 1px 8px; font-size: var(--fs-note); letter-spacing: 0.04em; white-space: nowrap;
   color: var(--dim); opacity: 0.5;
   font-family: var(--font-fantasy);
 }
-#na-skip .ico { font-size: var(--fs-micro); margin-right: 2px; }
-#na-skip:hover { opacity: 1; color: var(--accent); }
+.quietline .ico { font-size: var(--fs-micro); margin-right: 2px; }
+.quietline:hover { opacity: 1; color: var(--accent); }
+
+#na-skip {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
 @keyframes noblockspulse {
   0%, 100% { box-shadow: 0 0 5px rgba(240, 208, 120, 0.4); }
   50% { box-shadow: 0 0 16px rgba(240, 208, 120, 0.9); }
