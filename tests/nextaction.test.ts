@@ -26,11 +26,12 @@ function view({
   stack = [] as StackItem[],
   log = [] as LogEntry[],
   phase = "combat",
-}: { mine?: Card[]; stack?: StackItem[]; log?: LogEntry[]; phase?: string }): GameView {
+  turnNumber = 4,
+}: { mine?: Card[]; stack?: StackItem[]; log?: LogEntry[]; phase?: string; turnNumber?: number }): GameView {
   return {
     started: true,
     turn: "you",
-    turnNumber: 4,
+    turnNumber,
     phase,
     stack,
     log: [line("— Round 4: Player's turn —", "you"), ...log],
@@ -52,6 +53,29 @@ function prompt(v: GameView) {
 const ENTERED = () => line("Player moves to combat");
 const LOCKED = () => line("Attacks locked in: Bear → Agent (attackers tapped)");
 const DAMAGE = () => line("Player put on the stack: go to damage — declare blockers if you have any, then announce combat damage");
+
+// A new game opens where every other turn opens, at untap/upkeep — see
+// newGameState in server/game.ts, which used to start at main 1 and skip the
+// step the turn pass gives every later turn.
+describe("the first turn", () => {
+  const fresh = (log: LogEntry[] = []) => view({ turnNumber: 1, phase: "untap/upkeep", log });
+
+  it("says nothing while you are still settling in", () => {
+    expect(prompt(fresh()).action).toBeNull();
+  });
+
+  it("opens on the main phase once you have touched the table, mulligan included", () => {
+    // a mulligan is hand → library → shuffle → draw, done by hand, so what it
+    // leaves in the log is a move
+    const { id, action } = prompt(fresh([line("Player moved 7 cards from hand to library")]));
+    expect(id).toBe("main-1");
+    expect(action?.label).toBe("Begin main phase 1");
+  });
+
+  it("never offers the first-turn draw", () => {
+    expect(prompt(fresh([line("Player moved 7 cards from hand to library")])).id).not.toBe("draw");
+  });
+});
 
 describe("the combat prompt, step by step", () => {
   it("asks you to declare as soon as you reach combat", () => {

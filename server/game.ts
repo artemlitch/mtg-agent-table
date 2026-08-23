@@ -187,7 +187,9 @@ export function newGameState(): GameState {
     started: false,
     turn: "you",
     turnNumber: 1,
-    phase: "main 1",
+    // where the turn pass puts every later turn, so turn 1 is not a special
+    // case that opens on "Go to combat" with an untouched board
+    phase: "untap/upkeep",
     players: { you: emptyPlayer(), agent: emptyPlayer() },
     cards: {},
     stack: [],

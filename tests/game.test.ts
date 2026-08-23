@@ -648,6 +648,14 @@ describe("reset", () => {
     expect(Object.keys(game.cards).length).toBe(0);
     expect(game.log.length).toBe(0);
   });
+
+  test("a new game opens where every other turn opens", () => {
+    resetGameState();
+    // turn 1 used to start at "main 1" and skip the step the turn pass gives
+    // every later turn, so the prompt led with "Go to combat" on a fresh board
+    expect(game.phase).toBe("untap/upkeep");
+    expect(game.turnNumber).toBe(1);
+  });
 });
 
 describe("chat robustness", () => {
