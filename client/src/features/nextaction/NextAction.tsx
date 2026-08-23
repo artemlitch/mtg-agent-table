@@ -38,7 +38,7 @@ export function NextAction() {
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
               <span className="na-label">
-                {a.icon && <Icon name={a.icon} />}
+                {a.icon && !isPhaseMove(a.label ?? "") && <Icon name={a.icon} />}
                 <PhaseLabel text={a.label ?? ""} />
               </span>
               {a.sub && a.sub !== a.label && <span className="na-sub">{String(a.sub).split("\n")[0]}</span>}
@@ -69,19 +69,40 @@ export function NextAction() {
   );
 }
 
-/** A phase step reads as a transition — "main phase → combat". The arrow is
- *  the one part of that worth drawing rather than typing, so the label keeps
- *  the character (it is still the plain string the size key and the tooltip
- *  want) and only the rendering swaps it for the glyph. Anything without an
- *  arrow passes straight through. */
+/** Which glyph each named phase wears. Keyed on the words the label already
+ *  uses, so a step names its phases once and the icons follow. */
+const PHASE_ICON: Record<string, string> = {
+  untap: "untap",
+  "main phase": "main",
+  "main phase 1": "main",
+  "main phase 2": "main",
+  combat: "combat",
+  "end step": "end",
+};
+
+/** Does this label read as a move between two phases? */
+export const isPhaseMove = (label: string) => label.includes(" → ");
+
+/** A phase step is two named phases and the move between them, so it is drawn
+ *  as two chips rather than one run of words: each phase carries its own glyph
+ *  and its own border, and the arrow between them is drawn, not typed. The
+ *  label keeps the plain "a → b" string — that is still what the size key and
+ *  the tooltip want. Anything without an arrow passes straight through. */
 function PhaseLabel({ text }: { text: string }) {
   const at = text.indexOf(" → ");
   if (at < 0) return <>{text}</>;
+  const [from, to] = [text.slice(0, at), text.slice(at + 3)];
+  const chip = (name: string) => (
+    <span className="na-phase">
+      {PHASE_ICON[name] && <Icon name={PHASE_ICON[name]} />}
+      {name}
+    </span>
+  );
   return (
     <>
-      {text.slice(0, at)}
+      {chip(from)}
       <Icon name="phaseArrow" className="na-arrow" />
-      {text.slice(at + 3)}
+      {chip(to)}
     </>
   );
 }

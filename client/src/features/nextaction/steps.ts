@@ -49,7 +49,18 @@ export interface Ctx {
   lockedAt: number;
   damageAt: number;
   myTapped: boolean;
+  /** the agent is mid-window right now — a window can run a minute on a big
+   *  context, and without saying so the table looks identical to a table that
+   *  has stopped */
+  agentBusy: boolean;
 }
+
+/** What to say while it is the agent's move. "Waiting" alone is what made a
+ *  working table look like a stuck one: the prompt sat unchanged with its
+ *  SPACE hint through a sixty-second window, so the natural read was that the
+ *  press had not landed. */
+export const waitingHint = (c: Ctx, what: string) =>
+  c.agentBusy ? `${what} — the agent is thinking…` : `${what} — waiting for the agent`;
 
 export const passTurnToAgent = async () => {
   await act("set_turn", { player: "agent" });
