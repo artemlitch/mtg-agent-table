@@ -260,12 +260,12 @@ body.dragging .handrow.fan { border-radius: 10px; }
    sized off a card in hand — it is a card you hold, not one you have played
    — and then taken down by --cmd-scale, the one dial for the whole widget.
    align-self keeps it sized to its own content instead of stretching to the
-   rail's full width, the way it sat as a compact widget before. */
+   rail's full width, and centres that content in the rail. */
 .cmdzone {
   --cmd-scale: 0.8;
   --cmd-card-w: calc(var(--hand-card-w) * var(--cmd-scale));
   --cmd-card-h: calc(var(--hand-card-h) * var(--cmd-scale));
-  position: relative; align-self: flex-start;
+  position: relative; align-self: center;
   /* the tax badge hangs 7px past the bottom-right corner, and the rail
      scrolls — without the margin the badge is clipped at the end of the rail */
   margin-bottom: 8px;
