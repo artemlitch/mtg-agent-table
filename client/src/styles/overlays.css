@@ -46,13 +46,11 @@
   color: var(--dim);
 }
 .keyplus { font-size: var(--fs-nano); color: var(--dim); opacity: 0.5; }
-/* keyboard affordances are only meaningful while this window has focus */
-body.unfocused .na-key { display: none; }
-/* …and while the space bar is ours to take. Typing in a field owns it, and
-   useGlobalKeys stands every keybind down while one has focus — answering the
-   agent leaves the chat box focused, so the hint would otherwise sit there
-   promising a key that does nothing until you click away. */
-body:has(input:focus, textarea:focus) .na-key { display: none; }
+/* The cap is a label for the button, not a live readout of whether the key is
+   armed this instant. It used to vanish while the window was unfocused or a
+   field had the caret, which made the prompt jump size for a reason nobody
+   watching it could see. It stays put; the keybind still stands down on its
+   own in useGlobalKeys. */
 
 /* the next-action prompt: one always-present "most obvious tap", floating
    just under the midline, with a faded skip-to-pass-turn beneath it.
@@ -157,7 +155,17 @@ body:has(input:focus, textarea:focus) .na-key { display: none; }
   font-size: var(--fs-note); font-weight: var(--fw-ui); color: var(--dim); letter-spacing: 0.01em;
 }
 #na-primary .na-label { display: inline-flex; align-items: center; gap: 5px; }
-#na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
+/* The glyph is a drawing that fills its box; the words are capitals sitting on
+   a baseline, using none of the room below it. Centring the two boxes there-
+   fore hangs the icon low, so it is lifted — the same correction .gi makes
+   with vertical-align in inline flow, which a flex parent ignores.
+   Lifted with top, NOT transform: this selector outweighs .gi-rot270 and
+   .gi-flipy, and a transform here silently cancelled theirs — the phase arrow
+   fell back to pointing down and untap lost its mirror. */
+#na-primary .na-label .ico {
+  font-size: var(--fs-next); line-height: 1; opacity: 0.9;
+  position: relative; top: -0.09em;
+}
 /* the arrow between two phase names is punctuation, not a second action —
    smaller than the leading icon and dimmer than the words it joins */
 #na-primary .na-label .na-arrow { font-size: calc(var(--fs-next) * 0.62); opacity: 0.55; }

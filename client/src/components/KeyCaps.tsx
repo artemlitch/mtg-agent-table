@@ -1,8 +1,9 @@
 import { Fragment } from "react";
 
 /** One look for every shortcut hint in the app: outlined caps joined by +.
- *  The whole group hides itself while the window is unfocused — see
- *  `body.unfocused .na-key` — because the shortcut does not work then. */
+ *  Always shown: it labels the button rather than reporting whether the key
+ *  happens to be armed, and a hint that came and went made the prompt resize
+ *  for no visible reason. */
 export function KeyCaps({ keys, className = "" }: { keys: string[]; className?: string }) {
   return (
     <span className={`na-key${className ? " " + className : ""}`}>
