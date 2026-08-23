@@ -174,30 +174,36 @@ body.dragging #cardlayer { z-index: 49; }
    resize them the instant a drag began.
    The outline is here at rest too, transparent, and only its colour changes:
    the transition has to already be on the element when the drag starts, or
-   the dashes are simply there on the first frame. Nothing moves while it
-   fades in, because an outline occupies no space.
+   the dashes are simply there on the first frame. Nothing moves while they
+   fade in, because an outline occupies no space.
    The repeated outline-color is deliberate — the later entry wins, so the
-   dashes take 0.8s while everything else keeps the house hover timing. */
+   dashes get their own timing while everything else keeps the house one. */
 .handrow.fan,
 .pile,
 .cmdzone {
   outline: 1.5px dashed transparent;
   outline-offset: -2px;
-  transition: var(--hover-transition), outline-color 0.8s ease;
+  /* leaving: the dashes go with the card, no wait */
+  transition: var(--hover-transition), outline-color 0.3s ease;
 }
+/* arriving: half a second of nothing, so picking a card up and putting it
+   straight back never summons them, then 0.3s to come up */
 body.dragging .handrow.fan,
 body.dragging .pile,
-body.dragging .cmdzone { outline-color: rgba(226, 179, 85, 0.6); }
+body.dragging .cmdzone {
+  outline-color: rgba(226, 179, 85, 0.6);
+  transition: var(--hover-transition), outline-color 0.3s ease 0.5s;
+}
 /* The one under the cursor comes up in brightness, plus the faintest wash.
-   You are being told which target has you, not shouted at. Half a second:
-   this answers the cursor, so it must not lag behind it the way the fade in
-   is meant to. */
+   You are being told which target has you, not shouted at — and told at once,
+   on the house hover timing: this answers the cursor rather than announcing
+   the drag, so it takes none of the delay above. */
 body.dragging .handrow.fan:hover,
 body.dragging .pile:hover,
 body.dragging .cmdzone:hover {
   outline-color: var(--gold-hi);
   background: rgba(226, 179, 85, 0.05);
-  transition-duration: 0.5s;
+  transition: var(--hover-transition);
 }
 body.dragging .handrow.fan { border-radius: 10px; }
 
