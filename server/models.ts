@@ -71,7 +71,10 @@ export const MODELS: Record<string, ModelSpec> = {
   opus: { name: "Opus", note: "strongest", wire: "claude-opus-5", provider: "anthropic" },
   sonnet: { name: "Sonnet", note: "strong", wire: "claude-sonnet-5", provider: "anthropic" },
   haiku: { name: "Haiku", note: "casual", wire: "claude-haiku-4-5-20251001", provider: "anthropic" },
-  deepseek: { name: "DeepSeek", note: "cheapest", wire: "deepseek-v4-flash", provider: "deepseek" },
+  // the key stays "deepseek" for the flash tier: games saved before pro
+  // existed name their brain by it
+  "deepseek-pro": { name: "DeepSeek Pro", note: "their strongest", wire: "deepseek-v4-pro", provider: "deepseek" },
+  deepseek: { name: "DeepSeek Flash", note: "cheapest", wire: "deepseek-v4-flash", provider: "deepseek" },
 };
 
 export const DEFAULT_MODEL = "opus";
