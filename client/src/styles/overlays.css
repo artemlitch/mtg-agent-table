@@ -23,7 +23,10 @@
    describes — see components/Tooltip.tsx. */
 #tooltip {
   position: fixed; z-index: 69; pointer-events: none; max-width: 280px;
-  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  /* everything in a tooltip centres on everything else: the box is sized to
+     its longest line, and a short line ragged against a long one reads as two
+     separate notes rather than one */
+  display: flex; flex-direction: column; gap: 3px; align-items: center; text-align: center;
   padding: 5px 9px; border-radius: 7px;
   background: rgba(15, 10, 6, 0.95); border: 1px solid rgba(226, 179, 85, 0.35);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
@@ -32,6 +35,9 @@
   animation: previewIn 0.12s ease-out;
 }
 #tooltip .tt-row + .tt-row { color: var(--text); letter-spacing: 0.02em; }
+/* a single key rides the end of the sentence rather than dropping below it —
+   see Tooltip.tsx. Baseline-ish alignment, so the cap sits on the words. */
+#tooltip .tt-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 /* keycaps: one component for every shortcut hint */
 .na-key { display: inline-flex; align-items: center; gap: 3px; line-height: 1; }

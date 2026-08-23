@@ -62,6 +62,12 @@
   position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 7px; font-size: var(--fs-micro); padding: 3px 0;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
+/* Black ink, at both rail widths. The glyph is a mask painted with
+   currentColor, so the word and the icon take this together. The accent
+   plate's usual near-black (#2a1c04) is a brown at this size on this gold —
+   flat black is what actually reads as ink. */
+.deckstack .drawbtn,
+.deckstack .drawbtn:hover { color: #000; text-shadow: none; }
 /* the pile itself does not light up — the Draw button on it is the control */
 
 /* ── graveyard / exile piles ── */

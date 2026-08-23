@@ -25,7 +25,7 @@ const NAMES = [
   "circle", "crossed-swords", "crown", "dragon-head", "empty-chessboard",
   "fast-forward-button", "gears", "gemini", "gems", "hidden", "hood", "hourglass", "invisible",
   "magic-portal", "magic-swirl", "magnifying-glass", "moon", "mountains", "pencil", "plain-arrow", "plain-circle",
-  "play-button", "player-next", "recycle", "return-arrow", "scroll-unfurled", "shaking-hands",
+  "play-button", "player-next", "recycle", "return-arrow", "ringing-bell", "scroll-unfurled", "shaking-hands",
   "semi-closed-eye", "shield", "shield-disabled", "sight-disabled", "snatch", "sparkles", "spectacles", "stack", "sword-break",
   "sword-clash", "token", "tombstone", "trash-can", "up-card",
 ];

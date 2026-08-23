@@ -106,7 +106,7 @@ body.unfocused .cmdzone .cmdcloud span,
 body.unfocused .na-row::before,
 body.unfocused #combatglow::after,
 body.unfocused .tabbadge,
-body.unfocused .side-dot,
+body.unfocused .side-bell,
 body.unfocused .tdot { animation-play-state: paused; }
 
 /* ── the pointer is a promise ──────────────────────────────────────────────
@@ -208,16 +208,6 @@ textarea { cursor: text; }
 @keyframes previewIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-/* ── the one icon that is not from the game set ──────────────────────────
-   game-icons is swords and crowns; it has no UI furniture, and the control
-   that shows and hides the side panel has to look like a side panel. So this
-   one is drawn here: a frame with its right pane filled. It wears .gi like
-   every other glyph, so iconClass, currentColor and the em sizing all still
-   apply — only the mask is local. */
-.gi-panel-right {
-  --gi: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h18V5Z'/%3E%3Cpath d='M14 5h7v14h-7z'/%3E%3C/svg%3E");
 }
 
 /* Mana symbols inside a line of prose — see components/Mana.tsx. The same six

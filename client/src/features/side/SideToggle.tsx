@@ -1,19 +1,22 @@
-// The chat's show/hide control. One button — it just gets mounted in two
-// different places, because the single place it could always live is the place
-// the chat covers.
+// The chat's handle: an arrow riding on its leading edge, halfway down the
+// window. It travels with the panel — pinned to the window and sliding the
+// same distance the other way — so it is on the chat's inner corner while the
+// chat is out and on the window's edge once it has gone.
 //
-// Shrink the window far enough and the drawer takes most of the topbar with
-// it, dismiss button included, and the only way to put the chat away is
-// underneath the chat. So while the chat is away this renders in the bar,
-// where nothing is in front of it; while the chat is out it renders on the
-// chat's own leading corner, which is guaranteed to be on top. Same id, same
-// rules, same look either way — see #tabs #btn-panel, which tells it where to
-// sit and nothing else.
+// Which means it can never be covered by the thing it controls, at any window
+// size, without anything having to reserve room for it: it is always just
+// outside the panel's edge, wherever that edge currently is.
+//
+// The arrow points at where the panel is about to go. Left pulls it out, right
+// pushes it away.
 import { Icon } from "../../components/Icon";
 import { useGame } from "../../store/game";
 import { useUI } from "../../store/ui";
 import type { GameView } from "../../types";
 import { STACK_CHAT_RE } from "./SidePanel";
+
+/** The key that also works it, named in the tooltip so it can be found. */
+export const SIDE_KEY = "]";
 
 export function SideToggle() {
   const open = useUI((s) => s.sideOpen);
@@ -22,20 +25,26 @@ export function SideToggle() {
   const waiting = useGame((s) => (open ? null : pending(s.view, seen)));
   return (
     <button
-      id="btn-panel"
+      id="side-arrow"
       className={waiting ? "unread" : ""}
-      data-tip={open ? "Hide chat" : (waiting ?? "Show chat")}
+      data-tip={`${open ? "Close" : "Open"} chat`}
+      data-tip-keys={SIDE_KEY}
       onClick={() => setOpen(!open)}
     >
-      <Icon name="panel" />
-      {waiting && <span className="side-dot" />}
+      <Icon name={open ? "chevronRight" : "chevronLeft"} />
+      {/* The bell carries its own tooltip: the arrow says what pressing it
+          does, and WHY it is lit is a different question with a different
+          answer. Its data-tip wins on hover because it is the inner element. */}
+      {waiting && (
+        <span className="side-bell" data-tip={waiting}>
+          <Icon name="bell" />
+        </span>
+      )}
     </button>
   );
 }
 
-/** What the shut drawer is hiding from you, or null if it is hiding nothing.
- *  The string doubles as the button's tooltip, so the light and the reason for
- *  it can never disagree.
+/** What the shut chat is hiding from you, or null if it is hiding nothing.
  *
  *  Two different things, and they are unread in two different senses.
  *
@@ -43,7 +52,7 @@ export function SideToggle() {
  *  waiting for you to resolve or answer it, and it goes on waiting however
  *  long ago it arrived. Marking it read would be a lie — the decision is still
  *  open. So it is read off the stack itself and the seen mark never touches
- *  it. (This is the bug the first version had: the item's log line scrolled
+ *  it. (This is the bug an earlier version had: the item's log line scrolled
  *  past while the panel was up, the mark moved past it, and a stack with an
  *  unanswered item on it showed nothing.)
  *

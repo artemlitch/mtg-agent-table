@@ -14,6 +14,7 @@ import { hovered, isNarrow, menuOpen, NARROW_AT, ui, useUI } from "./store/ui";
 import { NextAction } from "./features/nextaction/NextAction";
 import { fireNextAction } from "./features/nextaction/steps";
 import { usePeek } from "./features/side/peek";
+import { SIDE_KEY } from "./features/side/SideToggle";
 import { SidePanel } from "./features/side/SidePanel";
 import { Battlefield } from "./features/table/Battlefield";
 import { CardLayer } from "./features/table/CardLayer";
@@ -158,16 +159,37 @@ function useGlobalKeys() {
   const closeModal = useUI((s) => s.closeModal);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = document.activeElement as HTMLElement | null;
+      const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
+
       if (e.key === "Escape") {
         ui().setPendingTuck(null);
-        // esc peels one layer: an open menu first, the modal under it next
+        // Esc peels one layer at a time: an open menu first, the modal under
+        // it next, and the caret last. The caret is a layer too — it is the
+        // one thing on screen that swallows every other key while it has you,
+        // so there has to be a way out of it that is not the mouse.
         if (menuOpen()) ui().closeMenu();
-        else closeModal();
+        else if (ui().modal) closeModal();
+        else if (typing) t!.blur();
         return;
       }
+
+      // Enter reaches for the composer, and brings the chat out to do it. The
+      // opposite of Esc, and below no guard of its own because the typing
+      // guard already covers the case that matters: inside the field, Enter
+      // still sends. A menu or a modal owns the key while it is up.
+      if (e.key === "Enter" && !typing && !menuOpen() && !ui().modal) {
+        const input = document.getElementById("chat-input") as HTMLInputElement | null;
+        if (!input) return;
+        e.preventDefault();
+        const s = ui();
+        if (s.narrow && !s.sideOpen) s.setSideOpen(true);
+        input.focus();
+        return;
+      }
+
       // keybinds are inert while typing
-      const t = document.activeElement;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      if (typing) return;
       // CMD/CTRL+Z undoes the last table action, +SHIFT walks back forward.
       // Below the typing guard on purpose: inside a text field it stays the
       // browser's text undo.
@@ -182,6 +204,14 @@ function useGlobalKeys() {
       if (e.key === " " || e.code === "Space") {
         e.preventDefault();
         fireNextAction(e.shiftKey);
+        return;
+      }
+      // the chat, in and out. Only where it can go anywhere: at full width it
+      // is a column of the layout and the key would have nothing to do.
+      if (e.key === SIDE_KEY) {
+        e.preventDefault();
+        const s = ui();
+        if (s.narrow) s.setSideOpen(!s.sideOpen);
         return;
       }
       if ((e.key === "e" || e.key === "E") && hovered.card) cardPrimaryAction(hovered.card, e.shiftKey);

@@ -9,7 +9,9 @@
    the top of the window, so they share --bar-h and read as one band. Exact
    height, not a minimum — four one-word tabs will never need more, and the
    alignment with the bar is the whole point. */
-#tabs { display: flex; position: relative; height: var(--bar-h); flex: none; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
+/* one line high and never two, the same rule the topbar keeps — they are the
+   same band across the top of the window */
+#tabs { display: flex; position: relative; height: var(--bar-h); flex: none; white-space: nowrap; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
 
 /* the tab row heads the panel, so it is set at the panel's reading size and
    not at the chrome's — see --fs-read, which #pane-chat also rebases on */

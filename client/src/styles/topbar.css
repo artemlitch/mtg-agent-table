@@ -1,11 +1,14 @@
 /* The bar over the table: whose turn it is on the left, the turn as a route
    of dots on the right, and the new-game overlay it opens. */
 
-/* min-height rather than height: the bar shares --bar-h with the side panel's
-   tab row so the two line up, but nothing in here should ever be clipped to
-   hold that number if the content genuinely needs more room. */
+/* A bar is one line high. Always, at any width — height, not min-height, and
+   the same --bar-h the side panel's tab row uses so the two line up.
+   min-height was wrong: it let the bar grow instead of clip, and a squeezed
+   "End turn → Agent" broke onto a second line and took the whole bar with it.
+   Clipping is the correct failure here — a control that has run out of room is
+   gone, not folded. */
 #topbar {
-  display: flex; align-items: center; gap: 14px; min-height: var(--bar-h); padding: 0 10px; background: var(--panel);
+  display: flex; align-items: center; gap: 14px; height: var(--bar-h); padding: 0 10px; background: var(--panel);
   border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
 }
 /* never wrap the topbar: the banner is the one flexible item and truncates
@@ -13,7 +16,13 @@
    The stacking context is what the agent's hand tucks under — its cards ride
    up past the top of the felt and this bar has to cover them. */
 #topbar { overflow: hidden; position: relative; z-index: 50; }
-#topbar > * { flex-shrink: 0; }
+/* No label in here may break. flex-shrink: 0 stops the direct children being
+   squeezed, but a button is a GRANDCHILD — .phasebtns holds them — so it could
+   still be squeezed until its words wrapped, which is what made the bar two
+   lines tall. Both belts: nothing in the bar wraps, and nothing inside
+   .phasebtns shrinks below its own text. */
+#topbar { white-space: nowrap; }
+#topbar > *, .phasebtns > * { flex-shrink: 0; }
 .setup { display: flex; gap: 6px; align-items: center; color: var(--dim); }
 #turnbanner {
   font: var(--fw-heading) var(--fs-label)/1.4 var(--font-fantasy); letter-spacing: 0.04em;
@@ -23,47 +32,9 @@
 .phasebtns { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .phasebtns button { padding: 3px 8px; font-size: var(--fs-note); }
 /* undo / redo are a pair of glyphs; a spent redo greys out rather than moving */
-#btn-undo, #btn-redo, #btn-panel { display: flex; align-items: center; justify-content: center; width: var(--panel-btn-w); padding: 3px 0; }
+#btn-undo, #btn-redo { display: flex; align-items: center; justify-content: center; width: 28px; padding: 3px 0; }
 #btn-redo:disabled { opacity: 0.3; cursor: default; }
 
-/* Shows and hides the chat, and cannot be lost.
- *
- * Everything else in the bar is in the flow, so it shrinks, then overflows,
- * then gets clipped by the bar's overflow: hidden — which takes the rightmost
- * things first, and this used to be the rightmost thing. At a couple of
- * hundred pixels the only control that could bring the chat back was the one
- * the window had eaten.
- *
- * So it is out of the flow: pinned to the bar's right edge, inside its own
- * padding box, holding its place while the row behind it truncates and clips
- * away to nothing. --drawer-inset keeps it clear of the chat while the chat is
- * out; the bar keeps its width of room free so nothing in the row runs under
- * it. It is the last thing on screen, not the first thing to go.
- *
- * Its own font-size, not the one .phasebtns hands its children, since it is
- * not one of them any more. */
-#btn-panel {
-  position: absolute; right: calc(10px + var(--drawer-inset, 0px)); top: 50%; transform: translateY(-50%);
-  font-size: var(--fs-note); z-index: 2;
-  transition: right var(--size-dur) var(--glow-ease), var(--hover-transition);
-}
-/* Unseen traffic behind a shut drawer: the button becomes the notification.
-   The glow and the gold are static and the DOT does the pulsing, on a scale
-   transform — a pulsing box-shadow repaints the button sixty times a second
-   for as long as you leave it unread, which is exactly the kind of forever
-   animation the table stopped paying for. */
-#btn-panel.unread {
-  color: var(--gold-hi);
-  background: linear-gradient(180deg, #3a2c12, #241a08) padding-box, var(--chrome) border-box;
-  box-shadow: 0 0 10px rgba(240, 208, 120, 0.45);
-}
-#btn-panel .side-dot {
-  position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%;
-  background: linear-gradient(180deg, #f0d078, #b8862c);
-  box-shadow: 0 0 8px rgba(240, 208, 120, 0.85);
-  will-change: transform;
-  animation: badgepulse 1.4s infinite ease-in-out;
-}
 #btn-redo:disabled:hover { background: linear-gradient(180deg, #262033, #17131f) padding-box, var(--chrome-dim) border-box; color: #e6d8ae; box-shadow: none; }
 
 /* the turn as a route: dots on a line, the current stop lit and named */
@@ -95,7 +66,10 @@
 }
 #phasetrack .pt-node.now .pt-name { max-width: 90px; opacity: 1; padding-left: 7px; }
 
+/* The one exception to the bar's nowrap: this is a dialog that happens to be
+   parented to the bar, not a row of it, and its hints are prose. */
 #newgame-overlay {
+  white-space: normal;
   position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; gap: 12px; z-index: 60;
   border: 1px solid transparent; border-radius: 14px;

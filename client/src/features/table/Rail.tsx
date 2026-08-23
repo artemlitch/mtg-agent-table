@@ -169,9 +169,10 @@ function DeckPile({ p }: { p: PlayerId }) {
         <div className="deckcount">{count}</div>
         {p === "you" && (
           <button
-            /* End turn's gold, in its quiet form — this one sits on top of the
-               deck art, where a filled plate would fight the card back */
-            className="drawbtn accent subtle"
+            /* End turn's gold, filled: black ink needs a lit plate under it,
+               and the quiet form's 10% wash over the card back was nowhere
+               near enough to read against */
+            className="drawbtn accent"
             onClick={(e) => {
               e.stopPropagation();
               void act("draw", { n: 1 });

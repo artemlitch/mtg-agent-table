@@ -74,9 +74,6 @@
      bar's right end, where a tab row of a different height would look like a
      misprint rather than a continuation. */
   --bar-h: 45px;
-  /* the show/hide-chat button's width, spent twice: once to size it and once
-     for the room the topbar keeps clear so nothing in the bar runs under it */
-  --panel-btn-w: 28px;
   --gold-hi: #f8e7a0;
   --gold-dk: #6e4a14;
   /* metallic band gradient used for every "chrome" border */

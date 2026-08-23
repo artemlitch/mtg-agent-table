@@ -17,27 +17,28 @@
 body.narrow {
   --drawer-w: min(var(--side-w), 76vw);
 }
-/* How much of the right-hand side is currently spoken for. The drawer floats
-   over the felt on purpose — a card lying under it is a card you close the
-   drawer to see — but a CONTROL under it is simply gone, and there is nothing
-   on screen to tell you where it went. So the three that live on the right
-   step aside by this much while the drawer is out, and take the whole window
-   back when it is dismissed. */
+/* How much of the right-hand side is currently spoken for.
+   The drawer floats over the felt on purpose — a card lying under it is a card
+   you close the drawer to see — but a CONTROL under it is simply gone, and
+   there is nothing on screen to say where it went. So the two controls that
+   live on the right step aside by this much.
+   They STEP, they do not re-lay-out. This used to be padding on the bar and a
+   new `right` on the token maker, and changing either re-flows: the banner
+   re-truncates, the phase dots shuffle, the whole bar redraws in a different
+   arrangement, and opening the chat read as the window rearranging itself
+   rather than a panel sliding in. A transform moves the same pixels without
+   touching layout, so everything else stays exactly where it was and only the
+   group that has to move, moves.
+   Nothing else compensates. The centre prompt in particular holds its place:
+   it is the anchor of the whole table, and sliding it 180px sideways every
+   time the chat opens is the jarring thing, not the fix for it. */
 body.narrow { --drawer-inset: 0px; }
 body.narrow.side-open { --drawer-inset: var(--drawer-w); }
-/* room for the drawer, plus room for the panel button that is pinned in front
-   of it — the row has to stop before both, not run under either */
-body.narrow #topbar {
-  padding-right: calc(18px + var(--panel-btn-w) + var(--drawer-inset));
-  transition: padding-right var(--size-dur) var(--glow-ease);
-}
+body.narrow .phasebtns,
 body.narrow #btn-token {
-  right: calc(10px + var(--drawer-inset));
-  transition: right var(--size-dur) var(--glow-ease);
+  transform: translateX(calc(-1 * var(--drawer-inset)));
+  transition: transform var(--size-dur) var(--glow-ease);
 }
-/* the prompt is centred on the playmat, and while the drawer is out the
-   playmat is the part of it you can still see */
-body.narrow #nextaction { left: calc(50% + var(--rail-w) / 2 - var(--drawer-inset) / 2); }
 /* the drawer needs a containing block, and #app is the only ancestor that
    spans the window without being the table's own stacking context */
 body.narrow #app { position: relative; }
@@ -58,8 +59,51 @@ body.narrow.side-open #side { transform: none; }
 
 /* The drawer's tab row lands exactly on the topbar's band, since the two share
    --bar-h — so the covered right end of the bar reads as continuing into
-   Stack / Chat / Agent / Log rather than as a panel dropped on top of it. The
-   handle for all this is #btn-panel, over in the bar beside undo and redo. */
+   Stack / Chat / Agent / Log rather than as a panel dropped on top of it. */
+
+/* The handle, riding the chat's leading edge halfway down the window.
+   It is pinned to the window and slides the same distance the panel does, the
+   other way, so it sits on the chat's inner corner while the chat is out and
+   on the window's edge once it has gone. That is what makes it impossible to
+   cover at any width: it is always just outside the panel, wherever the
+   panel's edge currently is, and nothing has to reserve room for it.
+   A tab, not a plate: rounded on the leading side only, so it reads as part of
+   the panel's edge rather than a button parked on the felt. */
+#side-arrow {
+  position: fixed; top: 50%; right: 0; z-index: 56;
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 54px; padding: 0;
+  border-radius: 7px 0 0 7px; border-right: none;
+  background: linear-gradient(90deg, #191426, var(--panel)) padding-box, var(--chrome-dim) border-box;
+  color: var(--dim); font-size: var(--fs-note);
+  box-shadow: -5px 0 14px rgba(0, 0, 0, 0.5);
+  /* The slide and the vertical centring are one transform, and transform is
+     the only thing that moves — the panel beside it animates a translate too,
+     so the two travel together on the compositor rather than one of them
+     laying out a new `right` on every frame. */
+  transform: translate(calc(-1 * var(--drawer-inset)), -50%);
+  transition: transform var(--size-dur) var(--glow-ease), var(--hover-transition);
+}
+#side-arrow:hover {
+  color: var(--gold-hi);
+  background: linear-gradient(90deg, #241d33, var(--panel2)) padding-box, var(--chrome) border-box;
+  box-shadow: -5px 0 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(226, 179, 85, 0.3);
+}
+/* Something happened behind a shut chat. The bell hangs off the tab's outer
+   corner and pulses on a scale transform — the tab's own colours stay put, so
+   nothing repaints while it waits, however long that is. It answers a hover
+   with WHY it is lit; the tab answers with what pressing it does. */
+#side-arrow .side-bell {
+  position: absolute; top: -7px; left: -7px;
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(180deg, #f0d078, #b8862c);
+  color: #2a1c04; font-size: var(--fs-tiny);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 9px rgba(240, 208, 120, 0.7);
+  will-change: transform;
+  animation: badgepulse 1.4s infinite ease-in-out;
+}
+#side-arrow.unread { color: var(--gold-hi); border-right: none; }
 
 /* A modal centres itself over the playmat by discounting the rail on one side
    and the panel on the other (see modal.css). With the panel out of the flow

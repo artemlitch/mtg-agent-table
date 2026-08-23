@@ -1,7 +1,7 @@
 // The side panel: the stack, the chat, the agent's brain and the raw log,
 // with one composer under them that feeds whichever is open.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { act, deleteKey, refresh, saveKey, testClaudeCli } from "../../api";
+import { act, deleteKey, refresh, saveKey, sendTyping, testClaudeCli } from "../../api";
 import { Icon } from "../../components/Icon";
 import { Text } from "../../components/Text";
 import { openRevealBrowser } from "../browsers/Browsers";
@@ -11,6 +11,7 @@ import { useUI, type TabName } from "../../store/ui";
 import type { LogEntry } from "../../types";
 import { StackItemEl } from "../stack/StackItem";
 import { usePeek } from "./peek";
+import { SideToggle } from "./SideToggle";
 
 const TABS: { name: TabName; label: string }[] = [
   { name: "stack", label: "Stack" },
@@ -100,7 +101,11 @@ export function SidePanel() {
   }, [showing, lastSeq, setSideSeen]);
 
   return (
-    <div id="side">
+    <>
+      {/* Beside the panel, not inside it: the handle rides the panel's leading
+          edge and has to stay put when the panel slides away. */}
+      {narrow && <SideToggle />}
+      <div id="side">
       <div id="tabs">
         {TABS.map((t) => (
           <button key={t.name} className={tab === t.name ? "active" : ""} onClick={() => setTab(t.name)}>
@@ -120,7 +125,8 @@ export function SidePanel() {
       <div id="question">{view?.pendingQuestion ? <><Icon name="answer" /> Agent asks: <Text>{view.pendingQuestion}</Text></> : ""}</div>
       <WakeBar />
       {!needsSetup && <Composer />}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -377,7 +383,13 @@ function Composer() {
         id="chat-input"
         placeholder={stackMode ? "Announce a trigger/ability onto the stack…" : "Say something to the agent…"}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          // a half-written line is proof you are not finished, so the agent's
+          // countdown waits for you — see sendTyping. Sending is what makes it
+          // short again: enter means you ARE finished.
+          sendTyping();
+        }}
         onKeyDown={(e) => e.key === "Enter" && send()}
       />
       <button id="btn-send" onClick={send}>

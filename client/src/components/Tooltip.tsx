@@ -50,6 +50,10 @@ export function TooltipLayer() {
   if (!el) return null;
   const lines = (el.dataset.tip ?? "").split("\n");
   const keys = el.dataset.tipKeys?.split(",");
+  // One key rides the end of the sentence — "Open chat ]" is one thought and
+  // costs one line. A chord is two or three caps joined by pluses, which is a
+  // shape rather than a word, so it drops below where it can be read as one.
+  const inlineKey = keys?.length === 1;
   return createPortal(
     <div id="tooltip" ref={box}>
       {/* One place, and every data-tip in the app is covered — a tooltip is a
@@ -57,11 +61,12 @@ export function TooltipLayer() {
           first moment it can hold a pip. This is why card text belongs in
           data-tip and not in title: title has no such moment. */}
       {lines.map((line, i) => (
-        <Text as="div" className="tt-row" key={i}>
-          {line}
-        </Text>
+        <div className="tt-row" key={i}>
+          <Text>{line}</Text>
+          {inlineKey && i === lines.length - 1 && <KeyCaps keys={keys!} className="tt-key" />}
+        </div>
       ))}
-      {keys && <KeyCaps keys={keys} />}
+      {keys && !inlineKey && <KeyCaps keys={keys} />}
     </div>,
     document.body
   );
