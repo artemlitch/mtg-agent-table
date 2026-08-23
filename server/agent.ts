@@ -118,6 +118,18 @@ const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cache
 
 export const SUPERSEDED_STATE = "(superseded board snapshot — read the newest get_state below for the live board)";
 
+/** Room to finish a thought. This was 8192, and a real turn died on it: the
+ *  agent was six sentences into working out whether a 50/50 Thromok survives
+ *  the crack-back, hit the cap before it emitted a single tool call, and the
+ *  window closed having done nothing — a full call paid for, a turn lost, and
+ *  8k of truncated reasoning left in the history.
+ *
+ *  It was never near a real ceiling: DeepSeek's V4 models take up to 384k
+ *  output. A cap still earns its place as a runaway backstop, so this is
+ *  generous rather than maximal — deliberation is billed at the output rate,
+ *  the priciest of the three. */
+export const MAX_OUTPUT_TOKENS = 32768;
+
 /** Every call resends the whole conversation, so an old get_state is a board
  *  the game has already moved past that we pay for on every future call. Only
  *  the newest one describes anything real; the wake prompt narrates each change
@@ -559,7 +571,7 @@ export class AgentRunner {
         });
     const body = {
       model: endpoint.model,
-      max_tokens: 8192,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: [{ type: "text", text: this.systemPrompt, ...cc }],
       tools: Object.entries(TOOLS).map(([name, def]) => ({ name, description: def.description, input_schema: def.schema })),
       messages: wire,

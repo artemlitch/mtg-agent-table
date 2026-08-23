@@ -102,6 +102,8 @@ describe("agent transport", () => {
 
   test("requests carry auth, 1h cache breakpoints, and the tool catalog", () => {
     const first = modelRequests[0];
+    // room to finish a thought: at 8192 a real turn died mid-sentence
+    expect(first.body.max_tokens).toBe(32768);
     expect(first.headers["x-api-key"]).toBe("sk-ant-test-key");
     expect(first.headers["anthropic-beta"]).toContain("extended-cache-ttl");
     expect(first.body.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
@@ -422,6 +424,29 @@ describe("model catalog", () => {
     tableActions.length = 0;
     return a;
   };
+
+  test("both DeepSeek tiers ride the same key and endpoint, differing only on the wire", async () => {
+    process.env.DEEPSEEK_API_KEY = "sk-deepseek-test";
+    try {
+      expect(transportChoice("deepseek-pro")).toBe("api");
+      const a = sitDown("deepseek-pro");
+      a.baseUrls = { deepseek: `http://localhost:${fakeAnthropic.port}` };
+      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "thought about it" }] }];
+      await a.wake("window");
+      expect(modelRequests[0].body.model).toBe("deepseek-v4-pro");
+      expect(modelRequests[0].headers["x-api-key"]).toBe("sk-deepseek-test");
+    } finally {
+      delete process.env.DEEPSEEK_API_KEY;
+    }
+  });
+
+  test("a game saved before pro existed still names the flash tier", () => {
+    // the picker key is what lands in state.json — renaming the label must not
+    // strand a game in progress
+    const b = new AgentRunner();
+    b.restore({ model: "deepseek", lastSeenSeq: 0, brain: [], brainSeq: 0 });
+    expect(b.model).toBe("deepseek");
+  });
 
   test("DeepSeek plays through the same tool loop, on its own endpoint and key", async () => {
     process.env.DEEPSEEK_API_KEY = "sk-deepseek-test";
