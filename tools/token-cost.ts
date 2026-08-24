@@ -48,14 +48,10 @@ import {
   COLLAPSE_THRESHOLD_CHARS,
   KEEP_THINKING_WINDOWS,
   TRIM_ABOVE_CHARS,
+  CHARS_PER_TOKEN,
 } from "../server/agent";
 import { TOOLS } from "../server/mcp-tools";
 import { loadKey } from "../server/keystore";
-
-/** Measured against the games in this repo's own data dir: the JSON a
- *  conversation is made of runs denser than prose. Recalibrate by running
- *  --measure and reading the factor it prints. */
-const CHARS_PER_TOKEN = 3.42;
 
 /** DeepSeek V4 Pro, dollars per 1M tokens. Peak; off-peak is half. */
 const PRICE = { miss: 1.32, hit: 0.044, out: 3.96 };
@@ -310,7 +306,13 @@ const { path, agent, system, policies, doMeasure, model } = main();
 
 console.log(`${path.split("/").pop()} — ${agent.model}, ${agent.messages.length} messages`);
 if (agent.usage) {
-  console.log(`  as actually played: ${agent.usage.calls} calls, ${fmt(agent.usage.input)} miss, ${fmt(agent.usage.cacheRead)} hit`);
+  const u = agent.usage;
+  console.log(`  as actually played: ${u.calls} calls, ${fmt(u.input)} miss, ${fmt(u.cacheRead)} hit, ${fmt(u.output)} out`);
+  // interrupted calls answer nothing but are prefilled server-side, so they
+  // are billed; without this line they are spend with no row anywhere
+  if (u.aborted) {
+    console.log(`  interrupted: ${u.aborted} calls thrown away, ~${fmt(u.abortedInput ?? 0)} input tokens (estimated, see AgentUsage.aborted)`);
+  }
 }
 
 const head = `  ${"policy".padEnd(15)}${"calls".padStart(6)}${"miss".padStart(8)}${"hit".padStart(8)}${"cost".padStart(9)}`;

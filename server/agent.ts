@@ -115,7 +115,33 @@ export interface AgentUsage {
    *  A tuple rather than an object: there is one per call, and the field names
    *  would be most of the bytes. */
   perCall?: CallUsage[];
+  /** Calls the table interrupted, and roughly what their input weighed.
+   *
+   *  A preempted call is thrown away before it answers, so there is no usage
+   *  to read and for a long time these did not appear in any number here —
+   *  spend nobody could see. They are real: send a prefix, abort it, send the
+   *  same prefix again, and it comes back a cache hit, which means the server
+   *  had already prefilled the prompt. Prefilled is processed, and processed
+   *  is billed.
+   *
+   *  The other half of that is a consolation. Because the abort leaves the
+   *  prefix cached, the window that restarts behind it reads almost entirely
+   *  from cache — so an interruption costs its own missed input and whatever
+   *  it managed to generate, not the whole conversation twice.
+   *
+   *  Estimated from the request body, since the exact figure would need the
+   *  streaming API: message_start carries the input counts before any of the
+   *  answer arrives, and an abort after that point would know them. */
+  aborted?: number;
+  abortedInput?: number;
 }
+
+/** Characters per token in this app's own conversations — JSON runs denser
+ *  than prose. Measured by replaying saved games against the live API;
+ *  tools/token-cost.ts prints the implied figure on every --measure run, which
+ *  is how to recheck it. Only ever an estimate, and only used where the real
+ *  count is unavailable. */
+export const CHARS_PER_TOKEN = 3.42;
 
 /** [missed input, cached input, cache written, output] — see AgentUsage.perCall */
 export type CallUsage = [number, number, number, number];
@@ -713,6 +739,7 @@ export class AgentRunner {
     };
     if (endpoint.anthropic) headers["anthropic-beta"] = "extended-cache-ttl-2025-04-11";
     const who = endpoint.anthropic ? "Anthropic" : new URL(endpoint.baseUrl).hostname;
+    const payload = JSON.stringify(body);
     const ctl = new AbortController();
     this.inflight = ctl;
     this.expectAbort = false;
@@ -721,7 +748,7 @@ export class AgentRunner {
         const res = await fetch(`${endpoint.baseUrl}/v1/messages`, {
           method: "POST",
           headers,
-          body: JSON.stringify(body),
+          body: payload,
           signal: ctl.signal,
         });
         if (res.ok) return await res.json();
@@ -740,7 +767,11 @@ export class AgentRunner {
         return null;
       }
     } catch (e: any) {
-      if (e.name === "AbortError" || this.expectAbort) return "aborted";
+      if (e.name === "AbortError" || this.expectAbort) {
+        this.usage.aborted = (this.usage.aborted ?? 0) + 1;
+        this.usage.abortedInput = (this.usage.abortedInput ?? 0) + Math.round(payload.length / CHARS_PER_TOKEN);
+        return "aborted";
+      }
       throw e;
     } finally {
       if (this.inflight === ctl) this.inflight = null;
