@@ -139,9 +139,10 @@ export interface AgentUsage {
 /** Characters per token in this app's own conversations — JSON runs denser
  *  than prose. Measured by replaying saved games against the live API;
  *  tools/token-cost.ts prints the implied figure on every --measure run, which
- *  is how to recheck it. Only ever an estimate, and only used where the real
+ *  is how to recheck it. Four such runs read 3.50, 3.57, 3.59 and 3.50, so the
+ *  earlier 3.42 was low. Only ever an estimate, and only used where the real
  *  count is unavailable. */
-export const CHARS_PER_TOKEN = 3.42;
+export const CHARS_PER_TOKEN = 3.55;
 
 /** [missed input, cached input, cache written, output] — see AgentUsage.perCall */
 export type CallUsage = [number, number, number, number];
@@ -459,9 +460,7 @@ export class AgentRunner {
     // acknowledge — without this, window wakes routinely leave them sitting
     const playerItems = game.stack.filter((i) => i.player === "you").length;
     const stackDuty = playerItems
-      ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S. Deal with them FIRST, before anything else: ` +
-        `respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve (top first). ` +
-        `Never take other actions or call done while their items sit unresolved.\n`
+      ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S — deal with them FIRST (see PLAYER'S ITEMS ON THE STACK).\n`
       : "";
     // turn-based trigger hints: "At the beginning of…" lines on the agent's
     // own battlefield, surfaced at the top of its turn (text-grep, not rulings)
@@ -479,22 +478,13 @@ export class AgentRunner {
     const situation =
       `It is ${game.turn === "agent" ? "YOUR turn" : "Player's turn"} ` +
       `(round ${game.turnNumber}, phase: ${game.phase}).`;
-    const directive =
-      reason === "react"
-        ? `You have PRIORITY in reaction to the events above. This is a reaction window, not your turn. ` +
-          `If Player's item is on top of the stack: either respond (cast/stack_push/stack_counter at instant speed) ` +
-          `or acknowledge it by calling stack_resolve yourself — that is the "no responses" signal. ` +
-          `Resolving Player's item ACKNOWLEDGES it; it does not carry it out. Whoever announced an item applies ` +
-          `its own effect — do not also move their cards, set their counters or change their life for them, or it ` +
-          `lands twice. Say so in chat instead if you think they have missed it. ` +
-          `Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. ` +
-          `Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.`
-        : `This is your window to act. Use your table tools. Call get_state first if you need to re-inspect anything. ` +
-          `First settle the stack (resolve Player's items or respond), then proceed. ` +
-          `When you cast a spell, use cast (it goes on the stack) and then call done so Player can respond — ` +
-          `NEVER resolve your own spell in the same window you cast it. ` +
-          `When you are finished, call done to pass back to Player, or ask_user if you need something from them — ` +
-          `and batch done with your last action when you already know it is the last one.`;
+    // Which window this is, and nothing more. The instructions for each kind
+    // are in the system prompt (TWO KINDS OF WINDOW): spelled out here they
+    // were 430 characters repeated into all 74 windows of a measured game, and
+    // half of what they said already appeared in the system prompt anyway. The
+    // system prompt is the head of the prefix and the most cacheable thing in
+    // the request; a wake message is body, and body is where a rewrite lands.
+    const directive = reason === "react" ? `This is a REACTION WINDOW.` : `This is YOUR WINDOW to act.`;
     const interrupted = this.interruptNote
       ? `(Your previous window was INTERRUPTED mid-thought because the table changed. Any actions you completed before the cut are already applied — re-check the state rather than assuming your plan finished.)\n`
       : "";
@@ -512,11 +502,9 @@ export class AgentRunner {
         `Finish with a say that states your decision and that you are ready to play, so Player knows the game can start. ` +
         `Do not close this window without making that call — there is no later window that asks.\n`
       : "";
-    return (
-      `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}${opening}\n${situation} ${directive}\n` +
-      `Narrate your reasoning in plain text BEFORE each action. ` +
-      `Speak to Player with the say tool — plain response text is your visible thought process, not chat.`
-    );
+    // the narration and say-vs-text rules used to close every wake; they are
+    // points 2 and 9 of the system prompt and did not need saying twice
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;
@@ -945,6 +933,14 @@ HOW TO PLAY YOUR WINDOW:
 9. Use say for things you want to tell Player directly (announcements, responses, banter). Use ask_user for questions that block you.
 10. When a window involved several actions or resolutions, close it with ONE short say before done: a one-or-two-sentence recap of what just changed at the table (what resolved, what died, tokens made, life totals moved). Player should never have to reconstruct your turn from the log. Skip the recap for trivial windows — a lone resolve or a bare pass needs no commentary.
 11. End EVERY window by calling done (passes back to Player) unless you asked a blocking question.
+
+TWO KINDS OF WINDOW — every wake tells you which one you are in.
+
+YOUR WINDOW is yours to act in. Call get_state first if you need to re-inspect anything. Settle the stack before anything else, then proceed. When you cast a spell, use cast — it goes on the stack — and then call done so Player can respond; NEVER resolve your own spell in the window you cast it. Finish with done, or ask_user if you need something from them, and batch done with your last action when you already know it is the last one.
+
+A REACTION WINDOW means you hold priority in response to what Player just did. It is not your turn. If Player's item is on top of the stack, either respond at instant speed (cast/stack_push/stack_counter) or acknowledge it by calling stack_resolve yourself — that is the "no responses" signal. Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.
+
+PLAYER'S ITEMS ON THE STACK come before anything else you might do: respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve, top first. Never take other actions or call done while their items sit unresolved.
 
 CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 1. READ the card's full oracle text in get_state before playing it. Never play from memory of the name. The server enforces this: casting a card whose text was never delivered to you is rejected. Draw results include the full text of what you drew.

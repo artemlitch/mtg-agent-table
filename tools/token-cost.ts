@@ -297,7 +297,8 @@ function main() {
   const agent = JSON.parse(require("fs").readFileSync(path, "utf8")).agent;
   if (!agent?.messages?.length) throw new Error(`${path} has no API history (a CLI game, or a fresh save)`);
   const a = agent.promptArgs;
-  const system = a ? buildSystemPrompt(a.agentDeck, a.decklist, a.userDeck) : "";
+  // games saved before the prompt became rebuildable carry the built string
+  const system = a ? buildSystemPrompt(a.agentDeck, a.decklist, a.userDeck) : (agent.systemPrompt ?? "");
 
   return { path, agent, system, policies: policies.map(parsePolicy), doMeasure, model };
 }
