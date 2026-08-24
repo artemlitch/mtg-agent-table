@@ -73,7 +73,7 @@ const fakeTable = Bun.serve({
   },
 });
 
-const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState, KEEP_THINKING_WINDOWS } =
+const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState, KEEP_THINKING_WINDOWS, TRIM_ABOVE_CHARS } =
   await import("../server/agent");
 const { resetGameState } = await import("../server/game");
 
@@ -442,11 +442,15 @@ describe("superseded board snapshots", () => {
 // Deliberation about a board the game has moved past is the largest thing left
 // in the context. The plan still in flight is not, so the trim is graded.
 describe("thinking from closed windows", () => {
+  // Nothing is rewritten until the conversation needs the room, so a thought
+  // here has to be the size a real one is — the trim is not reached by a
+  // conversation made of single letters, and neither is a real game.
+  const FILLER = " considering the crack-back before combat damage.".repeat(950);
   const thought = (text: string, tool?: string) => ({
     stop_reason: tool ? "tool_use" : "end_turn",
     usage: usage(),
     content: [
-      { type: "thinking", thinking: text },
+      { type: "thinking", thinking: text + FILLER },
       ...(tool ? [{ type: "tool_use", id: tool, name: "say", input: { text } }] : []),
     ],
   });
@@ -491,7 +495,7 @@ describe("thinking from closed windows", () => {
     // the oldest window kept its action and its result, only the thought went
     expect(blocks.some((b: any) => b.type === "tool_use" && b.id === "tu_0")).toBe(true);
     expect(blocks.some((b: any) => b.type === "tool_result" && b.tool_use_id === "tu_0")).toBe(true);
-    expect(blocks.some((b: any) => b.type === "thinking" && b.thinking === "w0 a")).toBe(false);
+    expect(blocks.some((b: any) => b.type === "thinking" && b.thinking.startsWith("w0 a"))).toBe(false);
   });
 
   test("a message that is nothing but thinking leaves a marker, not an empty message", () => {
@@ -505,8 +509,9 @@ describe("thinking from closed windows", () => {
       { role: "user", content: [{ type: "text", text: "wake 4" }] },
     ];
     // keeping one window, so everything before the last is stale — the marker
-    // is what is under test here, not how many windows survive
-    trimOldThinking(messages, 1);
+    // is what is under test here, not how many windows survive. above=0 asks
+    // for the mechanism regardless of size; the size gate has its own test.
+    trimOldThinking(messages, 1, 0);
     // an empty content array is not a legal message, and dropping the message
     // would leave two user turns back to back
     expect(messages[1].content).toEqual([{ type: "text", text: DROPPED_THINKING }]);
@@ -520,8 +525,29 @@ describe("thinking from closed windows", () => {
       { role: "user", content: [{ type: "text", text: "wake 2" }] },
       { role: "assistant", content: [{ type: "thinking", thinking: "b" }, { type: "text", text: "y" }] },
     ];
-    trimOldThinking(messages);
+    trimOldThinking(messages, undefined, 0);
     expect(messages.flatMap((m) => m.content).filter((b: any) => b.type === "thinking")).toHaveLength(2);
+  });
+
+  test("nothing is rewritten until the conversation needs the room", () => {
+    // enough windows that the trim would fire on window count alone
+    const messages: any[] = [];
+    for (let w = 0; w < 10; w++) {
+      messages.push({ role: "user", content: [{ type: "text", text: `wake ${w}` }] });
+      messages.push({ role: "assistant", content: [{ type: "thinking", thinking: `thought ${w}` }, { type: "text", text: "x" }] });
+    }
+    const thoughts = () => messages.flatMap((m) => m.content).filter((b: any) => b.type === "thinking").length;
+
+    // a rewrite costs the prefix cache from the edit to the end, so a small
+    // conversation pays nothing and keeps everything
+    trimOldThinking(messages);
+    expect(thoughts()).toBe(10);
+
+    // over the budget it does its job — and the default budget is a real one,
+    // not so low that an ordinary game trips it
+    trimOldThinking(messages, KEEP_THINKING_WINDOWS, 100);
+    expect(thoughts()).toBe(KEEP_THINKING_WINDOWS);
+    expect(TRIM_ABOVE_CHARS).toBeGreaterThan(100_000);
   });
 });
 

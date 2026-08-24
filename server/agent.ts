@@ -101,7 +101,28 @@ export interface AgentUsage {
   cacheRead: number;
   cacheWrite: number;
   calls: number;
+  /** One row per call, oldest first: [missed input, cached input, cache
+   *  written, output].
+   *
+   *  The totals alone cannot answer the only question worth asking about the
+   *  bill. Missed input is the expensive kind — roughly 30x a cached token on
+   *  DeepSeek — and it is missed because something rewrote the history and
+   *  dropped the prefix cache. A sum says how much; only the per-call series
+   *  says WHICH calls, and a rewrite shows up in it as one call whose miss is
+   *  an order of magnitude off its neighbours. Working that out from the sums
+   *  took a replay of the saved game against the live API.
+   *
+   *  A tuple rather than an object: there is one per call, and the field names
+   *  would be most of the bytes. */
+  perCall?: CallUsage[];
 }
+
+/** [missed input, cached input, cache written, output] — see AgentUsage.perCall */
+export type CallUsage = [number, number, number, number];
+
+/** Enough for any real game (a window is capped at 60 calls), and a bound so a
+ *  runaway cannot grow the save file without limit. */
+export const USAGE_LOG_LIMIT = 2000;
 
 /** What the system prompt is built FROM. Saved instead of the built string,
  *  so the prompt is rebuilt from current code on every request: an edit to
@@ -176,6 +197,31 @@ export const MAX_OUTPUT_TOKENS = 32768;
  *  a thousand tokens. */
 export const KEEP_THINKING_WINDOWS = 4;
 
+/** How big the conversation has to get before any thinking is dropped.
+ *
+ *  The trim used to run on every wake, and that was the single most expensive
+ *  thing the agent did. Rewriting a message four windows back drops the
+ *  provider's prefix cache from the edit to the end, and the tail is re-read at
+ *  the miss rate — about 30x a cached token on DeepSeek.
+ *
+ *  Replayed against the live API over this project's own saved 157-call game
+ *  (tools/token-cost.ts), on deepseek-v4-pro at peak rates:
+ *
+ *    trim every wake (what shipped)   813k missed   $1.40
+ *    trim never                       279k missed   $0.77
+ *
+ *  45% of the bill, and what it bought was 19k tokens of headroom — the
+ *  history ended at 90k tokens instead of 109k, in a window that accepted a
+ *  136k-token prompt without complaint. Nobody needed that room.
+ *
+ *  So the trim is demand-driven now: while the conversation fits, nothing is
+ *  rewritten and the cache holds the whole game. 340k characters is about 100k
+ *  tokens at the 3.42 chars/token this history measures, which leaves the 32k
+ *  output cap its room inside a context known to hold at least 137k. A game
+ *  long enough to cross it starts paying the toll then, which is the point at
+ *  which the room is worth more than the money. */
+export const TRIM_ABOVE_CHARS = 340_000;
+
 export const DROPPED_THINKING = "(thought this through in an earlier window; the board has moved on since)";
 
 /** A window opens with a wake prompt — the only user message that is prose
@@ -194,8 +240,17 @@ const isWakePrompt = (m: any) => m?.role === "user" && Array.isArray(m.content) 
  *
  *  Like the snapshot collapse, this settles: after the first pass only the
  *  window that just aged out still has thinking to remove, so the edit stays
- *  near the tail and the prefix cache keeps most of its head. */
-export function trimOldThinking(messages: any[], keepWindows = KEEP_THINKING_WINDOWS) {
+ *  near the tail and the prefix cache keeps most of its head.
+ *
+ *  "Most of its head" was still the wrong trade to make every wake — see
+ *  TRIM_ABOVE_CHARS for what it measured. Nothing happens until the
+ *  conversation is big enough to need the room. */
+export function trimOldThinking(messages: any[], keepWindows = KEEP_THINKING_WINDOWS, above = TRIM_ABOVE_CHARS) {
+  if (above > 0) {
+    let size = 0;
+    for (const m of messages) size += JSON.stringify(m).length;
+    if (size < above) return;
+  }
   const starts: number[] = [];
   messages.forEach((m, i) => isWakePrompt(m) && starts.push(i));
   if (starts.length <= keepWindows) return;
@@ -568,10 +623,18 @@ export class AgentRunner {
       if (res === null) return; // hard error, already pushed
       this.usage.calls++;
       const u = res.usage ?? {};
-      this.usage.input += u.input_tokens ?? 0;
-      this.usage.output += u.output_tokens ?? 0;
-      this.usage.cacheRead += u.cache_read_input_tokens ?? 0;
-      this.usage.cacheWrite += u.cache_creation_input_tokens ?? 0;
+      const call: CallUsage = [
+        u.input_tokens ?? 0,
+        u.cache_read_input_tokens ?? 0,
+        u.cache_creation_input_tokens ?? 0,
+        u.output_tokens ?? 0,
+      ];
+      this.usage.input += call[0];
+      this.usage.cacheRead += call[1];
+      this.usage.cacheWrite += call[2];
+      this.usage.output += call[3];
+      (this.usage.perCall ??= []).push(call);
+      if (this.usage.perCall.length > USAGE_LOG_LIMIT) this.usage.perCall.splice(0, this.usage.perCall.length - USAGE_LOG_LIMIT);
 
       const content = res.content ?? [];
       // the full content array (thinking blocks included, signatures intact)
