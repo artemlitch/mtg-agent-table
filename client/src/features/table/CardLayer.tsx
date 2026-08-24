@@ -138,7 +138,14 @@ function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; i
     <CardEl
       card={c}
       className={classes}
-      style={{ left, top, zIndex: item ? 22 : depth > 0 ? Math.max(1, 20 - depth) : 21 }}
+      // Paint order among the cards on the felt. A permanent whose ability is
+      // ON THE STACK goes above everything: it is bobbing to say so (see
+      // .card.lifted in card.css), and a neighbour lying over its edge hides
+      // exactly the card the table is asking you to look at. Above the
+      // unresolved cards too — those are waiting, this one is happening.
+      // Set here rather than in the stylesheet because the inline z-index this
+      // element already carries would win over any rule there.
+      style={{ left, top, zIndex: lift ? 23 : item ? 22 : depth > 0 ? Math.max(1, 20 - depth) : 21 }}
       tip={pile ? `Pile of ${pile}\nclick to look through it` : undefined}
       onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
       onClick={
