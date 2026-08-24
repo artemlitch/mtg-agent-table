@@ -307,12 +307,30 @@ body.dragging .handrow.fan { border-radius: 10px; }
   border: 1px solid rgba(226, 179, 85, 0.22);
 }
 #hand-mulligan:hover { opacity: 1; border-color: rgba(226, 179, 85, 0.5); background: rgba(28, 19, 9, 0.92); }
+/* Your hand rests half under the edge of the table and comes up when you
+   reach for it. The top half of a card is its name and art, which is all you
+   need to know what you are holding — the rest is only in the way until you
+   want it, and lowering the row hands that height back to the board.
+   The row moves, not the cards: their own fan transform is left alone, so the
+   arc does not have to be rebuilt to slide the hand. */
+#hand-you.fan {
+  transform: translateY(calc(var(--hand-card-h) * 0.5));
+  transition: transform 0.18s ease;
+}
+#hand-you.fan:hover { transform: translateY(0); }
+/* A card in the air must not have the hand drop out from under it — picking
+   one up takes the pointer off the row, and the drop target it is aiming at
+   is this row's own rect (data-drop, snapshotted at pointerdown). */
+body.dragging #hand-you.fan { transform: translateY(0); }
 #hand-you.fan .card.fanned {
   margin: -30px -11px 0;
   transform-origin: 50% 130%;
-  transform: rotate(var(--fan-rot)) translateY(var(--fan-y));
+  /* half the tilt the fan asks for: the arc still reads as a hand of cards,
+     but the end cards no longer turn far enough to hide their neighbours'
+     names, which is the whole point of being able to see the top half */
+  transform: rotate(calc(var(--fan-rot) * 0.5)) translateY(var(--fan-y));
 }
-#hand-you.fan .card.fanned:hover { transform: rotate(var(--fan-rot)) translateY(var(--fan-y)) scale(1.06); }
+#hand-you.fan .card.fanned:hover { transform: rotate(calc(var(--fan-rot) * 0.5)) translateY(var(--fan-y)) scale(1.06); }
 /* the agent's hand is card backs — it does not need to be read, only counted,
    so it hangs half a card deep and the top half tucks up behind the topbar
    (which is raised above it in base.css). Both margins are half a card: the
