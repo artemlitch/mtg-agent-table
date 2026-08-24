@@ -17,7 +17,16 @@
 /* the agent's rail mirrors yours across the midline: same element order in
    the DOM, reversed visually, packed toward the midline */
 #rail-agent { flex-direction: column-reverse; }
-#midline { position: relative; height: 1px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
+/* Starts where the felt does, not where the window does: the rail is furniture
+   beside the table, and the line is a marking on it. clip-path trims the glow
+   to the same edges — a box-shadow follows the border box, so it would light up
+   the rail even where the gradient inside has already faded out. */
+#midline {
+  position: relative; height: 1px; margin-left: var(--rail-w); opacity: 0.5;
+  background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent);
+  box-shadow: 0 0 10px rgba(226, 179, 85, 0.4);
+  clip-path: inset(-12px 0);
+}
 
 /* ── life ── */
 .lifebox { position: relative; border-radius: 8px; padding: 6px 8px; text-align: center; user-select: none; cursor: default; }
