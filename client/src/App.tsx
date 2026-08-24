@@ -248,7 +248,15 @@ function useGlobalKeys() {
         if (s.narrow) s.setSideOpen(!s.sideOpen);
         return;
       }
-      if ((e.key === "e" || e.key === "E") && hovered.card) cardPrimaryAction(hovered.card, e.shiftKey);
+      // E acts on the card under the cursor, SHIFT+E announces an ability.
+      // preventDefault or the keystroke goes on to type itself into whatever
+      // the action just focused: the ability modal's textarea takes focus in
+      // this same keydown, well before the browser gets to the default.
+      // Modifiers are the OS's — CMD+E is not this keybind.
+      if ((e.key === "e" || e.key === "E") && !e.metaKey && !e.ctrlKey && !e.altKey && hovered.card) {
+        e.preventDefault();
+        cardPrimaryAction(hovered.card, e.shiftKey);
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
