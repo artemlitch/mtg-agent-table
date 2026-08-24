@@ -146,7 +146,7 @@ function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; i
       // Set here rather than in the stylesheet because the inline z-index this
       // element already carries would win over any rule there.
       style={{ left, top, zIndex: lift ? 23 : item ? 22 : depth > 0 ? Math.max(1, 20 - depth) : 21 }}
-      tip={pile ? `Pile of ${pile}\nclick to look through it` : undefined}
+      tip={pile ? `Pile of ${pile}\nView pile` : undefined}
       onPointerDown={mine ? (e) => startDrag(e, c) : undefined}
       onClick={
         item
