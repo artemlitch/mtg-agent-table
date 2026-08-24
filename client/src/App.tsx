@@ -155,6 +155,9 @@ function useWindowFocus() {
   }, []);
 }
 
+/** The composer, which Enter reaches for and Esc backs out of. */
+const CHAT_INPUT = "chat-input";
+
 function useGlobalKeys() {
   const closeModal = useUI((s) => s.closeModal);
   useEffect(() => {
@@ -170,7 +173,13 @@ function useGlobalKeys() {
         // so there has to be a way out of it that is not the mouse.
         if (menuOpen()) ui().closeMenu();
         else if (ui().modal) closeModal();
-        else if (typing) t!.blur();
+        else if (typing) {
+          t!.blur();
+          // and out of the composer is out of the chat: Enter opened the panel
+          // and put the caret in it, so one Esc undoes the whole gesture
+          const s = ui();
+          if (s.narrow && t!.id === CHAT_INPUT) s.setSideOpen(false);
+        }
         return;
       }
 
@@ -179,12 +188,21 @@ function useGlobalKeys() {
       // guard already covers the case that matters: inside the field, Enter
       // still sends. A menu or a modal owns the key while it is up.
       if (e.key === "Enter" && !typing && !menuOpen() && !ui().modal) {
-        const input = document.getElementById("chat-input") as HTMLInputElement | null;
+        const input = document.getElementById(CHAT_INPUT) as HTMLInputElement | null;
         if (!input) return;
+        // Enter on a focused BUTTON is a click, and the button most likely to
+        // have focus here is the arrow you just pressed to shut the chat — so
+        // this would open the panel and the click would toggle it straight
+        // back. preventDefault should stop that on its own; dropping focus as
+        // well means it cannot come back through some other route.
         e.preventDefault();
+        t?.blur();
         const s = ui();
         if (s.narrow && !s.sideOpen) s.setSideOpen(true);
-        input.focus();
+        // Next frame, and never scrolling: while the panel is still shut the
+        // composer is translated off-screen, and focusing something off-screen
+        // has the browser haul the layout over to reveal it.
+        requestAnimationFrame(() => input.focus({ preventScroll: true }));
         return;
       }
 
