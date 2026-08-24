@@ -6,12 +6,19 @@
 //    once a test call has verified the login (keystore marker).
 //  - "api": an in-process Messages API tool loop on a pasted API key
 //    (keystore.ts), with 1h-TTL cache breakpoints and per-game usage
-//    tracking. Used whenever a key is configured — pasting a key is an
-//    explicit choice that outranks the CLI.
+//    tracking.
 //
-// Every brain in the catalog (models.ts) rides that one API loop: Claude and
-// DeepSeek differ by a row in a table — base url, key, wire model id — not by
-// a code path. Only Claude can also be reached over the CLI.
+// Which one a brain gets is decided by company, not by what happens to be
+// configured. CLAUDE PLAYS ON THE SUBSCRIPTION OR IT DOES NOT PLAY:
+// api.anthropic.com bills per token and this table never spends that way, so
+// a Claude brain reaches the CLI or stays dark. There is no Anthropic key to
+// paste — index.ts refuses to store one — and so no way for a Claude window
+// to become a metered request. Everyone else is the reverse: the CLI can run
+// nothing but Claude, so DeepSeek and a custom endpoint are API-only.
+//
+// Every non-Claude brain in the catalog (models.ts) rides that one API loop:
+// DeepSeek differs from a custom provider by a row in a table — base url,
+// key, wire model id — not by a code path.
 //
 // Wake windows, preemption, the brain panel, and persistence are shared.
 // Preemption aborts the in-flight API request or interrupts the CLI child;
@@ -48,19 +55,25 @@ export function resolveClaudeBin(): string | null {
 
 export type Transport = "api" | "cli" | "custom" | "none";
 
-/** Which transport a wake on this model would use right now. A configured
- * custom provider wins, then the model's own key; the CLI needs a one-time
- * verified test call (Chat tab) before it counts, and can only ever run
- * Claude — a DeepSeek brain lives or dies by a DeepSeek key. */
+/** Which transport a wake on this model would use right now. A deliberately
+ * configured custom endpoint wins; after that the rule is per company.
+ *
+ * Claude goes to the CLI or nowhere. The CLI needs the binary and a one-time
+ * verified test call (Chat tab); short of that a Claude brain is dark, and
+ * "dark" is the correct answer rather than a fall back to the metered
+ * endpoint. Every other brain is API-only, since the CLI can run nothing but
+ * Claude: a DeepSeek brain lives or dies by a DeepSeek key.
+ *
+ * AGENT_TRANSPORT overrides the lot. It is a harness switch — the suite points
+ * a runner at a local fake with it — and with it removed there is no path from
+ * a Claude brain to a billed request. */
 export function transportChoice(model = DEFAULT_MODEL): Transport {
   const forced = process.env.AGENT_TRANSPORT;
   if (forced === "api" || forced === "cli") return forced;
   if (loadProvider()) return "custom";
   const { provider } = modelSpec(model);
-  if (provider !== "anthropic") return loadKey(provider) ? "api" : "none";
-  if (loadKey("anthropic")) return "api";
-  if (resolveClaudeBin() && isCliVerified()) return "cli";
-  return "none";
+  if (provider === "anthropic") return resolveClaudeBin() && isCliVerified() ? "cli" : "none";
+  return loadKey(provider) ? "api" : "none";
 }
 
 /** Where a model-API wake goes: a custom provider verbatim, or the catalog
@@ -543,7 +556,7 @@ export class AgentRunner {
   private noBrainMessage(): string {
     const { provider } = modelSpec(this.model);
     return provider === "anthropic"
-      ? "The agent has no brain yet — set up Claude Code or paste an API key in the Chat tab."
+      ? "The agent has no brain yet — Claude plays on your Claude Code subscription, so set that up in the Chat tab (or pick another brain in New game)."
       : `The agent has no brain yet — paste a ${PROVIDERS[provider].name} API key in the Chat tab.`;
   }
 

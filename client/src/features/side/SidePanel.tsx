@@ -446,11 +446,11 @@ function KeySetup() {
         </button>
         <div id="cli-error">{cliErr}</div>
         <div className="keydivider">— or —</div>
-        <PasteKey provider="anthropic" name="Anthropic" hint="sk-ant-…" />
-        <div className="keydivider">— or —</div>
         <PasteKey provider="deepseek" name="DeepSeek" hint="sk-…" />
         <div className="keyhint">
-          An API key bills that account per token; a DeepSeek game costs cents.
+          Claude has no key box on purpose: it plays on the subscription above, never per token.
+          <br />
+          A DeepSeek key bills that account per token; a game costs cents.
           <br />
           Pick the brain in New game. Every key stays on this machine.
         </div>

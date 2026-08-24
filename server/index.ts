@@ -154,6 +154,13 @@ const server = Bun.serve({
       } catch {}
       const id: ProviderId | null = isProviderId(body.provider) ? body.provider : whichProvider();
       if (!id) return json({ ok: false, error: "unknown provider" }, 400);
+      // Claude plays on the subscription and nothing else (transportChoice),
+      // so a stored Anthropic key could never be spent. Refusing it here is
+      // what makes that a property of the app rather than a habit: no key,
+      // no metered request, whatever anyone types into the box.
+      if (id === "anthropic") {
+        return json({ ok: false, error: "Claude runs on your Claude Code subscription here — there is no Anthropic key to paste." }, 400);
+      }
       const provider = PROVIDERS[id];
       const key = String(body.key ?? "").trim();
       if (!provider.looksLikeKey(key)) {

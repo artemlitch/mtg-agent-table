@@ -10,11 +10,33 @@ process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
 process.env.ANTHROPIC_KEY_FILE = "/tmp/mtg-agent-test-absent-anthropic-key";
 process.env.DEEPSEEK_KEY_FILE = "/tmp/mtg-agent-test-absent-deepseek-key";
 process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-absent-provider.json";
+// the CLI marker lives in the real data dir too, and whether the developer
+// running this has verified their Claude Code login must not decide what the
+// chooser answers
+process.env.CLAUDE_CLI_MARKER = "/tmp/mtg-agent-test-absent-cli-marker";
 const KEY_FILES = {
   anthropic: process.env.ANTHROPIC_KEY_FILE,
   deepseek: process.env.DEEPSEEK_KEY_FILE,
   provider: process.env.PROVIDER_FILE,
 };
+
+// This file exercises the Messages loop against the fake below. The chooser no
+// longer routes a Claude brain there — Claude plays on the subscription or not
+// at all — so the loop is reached the documented way a harness reaches it, and
+// the model id is then just a string on the wire. The tests that are about the
+// CHOOSER lift the force first; see unforced().
+process.env.AGENT_TRANSPORT = "api";
+
+/** Run something with the suite-wide transport force lifted, so the real
+ *  priority rules answer. */
+async function unforced<T>(fn: () => T | Promise<T>): Promise<T> {
+  delete process.env.AGENT_TRANSPORT;
+  try {
+    return await fn();
+  } finally {
+    process.env.AGENT_TRANSPORT = "api";
+  }
+}
 
 // scripted model responses, consumed in order; every request is captured
 const modelRequests: any[] = [];
@@ -122,7 +144,7 @@ describe("agent transport", () => {
     expect(JSON.stringify(modelRequests[1].body.messages[0])).not.toContain("cache_control");
   });
 
-  test("no API key and no CLI: wake refuses with a brain error, never calls the model", async () => {
+  test("no CLI: wake refuses with a brain error, never calls the model", async () => {
     const saved = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     process.env.CLAUDE_BIN = "/tmp/mtg-agent-nonexistent-claude";
@@ -130,9 +152,9 @@ describe("agent transport", () => {
       const a = new AgentRunner();
       a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
       modelRequests.length = 0;
-      await a.wake("window");
+      await unforced(() => a.wake("window"));
       expect(a.busy).toBe(false);
-      expect(a.brain.some((e) => e.kind === "error" && e.text.includes("API key"))).toBe(true);
+      expect(a.brain.some((e) => e.kind === "error" && e.text.includes("subscription"))).toBe(true);
       expect(modelRequests.length).toBe(0);
     } finally {
       process.env.ANTHROPIC_API_KEY = saved;
@@ -240,23 +262,26 @@ describe("agent transport", () => {
   test("custom provider: wins priority, uses the provider model, sends no anthropic-only fields", async () => {
     const { saveProvider, deleteProvider } = await import("../server/keystore");
     try {
-      saveProvider({ baseUrl: `http://localhost:${fakeAnthropic.port}`, apiKey: "sk-local-test", model: "some-local-model" });
-      // ANTHROPIC_API_KEY is set for this whole file — the provider must outrank it
-      expect(transportChoice()).toBe("custom");
-      resetGameState();
-      const a = new AgentRunner();
-      a.tableUrl = `http://localhost:${fakeTable.port}`;
-      a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from a local model" }] }];
-      modelRequests.length = 0;
-      await a.wake("window");
-      const req = modelRequests[0];
-      expect(req.body.model).toBe("some-local-model");
-      expect(req.headers["x-api-key"]).toBe("sk-local-test");
-      expect(req.headers["anthropic-beta"]).toBeUndefined();
-      expect(JSON.stringify(req.body)).not.toContain("cache_control");
-      expect(a.brain.some((e) => e.kind === "text" && e.text.includes("hello from a local model"))).toBe(true);
-      expect(a.historyModel).toBe("some-local-model");
+      // the real priority rules, not the harness force: a custom endpoint is a
+      // deliberate choice and outranks everything the catalog would have picked
+      await unforced(async () => {
+        saveProvider({ baseUrl: `http://localhost:${fakeAnthropic.port}`, apiKey: "sk-local-test", model: "some-local-model" });
+        expect(transportChoice()).toBe("custom");
+        resetGameState();
+        const a = new AgentRunner();
+        a.tableUrl = `http://localhost:${fakeTable.port}`;
+        a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+        modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "hello from a local model" }] }];
+        modelRequests.length = 0;
+        await a.wake("window");
+        const req = modelRequests[0];
+        expect(req.body.model).toBe("some-local-model");
+        expect(req.headers["x-api-key"]).toBe("sk-local-test");
+        expect(req.headers["anthropic-beta"]).toBeUndefined();
+        expect(JSON.stringify(req.body)).not.toContain("cache_control");
+        expect(a.brain.some((e) => e.kind === "text" && e.text.includes("hello from a local model"))).toBe(true);
+        expect(a.historyModel).toBe("some-local-model");
+      });
     } finally {
       deleteProvider();
       process.env.PROVIDER_FILE = KEY_FILES.provider;
@@ -517,7 +542,7 @@ describe("model catalog", () => {
   test("both DeepSeek tiers ride the same key and endpoint, differing only on the wire", async () => {
     process.env.DEEPSEEK_API_KEY = "sk-deepseek-test";
     try {
-      expect(transportChoice("deepseek-pro")).toBe("api");
+      expect(await unforced(() => transportChoice("deepseek-pro"))).toBe("api");
       const a = sitDown("deepseek-pro");
       a.baseUrls = { deepseek: `http://localhost:${fakeAnthropic.port}` };
       modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "thought about it" }] }];
@@ -540,7 +565,7 @@ describe("model catalog", () => {
   test("DeepSeek plays through the same tool loop, on its own endpoint and key", async () => {
     process.env.DEEPSEEK_API_KEY = "sk-deepseek-test";
     try {
-      expect(transportChoice("deepseek")).toBe("api");
+      expect(await unforced(() => transportChoice("deepseek"))).toBe("api");
       const a = sitDown("deepseek");
       a.baseUrls = { deepseek: `http://localhost:${fakeAnthropic.port}` };
       modelScript = [
@@ -565,11 +590,39 @@ describe("model catalog", () => {
     }
   });
 
+  test("Claude plays on the subscription or not at all — a key never buys it a window", async () => {
+    const { setCliVerified, clearCliVerified } = await import("../server/keystore");
+    // ANTHROPIC_API_KEY is set for this whole file and it buys a Claude brain
+    // nothing. api.anthropic.com bills per token; this table does not spend
+    // that way, so the only answers for Claude are the CLI and the dark.
+    process.env.CLAUDE_BIN = "/bin/sh"; // a binary that exists, so the machine's own install cannot decide this
+    try {
+      expect(await unforced(() => transportChoice("opus"))).toBe("none");
+      // and the same for a wire id the catalog has never heard of, which
+      // modelSpec files under Anthropic
+      expect(await unforced(() => transportChoice("claude-opus-4-5-20251101"))).toBe("none");
+
+      // the behaviour behind the choice: the window closes without a request
+      const a = sitDown("opus");
+      a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
+      modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "should never be asked for" }] }];
+      await unforced(() => a.wake("window"));
+      expect(modelRequests.length).toBe(0);
+      expect(a.brain.some((e) => e.kind === "error" && e.text.includes("subscription"))).toBe(true);
+      modelScript = [];
+
+      // verify the login and the CLI is there — still never "api"
+      setCliVerified();
+      expect(await unforced(() => transportChoice("opus"))).toBe("cli");
+    } finally {
+      clearCliVerified();
+      delete process.env.CLAUDE_BIN;
+    }
+  });
+
   test("a DeepSeek brain with no DeepSeek key stays dark — the Anthropic key is not its key", async () => {
-    // ANTHROPIC_API_KEY is set for this whole file, and this machine may well
-    // have a verified Claude Code login: neither one is a DeepSeek brain
-    expect(transportChoice("deepseek")).toBe("none");
-    expect(transportChoice("opus")).toBe("api");
+    // ANTHROPIC_API_KEY is set for this whole file; it is not a DeepSeek brain
+    expect(await unforced(() => transportChoice("deepseek"))).toBe("none");
 
     const a = sitDown("deepseek");
     await a.wake("window");
@@ -578,7 +631,7 @@ describe("model catalog", () => {
     expect(a.brain.some((e) => e.kind === "error" && e.text.includes("DeepSeek"))).toBe(true);
   });
 
-  test("an id the catalog does not know is passed to Anthropic verbatim", async () => {
+  test("an id the catalog does not know goes on the wire verbatim", async () => {
     const a = sitDown("claude-opus-4-5-20251101");
     a.baseUrls = { anthropic: `http://localhost:${fakeAnthropic.port}` };
     modelScript = [{ stop_reason: "end_turn", usage: usage(), content: [{ type: "text", text: "ok" }] }];
