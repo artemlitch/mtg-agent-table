@@ -8,6 +8,7 @@ import { ModalLayer } from "./components/Modal";
 import { TooltipLayer } from "./components/Tooltip";
 import { fieldsOnlyFocus } from "./focus";
 import { cardPrimaryAction } from "./game/interaction";
+import { processDraws } from "./game/draws";
 import { processReveals } from "./game/reveals";
 import { processSounds } from "./game/sounds";
 import { useGame } from "./store/game";
@@ -39,6 +40,13 @@ export function App() {
     processSounds(view.log);
     processReveals(view.log);
   }, [view?.log]);
+
+  // A drawn card flies out of the library into your hand. Before paint, not
+  // after: the card is already in the fan by the time this view renders, and a
+  // passive effect would show it sitting there for a frame before it flew.
+  useLayoutEffect(() => {
+    if (view) processDraws(view);
+  }, [view]);
 
   return (
     <div id="app">

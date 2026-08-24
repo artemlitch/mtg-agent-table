@@ -11,6 +11,9 @@ const SOUND_RULES: [string, RegExp][] = [
   ["thump", / resolved → .*battlefield/],
   ["thump", / played .* — land drop/],
   ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares (blockers|the turn pass))/],
+  // your own draw reads "Player drew: Island" — the line the server writes for
+  // your eyes only — and everyone else's is a count
+  ["draw", /(^Player drew: )|( drew \d+ cards?$)/],
   ["tap", / tapped /],
 ];
 

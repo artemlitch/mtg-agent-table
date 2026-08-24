@@ -124,6 +124,14 @@
         { kind: "tone", freq: 262, dur: 0.1, vol: 0.13, t: 0, type: "sine", slide: 926, verb: 0.32 },
       ],
     },
+    draw: {
+      desc: "a card slides off the library — paper on paper, nothing else",
+      layers: [
+        // one layer on purpose: the landing thud that used to follow it made
+        // the draw sound like something being put down rather than taken
+        { kind: "noise", freq: 1500, dur: 0.19, vol: 0.085, t: 0, q: 0.7, slide: 5000, atk: 0.035, verb: 0.07 },
+      ],
+    },
     tap: {
       desc: "card taps",
       layers: [

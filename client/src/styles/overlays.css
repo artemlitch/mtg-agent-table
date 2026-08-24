@@ -279,3 +279,20 @@
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
+
+/* The card in flight from the library to your hand — a stand-in for the real
+   one, which is hidden until this lands on it (game/draws.ts). Above the table
+   and the rails, under the hover preview and the tooltip, because a flight is
+   not worth covering something you are pointing at.
+
+   The perspective lives on the outer box so the turn is a card turning over
+   rather than a picture squashing to nothing and coming back. */
+.drawfly { position: fixed; z-index: 62; pointer-events: none; perspective: 1100px; }
+.drawfly .df-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.drawfly img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  border-radius: 6px; backface-visibility: hidden;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.7);
+}
+/* the face waits behind the back, half a turn away */
+.drawfly .df-face { transform: rotateY(180deg); }
