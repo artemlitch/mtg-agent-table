@@ -7,8 +7,6 @@
 // whose when() is true wins. Return either { label, fn } for a real action or
 // { hint } for a nudge at something the table can't do in one click.
 //   icon: a key into ICONS, drawn before the label.
-//   skip: true means SHIFT+SPACE passes the turn from here, and the
-//     button says so in its tooltip.
 import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
 import { didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
@@ -21,7 +19,6 @@ export interface NextAction {
   sub?: string;
   card?: Card | null;
   title?: string;
-  skip?: boolean;
   hint?: string;
   fn?: () => void;
 }
@@ -235,7 +232,6 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: () => ({
       label: "Untap all",
       icon: "untap",
-      skip: true,
       fn: async () => {
         await act("untap_all", { player: "you" });
         void act("set_phase", { phase: "untap/upkeep" });
@@ -245,17 +241,17 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "draw",
     when: (c) => /untap/.test(c.phase) && c.view.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
-    step: () => ({ label: "Draw 1", icon: "draw", skip: true, fn: () => void act("draw", { n: 1 }) }),
+    step: () => ({ label: "Draw 1", icon: "draw", fn: () => void act("draw", { n: 1 }) }),
   },
   {
     id: "main-1",
     when: (c) => /untap/.test(c.phase),
-    step: () => ({ label: "untap → main phase 1", icon: "main", skip: true, fn: () => void act("set_phase", { phase: "main 1" }) }),
+    step: () => ({ label: "untap → main phase 1", icon: "main", fn: () => void act("set_phase", { phase: "main 1" }) }),
   },
   {
     id: "to-combat",
     when: (c) => c.phase === "main 1",
-    step: () => ({ label: "main phase → combat", icon: "combat", skip: true, fn: () => void act("set_phase", { phase: "combat" }) }),
+    step: () => ({ label: "main phase → combat", icon: "combat", fn: () => void act("set_phase", { phase: "combat" }) }),
   },
   {
     // Declaring attackers is yours to finish. Tapping creatures no longer
@@ -282,7 +278,6 @@ export const NEXT_ACTION_STEPS: Step[] = [
             icon: "combat",
             sub: c.declared ? `${c.declared} attacking` : undefined,
             title: "tap [e] a creature to attack",
-            skip: true,
             // nothing declared means you are not attacking, so the button is the
             // way out of combat rather than a hand-over
             fn: () => void (c.declared ? act("done", {}) : act("set_phase", { phase: "main 2" })),
@@ -302,7 +297,6 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: () => ({
       label: "Go to damage",
       icon: "damage",
-      skip: true,
       fn: () => void act("stack_push", { text: "go to damage — declare blockers if you have any, then announce combat damage" }),
     }),
   },
@@ -314,14 +308,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
     step: () => ({
       label: "combat → main phase 2",
       icon: "main",
-      skip: true,
       fn: () => void act("set_phase", { phase: "main 2" }),
     }),
   },
   {
     id: "main-2",
     when: (c) => c.phase === "main 2",
-    step: () => ({ label: "main phase 2 → end step", icon: "end", skip: true, fn: () => void act("set_phase", { phase: "end" }) }),
+    step: () => ({ label: "main phase 2 → end step", icon: "end", fn: () => void act("set_phase", { phase: "end" }) }),
   },
   {
     id: "pass-turn",
@@ -352,15 +345,16 @@ export function currentNextAction(): NextAction | null {
   return rule ? rule.step(ctx) : null;
 }
 
-/** SPACE takes the floating next action, SHIFT+SPACE skips to the turn pass.
+/** SPACE takes the floating next action, SHIFT+SPACE passes the turn.
  *  Lives here, not beside the component: a non-component export from a .tsx
  *  file costs that file its Fast Refresh. */
 export function fireNextAction(shift: boolean) {
   const a = currentNextAction();
   if (!a) return;
-  if (shift) {
-    if (a.skip) void passTurnToAgent();
-    return;
-  }
+  // SHIFT+SPACE is "I am done, take it" and means that from anywhere. It used
+  // to be offered only by steps that opted in, which made a shortcut you had
+  // to check the prompt before trusting — the whole value of one is that it
+  // works without looking.
+  if (shift) return void passTurnToAgent();
   a.fn?.();
 }

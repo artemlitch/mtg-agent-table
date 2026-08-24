@@ -30,18 +30,7 @@ export function NextAction() {
         {a.hint ? (
           <div id="na-hint">{a.hint}</div>
         ) : (
-          <button
-            id="na-primary"
-            ref={size}
-            // The prompt's own hints, in the app's tooltip rather than the
-            // browser's: a title has no hover delay to speak of and no keycaps.
-            // ⇧space is here because the faded line that used to advertise it
-            // is gone — it is a shortcut, and a shortcut belongs on the thing
-            // it acts on, not on a second control below it.
-            data-tip={[a.title, a.skip && "Skip ahead and pass the turn"].filter(Boolean).join("\n") || undefined}
-            data-tip-keys={a.skip ? "⇧,space" : undefined}
-            onClick={a.fn}
-          >
+          <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
               <span className="na-label">

@@ -60,6 +60,8 @@ export function TopBar() {
         <button
           id="btn-endturn"
           className="accent"
+          data-tip="End your turn and hand the table to the agent"
+          data-tip-keys="⇧,space"
           onClick={async () => {
             await act("set_turn", { player: "agent" });
             await act("done", {});
