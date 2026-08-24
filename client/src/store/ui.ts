@@ -67,7 +67,7 @@ interface UIStore {
   closeMenu(): void;
   openModal(m: ModalState): void;
   closeModal(): void;
-  showPreview(card: Card, at: Anchor): void;
+  showPreview(card: Card, at: Anchor, el?: Element | null): void;
   movePreview(at: Anchor): void;
   hidePreview(): void;
   setTab(t: TabName): void;
@@ -107,6 +107,24 @@ const SIDE_OPEN_KEY = "sideOpen";
 // sits the same distance from it
 export const CURSOR_GAP = { x: 18, y: 12 };
 
+/** The element the hover preview is hanging off — the thing the pointer
+ *  entered. A DOM node, so it lives beside the store rather than in it:
+ *  nothing renders from it, it is only ever asked a question. */
+let previewEl: Element | null = null;
+
+/** Has the previewed card left from under a cursor that never moved? A hotkey
+ *  moves it, the agent exiles it, a pile swallows it — the element stops
+ *  existing, and an element that stops existing never fires mouseleave. So
+ *  ask the page instead: is that thing still the thing under the cursor? */
+export function previewLost(): boolean {
+  const p = useUI.getState().preview;
+  if (!p) return false;
+  if (!previewEl?.isConnected) return true;
+  // the preview itself is pointer-events: none, so it can never be the answer
+  const under = document.elementFromPoint(p.x, p.y);
+  return !under || !previewEl.contains(under);
+}
+
 const PER_ROW_KEY = "cardsPerRow";
 
 export const useUI = create<UIStore>((set, get) => ({
@@ -141,8 +159,9 @@ export const useUI = create<UIStore>((set, get) => ({
     set({ modal: null, preview: null });
     m.onClose?.();
   },
-  showPreview(card, at) {
+  showPreview(card, at, el) {
     if (get().menu) return; // a menu is up: hovering behind it raises nothing
+    previewEl = el ?? null;
     set({ preview: { card, x: at.clientX, y: at.clientY } });
   },
   movePreview(at) {
@@ -151,6 +170,7 @@ export const useUI = create<UIStore>((set, get) => ({
     set({ preview: { ...p, x: at.clientX, y: at.clientY } });
   },
   hidePreview() {
+    previewEl = null;
     if (get().preview) set({ preview: null });
   },
   setTab(activeTab) {

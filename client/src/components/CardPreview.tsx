@@ -1,4 +1,6 @@
-import { useUI } from "../store/ui";
+import { useEffect } from "react";
+import { useGame } from "../store/game";
+import { previewLost, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
 import { Text } from "./Text";
@@ -15,6 +17,15 @@ const NARROW = 260;
 
 export function CardPreviewLayer() {
   const preview = useUI((s) => s.preview);
+  // The table can move out from under a still cursor — E plays the card you
+  // are hovering, the agent exiles it, a pile swallows it — and no mouseleave
+  // fires for a card that simply stopped being there. So after every change to
+  // the table, once the DOM has caught up, check whether the thing being
+  // previewed is still the thing under the cursor.
+  const seq = useGame((s) => s.view?.seq);
+  useEffect(() => {
+    if (previewLost()) useUI.getState().hidePreview();
+  }, [seq]);
   if (!preview) return null;
   const { card: c, x, y } = preview;
   const faces = (c.faceCount ?? 1) > 1 ? c.faces : undefined;
@@ -79,7 +90,7 @@ function Faces({ card, faces }: { card: Card; faces: NonNullable<Card["faces"]> 
 /** Hover handlers every previewable thing spreads onto itself. */
 export function previewProps(card: Card) {
   return {
-    onMouseEnter: (e: React.MouseEvent) => useUI.getState().showPreview(card, e),
+    onMouseEnter: (e: React.MouseEvent) => useUI.getState().showPreview(card, e, e.currentTarget),
     onMouseMove: (e: React.MouseEvent) => useUI.getState().movePreview(e),
     onMouseLeave: () => useUI.getState().hidePreview(),
   };
