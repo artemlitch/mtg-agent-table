@@ -225,9 +225,18 @@
   color: color-mix(in srgb, var(--gold-hi) 74%, transparent);
 }
 #na-primary .na-phase.na-to .ico { font-size: calc(var(--fs-next) * 0.64); opacity: 0.7; }
+/* Waiting is not an offer, so this reads as a plate with nothing to press on
+   it: flat black behind a rim in the midline's own gold, and no hover of any
+   kind — there is nothing here to answer a pointer. The row it sits in also
+   skips the glow, which is keyed on there being a primary (see
+   .na-row:has(#na-primary)). */
 #na-hint {
   padding: 4px 12px; font-size: var(--fs-note); font-style: italic; color: var(--dim);
-  background: rgba(15, 10, 6, 0.72); border-radius: 10px;
+  /* the gold the midline reads as where it crosses the felt — picked off the
+     rendered line rather than from its stops, which are #b8892f into
+     var(--gold-hi) and come out brighter on their own */
+  background: #000; border: 1px solid #e6cb7c; border-radius: 10px;
+  cursor: default;
 }
 /* hangs below the primary, out of flow: appearing must not resize the
    centred container and shove the main button upward */
