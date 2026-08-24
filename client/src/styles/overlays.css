@@ -58,16 +58,17 @@
    watching it could see. It stays put; the keybind still stands down on its
    own in useGlobalKeys. */
 
-/* the next-action prompt: one always-present "most obvious tap", floating
-   just under the midline, with a faded skip-to-pass-turn beneath it.
-   Straddles the midline, centred on the PLAYMAT — the midline spans the rail
-   column too, so half a rail-width of offset lines it up with the cards */
-/* 47: above the cards at rest (#cardlayer is 46), because a card lying near
-   the midline used to take the hover and the click off the one button the
-   prompt exists to offer. Below the hand and the command zones at 48, and
-   below the card layer while a drag is on at 49. */
+/* The next-action prompt: one always-present "most obvious tap", riding the
+   top bar's lower edge — half on the bar, half on the felt — so it reads as
+   floating on the chrome rather than lying on the table. Centred on the
+   PLAYMAT rather than the window, which is what the cards are centred on too,
+   so half a rail-width of offset lines it up with them.
+   51 clears the top bar's 50. It can do that from inside #felt because
+   neither #table nor #felt makes a stacking context — both are position:
+   relative at z-index auto — so this competes with the bar directly. And it
+   is not clipped by the bar's overflow: hidden, because it is not in it. */
 #nextaction {
-  position: absolute; top: 50%; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 47;
+  position: absolute; top: 0; left: calc(50% + var(--rail-w) / 2); transform: translate(-50%, -50%); z-index: 51;
   display: flex; flex-direction: column; align-items: center;
 }
 /* Satellites hover around the primary without displacing it: they are taken

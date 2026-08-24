@@ -59,9 +59,7 @@ export function App() {
                 </div>
               </div>
 
-              <div id="midline">
-                <NextAction />
-              </div>
+              <div id="midline" />
 
               <div className="seat" id="seat-you">
                 <Rail p="you" />
@@ -78,6 +76,12 @@ export function App() {
               {/* every card on the table draws here, over both seats — the
                   seats above only reserve the space */}
               <CardLayer />
+
+              {/* Out of the midline and onto the felt: the prompt rides the top
+                  bar's edge now, and top: 0 has to mean the top of the table
+                  rather than the middle of it. #felt is the positioned
+                  ancestor either way. */}
+              <NextAction />
             </>
           )}
         </div>
