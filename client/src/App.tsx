@@ -6,6 +6,7 @@ import { watchForRawMana } from "./components/Mana";
 import { MenuLayer } from "./components/Menu";
 import { ModalLayer } from "./components/Modal";
 import { TooltipLayer } from "./components/Tooltip";
+import { fieldsOnlyFocus } from "./focus";
 import { cardPrimaryAction } from "./game/interaction";
 import { processReveals } from "./game/reveals";
 import { processSounds } from "./game/sounds";
@@ -95,6 +96,9 @@ export function App() {
 function useBoot() {
   // the one rule <Text> exists to keep, watched rather than trusted
   useEffect(watchForRawMana, []);
+  // only fields take focus — a focused button would silently own Enter and
+  // Space, which belong to the table
+  useEffect(fieldsOnlyFocus, []);
 
   useEffect(() => {
     void refresh();
