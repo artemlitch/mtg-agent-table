@@ -1,12 +1,13 @@
-// Desktop shell for the MTG agent table. Attaches to a running server on
-// :4780; only spawns one (and owns its lifetime) if nothing is listening.
+// Desktop shell for the MTG agent table. Attaches to a running server on the
+// table's port; only spawns one (and owns its lifetime) if nothing is there.
 const { app, BrowserWindow, shell } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-const URL = "http://localhost:4780/";
-const LOG = "/tmp/mtg-agent-table.log";
+const PORT = process.env.PORT || 4780;
+const URL = `http://localhost:${PORT}/`;
+const LOG = path.join(require("os").tmpdir(), "mtg-agent-table.log");
 
 // dev runs from electron/, so the checkout is one level up. A packaged .app
 // runs from inside an asar and has no checkout under it at all — point
@@ -43,7 +44,7 @@ async function ensureServer() {
     if (await serverUp()) return;
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error("server did not come up on :4780 — see " + LOG);
+  throw new Error(`server did not come up on :${PORT} — see ${LOG}`);
 }
 
 function createWindow() {

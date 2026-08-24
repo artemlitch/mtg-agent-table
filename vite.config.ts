@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 // The Bun server on :4780 owns the game; Vite only serves the UI. In dev it
 // proxies the API and the websocket straight through, so `bun run dev` never
 // touches the running game's state.
-const SERVER = "http://localhost:4780";
+const SERVER = `http://localhost:${process.env.PORT ?? 4780}`;
 const page = (name: string) => fileURLToPath(new URL(`./client/${name}.html`, import.meta.url));
 
 export default defineConfig({
