@@ -325,12 +325,13 @@ body.dragging #hand-you.fan { transform: translateY(0); }
 #hand-you.fan .card.fanned {
   margin: -30px -11px 0;
   transform-origin: 50% 130%;
-  /* half the tilt the fan asks for: the arc still reads as a hand of cards,
-     but the end cards no longer turn far enough to hide their neighbours'
-     names, which is the whole point of being able to see the top half */
-  transform: rotate(calc(var(--fan-rot) * 0.5)) translateY(var(--fan-y));
+  /* a quarter of the tilt the fan asks for. The arc still says "a hand of
+     cards" rather than "a stack", but the end cards no longer turn far enough
+     to bury their neighbours' names — which is the whole point when what you
+     can see of the hand is its top half. */
+  transform: rotate(calc(var(--fan-rot) * 0.25)) translateY(var(--fan-y));
 }
-#hand-you.fan .card.fanned:hover { transform: rotate(calc(var(--fan-rot) * 0.5)) translateY(var(--fan-y)) scale(1.06); }
+#hand-you.fan .card.fanned:hover { transform: rotate(calc(var(--fan-rot) * 0.25)) translateY(var(--fan-y)) scale(1.06); }
 /* the agent's hand is card backs — it does not need to be read, only counted,
    so it hangs half a card deep and the top half tucks up behind the topbar
    (which is raised above it in base.css). Both margins are half a card: the
