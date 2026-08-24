@@ -188,7 +188,16 @@
 #na-primary:has(#na-card) { --na-push-card: calc((var(--na-card-w) + var(--na-card-gap)) / -2); }
 #na-primary .na-label,
 #na-primary .na-key { transform: translateX(var(--na-push-card)); }
-#na-primary .na-label .ico { font-size: var(--fs-next); line-height: 1; opacity: 0.9; }
+/* The glyph was never off-centre — measured, it and the capitals sit on the
+   same middle to within a tenth of a pixel. What was wrong is SIZE. A
+   game-icon fills about 0.90em of its box; Cinzel's capitals are 0.69em tall
+   and sit on a baseline with the descender space beneath them empty. So a
+   glyph at 1em overhangs the words at BOTH ends, which reads as hanging low
+   rather than as being bigger.
+   0.78em puts the glyph's ink at the capitals' own height, so its top lands on
+   the cap line and its foot on the baseline. The phase chips further down
+   arrived at 0.76 independently, which is the same answer for the same face. */
+#na-primary .na-label .ico { font-size: calc(var(--fs-next) * 0.78); line-height: 1; opacity: 0.9; }
 /* the arrow between two phase names is punctuation, not a second action —
    smaller than the leading icon and dimmer than the words it joins */
 #na-primary .na-label .na-arrow { font-size: calc(var(--fs-next) * 0.62); opacity: 0.55; }
