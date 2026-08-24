@@ -10,9 +10,9 @@ test("archiveGame writes json + md with result, decks and full log", async () =>
   game.started = true;
   game.turnNumber = 9;
   game.players.you.deckName = "Scarab God";
-  game.players.you.deckId = 25457454;
+  game.players.you.deckId = 1000001;
   game.players.agent.deckName = "Thromok";
-  game.players.agent.deckId = 2638949;
+  game.players.agent.deckId = 1000002;
   applyAction("you", "life", { player: "agent", set: -2 });
   applyAction("you", "life", { player: "you", set: 42 });
   const s = summarizeGame(game);
@@ -21,9 +21,9 @@ test("archiveGame writes json + md with result, decks and full log", async () =>
   const base = await archiveGame(game, dir, 1787000000000);
   const rec = await Bun.file(base + ".json").json();
   expect(rec.winner).toBe("you");
-  expect(rec.decks.agent.id).toBe(2638949);
+  expect(rec.decks.agent.id).toBe(1000002);
   expect(rec.log.length).toBeGreaterThan(0);
   const md = await Bun.file(base + ".md").text();
   expect(md).toContain("PLAYER wins");
-  expect(md).toContain("archidekt.com/decks/25457454");
+  expect(md).toContain("archidekt.com/decks/1000001");
 });

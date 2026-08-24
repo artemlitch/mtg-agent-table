@@ -117,7 +117,9 @@ describe("api basics", () => {
 
 describe.runIf(!!process.env.RUN_NET)("deck loading (network)", () => {
   test("new_game loads two Archidekt decks, deals hands, redacts them", async () => {
-    // deck refs may be bare ids or full Archidekt URLs
+    // Any two public 100-card commander decks do; these are the pair this was
+    // written against. Swap the ids and the "Kotis" assertion together.
+    // Deck refs may be bare ids or full Archidekt URLs.
     const r = await api("/api/new_game", {
       youDeck: "https://archidekt.com/decks/25353034/kotis_sidisi",
       agentDeck: 25351001,
