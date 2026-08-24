@@ -10,11 +10,20 @@
 // and the fifty-first forgets. So it is done once, to the document, and kept
 // true as React mounts and unmounts things.
 //
-// Two halves, because there are two ways in:
+// Three parts. The first two answer the ways in that can be named:
 //   Tab      — answered by tabindex="-1" on everything that is not a field.
 //   A click  — answered by refusing the mousedown's default on those same
 //              elements. Chrome on macOS mostly does not focus a clicked
 //              button anyway, but "mostly" is not a rule.
+//
+// The third answers the ones that cannot. Listing what may take focus is the
+// same losing game as listing what may need a mana pip: Chrome makes every
+// SCROLLABLE region keyboard-focusable, so the chat pane took focus and a
+// press of Space drew a ring around half the window — and that is one entry on
+// a list nobody has finished writing. So the rule is enforced as the rule:
+// anything that is not a field and somehow gets focus is dropped again on the
+// spot. The two above are still worth having, since not taking focus is
+// quieter than taking it and giving it back a frame later.
 
 /** Keeps the caret: things you type into. */
 const FIELDS = "input, textarea, select, [contenteditable]";
@@ -55,8 +64,20 @@ export function fieldsOnlyFocus(): () => void {
   };
   document.addEventListener("mousedown", onDown);
 
+  // The backstop, and the only part that is actually a guarantee: whatever
+  // route focus arrived by, if it is not a field it does not keep it. body is
+  // where focus lands after a blur, so it is left alone or this would chase
+  // its own tail.
+  const onFocusIn = (e: FocusEvent) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement) || el === document.body) return;
+    if (!el.matches(FIELDS)) el.blur();
+  };
+  document.addEventListener("focusin", onFocusIn);
+
   return () => {
     mo.disconnect();
     document.removeEventListener("mousedown", onDown);
+    document.removeEventListener("focusin", onFocusIn);
   };
 }

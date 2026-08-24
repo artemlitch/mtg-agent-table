@@ -96,6 +96,14 @@ input:focus { outline: none; background: linear-gradient(#221d30, #221d30) paddi
 
 .hidden { display: none !important; }
 
+/* No focus ring on anything that is not a field — see client/src/focus.ts,
+   which drops the focus itself. This is the other half: the ring is painted
+   the instant focus lands, and dropping it a moment later would still flash.
+   A field does not need one either, since input:focus already lights its own
+   rim, and the caret is the ring. */
+:focus,
+:focus-visible { outline: none; }
+
 /* Decoration stops when nobody is watching. These run forever by design — the
    command-zone weather, the prompt's breathing, the combat glow, the stack
    badge — and forever is a long time to spend compositing a window that is
