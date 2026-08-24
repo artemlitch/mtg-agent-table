@@ -993,8 +993,24 @@ describe("the table surface", () => {
       id: "c1", name: "Sheltered Thicket", typeLine: "Land", oracle: "…", zone: "library",
       tapped: false, faceDown: false, attacking: null, blocking: null, under: null,
       pos: null, z: 0, counters: {}, isToken: false, isCommander: false,
+      faceCount: 1, face: 0, revealedTo: [],
     });
     expect(idle).toEqual({ id: "c1", name: "Sheltered Thicket", typeLine: "Land", oracle: "…", zone: "library" });
+  });
+
+  test("a card with a back to turn to still says so", () => {
+    // faceCount only ever appears when it means something, so its absence is
+    // what says "one-faced" — and a DFC on its back has to keep both
+    const dfc = leanCard({ id: "c3", name: "Back", zone: "battlefield", faceCount: 2, face: 1, revealedTo: ["agent"] });
+    expect(dfc).toEqual({ id: "c3", name: "Back", zone: "battlefield", faceCount: 2, face: 1, revealedTo: ["agent"] });
+    // showing its front: the face index is the default, the count is not
+    expect(leanCard({ id: "c4", faceCount: 2, face: 0 })).toEqual({ id: "c4", faceCount: 2 });
+  });
+
+  test("board coordinates are rounded to something a screen can tell apart", () => {
+    // they arrive from a mouse as full float noise and ride on every
+    // battlefield card in every snapshot; three decimals is a pixel
+    expect(leanCard({ id: "c5", pos: { x: 0, y: 0.8748319276372082 } }).pos).toEqual({ x: 0, y: 0.875 });
   });
 
   test("…but keeps every one of them that is actually saying something", () => {

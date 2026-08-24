@@ -406,14 +406,28 @@ const AT_REST: Record<string, unknown> = {
   z: 0,
   isToken: false,
   isCommander: false,
+  // a one-faced card showing its only face. The pair says nothing and it rides
+  // on every card in every zone; absent, faceCount only ever appears when
+  // there is a back to turn to.
+  faceCount: 1,
+  face: 0,
 };
+
+/** Board coordinates are fractions of the table, and they arrive from a mouse
+ *  as full float noise — 0.8748319276372082. The agent reads them to see the
+ *  layout and writes them back to tidy, and three decimals is a pixel on any
+ *  real screen. Left at full precision it is the third-largest field on a
+ *  battlefield card. */
+const round3 = (n: unknown) => (typeof n === "number" ? Math.round(n * 1000) / 1000 : n);
 
 export function leanCard({ image, faces, ...rest }: any) {
   const out: any = {};
   for (const [k, v] of Object.entries(rest)) {
     if (k in AT_REST && v === AT_REST[k]) continue;
-    if (k === "counters" && v && typeof v === "object" && !Object.keys(v).length) continue;
-    out[k] = v;
+    // an empty collection is the same nothing as a missing one — counters {}
+    // on a card with no counters, revealedTo [] on a card nobody has peeked at
+    if (v && typeof v === "object" && !Object.keys(v).length) continue;
+    out[k] = k === "pos" && v && typeof v === "object" ? { x: round3((v as any).x), y: round3((v as any).y) } : v;
   }
   return { ...out, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
 }
