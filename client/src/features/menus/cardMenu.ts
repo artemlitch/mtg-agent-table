@@ -145,7 +145,12 @@ export function cardMenu(c: Card, e: Anchor) {
   }
 
   if (c.zone === "exile" && !c.hidden) {
-    items.push(destItem("myBattlefield", c, { note: "cast from exile" }), destItem("graveyard", c), destItem("hand", c));
+    items.push(
+      destItem("myBattlefield", c, { note: "cast from exile" }),
+      destItem("putBattlefield", c, { note: "put onto the battlefield from exile" }),
+      destItem("graveyard", c),
+      destItem("hand", c)
+    );
   }
 
   ui().openMenu(items, e);

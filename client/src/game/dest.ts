@@ -7,7 +7,8 @@
 //     thing as exiling a card into your own exile, or putting a card you don't
 //     own into the agent's graveyard.
 //   * "to hand" is never the agent's hand. The agent takes cards itself.
-//   * a card ARRIVING on a battlefield is PLAYED, never filed — see isPlay.
+//   * a card ARRIVING on a battlefield is PLAYED unless the row says it is
+//     being PUT there by an effect that has already resolved — see isPlay.
 import { act, type ActionResult } from "../api";
 import { playCard } from "../features/nextaction/steps";
 import type { MenuItem } from "../store/ui";
@@ -27,6 +28,10 @@ export const DEST: Record<string, Dest> = {
   // companion aimed at the owner's side: a card you put into play is yours to
   // play, and handing it over afterwards is what steal/give are for.
   myBattlefield: () => ["Play — to my battlefield", { toZone: "battlefield", toPlayer: "you" }],
+  /* The other way onto the battlefield: an effect PUTTING it there, already
+     resolved, with nothing to respond to. Reanimation finishing, a fetch, a
+     token copy arriving — none of those are a card being cast. */
+  putBattlefield: () => ["Put onto battlefield (no stack)", { toZone: "battlefield", toPlayer: "you", put: true }],
   steal: () => ["Steal — to my battlefield", { toZone: "battlefield", toPlayer: "you", note: "control effect" }],
   give: () => ["Give to agent's battlefield", { toZone: "battlefield", toPlayer: "agent", note: "control effect" }],
   giveBack: () => ["Return to agent's battlefield", { toZone: "battlefield", toPlayer: "agent" }],
@@ -46,17 +51,20 @@ export type DestKey = keyof typeof DEST;
  *  The one battlefield arrival that is NOT a play is a card already on a
  *  battlefield changing sides — steal, give, give back. That card is in play
  *  already; who controls it is bookkeeping, so those stay plain moves. */
-const isPlay = (c: Card, params: MoveParams) => params.toZone === "battlefield" && c.zone !== "battlefield";
+const isPlay = (c: Card, params: MoveParams) =>
+  params.toZone === "battlefield" && c.zone !== "battlefield" && !params.put;
 
 /** Send a card to a destination: cast it if it is arriving in play, move it
  *  otherwise. Every menu row and every browser row goes through here, so the
  *  rule cannot be forgotten at a call site. */
 export function runDest(c: Card, params: MoveParams): Promise<ActionResult> {
-  if (!isPlay(c, params)) return act("move", { card: c.id, ...params });
+  // `put` is the caller's intent, not something the table knows about
+  const { put: _put, ...move } = params;
+  if (!isPlay(c, params)) return act("move", { card: c.id, ...move });
   // toZone/toPlayer stop mattering once this is a cast: the server decides
   // stack vs land drop, and every play lands on your own side. Only the note
   // carries over, to say in the log where the card came from.
-  return playCard({ card: c.id, ...(params.note ? { note: params.note } : {}) });
+  return playCard({ card: c.id, ...(move.note ? { note: move.note } : {}) });
 }
 
 /** A menu row that sends the card somewhere. `extra` only ever adds a log note. */

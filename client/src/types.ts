@@ -132,4 +132,10 @@ export interface MoveParams {
   faceDown?: boolean;
   revealTo?: PlayerId;
   note?: string;
+  /** This card ARRIVES in play without being cast — an effect that has already
+   *  resolved putting it there, not a spell going on the stack. Client-side
+   *  intent only: runDest reads it and strips it, so the server sees a plain
+   *  move. Without it, anything landing on a battlefield is treated as a play
+   *  (see isPlay in game/dest.ts). */
+  put?: true;
 }

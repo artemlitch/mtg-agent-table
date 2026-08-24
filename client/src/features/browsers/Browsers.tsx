@@ -55,6 +55,7 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
     const move = (params: MoveParams) => void runDest(c, params).then(refresh);
     return [
       destButton("myBattlefield", c, (params) => void runDest(c, { ...params, note: `played from ${zone}` }).then(refresh)),
+      destButton("putBattlefield", c, (params) => void runDest(c, { ...params, note: `put onto the battlefield from ${zone}` }).then(refresh)),
       destButton("hand", c, move),
       destButton(zone === "exile" ? "graveyard" : "exile", c, move),
       destButton("top", c, move),
@@ -114,6 +115,7 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
     return [
       destButton("hand", c, move),
       destButton("myBattlefield", c, move),
+      destButton("putBattlefield", c, move),
       destButton("graveyard", c, found),
       destButton("exile", c, found),
       destButton("exileDown", c, found),
@@ -143,6 +145,7 @@ function RevealBrowser({ initial }: { initial: Card[] }) {
     return [
       destButton("hand", c, move),
       destButton("myBattlefield", c, move),
+      destButton("putBattlefield", c, move),
       destButton("graveyard", c, move),
       destButton("exile", c, move),
       destButton("top", c, move),
