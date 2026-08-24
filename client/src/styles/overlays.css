@@ -212,19 +212,22 @@
   padding-right: calc(11px - 0.03em);
 }
 #na-primary .na-phase .ico { font-size: calc(var(--fs-next) * 0.76); line-height: 1; opacity: 0.8; }
-/* Where you are, and where this takes you. The phase you are IN is what you
-   read to orient yourself mid-turn, so it keeps the full size and a lit rim.
-   The destination is smaller and quieter — the arrow already says it is next,
-   and the button being pressed already says you are going there. */
-#na-primary .na-phase.na-from { border-color: rgba(226, 179, 85, 0.6); }
+/* Where this takes you, and where you are leaving. The button is an offer to
+   go somewhere, so the DESTINATION carries it: full colour, a lit rim, and the
+   larger of the two. The phase you are in is context — you already know where
+   you are — so it is the one that steps back. */
 #na-primary .na-phase.na-to {
+  border-color: rgba(226, 179, 85, 0.6);
+  color: var(--gold-hi);
+}
+#na-primary .na-phase.na-from {
   font-size: calc(var(--fs-next) * 0.72);
   padding: 2px 9px;
   padding-right: calc(9px - 0.03em);
   border-color: rgba(226, 179, 85, 0.24);
   color: color-mix(in srgb, var(--gold-hi) 74%, transparent);
 }
-#na-primary .na-phase.na-to .ico { font-size: calc(var(--fs-next) * 0.64); opacity: 0.7; }
+#na-primary .na-phase.na-from .ico { font-size: calc(var(--fs-next) * 0.64); opacity: 0.7; }
 /* Waiting is not an offer, so this reads as a plate with nothing to press on
    it: flat black behind a rim in the midline's own gold, and no hover of any
    kind — there is nothing here to answer a pointer. The row it sits in also
