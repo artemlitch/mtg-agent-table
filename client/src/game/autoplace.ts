@@ -18,8 +18,9 @@ import type { TypeCat } from "./rules";
  *  card has a spot nothing consults this again.
  *
  *  The convention is the one the old board laid out by hand — lands in a row
- *  along your own edge, creatures forward toward the midline, artifacts and
- *  enchantments off to one side — in table coordinates.
+ *  along your own edge, and everything else forward toward the midline on one
+ *  line: creatures at its left end, artifacts and enchantments off to the
+ *  right — in table coordinates.
  *
  *  A note on y: it is a fraction of the PLACEABLE span (board height minus a
  *  card), which puts a card's CENTRE at the midline when y is 0.5. So "just
@@ -27,19 +28,33 @@ import type { TypeCat } from "./rules";
  *  mean flush against the far edges; a card is held clear of the hands that
  *  overlap those edges, so a land at y=1 rests on top of your hand rather
  *  than behind it. */
+/** The front line of your half. Everything that is not a land arrives on it —
+ *  creatures hard left, a spell hovering at centre, artifacts and enchantments
+ *  in the right-hand column — so the board reads as one rank across, with the
+ *  lands behind it.
+ *
+ *  Named rather than written out four times: "the side column is level with
+ *  the creatures" is the point, and four literals that happen to agree are
+ *  four literals that stop agreeing. */
+const FRONT_Y = 0.59;
+/** The agent's half is yours reflected in the midline. The reflection leaves a
+ *  float residue a few quintillionths wide, which is nothing: y is a fraction
+ *  of a pixel span and lands on the same pixel either way. */
+const AGENT_FRONT_Y = 1 - FRONT_Y;
+
 const HOME: Record<PlayerId, Record<TypeCat, { x: number; y: number }>> = {
   you: {
-    creature: { x: 0.02, y: 0.59 }, // top left of your half
-    spell: { x: 0.5, y: 0.59 }, //    top centre, up against the midline
-    other: { x: 0.97, y: 0.73 }, //   the right-hand column
-    land: { x: 0, y: 1 }, //          the land row, flush above your hand
+    creature: { x: 0.02, y: FRONT_Y }, // the row's left end
+    spell: { x: 0.5, y: FRONT_Y }, //     centre, up against the midline
+    other: { x: 0.97, y: FRONT_Y }, //    the right-hand column
+    land: { x: 0, y: 1 }, //              the land row, flush above your hand
   },
   // the agent's half mirrors yours about the midline: same x, y flipped, so
   // its creatures also come forward and its lands also sit on its own edge
   agent: {
-    creature: { x: 0.02, y: 0.41 },
-    spell: { x: 0.5, y: 0.41 },
-    other: { x: 0.97, y: 0.27 },
+    creature: { x: 0.02, y: AGENT_FRONT_Y },
+    spell: { x: 0.5, y: AGENT_FRONT_Y },
+    other: { x: 0.97, y: AGENT_FRONT_Y },
     land: { x: 0, y: 0 },
   },
 };

@@ -43,6 +43,10 @@ describe("where a card heads for", () => {
     // artifacts and enchantments share the side column, off to the right
     expect(artifact).toEqual(enchantment);
     expect(artifact.x).toBeGreaterThan(0.9);
+    // and they sit on the creature row's line, not behind it: everything that
+    // is not a land arrives on one rank, with the lands behind that
+    expect(artifact.y).toBe(creature.y);
+    expect(land.y).toBeGreaterThan(artifact.y);
   });
 
   it("hovers a spell at a casting spot rather than in a permanent row", () => {
@@ -60,6 +64,10 @@ describe("where a card heads for", () => {
     expect(home("Basic Land — Island", "agent").y).toBeLessThan(home("Creature — Bear", "agent").y);
     // same column, opposite side
     expect(home("Artifact", "agent").x).toBe(home("Artifact").x);
+    // the front rank mirrors as one: the agent's artifacts sit on the agent's
+    // creature line, the same way yours sit on yours
+    expect(home("Artifact", "agent").y).toBe(home("Creature — Bear", "agent").y);
+    expect(home("Artifact", "agent").y).toBeCloseTo(1 - home("Artifact").y, 10);
   });
 
   it("hands out a copy, so a caller cannot edit the map", () => {
