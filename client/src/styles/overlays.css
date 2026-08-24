@@ -253,16 +253,15 @@
 /* hangs below the primary, out of flow: appearing must not resize the
    centred container and shove the main button upward */
 /* The quiet offer: faded, small, no plate, and only the ink brightens on
-   hover. For the things that are available rather than expected — skipping to
-   the turn pass, and the mulligan above your hand. Shared so the two cannot
-   drift apart; each owns its own placement. */
+   hover. For the things that are available rather than expected — the
+   mulligan above your hand is the one left; the skip line under the prompt
+   used to be the other. */
 /* Icon and words centred on each other, the way every other icon row here is
    done — .gi is a 1em block nudged onto the baseline by a fixed -0.125em,
    which only approximates centring and drifts as the two font sizes diverge
    (and is ignored outright inside a flex parent). A flex row centres them at
    any size, with no magic number and no margin standing in for a gap.
-   The inner span is for #na-skip, which stacks its row over its keycaps and
-   so keeps its own column layout on the button itself. */
+   The inner span rule is kept for a .quietline that wraps its row in one. */
 .quietline,
 .quietline > span {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
@@ -275,10 +274,6 @@
 .quietline .ico { font-size: var(--fs-micro); }
 .quietline:hover { opacity: 1; color: var(--accent); }
 
-#na-skip {
-  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
-}
 @keyframes naglow {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }

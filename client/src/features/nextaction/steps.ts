@@ -7,7 +7,8 @@
 // whose when() is true wins. Return either { label, fn } for a real action or
 // { hint } for a nudge at something the table can't do in one click.
 //   icon: a key into ICONS, drawn before the label.
-//   skip: true adds the faded skip-to-pass-turn line underneath.
+//   skip: true means SHIFT+SPACE passes the turn from here, and the
+//     button says so in its tooltip.
 import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
 import { didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";

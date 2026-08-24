@@ -5,11 +5,12 @@ import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
 import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
-import { nextActionContext, passTurnToAgent, NEXT_ACTION_STEPS } from "./steps";
+import { nextActionContext, NEXT_ACTION_STEPS } from "./steps";
 
-/** The centred prompt: the one thing the table is asking you to do, with a
- *  faded skip beneath it. Undo and redo used to flank it as satellites; the
- *  top bar carries both, and one set is enough. */
+/** The centred prompt: the one thing the table is asking you to do. It used
+ *  to carry satellites — undo and redo either side, a faded "skip to pass
+ *  turn" beneath — and carries none of them now: the top bar has the rewind
+ *  controls, and the skip is a shortcut on the button itself. */
 export function NextAction() {
   const view = useGame((s) => s.view);
   const ctx = view?.started ? nextActionContext(view) : null;
@@ -29,7 +30,18 @@ export function NextAction() {
         {a.hint ? (
           <div id="na-hint">{a.hint}</div>
         ) : (
-          <button id="na-primary" ref={size} title={a.title || ""} onClick={a.fn}>
+          <button
+            id="na-primary"
+            ref={size}
+            // The prompt's own hints, in the app's tooltip rather than the
+            // browser's: a title has no hover delay to speak of and no keycaps.
+            // ⇧space is here because the faded line that used to advertise it
+            // is gone — it is a shortcut, and a shortcut belongs on the thing
+            // it acts on, not on a second control below it.
+            data-tip={[a.title, a.skip && "Skip ahead and pass the turn"].filter(Boolean).join("\n") || undefined}
+            data-tip-keys={a.skip ? "⇧,space" : undefined}
+            onClick={a.fn}
+          >
             {a.card && <img id="na-card" src={a.card.image} alt="" {...previewProps(a.card)} {...artFallback(a.card.name)} />}
             <span className="na-text">
               <span className="na-label">
@@ -45,14 +57,6 @@ export function NextAction() {
         )}
       </div>
 
-      {a.skip && (
-        <button id="na-skip" className="ghost quietline" onClick={() => void passTurnToAgent()}>
-          <span>
-            <Icon name="skip" /> skip to pass turn
-          </span>
-          <KeyCaps keys={["⇧", "space"]} />
-        </button>
-      )}
     </div>
   );
 }
