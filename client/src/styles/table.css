@@ -17,7 +17,7 @@
 /* the agent's rail mirrors yours across the midline: same element order in
    the DOM, reversed visually, packed toward the midline */
 #rail-agent { flex-direction: column-reverse; }
-#midline { position: relative; height: 2px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
+#midline { position: relative; height: 1px; background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent); box-shadow: 0 0 10px rgba(226, 179, 85, 0.4); }
 
 /* ── life ── */
 .lifebox { position: relative; border-radius: 8px; padding: 6px 8px; text-align: center; user-select: none; cursor: default; }
