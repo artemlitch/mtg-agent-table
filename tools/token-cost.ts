@@ -17,6 +17,15 @@
 // policies for nothing; when it stops agreeing, the model has missed something
 // real and the delta is the bug report.
 //
+// What the delta does NOT tell you is whether the replayed history resembles
+// the game that was played. Both runs walk the same reconstructed messages, so
+// agreement between them validates the cache model and nothing else. The check
+// on the reconstruction is the game's own recorded usage, printed at the top:
+// against it, the rebuilt history reads about 30% high on missed tokens,
+// because the thinking it puts back is a guess at the size of what was
+// deleted. Trust the ranking between policies, which share an input; treat the
+// dollars as an upper bound.
+//
 //   bun run tools/token-cost.ts <state.json> [--policy 80000:4:340000] [--measure]
 //   bun run tools/token-cost.ts <state.json> --sweep            # free
 //
@@ -126,6 +135,13 @@ function reconstruct(messages: any[]) {
       if (m.content.some((b: any) => b?.type === "thinking")) continue;
       const body = m.content.filter((b: any) => !(b?.type === "text" && b.text === DROPPED_THINKING));
       if (!body.length) continue;
+      // a turn whose only act is `done` did not deliberate — measured across a
+      // full game, 42 of them carried 123 characters of thinking between them.
+      // Handing each one a median-sized thought invents more history than the
+      // game had, and it does so unevenly, which makes two variants of the same
+      // game incomparable
+      const tools = body.filter((b: any) => b?.type === "tool_use");
+      if (tools.length === 1 && tools[0].name === "done") continue;
       m.content = [{ type: "thinking", thinking: typical }, ...body];
       thoughts++;
     }

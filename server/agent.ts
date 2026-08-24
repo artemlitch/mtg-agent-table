@@ -467,7 +467,8 @@ export class AgentRunner {
           `First settle the stack (resolve Player's items or respond), then proceed. ` +
           `When you cast a spell, use cast (it goes on the stack) and then call done so Player can respond — ` +
           `NEVER resolve your own spell in the same window you cast it. ` +
-          `When you are finished, call done to pass back to Player, or ask_user if you need something from them.`;
+          `When you are finished, call done to pass back to Player, or ask_user if you need something from them — ` +
+          `and batch done with your last action when you already know it is the last one.`;
     const interrupted = this.interruptNote
       ? `(Your previous window was INTERRUPTED mid-thought because the table changed. Any actions you completed before the cut are already applied — re-check the state rather than assuming your plan finished.)\n`
       : "";

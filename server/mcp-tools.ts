@@ -224,7 +224,9 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   done: {
     description:
-      "End your window and pass priority back to Player. Call this to finish EVERY window (full turns AND reaction windows) unless you asked a blocking question. Also how you pass after putting something on the stack.",
+      "End your window and pass priority back to Player. Call this to finish EVERY window (full turns AND reaction windows) unless you asked a blocking question. Also how you pass after putting something on the stack. " +
+      "SEND IT IN THE SAME BATCH as your last action whenever you already know that action finishes the window — 'tap, done' together is one round trip, 'tap' and then 'done' is two, and the second one costs as much as the first. " +
+      "Keep it separate only when you genuinely need to read the result before deciding you are finished.",
     schema: obj({}),
   },
 };
