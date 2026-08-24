@@ -8,9 +8,11 @@ const fs = require("fs");
 const URL = "http://localhost:4780/";
 const LOG = "/tmp/mtg-agent-table.log";
 
-// dev runs from electron/, the packaged .app from inside an asar — find the
-// checkout that actually holds the server
-const REPO = [path.join(__dirname, ".."), path.join(require("os").homedir(), "projects/mtg-agent-table")]
+// dev runs from electron/, so the checkout is one level up. A packaged .app
+// runs from inside an asar and has no checkout under it at all — point
+// MTG_TABLE_DIR at one, or start the server yourself before opening the app.
+const REPO = [process.env.MTG_TABLE_DIR, path.join(__dirname, "..")]
+  .filter(Boolean)
   .find((p) => fs.existsSync(path.join(p, "server/index.ts")));
 
 // Finder-launched apps get a bare PATH; resolve bun explicitly

@@ -21,6 +21,7 @@ async function refresh() {
 
 async function loadDecks() {
   const sel = $("#deck-select");
+  if (!view?.archidekt?.configured) return (sel.innerHTML = `<option value="">sign in first</option>`);
   try {
     decks = (await api("decks")).decks;
     sel.innerHTML = `<option value="">— choose a deck —</option>` + decks.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join("");
@@ -100,6 +101,62 @@ function renderStrip() {
   $("#deck-link").href = `https://archidekt.com/decks/${view.deckId}`;
   const sel = $("#deck-select");
   if (sel.value !== String(view.deckId) && decks.length) sel.value = String(view.deckId);
+}
+
+// ─── Archidekt sign-in ──────────────────────────────────────────────────────
+
+/** Who the studio is writing as, with the way out. An .env login has no sign-out
+ *  button — the page cannot edit the file it came from. */
+function renderWhoami() {
+  const el = $("#whoami");
+  const a = view?.archidekt;
+  if (!a?.configured) return el.classList.add("hidden");
+  el.classList.remove("hidden");
+  el.innerHTML = `signed in as <b>${esc(a.user ?? "?")}</b>` + (a.fromEnv ? ` <i>(.env)</i>` : ` <button id="ark-out">sign out</button>`);
+  const out = $("#ark-out");
+  if (out) out.onclick = () => api("signout").then(refresh).catch(showError);
+}
+
+/** The whole page when there is no account yet. Archidekt has no API tokens,
+ *  so this asks for the real password and says where it goes. */
+function signinEl() {
+  const el = document.createElement("div");
+  el.className = "signin";
+  el.innerHTML = `
+    <h2>Sign in to Archidekt</h2>
+    <p>The studio reads your decks and writes confirmed swaps back to them. Archidekt has no API tokens, so this is the account password.
+       It is stored on this machine only — mode 0600 in the app data dir — and never sent back to this page.</p>
+    <div class="signin-row">
+      <input id="ark-user" placeholder="username" autocomplete="username" autocapitalize="off" spellcheck="false">
+      <input id="ark-pass" type="password" placeholder="password" autocomplete="current-password">
+      <button id="ark-go" class="accent">Sign in</button>
+    </div>
+    <div id="ark-err" class="hidden"></div>
+    <p class="alt">Or put <code>ARCHIDEKT_USER</code> and <code>ARCHIDEKT_PASS</code> in <code>.env</code> at the repo root and restart the studio.</p>`;
+  const go = async () => {
+    const btn = el.querySelector("#ark-go");
+    const errEl = el.querySelector("#ark-err");
+    const user = el.querySelector("#ark-user").value.trim();
+    const pass = el.querySelector("#ark-pass").value;
+    if (!user || !pass) return;
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    errEl.classList.add("hidden");
+    try {
+      // the server proves the login against Archidekt before storing it
+      await api("signin", { user, pass });
+      await refresh();
+      await loadDecks();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove("hidden");
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  };
+  el.querySelector("#ark-go").onclick = go;
+  for (const i of el.querySelectorAll("input")) i.onkeydown = (e) => e.key === "Enter" && go();
+  return el;
 }
 
 function cardMeta(c) {
@@ -200,6 +257,7 @@ function bindPreviews(el, p) {
 function render() {
   hidePreview();
   renderStrip();
+  renderWhoami();
   const err = $("#error");
   if (view?.lastError) {
     err.textContent = view.lastError;
@@ -208,6 +266,9 @@ function render() {
 
   const board = $("#board");
   board.innerHTML = "";
+  // nothing else on this page works signed out: the deck list and every write
+  // go through the account
+  if (view && !view.archidekt?.configured) return board.appendChild(signinEl());
   if (!view?.deckId) {
     board.innerHTML = `<div class="empty">Pick a deck above, then ask your agent for swap proposals. They appear here as it files them.</div>`;
     return;

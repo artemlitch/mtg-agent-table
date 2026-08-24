@@ -1,8 +1,23 @@
 .DS_Store
 node_modules/
+
+# secrets: .env is real, .env.example is the documentation
+.env
+.env.*
+!.env.example
+
+# games, keys and state live in the OS data dir now; these are older layouts
+# and scratch runs that pointed DATA_DIR back at the checkout
 state.json
 state-backup-*.json
 games/
+
+# one MCP config per port, written by hand when running a second table
 mcp-[0-9]*.json
-electron/dist/
+
+# build output
 web/
+electron/dist/
+
+# scratch: saved boards, exported pages, anything dropped here to look at
+proposals/

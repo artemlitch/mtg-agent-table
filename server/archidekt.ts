@@ -1,12 +1,11 @@
-// Authed Archidekt client for the deck studio: list my decks, read a deck with
-// the ids needed to edit it, resolve printings, and PATCH card changes.
-// Endpoints reverse-engineered in ~/.claude/skills/archidekt/SKILL.md.
+// Authed Archidekt client for the deck studio: list your decks, read a deck
+// with the ids needed to edit it, resolve printings, and PATCH card changes.
+// Archidekt publishes no API; these endpoints are the ones its own site calls.
 //
-// Credentials: ARCHIDEKT_USER / ARCHIDEKT_PASS env vars, else parsed from that
-// SKILL.md so no secret has to live in this repo.
+// Credentials come from the keystore — .env, or the sign-in prompt on the
+// studio page. Nothing in this repo ever holds a password.
 
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { loadArchidekt, type ArchidektLogin } from "./keystore";
 
 const BASE = "https://archidekt.com/api";
 const UA = "mtg-agent-table/1.0";
@@ -51,20 +50,14 @@ export type CardAction =
   | { action: "modify"; printingId: number; deckRelationId: number; category: string; quantity: number }
   | { action: "remove"; printingId: number; deckRelationId: number; category: string };
 
-export function credentialsFromSkill(path = `${homedir()}/.claude/skills/archidekt/SKILL.md`) {
-  const user = process.env.ARCHIDEKT_USER;
-  const pass = process.env.ARCHIDEKT_PASS;
-  if (user && pass) return { user, pass };
-  let text = "";
-  try {
-    text = readFileSync(path, "utf8");
-  } catch {
-    throw new Error("no Archidekt credentials: set ARCHIDEKT_USER/ARCHIDEKT_PASS or install the archidekt skill");
-  }
-  const u = text.match(/^- username: `([^`]+)`/m)?.[1];
-  const p = text.match(/^- password: `([^`]+)`/m)?.[1];
-  if (!u || !p) throw new Error("could not parse credentials from archidekt SKILL.md");
-  return { user: u, pass: p };
+export const NOT_SIGNED_IN = "not signed in to Archidekt — sign in on the deck studio page, or set ARCHIDEKT_USER and ARCHIDEKT_PASS in .env";
+
+/** The stored login, or a message telling the caller how to make one. Thrown
+ *  rather than returned null: every caller needs it to do anything at all. */
+export function archidektCredentials(): ArchidektLogin {
+  const creds = loadArchidekt();
+  if (!creds) throw new Error(NOT_SIGNED_IN);
+  return creds;
 }
 
 export class ArchidektClient {
@@ -72,7 +65,7 @@ export class ArchidektClient {
   private tokenAt = 0;
   private decks: DeckSummary[] = [];
   // injectable for tests
-  constructor(private fetchFn: typeof fetch = fetch, private creds: () => { user: string; pass: string } = credentialsFromSkill) {}
+  constructor(private fetchFn: typeof fetch = fetch, private creds: () => ArchidektLogin = archidektCredentials) {}
 
   private async login() {
     const { user, pass } = this.creds();
@@ -81,6 +74,9 @@ export class ArchidektClient {
       headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": UA },
       body: JSON.stringify({ username: user, password: pass }),
     });
+    // 400 is what a wrong username or password looks like here, and it is the
+    // one failure a person can act on — say it in those words
+    if (res.status === 400) throw new Error("Archidekt rejected that username or password");
     if (!res.ok) throw new Error(`archidekt login: HTTP ${res.status} ${await res.text()}`);
     const d: any = await res.json();
     this.token = d.access_token;

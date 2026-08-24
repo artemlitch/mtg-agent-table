@@ -21,23 +21,23 @@ interface ToolDef {
 }
 
 const TOOLS: Record<string, ToolDef> = {
-  // ─── deck studio: the /swap page. Proposals only — Artem confirms in the UI,
-  // and that confirm is the only thing that writes to Archidekt. ───
+  // ─── deck studio: the /swap page. Proposals only — the owner confirms in the
+  // UI, and that confirm is the only thing that writes to Archidekt. ───
   studio_get: {
     description:
       "Deck studio snapshot, re-read live from Archidekt: the selected deck (every card with qty, category, mana, mv, type — note basics carry qty>1, so metadata.count is the real card count, not the list length), its metadata (count, lands, avg mv, mana curve, per-category counts, color pips) and every proposal on the board with per-option 'deck after this swap' metadata. Start here.",
     schema: obj({}),
     op: "get",
   },
-  studio_list_decks: { description: "Artem's Archidekt decks (id + name) — what the page's dropdown shows.", schema: obj({}), op: "decks" },
+  studio_list_decks: { description: "The signed-in account's Archidekt decks (id + name) — what the page's dropdown shows.", schema: obj({}), op: "decks" },
   studio_select_deck: {
-    description: "Select the deck being discussed (by Archidekt deck id). Loads it and clears proposals if it is a different deck. Artem can also do this from the page dropdown.",
+    description: "Select the deck being discussed (by Archidekt deck id). Loads it and clears proposals if it is a different deck. The owner can also do this from the page dropdown.",
     schema: obj({ deckId: num("archidekt deck id") }, ["deckId"]),
     op: "select",
   },
   studio_propose: {
     description:
-      "File ONE swap proposal on the board. Two styles: kind='cut' — 'this card in the deck is weak; here are cards to bring in instead' (card = the deck card, options = replacements, each with the deck category it would join); kind='add' — 'this card is great, add it; here are deck cards to cut for it' (card = the new card, category = the category it joins, options = deck cards to cut). Every name must be an exact Scryfall name (front face for DFCs) — the board renders art for all of them and rejects anything it cannot picture. Mark one option primary. why/note are shown to Artem: one or two sharp sentences each. Response carries the finalized-deck metadata for every option — read it and fix your own proposal if a number looks wrong.",
+      "File ONE swap proposal on the board. Two styles: kind='cut' — 'this card in the deck is weak; here are cards to bring in instead' (card = the deck card, options = replacements, each with the deck category it would join); kind='add' — 'this card is great, add it; here are deck cards to cut for it' (card = the new card, category = the category it joins, options = deck cards to cut). Every name must be an exact Scryfall name (front face for DFCs) — the board renders art for all of them and rejects anything it cannot picture. Mark one option primary. why/note are shown to the owner: one or two sharp sentences each. Response carries the finalized-deck metadata for every option — read it and fix your own proposal if a number looks wrong.",
     schema: obj(
       {
         kind: str("cut | add", ["cut", "add"]),

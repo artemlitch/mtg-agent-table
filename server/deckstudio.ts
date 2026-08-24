@@ -350,8 +350,8 @@ export async function confirm(id: string, optionName?: string): Promise<Proposal
   if (p.status !== "open") throw new Error(`proposal ${id} is already ${p.status}`);
   const choice = optionName ?? p.options.find((o) => o.primary)?.name ?? p.options[0].name;
   // never write against a stale copy: re-read Archidekt first, and re-check
-  // the swap against what is actually there now (Artem may have edited the
-  // deck on the site since the proposal was filed)
+  // the swap against what is actually there now (the deck may have been edited
+  // on the site since the proposal was filed)
   const fresh = hydrateDeck(await archidekt.getDeck(studio.deckId!));
   studio.cards = fresh;
   let expected: Metadata;

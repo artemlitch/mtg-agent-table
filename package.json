@@ -1,5 +1,7 @@
 {
   "name": "mtg-agent-table",
+  "description": "A local 1v1 Commander tabletop where an agent plays the other seat",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

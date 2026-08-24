@@ -4,6 +4,8 @@
 // here. Run: bun run server/studio-server.ts
 import * as studio from "./deckstudio";
 import { cardSearch, cardLookup, edhrecCommander } from "./cardsearch";
+import { ArchidektClient } from "./archidekt";
+import { archidektStatus, saveArchidekt, deleteArchidekt } from "./keystore";
 import { DATA_DIR } from "./datadir";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
@@ -59,7 +61,7 @@ const server = Bun.serve({
     if (path === "/api/studio" && req.method === "GET") {
       // the deck shown is always Archidekt's current list (throttled re-read)
       await studio.syncDeck();
-      return json(studio.studioView(!!url.searchParams.get("lean")));
+      return json({ ...studio.studioView(!!url.searchParams.get("lean")), archidekt: archidektStatus() });
     }
     if (path.startsWith("/api/studio/") && req.method === "POST") {
       const op = path.slice("/api/studio/".length);
@@ -92,6 +94,24 @@ const server = Bun.serve({
 /** One dispatcher for every studio operation; the MCP proxy and the page share it. */
 async function studioOp(op: string, body: any): Promise<any> {
   switch (op) {
+    // Archidekt sign-in. The password goes to the keystore and is never read
+    // back out; the page only ever learns the username. Signing in is checked
+    // against Archidekt first, so a typo fails here rather than on the first
+    // deck write.
+    case "signin": {
+      const user = String(body.user ?? "").trim();
+      const pass = String(body.pass ?? "");
+      if (!user || !pass) throw new Error("username and password required");
+      await new ArchidektClient(fetch, () => ({ user, pass })).listMyDecks();
+      saveArchidekt({ user, pass });
+      server.publish("studio", JSON.stringify({ type: "studio" }));
+      return { ok: true, archidekt: archidektStatus() };
+    }
+    case "signout":
+      if (archidektStatus().fromEnv) throw new Error("this login comes from .env — remove it there");
+      deleteArchidekt();
+      server.publish("studio", JSON.stringify({ type: "studio" }));
+      return { ok: true, archidekt: archidektStatus() };
     case "decks":
       return { decks: await studio.listDecks() };
     case "select":

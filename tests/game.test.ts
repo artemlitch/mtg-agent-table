@@ -1037,7 +1037,7 @@ describe("batch move with top: refs", () => {
 
 describe("action input validation", () => {
   test("set_turn rejects invalid player ids", () => {
-    expect(() => applyAction("agent", "set_turn", { player: "artem" })).toThrow();
+    expect(() => applyAction("agent", "set_turn", { player: "nobody" })).toThrow();
     expect(game.turn).toBe("you");
   });
 
@@ -1049,7 +1049,7 @@ describe("action input validation", () => {
 
   test("move rejects an invalid toPlayer", () => {
     const c = seedCard("Bear", "you", "hand");
-    expect(() => applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "artem" })).toThrow();
+    expect(() => applyAction("you", "move", { card: c.id, toZone: "battlefield", toPlayer: "nobody" })).toThrow();
   });
 });
 

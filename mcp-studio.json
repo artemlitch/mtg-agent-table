@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "studio": {
+      "command": "bun",
+      "args": ["run", "server/studio-mcp-tools.ts"],
+      "env": { "STUDIO_URL": "http://localhost:4781" }
+    }
+  }
+}

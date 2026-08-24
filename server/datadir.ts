@@ -1,11 +1,12 @@
 // Where persistent data lives: the platform application-data directory, not
-// the repo. STATE_FILE/GAMES_DIR envs override (tests, dev experiments).
-import { existsSync, mkdirSync, renameSync, readdirSync, rmdirSync } from "node:fs";
+// the repo. Games, keys and the live state file all land here, so a checkout
+// stays disposable and a `git clean` never eats a game.
+// DATA_DIR/STATE_FILE/GAMES_DIR override it (tests, dev experiments).
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
 const APP_NAME = "MTG Battlefield";
-const REPO_ROOT = new URL("..", import.meta.url).pathname;
 
 function platformDataDir(): string {
   if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", APP_NAME);
@@ -18,25 +19,4 @@ mkdirSync(DATA_DIR, { recursive: true });
 
 export const STATE_FILE = process.env.STATE_FILE ?? join(DATA_DIR, "state.json");
 export const GAMES_DIR = process.env.GAMES_DIR ?? join(DATA_DIR, "games");
-
-// one-time migration from the old repo layout; skipped entirely when the
-// caller overrides the paths (tests must never move real data)
-if (!process.env.STATE_FILE && !process.env.GAMES_DIR && !process.env.DATA_DIR) {
-  if (!existsSync(STATE_FILE) && existsSync(join(REPO_ROOT, "state.json"))) {
-    renameSync(join(REPO_ROOT, "state.json"), STATE_FILE);
-  }
-  const oldGames = join(REPO_ROOT, "games");
-  if (existsSync(oldGames)) {
-    mkdirSync(GAMES_DIR, { recursive: true });
-    for (const f of readdirSync(oldGames)) {
-      if (!existsSync(join(GAMES_DIR, f))) renameSync(join(oldGames, f), join(GAMES_DIR, f));
-    }
-    if (readdirSync(oldGames).length === 0) rmdirSync(oldGames);
-  }
-  for (const f of readdirSync(REPO_ROOT)) {
-    if (/^state-backup-\d+\.json$/.test(f) && !existsSync(join(DATA_DIR, f))) {
-      renameSync(join(REPO_ROOT, f), join(DATA_DIR, f));
-    }
-  }
-}
 mkdirSync(GAMES_DIR, { recursive: true });
