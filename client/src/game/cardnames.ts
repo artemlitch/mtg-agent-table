@@ -42,8 +42,11 @@ export function aliases(card: Card): string[] {
     // "Tergrid, God of Fright" → Tergrid: the legendary comma is the one
     // abbreviation Magic players make without thinking about it
     if (n.includes(",")) push(n.slice(0, n.indexOf(",")));
-    // "Carrion Feeder" → Carrion
-    const first = n.split(/\s+/)[0];
+    // "Carrion Feeder" → Carrion. The word is cut by whitespace, so a legend's
+    // first word arrives still wearing its comma — and "Tergrid," (8 chars)
+    // outsorted "Tergrid" (7), so every shorthand mention linked WITH the
+    // comma glued in: "to [Tergrid,] survives", all over the damage lines.
+    const first = n.split(/\s+/)[0].replace(/[,:;.!?]+$/, "");
     if (n.includes(" ") && first.length >= 4) push(first);
   }
   return out;

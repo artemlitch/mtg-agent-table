@@ -62,6 +62,20 @@ describe("card names in a line of game text", () => {
     expect(parts("I block with Carrion")).toEqual(["I block with ", "<Carrion>"]);
   });
 
+  it("never swallows the legendary comma into the link", () => {
+    // the first-word cut is made by whitespace, so "Tergrid," — comma and
+    // all — became an alias, outsorted the clean "Tergrid", and the damage
+    // lines rendered "to [Tergrid,] survives" with the comma inside the link
+    table([card("Tergrid, God of Fright")]);
+    expect(parts("Rat → Tergrid, God of Fright: 1 — to Tergrid, survives")).toEqual([
+      "Rat → ",
+      "<Tergrid, God of Fright>",
+      ": 1 — to ",
+      "<Tergrid>",
+      ", survives",
+    ]);
+  });
+
   it("does not match inside a longer word, or in lower case", () => {
     table([card("Plant"), card("Plains")]);
     expect(parts("Plants are not Plant")).toEqual(["Plants are not ", "<Plant>"]);
