@@ -270,3 +270,15 @@ textarea { cursor: text; }
   background: #c9c0b0; color: #17100a;
 }
 .pipglyph .gi { width: 74%; height: 74%; vertical-align: 0; }
+
+/* Card names inside a line of game text — see components/CardLink.tsx.
+   Deliberately quiet: one combat line names five cards, and five gold
+   underlines would be a christmas tree. A log line is --dim, so a name at
+   --text simply reads as the brightest thing in its sentence — which is what
+   it is — and the link only announces itself under the cursor. */
+.cardlink {
+  color: var(--text);
+  text-decoration: underline dotted color-mix(in srgb, var(--accent) 28%, transparent);
+  text-underline-offset: 2px;
+}
+.cardlink:hover { color: var(--accent); text-decoration-color: var(--accent); }

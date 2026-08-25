@@ -238,7 +238,18 @@ export const TOOLS: Record<string, ToolDef> = {
   clear_combat: { description: "Clear all attack/block annotations after damage.", schema: obj({}) },
   roll: { description: "Roll a die.", schema: obj({ sides: num("sides, default 20") }) },
   flip: { description: "Flip a coin.", schema: obj({}) },
-  say: { description: "Say something to Player in the chat (announcements, responses, banter).", schema: obj({ text: str("message") }, ["text"]), action: "chat" },
+  say: {
+    description:
+      "Say something to Player in the chat (announcements, responses, banter). " +
+      // Nothing breaks when this is ignored — an unrecognised name renders as
+      // ordinary words. It is worth telling the agent anyway: naming cards
+      // properly is the difference between a sentence Player can hover and one
+      // they have to go looking at the board to follow.
+      "Card names you write become hoverable card previews automatically — no markup needed, and shorthand like 'Marchesa' finds 'Marchesa, the Black Rose'. " +
+      "For a card that is NOT in the game at all (still in a library, in a decklist, one you are only speculating about) write it as [[Card Name]] and it links too.",
+    schema: obj({ text: str("message") }, ["text"]),
+    action: "chat",
+  },
   ask_user: {
     description: "Ask Player a blocking question (rules confusion, 'any responses?', clarify their action). Their answer arrives in your next window.",
     schema: obj({ question: str("the question") }, ["question"]),

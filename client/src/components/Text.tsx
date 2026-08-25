@@ -17,7 +17,12 @@
 //
 // `as` defaults to a span. Children are a string — deliberately not ReactNode,
 // so a block of mixed JSX cannot be passed in and quietly skip the transform.
+//
+// Two transforms run here now — mana pips and card-name links — and both for
+// the same reason. Neither is a component the caller composes; they are what
+// <Text> IS.
 import type { ComponentPropsWithoutRef, ElementType } from "react";
+import { withCardLinks } from "./CardLink";
 import { withMana } from "./Mana";
 
 type TextProps<T extends ElementType> = {
@@ -28,5 +33,5 @@ type TextProps<T extends ElementType> = {
 
 export function Text<T extends ElementType = "span">({ as, children, ...rest }: TextProps<T>) {
   const As = (as || "span") as ElementType;
-  return <As {...rest}>{withMana(children == null ? "" : String(children))}</As>;
+  return <As {...rest}>{withCardLinks(children == null ? "" : String(children), withMana)}</As>;
 }
