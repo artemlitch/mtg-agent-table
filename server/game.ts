@@ -420,6 +420,41 @@ const AT_REST: Record<string, unknown> = {
  *  battlefield card. */
 const round3 = (n: unknown) => (typeof n === "number" ? Math.round(n * 1000) / 1000 : n);
 
+/** Untap one seat's battlefield. Returns how many actually turned over, so a
+ *  caller can say so — and say nothing when there was nothing to do. */
+function untapPermanents(player: PlayerId): number {
+  let n = 0;
+  for (const id of game.players[player].zones.battlefield) {
+    const c = game.cards[id];
+    if (c?.tapped) {
+      c.tapped = false;
+      n++;
+    }
+  }
+  return n;
+}
+
+/** Power and toughness as the board actually shows them: printed, plus the
+ *  +1/+1 and -1/-1 counters.
+ *
+ *  The printed pair and the counters map were served separately and the sum
+ *  left to the reader. A person reads it off the card once and remembers; the
+ *  agent re-derives it on every call, and a 0/0 Thromok carrying 36 counters is
+ *  exactly the shape it gets wrong — it worked out 36/36 correctly and then
+ *  ruled that 13 damage killed it, in the same sentence. */
+export function effectivePT(c: { power?: string; toughness?: string; counters?: Record<string, number> }): string | null {
+  if (c.power === undefined || c.toughness === undefined) return null;
+  const n = (c.counters?.["+1/+1"] ?? 0) - (c.counters?.["-1/-1"] ?? 0);
+  // "*" and "1+*" are printed values that no amount of counting resolves —
+  // keep them readable rather than turning them into NaN
+  const add = (v: string) => {
+    const base = Number(v);
+    if (Number.isFinite(base)) return String(base + n);
+    return n ? `${v}${n > 0 ? "+" : ""}${n}` : v;
+  };
+  return `${add(c.power)}/${add(c.toughness)}`;
+}
+
 export function leanCard({ image, faces, ...rest }: any) {
   const out: any = {};
   for (const [k, v] of Object.entries(rest)) {
@@ -429,6 +464,10 @@ export function leanCard({ image, faces, ...rest }: any) {
     if (v && typeof v === "object" && !Object.keys(v).length) continue;
     out[k] = k === "pos" && v && typeof v === "object" ? { x: round3((v as any).x), y: round3((v as any).y) } : v;
   }
+  // the sum the reader would otherwise have to do — printed P/T plus counters,
+  // only where the counters actually move it
+  const pt = effectivePT(rest);
+  if (pt && pt !== `${rest.power}/${rest.toughness}`) out.pt = pt;
   return { ...out, ...(faces ? { faces: faces.map(({ image: _i, ...f }: any) => f) } : {}) };
 }
 
@@ -922,7 +961,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   untap_all(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
-    for (const id of game.players[player].zones.battlefield) game.cards[id].tapped = false;
+    untapPermanents(player);
     addLog(ctx.actor, `${who(player)} untapped all permanents`);
     return { ok: true };
   },
@@ -1249,8 +1288,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   set_phase(ctx, p) {
     const phase = String(p.phase).slice(0, 40);
     game.phase = phase;
-    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}`);
-    return { ok: true, stackSize: game.stack.length };
+    // The untap step is the one part of a turn with nothing to decide in it, so
+    // it should not be something a seat can forget — and it was. The untap
+    // lived in the client, which meant it happened for Player and never for the
+    // agent: the agent moved the marker to "untap" and its lands stayed tapped.
+    // It did that twice in one game and then explained the board as though they
+    // had untapped, which cost two windows of argument to unpick.
+    //
+    // The ACTIVE player's permanents, not the actor's: whoever moves the marker,
+    // an untap step untaps the seat whose turn it is.
+    const untapped = /^untap/i.test(phase) ? untapPermanents(game.turn) : 0;
+    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""));
+    return { ok: true, stackSize: game.stack.length, ...(untapped ? { untapped } : {}) };
   },
 
   /** Declare the turn pass — goes ON THE STACK; resolving it is the opponent's end-of-turn sign-off. */

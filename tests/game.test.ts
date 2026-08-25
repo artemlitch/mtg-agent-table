@@ -444,6 +444,31 @@ describe("tap, counters, piles", () => {
     expect(a.tapped || b.tapped).toBe(false);
   });
 
+  test("moving to the untap step untaps the player whose turn it is", () => {
+    // it used to be the client's job, so it happened for Player and never for
+    // the agent — which moved the marker to "untap" and left its lands tapped
+    const mine = seedCard("Mine", "agent", "battlefield", { tapped: true });
+    const theirs = seedCard("Theirs", "you", "battlefield", { tapped: true });
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "untap" });
+    expect(mine.tapped).toBe(false);
+    expect(theirs.tapped).toBe(true); // an untap step is one seat's, not both
+  });
+
+  test("every other phase leaves the board exactly as it was", () => {
+    const c = seedCard("Tapped", "you", "battlefield", { tapped: true });
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "main 1" });
+    expect(c.tapped).toBe(true);
+  });
+
+  test("an untap step with nothing to untap says nothing about it", () => {
+    seedCard("Ready", "you", "battlefield");
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "untap/upkeep" });
+    expect(transcript().at(-1)!.text).toBe("Player moves to untap/upkeep");
+  });
+
   test("tapping a non-battlefield card throws", () => {
     const c = seedCard("Handcard", "you", "hand");
     expect(() => applyAction("you", "tap", { cards: [c.id] })).toThrow();
@@ -1011,6 +1036,26 @@ describe("the table surface", () => {
     // they arrive from a mouse as full float noise and ride on every
     // battlefield card in every snapshot; three decimals is a pixel
     expect(leanCard({ id: "c5", pos: { x: 0, y: 0.8748319276372082 } }).pos).toEqual({ x: 0, y: 0.875 });
+  });
+
+  test("a creature carrying counters is told what it currently is", () => {
+    // the sum used to be the reader's job: a 0/0 Thromok under 36 +1/+1
+    // counters was served as power 0, toughness 0 and a counters map, and the
+    // agent read it as something 13 damage could kill
+    expect(leanCard({ id: "c6", name: "Thromok", power: "0", toughness: "0", counters: { "+1/+1": 36 } }).pt).toBe("36/36");
+    expect(leanCard({ id: "c7", name: "Shrunk", power: "4", toughness: "4", counters: { "-1/-1": 3 } }).pt).toBe("1/1");
+  });
+
+  test("…and nothing is added where the counters do not move it", () => {
+    // a plain 2/3 already says 2/3 twice over; and a card with no P/T at all
+    // (a land, an artifact) has nothing to sum
+    expect(leanCard({ id: "c8", name: "Bear", power: "2", toughness: "2" }).pt).toBeUndefined();
+    expect(leanCard({ id: "c9", name: "Bear", power: "2", toughness: "2", counters: { charge: 4 } }).pt).toBeUndefined();
+    expect(leanCard({ id: "c10", name: "Forest" }).pt).toBeUndefined();
+  });
+
+  test("a printed star survives the sum instead of becoming NaN", () => {
+    expect(leanCard({ id: "c11", name: "Tarmogoyf", power: "*", toughness: "1+*", counters: { "+1/+1": 2 } }).pt).toBe("*+2/1+*+2");
   });
 
   test("…but keeps every one of them that is actually saying something", () => {

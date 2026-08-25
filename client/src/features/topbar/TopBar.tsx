@@ -90,10 +90,9 @@ function PhaseTrack({ phase }: { phase: string }) {
           <button
             className={`pt-node${i === now ? " now" : ""}${i < now ? " done" : ""}`}
             data-tip={p.label}
-            onClick={async () => {
-              if (p.key === "untap/upkeep") await act("untap_all", { player: "you" });
-              void act("set_phase", { phase: p.key });
-            }}
+            // moving to the untap step untaps you — the server does it now, for
+            // whichever seat's turn it is, so both players get the same step
+            onClick={() => void act("set_phase", { phase: p.key })}
           >
             <span className="pt-dot" />
             <span className="pt-name">{p.label}</span>

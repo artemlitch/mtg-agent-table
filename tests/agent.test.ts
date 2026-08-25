@@ -75,7 +75,7 @@ const fakeTable = Bun.serve({
 
 const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState, KEEP_THINKING_WINDOWS, TRIM_ABOVE_CHARS } =
   await import("../server/agent");
-const { resetGameState } = await import("../server/game");
+const { resetGameState, makeCard, game } = await import("../server/game");
 
 afterAll(() => {
   fakeAnthropic.stop(true);
@@ -193,6 +193,38 @@ describe("agent transport", () => {
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     a.messages.push({ role: "user", content: [{ type: "text", text: "the first window happened" }] });
     expect(a.composeWakePrompt("window")).not.toMatch(/opening hand/i);
+  });
+
+  test("every window opens with the board as it stands", () => {
+    // The agent reads the board with get_state and then plays for a long time
+    // off its own prose about what it read — in one measured game, get_state at
+    // messages 1, 15, 73 and then nothing until 266. So the board rides every
+    // wake, where nothing older can outrank it.
+    resetGameState();
+    const bear = makeCard({ id: "b1", name: "Bear", owner: "agent", controller: "agent", zone: "battlefield", power: "2", toughness: "2", counters: { "+1/+1": 3 }, tapped: true });
+    const land = makeCard({ id: "l1", name: "Island", owner: "you", controller: "you", zone: "battlefield" });
+    for (const c of [bear, land]) {
+      game.cards[c.id] = c;
+      game.players[c.controller].zones.battlefield.push(c.id);
+    }
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const prompt = a.composeWakePrompt("react");
+
+    expect(prompt).toContain("BOARD NOW");
+    // the sum, not the parts — a 2/2 under three counters is a 5/5
+    expect(prompt).toContain("Bear 5/5 (T)");
+    expect(prompt).toContain("PLAYER'S: Island");
+    expect(prompt).toMatch(/life 40\/40/);
+    // it is the glance, not the study: no card text, no ids
+    expect(prompt).not.toContain("b1");
+  });
+
+  test("…and says so plainly when a seat has nothing out", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).toContain("YOURS: (empty)");
   });
 
   test("a save from before rebuildable prompts keeps the prompt it froze", () => {

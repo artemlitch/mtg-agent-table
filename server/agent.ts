@@ -27,7 +27,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { game, renderLogFor, transcript, triggerLines } from "./game";
+import { effectivePT, game, renderLogFor, transcript, triggerLines, type Card, type PlayerId } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadKey, isCliVerified, loadProvider } from "./keystore";
 import { DEFAULT_MODEL, PROVIDERS, modelSpec, type ProviderId } from "./models";
@@ -178,6 +178,49 @@ export interface AgentSnapshot {
 const emptyUsage = (): AgentUsage => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 });
 
 export const SUPERSEDED_STATE = "(superseded — a newer look at the same thing appears below; read that one)";
+
+/** One permanent, as short as it can be said. */
+function permanentLine(c: Card): string {
+  const bits = [c.name];
+  const pt = effectivePT(c);
+  if (pt) bits.push(pt);
+  if (c.tapped) bits.push("(T)");
+  if (c.faceDown) bits.push("(face-down)");
+  if (c.attacking) bits.push("(attacking)");
+  if (c.blocking) bits.push("(blocking)");
+  // +1/+1 and -1/-1 are already inside the P/T; loyalty and charge are not
+  const other = Object.entries(c.counters ?? {}).filter(([k, v]) => k !== "+1/+1" && k !== "-1/-1" && v);
+  if (other.length) bits.push(`{${other.map(([k, v]) => `${k}×${v}`).join(" ")}}`);
+  return bits.join(" ");
+}
+
+/** The table as it stands, in a few hundred characters, on EVERY wake.
+ *
+ *  The agent reads the board with get_state and then plays for a long time off
+ *  its own prose about what it read. In one measured game it called get_state
+ *  at conversation messages 1, 15, 73 and then not again until 266 — the whole
+ *  midgame decided from memory, with its own stale sentences sitting closer in
+ *  context than the snapshot. This puts the current board at the top of every
+ *  window instead, where nothing older can outrank it.
+ *
+ *  Deliberately not a substitute for get_state: no card text, no ids, no zones
+ *  beyond counts. It is the thing you glance up at, not the thing you study. */
+function boardDigest(): string {
+  const side = (p: PlayerId) => {
+    const bf = game.players[p].zones.battlefield.map((id) => game.cards[id]).filter(Boolean) as Card[];
+    return bf.length ? bf.map(permanentLine).join(" · ") : "(empty)";
+  };
+  const n = (p: PlayerId, z: "hand" | "library" | "graveyard" | "exile" | "command") => game.players[p].zones[z].length;
+  const counts = (["hand", "library", "graveyard", "exile", "command"] as const)
+    .map((z) => `${z} ${n("agent", z)}/${n("you", z)}`)
+    .join(" · ");
+  return (
+    `\nBOARD NOW (the table as it stands — this outranks anything about the board earlier in this conversation):\n` +
+    `  YOURS: ${side("agent")}\n` +
+    `  PLAYER'S: ${side("you")}\n` +
+    `  yours/Player's — life ${game.players.agent.life}/${game.players.you.life} · ${counts}\n`
+  );
+}
 
 /** How much dead board has to pile up before it is worth rewriting history.
  *
@@ -504,7 +547,7 @@ export class AgentRunner {
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
     // points 2 and 9 of the system prompt and did not need saying twice
-    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${turnTrigText}${opening}\n${situation} ${directive}`;
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;
