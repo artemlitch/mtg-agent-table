@@ -59,6 +59,7 @@ export interface StackItem {
   text: string;
   groupId?: string;
   retractable?: boolean;
+  finished?: boolean;
   resolveTo?: Zone;
   source?: string;
   countered?: boolean;
@@ -137,6 +138,8 @@ export interface GameView {
   turn: PlayerId;
   turnNumber: number;
   phase: string;
+  /** where combat is — null outside combat; see CombatStep in server/game.ts */
+  combat?: "attackers" | "blockers" | "damage" | "done" | null;
   waitingOn?: PlayerId | null;
   pendingQuestion?: string | null;
   players: Record<PlayerId, PlayerView>;

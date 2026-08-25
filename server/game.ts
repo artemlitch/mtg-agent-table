@@ -174,6 +174,10 @@ export interface StackItem {
   // below them; mandatory triggers are never retractable.
   groupId?: string;
   retractable?: boolean;
+  // an attack declaration the attacker has handed over (finish_attacks) but
+  // the defender has not yet resolved — the "you said you were done" fact the
+  // client used to scrape out of the log with an anchored regex
+  finished?: boolean;
   // countered is a MARK, not a removal: the item stays on the stack so
   // responses can reference it; resolving a countered item fizzles it.
   countered?: boolean;
@@ -206,16 +210,25 @@ export function normalizePhase(raw: unknown): Phase {
   const hit = Object.hasOwn(PHASE_ALIASES, key) ? PHASE_ALIASES[key] : undefined;
   if (hit) return hit;
   // "main" alone is the agent's most common label and is genuinely ambiguous;
-  // Task 2 refines this to "main 2 once this turn's combat is done"
-  if (key === "main") return "main 1";
+  // this turn's combat settles it — once damage is done, a bare "main" is the
+  // second one
+  if (key === "main") return game.combat === "done" ? "main 2" : "main 1";
   throw new Error(`unknown phase "${String(raw)}" — use one of: ${PHASES.join(", ")}`);
 }
+
+/** Where this combat is. The word "combat" in `phase` covers three different
+ *  questions — who attacks, who blocks, what lands — and the table needs to
+ *  know which one is open: damage() refuses to run while blocks are owed,
+ *  and the client prompt asks whichever question is current. null = not in
+ *  combat; "done" = damage resolved, combat not yet left. */
+export type CombatStep = "attackers" | "blockers" | "damage" | "done";
 
 export interface GameState {
   started: boolean;
   turn: PlayerId;
   turnNumber: number;
   phase: Phase;
+  combat: CombatStep | null;
   players: Record<PlayerId, PlayerState>;
   cards: Record<string, Card>;
   stack: StackItem[];
@@ -272,6 +285,7 @@ export function newGameState(): GameState {
     // where the turn pass puts every later turn, so turn 1 is not a special
     // case that opens on "Go to combat" with an untouched board
     phase: "untap/upkeep",
+    combat: null,
     players: { you: emptyPlayer(), agent: emptyPlayer() },
     cards: {},
     stack: [],
@@ -594,6 +608,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
     turn: game.turn,
     turnNumber: game.turnNumber,
     phase: game.phase,
+    combat: game.combat,
     waitingOn: game.waitingOn,
     pendingQuestion: game.pendingQuestion,
     players,
@@ -603,6 +618,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       text: item.text,
       groupId: item.groupId,
       retractable: item.retractable,
+      finished: item.finished,
       resolveTo: item.resolveTo,
       source: item.sourceId,
       countered: item.countered,
@@ -644,6 +660,14 @@ export function renderLogFor(e: LogEntry, viewer: PlayerId) {
 
 export function who(p: PlayerId) {
   return p === "you" ? "Player" : "Agent";
+}
+
+/** Take every attacking/blocking mark off the table. */
+function clearCombatMarks() {
+  for (const c of Object.values(game.cards)) {
+    c.attacking = null;
+    c.blocking = null;
+  }
 }
 
 /** Player ids are exactly "you" | "agent" — reject anything else loudly. */
@@ -847,6 +871,11 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
       parts.push(publicDesc(c));
     }
     game.phase = "combat";
+    // locking attackers in IS entering combat, whether or not set_phase was
+    // called first — so this is deliberately unguarded (spec deviation: the
+    // spec guards it on "attackers", but an attack locked in from main must
+    // still open the blockers step, or damage() would owe no blocks)
+    game.combat = "blockers";
     addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`, "attacks_locked");
     return { ok: true, resolved: item.text };
   }
@@ -864,14 +893,17 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     game.turn = player;
     game.waitingOn = player;
     game.phase = "untap/upkeep";
-    for (const c of Object.values(game.cards)) {
-      c.attacking = null;
-      c.blocking = null;
-    }
+    game.combat = null;
+    clearCombatMarks();
     addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`, "round_start");
     return { ok: true, resolved: item.text };
   }
   if (item.apply?.type === "damage") {
+    // guarded: a damage item resolved outside combat (a ping announced in
+    // main, or resolved after the phase moved on) must not resurrect a
+    // combat state that no longer exists. "blockers" is a legal source —
+    // later per-creature block declarations may still be resolving under it.
+    if (game.combat === "damage" || game.combat === "blockers") game.combat = "done";
     const parts: string[] = [];
     for (const hit of item.apply.hits) {
       if (hit.target !== "you" && hit.target !== "agent") continue; // creature hits are the announcement; deaths do the work
@@ -895,6 +927,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text, life: parts, ...(deaths ? { deaths } : {}) };
   }
   if (item.apply?.type === "block") {
+    if (game.combat === "blockers") game.combat = "damage";
     for (const pair of item.apply.pairs) getCard(pair.blocker).blocking = pair.attacker;
     addLog(ctx.actor, `Blocks locked in: ${blockLines(item.apply.pairs).join("; ")}`);
     return { ok: true, resolved: item.text };
@@ -1456,6 +1489,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    * announced triggers still create their own priority windows. */
   set_phase(ctx, p) {
     const phase = normalizePhase(p.phase);
+    if (phase === "combat") {
+      // always resets: re-entering combat after an undo is the ordinary
+      // second swing, and it gets a fresh declare-attackers step
+      game.combat = "attackers";
+    } else if (game.combat !== null) {
+      // Leaving combat ends it, marks included. The marks used to linger
+      // until the turn passed — three creatures stood ringed as blocking
+      // Rats that had ceased to exist two log lines earlier.
+      game.combat = null;
+      clearCombatMarks();
+    }
     game.phase = phase;
     // The untap step is the one part of a turn with nothing to decide in it, so
     // it should not be something a seat can forget — and it was. The untap
@@ -1551,6 +1595,8 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (open) {
       open.text = `ATTACKS: ${all.join("; ")}`;
       open.apply = { type: "attack", pairs };
+      // declaring another creature means you are not finished any more
+      delete open.finished;
     } else {
       pushStackItem(ctx.actor, { cardId: null, text: `ATTACKS: ${all.join("; ")}`, apply: { type: "attack", pairs } });
     }
@@ -1631,10 +1677,8 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   clear_combat(ctx, _p) {
-    for (const c of Object.values(game.cards)) {
-      c.attacking = null;
-      c.blocking = null;
-    }
+    game.combat = null;
+    clearCombatMarks();
     addLog(ctx.actor, `Combat cleared`);
     return { ok: true };
   },
@@ -1993,6 +2037,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const decl = openAttackDeclaration(ctx.actor);
     if (!decl) throw new Error("no attack declaration to finish — declare attackers first (attack)");
     const pairs = decl.apply?.type === "attack" ? decl.apply.pairs : [];
+    decl.finished = true;
     const names = pairs.map((pair) => publicDesc(getCard(pair.attacker))).join(", ");
     game.waitingOn = ctx.actor === "you" ? "agent" : "you";
     addLog(

@@ -922,6 +922,19 @@ describe("the view says where combat is", () => {
     expect(combatOf("you")).toBe("blockers");
     expect(combatOf("agent")).toBe("blockers");
   });
+
+  test("finishing a declaration marks it on the view; declaring more un-finishes it", () => {
+    const a = seedCard("Carrion Feeder", "you", "battlefield");
+    const b = seedCard("Tergrid, God of Fright", "you", "battlefield");
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: a.id, target: "agent" }] });
+    expect(viewFor("you").stack[0].finished).toBeUndefined();
+    applyAction("you", "finish_attacks", {});
+    expect(viewFor("you").stack[0].finished).toBe(true);
+    // tapping one more creature reopens the declaration
+    applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
+    expect(viewFor("you").stack[0].finished).toBeUndefined();
+  });
 });
 
 describe("windows, chat, questions", () => {

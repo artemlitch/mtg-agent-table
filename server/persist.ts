@@ -36,6 +36,9 @@ export function restoreState(snap: any): PersistedExtra {
   // migrations for snapshots from before the stack existed
   (game as any).stack ??= [];
   (game as any).tokenCatalog ??= {};
+  // combat step joined the state; a save from mid-combat re-enters cleanly on
+  // the next set_phase. Set before the phase migration below, which reads it.
+  (game as any).combat ??= null;
   // phase became a closed vocabulary; live saves hold the old free strings
   try {
     game.phase = normalizePhase(game.phase);
