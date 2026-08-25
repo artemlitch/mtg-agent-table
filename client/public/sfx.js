@@ -191,6 +191,31 @@
         { kind: "tone", freq: 84, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
       ],
     },
+    // Order here is the order the lab lists them in, so new sounds go on the
+    // END — see soundlab.html. Nothing above this line moves when one is added.
+    phase: {
+      // The most FREQUENT sound on the table — several a turn, every turn — so
+      // it is the quietest thing here and the shortest. A wooden tick and one
+      // step up a fifth: forward, small, over before you have looked up.
+      desc: "the turn moves on a step — a quiet wooden tick and a step up",
+      layers: [
+        { kind: "noise", freq: 2400, dur: 0.025, vol: 0.05, t: 0, q: 3.2, slide: 0 },
+        { kind: "tone", freq: 494, dur: 0.07, vol: 0.05, t: 0, type: "triangle", slide: 0 },
+        { kind: "tone", freq: 740, dur: 0.11, vol: 0.04, t: 0.055, type: "sine", slide: 0, verb: 0.12 },
+      ],
+    },
+    passturn: {
+      // The mirror of `phase`: that one steps UP a fifth in a tenth of a
+      // second, this one falls a fifth twice and takes half a second doing it,
+      // with air behind it. Handing the table over is the one moment in a turn
+      // worth a sound that finishes rather than ticks.
+      desc: "the turn is handed over — a falling chime with air behind it",
+      layers: [
+        { kind: "noise", freq: 1800, dur: 0.34, vol: 0.03, t: 0, q: 0.8, slide: 320, verb: 0.3 },
+        { kind: "tone", freq: 392, dur: 0.3, vol: 0.09, t: 0, type: "sine", slide: 262, verb: 0.4, atk: 0.008 },
+        { kind: "tone", freq: 196, dur: 0.5, vol: 0.11, t: 0.06, type: "triangle", slide: 131, verb: 0.5, atk: 0.012 },
+      ],
+    },
   };
 
   function play(name) {

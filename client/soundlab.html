@@ -18,24 +18,47 @@
   body.lab { overflow: auto; height: auto; min-height: 100vh; padding: 20px; }
   h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
   .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
-  /* pinterest-style masonry: JS packs tallest-first into the shortest column,
-     so a tall card ends its column with nothing underneath */
-  .sounds { display: flex; gap: 14px; align-items: flex-start; }
-  .sounds .mcol { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  /* One row per sound, in the order sfx.js defines them, and that order is the
+     whole point: a layout that ranks rows — tallest first, alphabetical —
+     re-ranks them the moment you add a layer or rename something, and the row
+     you were working on walks out from under the cursor. Definition order
+     cannot do that. New sounds go on the end of SOUNDS and appear at the
+     bottom here, and everything above them stays exactly where it was.
+
+     The layers run left to right inside the row and the row scrolls, so a
+     sound with six layers is as tall as a sound with one. */
+  .sounds { display: flex; flex-direction: column; gap: 14px; }
   .sound {
-    border: 1px solid transparent; border-radius: 12px; padding: 12px 14px; width: 100%;
+    border: 1px solid transparent; border-radius: 12px; padding: 10px 0 12px; width: 100%;
     background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome-dim) border-box;
   }
+  .sound .shead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 0 14px 8px; }
   .sound h2 { font: 700 14px/1.5 var(--font-fantasy); color: var(--accent); letter-spacing: 0.06em; }
-  .sound .desc { color: var(--dim); font-size: 11px; margin-bottom: 8px; }
-  .layer { border-top: 1px solid var(--line); padding: 8px 0; }
+  .sound .desc { color: var(--dim); font-size: 11px; flex: 1; min-width: 200px; }
+  /* The scrolling strip. overflow-y is hidden and not `visible`, which next to
+     an overflow-x of auto computes to auto anyway and hands the row a second,
+     vertical scrollbar — one that has nothing to scroll, since the strip has
+     no height of its own and grows to its tallest layer. */
+  .lstrip {
+    display: flex; gap: 12px; align-items: flex-start;
+    overflow-x: auto; overflow-y: hidden; padding: 0 14px 4px;
+    scrollbar-color: var(--line) transparent;
+  }
+  .lstrip:empty::after { content: "no layers — add one below"; color: var(--dim); font-size: 11px; }
+  /* fixed width, so the params line up column-wise down the page and a slider
+     is the same length in every row — the point of a slider here is fine
+     control, so it gets the width left over after the label and the number */
+  .layer {
+    flex: none; width: 272px;
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px 6px;
+  }
   .layer .lhead { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--dim); }
   .param { display: grid; grid-template-columns: 52px 1fr 58px; gap: 8px; align-items: center; margin: 3px 0; font-size: 11px; }
   .notelabel { display: block; color: var(--accent); font-size: 9px; font-weight: 700; }
   .param input[type="range"] { width: 100%; padding: 0; background: none; border: none; }
   .param input[type="number"] { width: 100%; padding: 2px 4px; font-size: 11px; }
   .param select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; font-size: 11px; }
-  .rowbtns { display: flex; gap: 6px; margin-top: 8px; }
+  .rowbtns { display: flex; gap: 6px; margin-top: 10px; padding: 0 14px; }
   .playbtn {
     background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
     color: #2a1c04; border: 1px solid transparent;
@@ -69,14 +92,23 @@ const PARAMS = {
   ],
 };
 
+// Adding or removing a layer rebuilds the page, and a rebuild resets every
+// strip to the left. Remembered by name, so the row you are working in is
+// still looking at the layer you were looking at.
+const scrollAt = {};
+
 function build() {
   const root = document.getElementById("sounds");
+  for (const s of root.querySelectorAll(".lstrip")) scrollAt[s.dataset.sound] = s.scrollLeft;
   root.innerHTML = "";
-  const built = [];
   for (const [name, def] of Object.entries(SOUNDS)) {
     const card = document.createElement("div");
     card.className = "sound";
-    card.innerHTML = `<h2>${name}</h2><div class="desc">${def.desc}</div>`;
+    card.innerHTML = `<div class="shead"><h2>${name}</h2><div class="desc">${def.desc}</div></div>`;
+    const strip = document.createElement("div");
+    strip.className = "lstrip";
+    strip.dataset.sound = name;
+    card.appendChild(strip);
     def.layers.forEach((layer, li) => {
       const ld = document.createElement("div");
       ld.className = "layer";
@@ -167,7 +199,7 @@ function build() {
         row.appendChild(num);
         ld.appendChild(row);
       }
-      card.appendChild(ld);
+      strip.appendChild(ld);
     });
     const btns = document.createElement("div");
     btns.className = "rowbtns";
@@ -175,12 +207,15 @@ function build() {
     playB.className = "playbtn";
     playB.textContent = "▶ Play";
     playB.onclick = () => play(name);
+    // a new layer goes on the right-hand end, so the strip is asked to end up
+    // there — Infinity is clamped to the far edge, whatever the new width is
+    const addLayer = (layer) => { def.layers.push(layer); scrollAt[name] = Infinity; build(); };
     const addT = document.createElement("button");
     addT.textContent = "+ tone";
-    addT.onclick = () => { def.layers.push({ kind: "tone", freq: 800, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 }); build(); };
+    addT.onclick = () => addLayer({ kind: "tone", freq: 800, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 });
     const addN = document.createElement("button");
     addN.textContent = "+ noise";
-    addN.onclick = () => { def.layers.push({ kind: "noise", freq: 1000, dur: 0.1, vol: 0.15, t: 0, q: 1, slide: 0 }); build(); };
+    addN.onclick = () => addLayer({ kind: "noise", freq: 1000, dur: 0.1, vol: 0.15, t: 0, q: 1, slide: 0 });
     const copy = document.createElement("button");
     copy.textContent = "⧉ Copy";
     copy.title = "Copy this sound's layers to the clipboard";
@@ -201,28 +236,12 @@ function build() {
     };
     btns.append(playB, addT, addN, copy);
     card.appendChild(btns);
-    built.push({ card, weight: def.layers.length });
-  }
-  // masonry: tallest cards placed first, each into the currently shortest
-  // column — so a tall card ends its column with nothing underneath
-  built.sort((a, b) => b.weight - a.weight);
-  const n = Math.max(1, Math.floor(root.clientWidth / 374) || 1);
-  const cols = Array.from({ length: n }, () => {
-    const c = document.createElement("div");
-    c.className = "mcol";
-    root.appendChild(c);
-    return c;
-  });
-  for (const { card } of built) {
-    const shortest = cols.reduce((a, b) => (a.offsetHeight <= b.offsetHeight ? a : b));
-    shortest.appendChild(card);
+    root.appendChild(card);
+    // a new layer is appended to the right, so land the strip on it rather
+    // than leaving it just off the edge
+    strip.scrollLeft = scrollAt[name] ?? 0;
   }
 }
-let relayoutTimer;
-window.addEventListener("resize", () => {
-  clearTimeout(relayoutTimer);
-  relayoutTimer = setTimeout(build, 150);
-});
 build();
 </script>
 </body>

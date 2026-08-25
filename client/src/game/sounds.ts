@@ -10,7 +10,16 @@ const SOUND_RULES: [string, RegExp][] = [
   ["hit", / countered .* → .*graveyard/],
   ["thump", / resolved → .*battlefield/],
   ["thump", / played .* — land drop/],
-  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares (blockers|the turn pass))/],
+  // Handing the table over, which is the moment you press End turn — not the
+  // round line, which is the agent's turn STARTING and already glimmers.
+  // Above the stack rule on purpose: the pass is a stack item, and the generic
+  // stack chime would otherwise swallow the one moment worth its own sound.
+  ["passturn", /declares (the turn pass|an extra turn)/],
+  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares blockers)/],
+  // "Player moves to combat", "Agent moves to cleanup" — see set_phase in
+  // server/game.ts. The trailing untap count rides on the same line, so this
+  // is deliberately not anchored at the end.
+  ["phase", / moves to /],
   // your own draw reads "Player drew: Island" — the line the server writes for
   // your eyes only — and everyone else's is a count
   ["draw", /(^Player drew: )|( drew \d+ cards?$)/],
