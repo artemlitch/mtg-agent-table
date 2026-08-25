@@ -956,19 +956,24 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("blockers"); // blocks are still owed
   });
 
-  // A mark is only ever set during a combat, so a mark still standing when
-  // combat is entered belongs to the combat this entry replaces.
-  test("entering combat again sweeps the previous combat's marks", () => {
+  // Every step label inside combat folds to the one phase "combat", so a seat
+  // narrating its way through the steps — or re-clicking the Combat node it is
+  // already on — declares "combat" while already in combat. That is a no-op,
+  // not a fresh entry: it used to reset the step and sweep the marks, which
+  // took the live combat's attackers off the table mid-combat.
+  test("naming a step you are already in leaves the combat alone", () => {
     const rat = seedCard("Rat", "agent", "battlefield");
     game.turn = "agent";
     applyAction("agent", "set_phase", { phase: "combat" });
     applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
     applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers");
     expect(rat.attacking).toBe("you");
 
-    applyAction("agent", "set_phase", { phase: "combat" });
-    expect(rat.attacking).toBe(null);
-    expect(combatOf()).toBe("attackers");
+    applyAction("agent", "set_phase", { phase: "declare blockers" });
+    expect(game.phase).toBe("combat");
+    expect(combatOf()).toBe("blockers"); // the step did not restart
+    expect(rat.attacking).toBe("you"); // and the attacker is still attacking
   });
 });
 

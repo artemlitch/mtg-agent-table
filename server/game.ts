@@ -1495,13 +1495,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   set_phase(ctx, p) {
     const phase = normalizePhase(p.phase);
     if (phase === "combat") {
-      // always resets: re-entering combat after an undo is the ordinary
-      // second swing, and it gets a fresh declare-attackers step — marks
-      // included. A mark is only ever set during a combat, so any mark still
-      // standing belongs to the combat this entry replaces: an extra combat
-      // used to open with the last one's attackers still ringed as attacking.
-      game.combat = "attackers";
-      clearCombatMarks();
+      // a genuine ENTRY resets the sub-machine, marks included; re-declaring
+      // combat (or narrating a step label that folds to it — "declare
+      // blockers", "combat damage") mid-combat changes nothing. Sweeping on
+      // every combat-folding label wiped the live combat's attackers the
+      // moment a seat named the step it was already in. A second combat in a
+      // turn flows through main 2 first, and restarting one in place is what
+      // undo and clear_combat are for.
+      if (game.phase !== "combat") {
+        game.combat = "attackers";
+        clearCombatMarks();
+      }
     } else if (game.combat !== null) {
       // Leaving combat ends it, marks included. The marks used to linger
       // until the turn passed — three creatures stood ringed as blocking
