@@ -19,10 +19,14 @@ export function cardMenu(c: Card, e: Anchor) {
 
   if (c.zone === "hand" && c.controller === "you") {
     if ((c.faceCount ?? 1) > 1 && c.faces) {
-      // one Play per face — the chosen face decides land-drop vs stack
-      c.faces.forEach((f, i) => items.push({ label: `Play ${f.name}`, fn: () => void playCard({ card: c.id, face: i }) }));
+      // one Play per face — the chosen face decides land-drop vs stack, and
+      // the [E] rides the face E would actually play: the one showing
+      const shown = c.face ?? 0;
+      c.faces.forEach((f, i) =>
+        items.push({ label: `Play ${f.name}`, ...(i === shown ? { keys: ["E"] } : {}), fn: () => void playCard({ card: c.id, face: i }) })
+      );
     } else {
-      items.push({ label: "Play → field", fn: () => void playCard({ card: c.id }) });
+      items.push({ label: "Play → field", keys: ["E"], fn: () => void playCard({ card: c.id }) });
     }
     // the same card, played, plus the thing it does on arrival — one gesture,
     // because reaching for the ability box afterwards is a step you forget
