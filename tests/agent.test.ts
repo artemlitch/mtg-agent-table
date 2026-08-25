@@ -195,6 +195,21 @@ describe("agent transport", () => {
     expect(a.composeWakePrompt("window")).not.toMatch(/opening hand/i);
   });
 
+  test("what it is holding never gets spoken aloud", () => {
+    // it opened a game with "Opening hand: Rogue's Passage, Sundering Eruption,
+    // Disciple of Freyalise, …" — seven cards handed over in one sentence. The
+    // server had done its half: draw and mulligan write the names only into the
+    // drawing seat's own view. This was the agent saying them.
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/NEVER name a card Player cannot see/);
+    // and the opening window, which is the one that used to ask for it
+    const first = a.composeWakePrompt("window");
+    expect(first).toMatch(/DECISION ONLY/);
+    expect(first).toMatch(/Do not name a single card/);
+  });
+
   test("every window opens with the board as it stands", () => {
     // The agent reads the board with get_state and then plays for a long time
     // off its own prose about what it read — in one measured game, get_state at

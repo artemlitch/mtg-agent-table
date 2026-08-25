@@ -85,21 +85,23 @@
    ellipse parked almost entirely below the box, with only its top tenth
    clearing the overflow. It reads as a lit lip under the cards rather than as
    a border. */
-/* Graveyard and exile sit ON the rail rather than being cut into it: a plate a
-   shade lighter than the panel behind them, a warm hairline rim, and a soft
-   shadow under it. The lip ellipse below is that same shadow seen from inside
-   the box, so the two agree about where the light is coming from.
-   Slight on purpose. These are furniture beside the table and the cards have to
-   stay the brightest thing in the window.
-   The fill is a variable because the hover and drop-target washes need to layer
-   OVER it — those rules set the whole background, and a flat colour there would
-   drop the plate for as long as the cursor was on it. */
+/* Graveyard and exile read as their own surface rather than as holes in the
+   rail: one flat colour, a shade lighter than the panel behind them. Flat is
+   the whole point — no gradient, no inset highlight, no drop shadow. Those
+   raise a thing off the page, and these are painted areas of the rail, not
+   panels floating over it.
+   Nothing draws a border at rest either. The only ring these ever wear is the
+   dashed one that arrives while a card is being dragged, which means "you can
+   drop it here" — see the drop-target rules further down. A border that is
+   always there cannot say that.
+   The fill is a variable because the hover and drop-target washes set the whole
+   background, and a colour written into those rules would drop the fill for as
+   long as the cursor was on it. */
 .pile {
   position: relative; overflow: hidden;
-  border: 1px solid rgba(226, 179, 85, 0.11); border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
-  --plate: linear-gradient(180deg, color-mix(in srgb, var(--panel2) 93%, #f8e7a0), var(--panel2));
+  border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
+  --plate: color-mix(in srgb, var(--panel2) 93%, #f8e7a0);
   background: var(--plate);
-  box-shadow: inset 0 1px 0 rgba(248, 231, 160, 0.05), 0 2px 4px rgba(0, 0, 0, 0.38);
   /* its transition lives with the drop-target rule in the drag section — one
      declaration, so the slow outline fade cannot be overwritten from here */
 }
@@ -118,8 +120,10 @@
   filter: blur(7px);
   opacity: 0.86; transition: opacity var(--glow-dur) var(--glow-ease);
 }
-/* a brighter rim, and the wash laid over the plate rather than in place of it */
-.pile:hover { border-color: rgba(226, 179, 85, 0.4); background: linear-gradient(rgba(226, 179, 85, 0.05), rgba(226, 179, 85, 0.05)), var(--plate); }
+/* Hover is a wash over the fill and the lip coming up underneath — no rim.
+   The ring belongs to the drag: if hovering drew one too, the dashes would be
+   answering the cursor rather than saying "this is somewhere you can drop". */
+.pile:hover { background: linear-gradient(rgba(226, 179, 85, 0.05), rgba(226, 179, 85, 0.05)), var(--plate); }
 .pile:hover::after { opacity: 1; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }

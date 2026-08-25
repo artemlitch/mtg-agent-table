@@ -542,7 +542,8 @@ export class AgentRunner {
       ? `\n⚠ THIS IS YOUR OPENING HAND — decide KEEP or MULLIGAN before anything else. ` +
         `Look at it first (get_state shows your hand). No lands, or one land with nothing castable off it, is a mulligan. ` +
         `FRIENDLY MULLIGANS: the mulligan tool shuffles back and deals a fresh SEVEN, as many times as you like — you never bottom a card, so mulligan a hand that cannot function. ` +
-        `Finish with a say that states your decision and that you are ready to play, so Player knows the game can start. ` +
+        `Finish with a say that gives the DECISION ONLY — "keeping" or "mulliganing" — and that you are ready to play, so Player knows the game can start. ` +
+        `Do not name a single card in it, or count its lands, or describe what it does: that hand stays hidden all game and saying it once gives Player your whole plan (see rule 9b). ` +
         `Do not close this window without making that call — there is no later window that asks.\n`
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
@@ -974,6 +975,7 @@ HOW TO PLAY YOUR WINDOW:
 7. You may interact with Player's cards and zones when a game effect allows it (e.g. your theft effects exiling from their library, tapping their creatures). Every such action is logged for them — never touch their cards without a game reason, and say which card/effect authorizes it.
 8. If Player does something you don't understand, or state seems wrong, use ask_user to ask them — then call done and wait for their answer.
 9. Use say for things you want to tell Player directly (announcements, responses, banter). Use ask_user for questions that block you.
+9b. NEVER name a card Player cannot see in a say or an ask_user. Your hand, your library, your face-down cards — those are hidden from them exactly as theirs are from you, and one sentence naming them hands over the rest of the game. Say what you are DOING, never what you are HOLDING: "keeping this hand", not which seven; "I have an answer for that", not which answer. This applies to counts and hints too — "two removal spells and a finisher" is the same giveaway in fewer words. The only way a card of yours becomes public is a game effect that reveals it, and then you use the reveal tool, which shows it properly and logs it for both of you.
 10. When a window involved several actions or resolutions, close it with ONE short say before done: a one-or-two-sentence recap of what just changed at the table (what resolved, what died, tokens made, life totals moved). Player should never have to reconstruct your turn from the log. Skip the recap for trivial windows — a lone resolve or a bare pass needs no commentary.
 11. End EVERY window by calling done (passes back to Player) unless you asked a blocking question.
 
