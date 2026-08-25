@@ -524,8 +524,12 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       source: item.sourceId,
       countered: item.countered,
       lines: item.lines,
-      // structured combat declaration — the client marks declared attackers
+      // structured combat declarations — the client marks a creature the
+      // moment it is DECLARED, not when the opponent gets round to locking it
+      // in. Waiting for the resolve left a declared blocker looking exactly
+      // like a creature standing around doing nothing.
       attackPairs: item.apply?.type === "attack" ? item.apply.pairs : undefined,
+      blockPairs: item.apply?.type === "block" ? item.apply.pairs : undefined,
       // turn pass: the client floats a one-click "take your turn" prompt
       turnPassTo: item.apply?.type === "turn" ? item.apply.player : undefined,
       card: item.cardId ? serializeCard(game.cards[item.cardId], viewer) : null,

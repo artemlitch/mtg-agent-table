@@ -3,6 +3,7 @@ import { act } from "../api";
 import { cardMenu } from "../features/menus/cardMenu";
 import { consumeDragClick } from "../game/drag";
 import { trackHover } from "../game/interaction";
+import { declaredAttacking, declaredBlocking } from "../game/rules";
 import { cardById } from "../store/game";
 import { menuOpen, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
@@ -35,7 +36,9 @@ export interface CardElProps {
  *  rail and on the stack — the geometry never changes, only the classes. */
 export function CardEl({ card: c, className = "", style, small, elRef, onPointerDown, onClick, tip, children }: CardElProps) {
   const pendingTuck = useUI((s) => s.pendingTuck);
-  const classes = ["card", c.tapped && "tapped", c.attacking && "attacking", c.blocking && "blocking", pendingTuck === c.id && "tuck-source", className]
+  // declared, not locked in: the mark goes on when you commit the creature,
+  // not when the other seat gets round to acknowledging it
+  const classes = ["card", c.tapped && "tapped", declaredAttacking(c) && "attacking", declaredBlocking(c) && "blocking", pendingTuck === c.id && "tuck-source", className]
     .filter(Boolean)
     .join(" ");
 
@@ -138,7 +141,7 @@ function CardFace({ c }: { c: Card }) {
         <Icon name="combat" /> {c.attacking === "you" ? "You" : c.attacking === "agent" ? "Agent" : "→"}
       </span>
     );
-  if (c.blocking)
+  if (declaredBlocking(c))
     badges.push(
       <span className="badge blk" key="blk">
         <Icon name="block" />

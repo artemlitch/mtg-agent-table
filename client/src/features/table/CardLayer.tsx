@@ -15,7 +15,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { Text } from "../../components/Text";
 import { startDrag } from "../../game/drag";
-import { chonkyPiles, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { chonkyPiles, liftedDeclarations, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { openPileBrowser } from "../browsers/Browsers";
 import { settleUnplaced } from "../../game/settle";
 import { cardAnchor, measureSurface } from "../../game/table";
@@ -77,6 +77,9 @@ export function CardLayer() {
   const unresolved: StackItem[] = [];
   for (const p of PLAYERS) {
     for (const { item, source } of liftedTriggers(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
+    // a declared attacker or blocker waits off the felt too, and lands the
+    // moment the other seat locks the declaration in
+    for (const { item, source } of liftedDeclarations(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
     unresolved.push(...stackCardsOf(p));
   }
   const board = PLAYERS.flatMap((p) => view.players[p].zones.battlefield);

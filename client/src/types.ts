@@ -64,6 +64,7 @@ export interface StackItem {
   countered?: boolean;
   lines?: string[];
   attackPairs?: { attacker: string; target?: string }[];
+  blockPairs?: { blocker: string; attacker: string }[];
   turnPassTo?: PlayerId;
   card: Card | null;
 }

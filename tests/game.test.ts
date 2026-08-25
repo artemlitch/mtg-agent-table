@@ -616,6 +616,19 @@ describe("combat annotations", () => {
     expect(blk.blocking).toBe(null);
   });
 
+  test("a declaration carries its pairs in the view, so the client can mark the creature before it locks in", () => {
+    const att = seedCard("Attacker", "agent", "battlefield");
+    const blk = seedCard("Blocker", "you", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "attack", { pairs: [{ attacker: att.id, target: "you" }] });
+    expect(viewFor("you").stack[0].attackPairs).toEqual([{ attacker: att.id, target: "you" }]);
+    applyAction("you", "stack_resolve", {});
+    applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: att.id }] });
+    expect(viewFor("you").stack[0].blockPairs).toEqual([{ blocker: blk.id, attacker: att.id }]);
+    // and the card itself stays unmarked until the other seat locks it in
+    expect(blk.blocking).toBe(null);
+  });
+
   test("the defender cannot declare attackers — that is a blocks declaration", () => {
     const mine = seedCard("Blocker", "you", "battlefield");
     game.turn = "agent";

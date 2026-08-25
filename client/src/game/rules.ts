@@ -105,6 +105,37 @@ export function nextUnblockedAttacker(): Card | null {
   return attackers.find((a) => !answered.has(a.id)) ?? attackers[0];
 }
 
+/** Attacking or blocking as DECLARED, not as locked in.
+ *
+ *  A declaration sits on the stack until the other seat acknowledges it, and
+ *  card.attacking / card.blocking are only written when they do. Through that
+ *  whole wait a committed creature looked exactly like one standing around,
+ *  and a block you had just declared read as a block that never registered. */
+export const declaredAttacking = (c: Card): boolean =>
+  !!c.attacking || (gameView()?.stack ?? []).some((it) => it.attackPairs?.some((pr) => pr.attacker === c.id));
+
+export const declaredBlocking = (c: Card): boolean =>
+  !!c.blocking || (gameView()?.stack ?? []).some((it) => it.blockPairs?.some((pr) => pr.blocker === c.id));
+
+/** Creatures named in a combat declaration that is still on the stack, matched
+ *  to the seat whose board they sit on. They lift off the felt the way a
+ *  pending trigger's source does, and settle back the moment the declaration
+ *  is locked in — the lift IS the waiting. */
+export function liftedDeclarations(p: PlayerId): { item: StackItem; source: Card }[] {
+  const out: { item: StackItem; source: Card }[] = [];
+  const v = gameView();
+  if (!v) return out;
+  const bf = v.players[p].zones.battlefield;
+  for (const it of v.stack ?? []) {
+    const ids = [...(it.attackPairs ?? []).map((pr) => pr.attacker), ...(it.blockPairs ?? []).map((pr) => pr.blocker)];
+    for (const id of ids) {
+      const source = bf.find((c) => c.id === id && !c.hidden);
+      if (source) out.push({ item: it, source });
+    }
+  }
+  return out;
+}
+
 /** The pending (unresolved) attack declaration containing this card, if any. */
 export function pendingAttackOf(cardId: string): StackItem | null {
   for (const it of gameView()?.stack ?? []) {
