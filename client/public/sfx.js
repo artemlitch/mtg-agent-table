@@ -154,12 +154,14 @@
       layers: [{ kind: "tone", freq: 95, dur: 0.22, vol: 0.32, t: 0, type: "sine", slide: 48, verb: 0.24 }],
     },
     attack: {
-      desc: "attack declared — war drum (hand-tuned)",
+      // Swung the other way round on purpose. The long low drum reads as
+      // something LANDING, which is the block; declaring an attack is the
+      // strike itself — short, bright, and gone before the answer comes.
+      desc: "attack declared — a tight bright strike",
       layers: [
-        { kind: "tone", freq: 41, dur: 0.86, vol: 0.325, t: 0, type: "triangle", slide: 174, verb: 0.18, atk: 0.013 },
-        { kind: "tone", freq: 133, dur: 0.36, vol: 0.275, t: 0, type: "triangle", slide: 252, verb: 0.18, atk: 0.011 },
-        { kind: "tone", freq: 226, dur: 0.94, vol: 0.235, t: 0, type: "sine", slide: 0, verb: 0.12, atk: 0.015 },
-        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0, verb: 0.08 },
+        { kind: "noise", freq: 900, dur: 0.18, vol: 0.09, t: 0, q: 1.2, slide: 220, verb: 0.25 },
+        { kind: "tone", freq: 160, dur: 0.2, vol: 0.14, t: 0, type: "triangle", slide: 110, verb: 0.3, atk: 0.006 },
+        { kind: "tone", freq: 620, dur: 0.07, vol: 0.05, t: 0, type: "sine", slide: 0 },
       ],
     },
     glimmer: {
@@ -192,12 +194,12 @@
         { kind: "tone", freq: 84, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
       ],
     },
-    // A copy of `attack`, layer for layer. Declaring and locking in already
-    // played the same drum — one rule matched both lines — so this splits them
-    // into two entries that can be told apart in the lab without changing what
-    // the table sounds like today.
+    // Started as a copy of `attack` so the two could be told apart in the lab.
+    // It is the untuned original — attack has since been tuned down and then
+    // traded shapes with block — so this is now the loudest, wettest thing on
+    // the table and the one still waiting for a pass.
     lockin: {
-      desc: "attackers locked in — the war drum again, its own copy to tune",
+      desc: "attackers locked in — the old war drum, untuned",
       layers: [
         { kind: "tone", freq: 41, dur: 0.86, vol: 0.555, t: 0, type: "triangle", slide: 174, verb: 0.82, atk: 0.013 },
         { kind: "tone", freq: 133, dur: 0.36, vol: 0.525, t: 0, type: "triangle", slide: 252, verb: 0.78, atk: 0.011 },
@@ -206,14 +208,16 @@
       ],
     },
     block: {
-      // The answer to the war drum, and shaped against it: `attack` is 41Hz
-      // opening out over most of a second, so this is tight, bright and half
-      // as long — something stopping rather than something starting.
-      desc: "blockers declared — a shield taking the hit",
+      // The war drum, hand-tuned in the lab, now on the block: a wall of
+      // creatures coming down in front of an attack is the heaviest thing
+      // that happens in combat, and 41Hz opening out over most of a second is
+      // what that weight sounds like.
+      desc: "blockers declared — war drum (hand-tuned)",
       layers: [
-        { kind: "noise", freq: 900, dur: 0.18, vol: 0.09, t: 0, q: 1.2, slide: 220, verb: 0.25 },
-        { kind: "tone", freq: 160, dur: 0.2, vol: 0.14, t: 0, type: "triangle", slide: 110, verb: 0.3, atk: 0.006 },
-        { kind: "tone", freq: 620, dur: 0.07, vol: 0.05, t: 0, type: "sine", slide: 0 },
+        { kind: "tone", freq: 41, dur: 0.86, vol: 0.325, t: 0, type: "triangle", slide: 174, verb: 0.18, atk: 0.013 },
+        { kind: "tone", freq: 133, dur: 0.36, vol: 0.275, t: 0, type: "triangle", slide: 252, verb: 0.18, atk: 0.011 },
+        { kind: "tone", freq: 226, dur: 0.94, vol: 0.235, t: 0, type: "sine", slide: 0, verb: 0.12, atk: 0.015 },
+        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0, verb: 0.08 },
       ],
     },
     phase: {
