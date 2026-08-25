@@ -487,10 +487,19 @@ const server = Bun.serve({
     }
 
     // static frontend
+    //
+    // no-cache, meaning "you may keep it, but ask me before you use it". Vite
+    // hashes the bundle, so THAT is safe to cache forever — but everything
+    // beside it is served under a fixed name: index.html, sfx.js, sounds.json,
+    // the vendored icon sheet. Nothing here sent a validator, so a browser
+    // that had once loaded sfx.js was free to go on using it, and a table
+    // holding the version from before the sounds moved into a file never
+    // fetched sounds.json at all: every tuned sound landed on disk, was served
+    // correctly, and was inaudible.
     const file = path === "/" ? "index.html" : path.slice(1);
     if (/^[\w.-]+(\/[\w.-]+)*$/.test(file) && !file.includes("..")) {
       const f = Bun.file(WEB_DIR + file);
-      if (await f.exists()) return new Response(f);
+      if (await f.exists()) return new Response(f, { headers: { "Cache-Control": "no-cache" } });
     }
     return new Response("not found", { status: 404 });
   },
