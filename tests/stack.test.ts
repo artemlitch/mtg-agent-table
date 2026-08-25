@@ -309,6 +309,34 @@ describe("turn hygiene", () => {
     expect(game.stack.at(-1)!.text).toMatch(/no blocks/i);
   });
 
+  test("a gang block is one row per attacker, not one per blocker", () => {
+    const marchesa = seedCard("Marchesa, the Black Rose", "you", "battlefield");
+    const tergrid = seedCard("Tergrid, God of Fright", "you", "battlefield");
+    const chrysalis = seedCard("Writhing Chrysalis", "agent", "battlefield");
+    const instigator = seedCard("Agate Instigator", "agent", "battlefield");
+    const elves = seedCard("Llanowar Elves", "agent", "battlefield");
+    const plant = seedCard("Plant", "agent", "battlefield");
+    applyAction("agent", "block", {
+      pairs: [
+        { blocker: chrysalis.id, attacker: marchesa.id },
+        { blocker: instigator.id, attacker: marchesa.id },
+        { blocker: elves.id, attacker: marchesa.id },
+        { blocker: plant.id, attacker: tergrid.id },
+      ],
+    });
+    const item = game.stack.at(-1)!;
+    expect(item.text).toBe("BLOCKS: 4 blockers on 2 attackers");
+    expect(item.lines).toEqual([
+      "Writhing Chrysalis, Agate Instigator, Llanowar Elves → Marchesa, the Black Rose",
+      "Plant → Tergrid, God of Fright",
+    ]);
+    // one attacker blocked says the whole thing in the headline — a summary
+    // over a single row is longer than the row
+    applyAction("agent", "block", { pairs: [{ blocker: elves.id, attacker: marchesa.id }] });
+    expect(game.stack.at(-1)!.text).toBe("BLOCKS: Llanowar Elves → Marchesa, the Black Rose");
+    expect(game.stack.at(-1)!.lines).toBeUndefined();
+  });
+
   test("set_turn is rejected while the stack is non-empty", () => {
     const c = seedCard("Pending Spell", "agent", "hand", { typeLine: "Sorcery" });
     applyAction("agent", "cast", { card: c.id });

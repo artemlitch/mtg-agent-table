@@ -637,6 +637,27 @@ function publicDesc(card: Card): string {
   return publiclyVisible ? card.name : "a hidden card";
 }
 
+/** A block declaration as one line per ATTACKER — "Llanowar Elves, Plant →
+ *  Marchesa, the Black Rose" — attackers in the order they were first named.
+ *
+ *  Three creatures ganging up on one attacker is ONE decision, and per-pair
+ *  sentences said it three times: "Writhing Chrysalis blocks Marchesa, the
+ *  Black Rose; Agate Instigator blocks Marchesa, the Black Rose; Llanowar
+ *  Elves blocks Marchesa, the Black Rose". The word that differs sits at the
+ *  front of a phrase you have to read to the end of, once per blocker.
+ *
+ *  Shared by the declaration and by the lock-in log so that the same combat
+ *  cannot be described two ways seconds apart. */
+function blockLines(pairs: any[]): string[] {
+  const byAttacker = new Map<string, string[]>();
+  for (const pair of pairs) {
+    const blocker = publicDesc(getCard(pair.blocker));
+    const attacker = getCard(pair.attacker).id;
+    byAttacker.set(attacker, [...(byAttacker.get(attacker) ?? []), blocker]);
+  }
+  return [...byAttacker].map(([id, bs]) => `${bs.join(", ")} → ${publicDesc(getCard(id))}`);
+}
+
 export function getCard(cardId: string): Card {
   const c = game.cards[cardId];
   if (!c) throw new Error(`no card with id ${cardId}`);
@@ -784,13 +805,8 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text, life: parts, ...(deaths ? { deaths } : {}) };
   }
   if (item.apply?.type === "block") {
-    const parts: string[] = [];
-    for (const pair of item.apply.pairs) {
-      const b = getCard(pair.blocker);
-      b.blocking = pair.attacker;
-      parts.push(`${publicDesc(b)} ⇦ ${publicDesc(getCard(pair.attacker))}`);
-    }
-    addLog(ctx.actor, `Blocks locked in: ${parts.join("; ")}`);
+    for (const pair of item.apply.pairs) getCard(pair.blocker).blocking = pair.attacker;
+    addLog(ctx.actor, `Blocks locked in: ${blockLines(item.apply.pairs).join("; ")}`);
     return { ok: true, resolved: item.text };
   }
   if (!item.cardId) {
@@ -1427,20 +1443,27 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** Declare blockers — goes ON THE STACK; the attacker resolves to lock it in. */
   block(ctx, p) {
-    const parts: string[] = [];
-    for (const pair of p.pairs) {
-      const b = getCard(pair.blocker);
-      parts.push(`${publicDesc(b)} blocks ${publicDesc(getCard(pair.attacker))}`);
-    }
-    // declaring nothing is a real declaration — say so, rather than leaving a
-    // stack item that trails off after the colon
-    const blocks = parts.length ? parts.join("; ") : "no blocks";
+    const lines = blockLines(p.pairs);
+    // The stack item renders lines[] as rows under its headline (see the
+    // damage announcement, which does the same), so a multi-attacker block is
+    // a short list rather than one sentence with five semicolons in it.
+    //
+    // One group needs no headline over it: "BLOCKS: 1 blocker on 1 attacker"
+    // is a summary longer than the thing it summarises. Declaring nothing is
+    // still a real declaration and says so, rather than leaving a stack item
+    // that trails off after the colon.
+    const summary = !lines.length
+      ? "no blocks"
+      : lines.length === 1
+        ? lines[0]
+        : `${p.pairs.length} blockers on ${lines.length} attackers`;
     pushStackItem(ctx.actor, {
       cardId: null,
-      text: `BLOCKS: ${blocks}`,
+      text: `BLOCKS: ${summary}`,
+      ...(lines.length > 1 ? { lines } : {}),
       apply: { type: "block", pairs: p.pairs },
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${blocks}`);
+    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${lines.join("; ") || "no blocks"}`);
     return { ok: true, stackSize: game.stack.length };
   },
 
