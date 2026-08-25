@@ -179,9 +179,9 @@
       layers: [
         // swell, so the sweep is loudest where it ends: the card leaves the pile
         // rather than landing on it
-        { kind: "noise", freq: 695, dur: 0.19, vol: 0.035, t: 0, q: 0.7, slide: 4048, atk: 0.035, verb: 0.07, shape: "swell" },
-        // silent at vol 0 — parked mid-tuning, kept for the values
-        { kind: "tone", freq: 223, dur: 0.42, vol: 0, t: 0, type: "triangle", slide: 782, verb: 0.42, atk: 0.017 },
+        { kind: "noise", freq: 695, dur: 0.59, vol: 0.035, t: 0, q: 0.7, slide: 4048, atk: 0.035, verb: 0.07, shape: "swell" },
+        // a low triangle rising under the paper, carrying most of the weight
+        { kind: "tone", freq: 101, dur: 1.07, vol: 0.59, t: 0, type: "triangle", slide: 782, verb: 0.42, atk: 0.017 },
       ],
     },
     tap: {
