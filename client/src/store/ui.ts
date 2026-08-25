@@ -2,6 +2,7 @@
 // one hover preview, which side tab is open. All singletons — there is never a
 // second menu or a second preview, which is what makes Esc, click-away and the
 // z-order answerable in one place.
+import type React from "react";
 import type { ReactNode } from "react";
 import { create } from "zustand";
 import type { Card } from "../types";
@@ -199,3 +200,21 @@ export const useUI = create<UIStore>((set, get) => ({
 // component. The store is a singleton either way.
 export const ui = () => useUI.getState();
 export const menuOpen = () => !!useUI.getState().menu;
+
+/** Hover handlers every previewable thing spreads onto itself — a board card,
+ *  a rail thumbnail, a stack item, the next-action card, a card name in a
+ *  sentence. Nothing hand-rolls these three: the one that did got the element
+ *  argument wrong, which is what tells previewLost() whether the thing being
+ *  previewed is still under the cursor.
+ *
+ *  It lives in the store rather than beside CardPreview because half the app
+ *  needs it and CardPreview renders <Text>, which draws card names, which are
+ *  previewable — importing the handlers from there made those two modules each
+ *  other's dependency. */
+export function previewProps(card: Card) {
+  return {
+    onMouseEnter: (e: React.MouseEvent) => useUI.getState().showPreview(card, e, e.currentTarget),
+    onMouseMove: (e: React.MouseEvent) => useUI.getState().movePreview(e),
+    onMouseLeave: () => useUI.getState().hidePreview(),
+  };
+}

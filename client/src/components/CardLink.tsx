@@ -7,20 +7,13 @@
 // Which cards a line names is game/cardnames.ts; this is only the drawing.
 import { Fragment, type ReactNode } from "react";
 import { cardSegments } from "../game/cardnames";
-import { useUI } from "../store/ui";
+import { previewProps } from "../store/ui";
 import type { Card } from "../types";
 import { namedArt } from "./cardArt";
 
 function CardName({ card, children }: { card: Card; children: string }) {
   return (
-    <span
-      className="cardlink"
-      // the same three handlers previewProps spreads, minus the import that
-      // would make this module and CardPreview each other's dependency
-      onMouseEnter={(e) => useUI.getState().showPreview(card, e, e.currentTarget)}
-      onMouseMove={(e) => useUI.getState().movePreview(e)}
-      onMouseLeave={() => useUI.getState().hidePreview()}
-    >
+    <span className="cardlink" {...previewProps(card)}>
       {children}
     </span>
   );

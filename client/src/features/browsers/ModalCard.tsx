@@ -1,7 +1,6 @@
 import { artFallback } from "../../components/cardArt";
-import { previewProps } from "../../components/CardPreview";
 import { Text } from "../../components/Text";
-import { menuOpen, ui } from "../../store/ui";
+import { menuOpen, previewProps, ui } from "../../store/ui";
 import type { Card } from "../../types";
 
 export type CardAction = [label: string, run: () => void];

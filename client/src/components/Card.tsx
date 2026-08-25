@@ -5,13 +5,12 @@ import { consumeDragClick } from "../game/drag";
 import { trackHover } from "../game/interaction";
 import { declaredAttacking, declaredBlocking } from "../game/rules";
 import { cardById } from "../store/game";
-import { menuOpen, ui, useUI } from "../store/ui";
+import { menuOpen, previewProps, ui, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
 import { Icon } from "./Icon";
 import { plainMana } from "./Mana";
 import { Text } from "./Text";
-import { previewProps } from "./CardPreview";
 import { TokenFace, drawnHere } from "./TokenFace";
 
 export interface CardElProps {

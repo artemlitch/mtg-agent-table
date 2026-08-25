@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { artFallback } from "../../components/cardArt";
-import { previewProps } from "../../components/CardPreview";
+import { previewProps } from "../../store/ui";
 import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
 import { Text } from "../../components/Text";

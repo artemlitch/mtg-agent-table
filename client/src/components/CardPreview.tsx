@@ -103,12 +103,3 @@ function Faces({ card, faces }: { card: Card; faces: NonNullable<Card["faces"]> 
     </div>
   );
 }
-
-/** Hover handlers every previewable thing spreads onto itself. */
-export function previewProps(card: Card) {
-  return {
-    onMouseEnter: (e: React.MouseEvent) => useUI.getState().showPreview(card, e, e.currentTarget),
-    onMouseMove: (e: React.MouseEvent) => useUI.getState().movePreview(e),
-    onMouseLeave: () => useUI.getState().hidePreview(),
-  };
-}

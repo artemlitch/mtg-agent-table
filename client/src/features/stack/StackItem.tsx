@@ -1,9 +1,8 @@
 import { act } from "../../api";
 import { artFallback } from "../../components/cardArt";
-import { previewProps } from "../../components/CardPreview";
 import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
-import { ui } from "../../store/ui";
+import { previewProps, ui } from "../../store/ui";
 import type { StackItem } from "../../types";
 
 /** The action row for a stack item (Resolve / Counter / Take back) — shared by
