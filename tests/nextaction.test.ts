@@ -46,11 +46,18 @@ function view({
     stack,
     log: [line("— Round 4: Player's turn —", "you"), ...log],
     players: {
-      you: { life: 40, commanderDamage: {}, commanderTax: 0, counts: {}, zones: { battlefield: mine, hand: [], graveyard: [], exile: [], library: [], command: [] } },
-      agent: { life: 40, commanderDamage: {}, commanderTax: 0, counts: {}, zones: { battlefield: [], hand: [], graveyard: [], exile: [], library: [], command: [] } },
+      you: { life: 40, commanderDamage: {}, commanderTax: 0, counts: {}, turnDone: { untap: false, draw: false, lands: 0, acted: false }, zones: { battlefield: mine, hand: [], graveyard: [], exile: [], library: [], command: [] } },
+      agent: { life: 40, commanderDamage: {}, commanderTax: 0, counts: {}, turnDone: { untap: false, draw: false, lands: 0, acted: false }, zones: { battlefield: [], hand: [], graveyard: [], exile: [], library: [], command: [] } },
     },
   } as unknown as GameView;
 }
+
+/** What the server says this turn has already seen — the facts these steps
+ *  used to reconstruct by reading the log back to the round marker. */
+const done = (v: GameView, patch: Partial<{ untap: boolean; draw: boolean; lands: number; acted: boolean }>) => {
+  (v.players.you as any).turnDone = { untap: false, draw: false, lands: 0, acted: false, ...patch };
+  return v;
+};
 
 /** What the prompt would show, and what pressing it would do. */
 function prompt(v: GameView) {
@@ -71,62 +78,51 @@ describe("the first turn", () => {
   });
 
   it("still says nothing after a mulligan — that is the deal, not a play", () => {
-    // one action leaving one line (mulligan() in server/game.ts). It used to
-    // be move + shuffle + draw, and the "Player moved…" line read as the
-    // player having started, so mulliganing jumped the prompt into the turn
-    expect(prompt(fresh([line("Player mulliganed to 7")])).action).toBeNull();
-    expect(prompt(fresh([line("Player mulliganed to 7"), line("Player mulliganed to 6")])).action).toBeNull();
+    // mulligan never marks acted on the server, so the view arrives unchanged
+    expect(prompt(fresh()).action).toBeNull();
   });
 
   it("opens on the main phase once you have actually played something", () => {
-    const { id, action } = prompt(fresh([line("Player mulliganed to 7"), line("Player played Island — land drop")]));
+    const { id, action } = prompt(done(fresh(), { acted: true }));
     expect(id).toBe("main-1");
     expect(action?.label).toBe("untap → main phase 1");
   });
 
   it("never offers the first-turn draw", () => {
-    expect(prompt(fresh([line("Player played Island — land drop")])).id).not.toBe("draw");
+    expect(prompt(done(fresh(), { acted: true })).id).not.toBe("draw");
   });
 });
 
-// The offer that rides over your hand. Same question the prompt's opening
-// silence asks, so it shares the pattern.
-describe("when the mulligan offer is on the table", () => {
-  const opening = (over: Partial<Parameters<typeof view>[0]> = {}) =>
-    view({ turnNumber: 1, phase: "untap/upkeep", mine: [], ...over });
-  const withHand = (log: LogEntry[] = []) => {
-    const v = opening({ log });
-    v.players.you.zones.hand = [{ id: "h1" } as Card];
-    return v;
-  };
+// The offer that rides over your hand. Every condition it used to check — the
+// opening turn, whose turn it is, cards in hand, nothing played yet — is one
+// fact on the view now, decided by the same server code that refuses the
+// mulligan itself (tests/game.test.ts, "the turn knows what has already
+// happened in it").
+describe("the mulligan offer is the server's call", () => {
+  it("shows exactly what the view says", () => {
+    const v = view({});
+    (v as any).canMulligan = true;
+    expect(canMulligan(v)).toBe(true);
+    (v as any).canMulligan = false;
+    expect(canMulligan(v)).toBe(false);
+    expect(canMulligan(null)).toBe(false);
+  });
+});
 
-  it("is offered on your opening turn with cards in hand", () => {
-    expect(canMulligan(withHand())).toBe(true);
+// Untapping and drawing are things the TURN remembers, not sentences to be
+// found in the log. "Player untapped all" was one rewording away from an
+// untap step that never stood down.
+describe("untap and draw are turn facts, not log lines", () => {
+  const upkeep = (patch: Parameters<typeof done>[1]) =>
+    done(view({ phase: "untap/upkeep", mine: [creature("bear", { tapped: true })] }), patch);
+
+  it("offers the untap until the view says it happened", () => {
+    expect(prompt(upkeep({})).id).toBe("untap");
+    expect(prompt(upkeep({ untap: true })).id).toBe("draw");
   });
 
-  it("stays offered however many times you take it — the table counts nothing", () => {
-    expect(canMulligan(withHand([line("Player mulliganed to 7")]))).toBe(true);
-    expect(canMulligan(withHand([line("Player mulliganed to 7"), line("Player mulliganed to 7")]))).toBe(true);
-  });
-
-  it("is gone the moment you play something", () => {
-    expect(canMulligan(withHand([line("Player played Island — land drop")]))).toBe(false);
-  });
-
-  it("is gone past the opening turn, and on the agent's turn", () => {
-    const later = withHand();
-    later.turnNumber = 2;
-    expect(canMulligan(later)).toBe(false);
-    const theirs = withHand();
-    theirs.turn = "agent";
-    expect(canMulligan(theirs)).toBe(false);
-  });
-
-  it("is not offered with an empty hand, or before the game is dealt", () => {
-    expect(canMulligan(opening())).toBe(false);
-    const undealt = withHand();
-    undealt.started = false;
-    expect(canMulligan(undealt)).toBe(false);
+  it("offers the draw until the view says it happened", () => {
+    expect(prompt(upkeep({ untap: true, draw: true })).id).toBe("main-1");
   });
 });
 
@@ -245,16 +241,17 @@ describe("the combat prompt, step by step", () => {
     expect(action?.fn).toBeDefined();
   });
 
-  it("counts every declaration, because each tap pushes its own", () => {
+  it("counts every attacker in the declaration, because tapping a second one amends it", () => {
+    // attack() amends the open declaration rather than pushing a second item,
+    // so two attackers are two pairs on ONE stack item — and the count has to
+    // come from the pairs, not from how many items are sitting there
     const { id, action } = prompt(
       view({
         mine: [creature("bear"), creature("wolf")],
-        stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
+        stack: [declaration("d1", "bear", "wolf")],
         combat: "attackers",
       })
     );
-    // the bug this replaces: the second declaration made the top item differ
-    // from the first, and "waiting for the agent" took over
     expect(id).toBe("finish-attacks");
     expect(action?.sub).toBe("2 attacking");
   });
@@ -276,6 +273,11 @@ describe("the combat prompt, step by step", () => {
     // read the combat procedure as "the attacker announces damage": three
     // damage and three commander damage were simply lost. Pushing the ask
     // moves nothing at the table, so the view still says the damage is owed.
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], combat: "blockers" });
+    expect(prompt(v).id).toBe("combat-damage");
+  });
+
+  it("and keeps asking once the table is actually at the damage step", () => {
     const v = view({ mine: [creature("bear", { attacking: "agent" })], combat: "damage" });
     expect(prompt(v).id).toBe("combat-damage");
   });

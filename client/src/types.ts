@@ -128,6 +128,9 @@ export interface PlayerView {
   /** the {2}-per-previous-cast surcharge, tracked not enforced */
   commanderTax: number;
   deckName?: string;
+  /** what this seat has already done this turn — see PlayerState in
+   *  server/game.ts. The prompt reads these instead of scanning the log */
+  turnDone: { untap: boolean; draw: boolean; lands: number; acted: boolean };
   counts: Record<Zone, number>;
   zones: Record<Zone, Card[]>;
 }
@@ -142,6 +145,8 @@ export interface GameView {
   combat?: "attackers" | "blockers" | "damage" | "done" | null;
   waitingOn?: PlayerId | null;
   pendingQuestion?: string | null;
+  /** is a mulligan still on the table for this viewer — the server's call */
+  canMulligan?: boolean;
   players: Record<PlayerId, PlayerView>;
   stack: StackItem[];
   log: LogEntry[];

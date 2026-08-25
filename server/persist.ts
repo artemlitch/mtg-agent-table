@@ -42,6 +42,9 @@ export function restoreState(snap: any): PersistedExtra {
   // genuine phase change. No step is guessed here — an invented step is worse
   // than a missing one. Set before the phase migration below, which reads it.
   (game as any).combat ??= null;
+  // what the turn has already seen used to be re-read out of the log; a save
+  // from then knows nothing about its own turn, and starts it blank
+  for (const ps of Object.values(game.players) as any[]) ps.turnDone ??= { untap: false, draw: false, lands: 0, acted: false };
   // phase became a closed vocabulary; live saves hold the old free strings
   try {
     game.phase = normalizePhase(game.phase);

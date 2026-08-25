@@ -85,6 +85,11 @@ export interface PlayerState {
   zones: Record<Zone, string[]>; // ordered card ids; library[0] = TOP
   deckName?: string;
   deckId?: number;
+  // what this seat has already done THIS turn — the facts the client used to
+  // reconstruct by grepping the log ("did I untap", "did I draw", "has
+  // anything been played"). lands is bookkeeping like commanderTax: both
+  // seats read it, either corrects it.
+  turnDone: { untap: boolean; draw: boolean; lands: number; acted: boolean };
 }
 
 /** What HAPPENED, named. The table knows this for certain at the moment it
@@ -274,6 +279,7 @@ export function emptyPlayer(): PlayerState {
     commanderDamage: {},
     commanderTax: 0,
     zones: { library: [], hand: [], battlefield: [], graveyard: [], exile: [], command: [], stack: [] },
+    turnDone: { untap: false, draw: false, lands: 0, acted: false },
   };
 }
 
@@ -534,6 +540,7 @@ const round3 = (n: unknown) => (typeof n === "number" ? Math.round(n * 1000) / 1
 /** Untap one seat's battlefield. Returns how many actually turned over, so a
  *  caller can say so — and say nothing when there was nothing to do. */
 function untapPermanents(player: PlayerId): number {
+  game.players[player].turnDone.untap = true;
   let n = 0;
   for (const id of game.players[player].zones.battlefield) {
     const c = game.cards[id];
@@ -596,6 +603,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       commanderDamage: ps.commanderDamage,
       commanderTax: ps.commanderTax ?? 0,
       deckName: ps.deckName,
+      turnDone: ps.turnDone,
       counts: Object.fromEntries(ZONES.map((z) => [z, ps.zones[z].length])),
       zones: Object.fromEntries(
         ZONES.map((z) => [z, ps.zones[z].map((id) => serializeCard(game.cards[id], viewer))])
@@ -611,6 +619,14 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
     combat: game.combat,
     waitingOn: game.waitingOn,
     pendingQuestion: game.pendingQuestion,
+    // the same fact mulligan() itself enforces, so the offer on the table and
+    // the rule behind it cannot drift apart
+    canMulligan:
+      game.started &&
+      game.turnNumber === 1 &&
+      game.turn === viewer &&
+      game.players[viewer].zones.hand.length > 0 &&
+      !game.players[viewer].turnDone.acted,
     players,
     stack: game.stack.map((item) => ({
       id: item.id,
@@ -668,6 +684,12 @@ function clearCombatMarks() {
     c.attacking = null;
     c.blocking = null;
   }
+}
+
+/** A fresh turn has seen nothing yet — for BOTH seats. The turn pass is the
+ *  one moment the slate is wiped; everything else only ever sets a flag. */
+function resetTurnDone() {
+  for (const ps of Object.values(game.players)) ps.turnDone = { untap: false, draw: false, lands: 0, acted: false };
 }
 
 /** Player ids are exactly "you" | "agent" — reject anything else loudly. */
@@ -895,6 +917,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     game.phase = "untap/upkeep";
     game.combat = null;
     clearCombatMarks();
+    resetTurnDone();
     addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`, "round_start");
     return { ok: true, resolved: item.text };
   }
@@ -995,6 +1018,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.tapped = false;
       drawnCards.push(card);
     }
+    game.players[player].turnDone.draw = true;
     const drawn = drawnCards.map((c) => c.name);
     addLog(ctx.actor, `${who(player)} drew ${drawn.length} card${drawn.length === 1 ? "" : "s"}`, "drew", {
       [player]: `${who(player)} drew: ${drawn.join(", ") || "(library empty)"}`,
@@ -1466,6 +1490,9 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    *  nothing to undo, and one line in the log saying what happened. */
   mulligan(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
+    if (game.turnNumber !== 1 || game.players[player].turnDone.acted) {
+      throw new Error("mulligans are decided before anything is played — you have already started the turn");
+    }
     const n = Math.max(0, Math.min(20, Number(p.n ?? 7)));
     for (const id of [...game.players[player].zones.hand]) {
       const card = game.cards[id];
@@ -1526,11 +1553,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     //
     // The RAW label decides, not the folded phase: "upkeep" and "draw" fold into
     // untap/upkeep but are not the untap step, and declaring one of them never
-    // untapped before the vocabulary existed either. Gating this to once per
-    // turn waits for Task 5's turnDone flags.
+    // untapped before the vocabulary existed either.
+    //
+    // And once per turn: the turn remembers its untap, so re-announcing the
+    // step a seat is already past does not turn a creature tapped for mana
+    // back over. Saying it outright (untap_all) is still always allowed.
     const rawKey = String(p.phase ?? "").trim().toLowerCase();
     const isUntapStep = phase === "untap/upkeep" && (rawKey === "untap" || rawKey === "untap/upkeep");
-    const untapped = isUntapStep ? untapPermanents(game.turn) : 0;
+    const untapped = isUntapStep && !game.players[game.turn].turnDone.untap ? untapPermanents(game.turn) : 0;
     addLog(
       ctx.actor,
       `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""),
@@ -1748,6 +1778,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (isLandPlay) {
       placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
+      game.players[ctx.actor].turnDone.lands += 1;
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");
       const landTrig = triggerLines(card);
       const landWatchers = zoneChangeWatchers("enters");
@@ -2085,8 +2116,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 };
 
+/** The actions that count as having STARTED PLAYING — the same set the old
+ *  HAS_STARTED_PLAYING regex named by its log verbs, now named by action.
+ *  Deliberately excludes draw (the deal draws for you), mulligan (taking the
+ *  offer must not revoke it), and pure bookkeeping (life, counters). */
+const PLAY_ACTIONS = new Set(["cast", "tap", "untap_all", "move", "create_token", "attack", "block", "stack_push", "set_phase", "set_turn", "damage", "finish_attacks"]);
+
 export function applyAction(actor: PlayerId, type: string, params: any): ActionResult {
   const fn = actions[type];
   if (!fn) throw new Error(`unknown action ${type}`);
-  return fn({ actor }, params ?? {});
+  const res = fn({ actor }, params ?? {});
+  if (PLAY_ACTIONS.has(type)) game.players[actor].turnDone.acted = true;
+  return res;
 }

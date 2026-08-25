@@ -3,7 +3,7 @@
 // None of this is authoritative — the server decides. It exists so the table
 // can draw the right thing before the server answers.
 import { act } from "../api";
-import { cardById, gameView, lastLogIndex } from "../store/game";
+import { cardById, gameView } from "../store/game";
 import type { Card, GameView, PlayerId, StackItem } from "../types";
 
 export type TypeCat = "creature" | "land" | "spell" | "other";
@@ -46,19 +46,10 @@ export function resolveZoneOf(item: StackItem): string {
   return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
 }
 
-/** The patterns that mean the player has stopped setting up and started
- *  playing. Shared by the next-action prompt's opening silence and the
- *  mulligan offer, because they answer the same question. A mulligan is
- *  deliberately absent: it is the deal happening again, not a play. */
-export const HAS_STARTED_PLAYING =
-  /^Player (played|cast|tapped|untapped|moved|created|declares|put on the stack|moves to)/;
-
-/** Is a mulligan still on the table? Your opening turn, cards in hand, and
- *  nothing played yet — once a land is down the offer would be a lie. */
+/** Is a mulligan still on the table? The server decides — same fact the
+ *  mulligan action itself enforces, so the offer and the rule cannot drift. */
 export function canMulligan(view: GameView | null | undefined): boolean {
-  if (!view?.started || view.turnNumber !== 1 || view.turn !== "you") return false;
-  if (!view.players.you.zones.hand.length) return false;
-  return lastLogIndex(view.log ?? [], HAS_STARTED_PLAYING) < 0;
+  return !!view?.canMulligan;
 }
 
 /** A pile deeper than this stops being drawn as a cascade of peeking corners

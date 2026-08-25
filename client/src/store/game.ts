@@ -10,7 +10,7 @@
 //     the whole table underneath the pointer.
 import { create } from "zustand";
 import { dlog, pt } from "../game/debug";
-import type { BrainEntry, Card, GameView, LogEntry, PlayerId } from "../types";
+import type { BrainEntry, Card, GameView, PlayerId } from "../types";
 
 interface GameStore {
   view: GameView | null;
@@ -132,31 +132,4 @@ export function pileChainBelow(id: string): Card[] {
     cur = cardBeneathOf(cur.id);
   }
   return out;
-}
-
-/** Where in THIS round something last happened — the log index, or -1. The
- *  round marker bounds the scan.
- *
- *  Chat is skipped. It is people talking ABOUT the game while the scan is
- *  looking for the game happening, and the two are not the same thing: the
- *  agent writing "please announce combat damage" used to read as combat damage
- *  having been dealt, which stood the whole combat prompt down for the rest of
- *  the turn.
- *
- *  An index rather than a boolean because "did X happen" is the wrong question
- *  once something can happen twice in a turn. Two combats in one turn are
- *  ordinary — an undo back past combat and a second swing is the common way in
- *  — and the useful question is whether X came before or after Y. */
-export function lastLogIndex(log: LogEntry[], re: RegExp): number {
-  for (let i = log.length - 1; i >= 0; i--) {
-    const t = log[i].text || "";
-    if (/^—\s*Round \d+/.test(t)) return -1;
-    if (!t.startsWith("💬") && re.test(t)) return i;
-  }
-  return -1;
-}
-
-/** Did this happen already during the current round? */
-export function didThisTurn(re: RegExp): boolean {
-  return lastLogIndex(gameView()?.log ?? [], re) >= 0;
 }

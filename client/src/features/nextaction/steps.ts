@@ -8,8 +8,8 @@
 // { hint } for a nudge at something the table can't do in one click.
 //   icon: a key into ICONS, drawn before the label.
 import { act, type ActionResult } from "../../api";
-import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
-import { cardById, didThisTurn, gameView, useGame } from "../../store/game";
+import { stackItemCard, stackSubText } from "../../game/rules";
+import { cardById, gameView, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, SoundId, StackItem } from "../../types";
 
@@ -223,13 +223,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // marching the phase along
     id: "game-start",
     when: (c) =>
-      // same question the mulligan offer asks, so it is the same pattern
-      c.mine && c.view.turnNumber === 1 && !didThisTurn(HAS_STARTED_PLAYING),
+      // same question the mulligan offer asks, and the server answers both
+      c.mine && c.view.turnNumber === 1 && !c.view.players.you.turnDone.acted,
     step: () => null,
   },
   {
     id: "untap",
-    when: (c) => /untap/.test(c.phase) && c.myTapped && !didThisTurn(/^Player untapped all/),
+    when: (c) => c.phase === "untap/upkeep" && c.myTapped && !c.view.players.you.turnDone.untap,
     step: () => ({
       label: "Untap all",
       icon: "untap",
@@ -241,7 +241,7 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "draw",
-    when: (c) => /untap/.test(c.phase) && c.view.turnNumber > 1 && !didThisTurn(/^Player drew\b/),
+    when: (c) => c.phase === "untap/upkeep" && c.view.turnNumber > 1 && !c.view.players.you.turnDone.draw,
     step: () => ({ label: "Draw 1", icon: "draw", fn: () => void act("draw", { n: 1 }) }),
   },
   {

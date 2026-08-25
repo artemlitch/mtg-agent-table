@@ -1921,3 +1921,67 @@ describe("phase labels are a vocabulary, not free text", () => {
     expect(c.tapped).toBe(false);
   });
 });
+
+describe("the turn knows what has already happened in it", () => {
+  test("untap, draw and land drops are facts on the view, reset when the turn passes", () => {
+    const land = seedCard("Swamp", "you", "hand", { typeLine: "Basic Land — Swamp" });
+    seedLibrary("you", ["Island"]);
+    expect(viewFor("you").players.you.turnDone).toEqual({ untap: false, draw: false, lands: 0, acted: false });
+    applyAction("you", "untap_all", {});
+    applyAction("you", "draw", { n: 1 });
+    applyAction("you", "cast", { card: land.id }); // land drop: straight to battlefield
+    const td = viewFor("you").players.you.turnDone;
+    expect(td.untap).toBe(true);
+    expect(td.draw).toBe(true);
+    expect(td.lands).toBe(1);
+    expect(td.acted).toBe(true);
+    // the turn pass resolving wipes the slate for BOTH seats
+    game.started = true;
+    applyAction("you", "set_turn", { player: "agent" });
+    applyAction("agent", "stack_resolve", {});
+    expect(viewFor("you").players.you.turnDone).toEqual({ untap: false, draw: false, lands: 0, acted: false });
+    expect(viewFor("you").players.agent.turnDone.acted).toBe(false);
+  });
+
+  test("the set_phase auto-untap counts as the untap", () => {
+    seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "untap/upkeep" });
+    expect(viewFor("you").players.you.turnDone.untap).toBe(true);
+  });
+
+  test("declaring the untap step twice does not untap twice", () => {
+    // the untap is a fact of the turn, so the second declaration has nothing
+    // left to do — a creature tapped for mana after the untap step stays
+    // tapped when someone re-announces the step it is already past
+    const c = seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "untap" });
+    expect(c.tapped).toBe(false);
+    applyAction("you", "tap", { cards: [c.id] });
+    applyAction("you", "set_phase", { phase: "untap" });
+    expect(c.tapped).toBe(true);
+    // the explicit action is still a way to say it, and stays ungated
+    applyAction("you", "untap_all", {});
+    expect(c.tapped).toBe(false);
+  });
+
+  test("mulligan is offered until you act, and the server enforces it", () => {
+    game.started = true;
+    seedCard("Keep Me", "you", "hand");
+    seedLibrary("you", ["A", "B", "C", "D", "E", "F", "G"]);
+    // tap only takes battlefield cards, so the act that ends the offer is a
+    // tap of something on the board
+    const guy = seedCard("Guy", "you", "battlefield");
+    expect(viewFor("you").canMulligan).toBe(true);
+    applyAction("you", "mulligan", { n: 7 }); // mulliganing is not acting
+    expect(viewFor("you").canMulligan).toBe(true);
+    applyAction("you", "tap", { cards: [guy.id], tapped: true });
+    expect(viewFor("you").canMulligan).toBe(false);
+    expect(() => applyAction("you", "mulligan", { n: 7 })).toThrow(/already/i);
+  });
+
+  test("the agent's seat never sees canMulligan on your turn", () => {
+    game.started = true;
+    seedCard("Keep Me", "you", "hand");
+    expect(viewFor("agent").canMulligan).toBe(false);
+  });
+});
