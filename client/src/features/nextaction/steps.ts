@@ -44,6 +44,7 @@ export interface Ctx {
    *  is the ordinary way in — so what matters is the ORDER of these, not
    *  whether each occurred. -1 means not this round. */
   enteredCombatAt: number;
+  finishedAt: number;
   lockedAt: number;
   damageAt: number;
   myTapped: boolean;
@@ -90,6 +91,17 @@ export function nextActionContext(view: GameView): Ctx {
     declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
     enteredCombatAt: lastLogIndex(log, /moves to combat/i),
     lockedAt: lastLogIndex(log, /^Attacks locked in:/),
+    // You saying you are finished — which is the thing the finish-attacks step
+    // exists to get, and so the thing that stands it down. It cannot use
+    // lockedAt for that: that is the DEFENDER's answer, and an agent that
+    // never gives one leaves the step asking forever.
+    //
+    // ANCHORED, so an undo cannot keep it true. "↩ Player undid: Player
+    // finishes declaring attackers" quotes the line, and lastLogIndex reads
+    // undo notices like any other entry — unanchored, taking the hand-over
+    // back would leave the step believing you had made it, with no button to
+    // make it again. Same trick as damageAt and lockedAt above.
+    finishedAt: lastLogIndex(log, /^(Player|Agent) finishes declaring attackers/),
     // Damage is done when it LANDS, not when it was asked for. Asking used to
     // count — the pattern matched the "go to damage" push itself, whose text
     // contains the words — so the step stood down the moment you pressed it and
@@ -279,7 +291,14 @@ export const NEXT_ACTION_STEPS: Step[] = [
       // a pass while the agent is mid-thought preempts it and starts it over,
       // so pressing four times because nothing seemed to happen is exactly
       // what stops anything from happening. Say who we are waiting on instead.
-      c.view.waitingOn === "agent"
+      //
+      // waitingOn alone was not enough. The agent can hand the window straight
+      // back — declare blocks, announce damage, pass — while never resolving
+      // the declaration, and then waitingOn is "you" again with the ATTACKS
+      // item still sitting there. The button came back mid-combat and a second
+      // press re-declared attacks that had already dealt their damage. What
+      // stands the step down is YOU having finished, which is what it asked.
+      c.view.waitingOn === "agent" || c.finishedAt > c.enteredCombatAt
         ? { hint: waitingHint(c, "declared") }
         : {
             label: "Finish declaring attackers",

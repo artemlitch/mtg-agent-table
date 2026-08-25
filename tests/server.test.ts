@@ -97,6 +97,11 @@ describe("what undo steps back through", () => {
     const back = await state();
     expect(back.waitingOn).toBe("you");
     expect(back.stack.length).toBe(before + 1); // the declaration itself survives
+    // and the line is GONE from the log, not merely quoted by the ↩ notice —
+    // the client reads it to decide whether the prompt still has a button
+    const texts = (back.log as any[]).map((e) => e.text);
+    expect(texts.some((t) => /^Player finishes declaring attackers/.test(t))).toBe(false);
+    expect(texts.some((t) => /^↩ .*finishes declaring attackers/.test(t))).toBe(true);
 
     await api("/api/undo", {});
     expect((await state()).stack.length).toBe(before); // the whole declaration

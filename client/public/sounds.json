@@ -50,44 +50,36 @@
     "desc": "attack declared — a tight bright strike",
     "layers": [
       {
-        "kind": "noise",
-        "freq": 900,
-        "dur": 0.18,
-        "vol": 0.385,
-        "t": 0,
-        "q": 1.2,
-        "slide": 220,
-        "verb": 0.25
-      },
-      {
-        "kind": "tone",
-        "freq": 160,
-        "dur": 0.2,
-        "vol": 0.11,
-        "t": 0,
-        "type": "triangle",
-        "slide": 110,
-        "verb": 0.3,
-        "atk": 0.006
-      },
-      {
-        "kind": "tone",
-        "freq": 620,
-        "dur": 0.07,
-        "vol": 0.11,
-        "t": 0,
-        "type": "sine",
-        "slide": 0
-      },
-      {
         "kind": "tone",
         "freq": 38,
-        "dur": 1.13,
+        "dur": 0.51,
         "vol": 0.1,
         "t": 0,
         "type": "triangle",
         "slide": 71,
-        "verb": 0.65
+        "verb": 0.23
+      },
+      {
+        "kind": "noise",
+        "freq": 1000,
+        "dur": 0.1,
+        "vol": 0.15,
+        "t": 0,
+        "q": 1,
+        "slide": 0,
+        "shape": "swell"
+      },
+      {
+        "kind": "tone",
+        "freq": 685,
+        "dur": 0.36,
+        "vol": 0.05,
+        "t": 0.03,
+        "type": "sawtooth",
+        "slide": 87,
+        "shape": "swell",
+        "verb": 0,
+        "atk": 0.001
       }
     ]
   },
@@ -259,7 +251,7 @@
         "dur": 0.04,
         "vol": 0.28,
         "t": 0.06,
-        "q": 5.0,
+        "q": 5,
         "slide": 0,
         "verb": 0.28
       },
@@ -301,7 +293,7 @@
         "dur": 0.035,
         "vol": 0.255,
         "t": 0.19,
-        "q": 6.0,
+        "q": 6,
         "slide": 0,
         "verb": 0.26
       },
@@ -343,7 +335,7 @@
         "dur": 0.03,
         "vol": 0.27,
         "t": 0.32,
-        "q": 7.0,
+        "q": 7,
         "slide": 0,
         "verb": 0.25
       },
@@ -398,27 +390,6 @@
         "type": "sine",
         "slide": 0,
         "verb": 0.52
-      },
-      {
-        "kind": "tone",
-        "freq": 3140,
-        "dur": 0.32,
-        "vol": 0.042,
-        "t": 0.462,
-        "type": "sine",
-        "slide": 0,
-        "verb": 0.52
-      },
-      {
-        "kind": "tone",
-        "freq": 190,
-        "dur": 0.17,
-        "vol": 0.163,
-        "t": 0.46,
-        "type": "triangle",
-        "slide": 110,
-        "verb": 0.26,
-        "atk": 0.004
       }
     ]
   },

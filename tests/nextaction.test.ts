@@ -53,6 +53,7 @@ function prompt(v: GameView) {
 
 const ENTERED = () => line("Player moves to combat");
 const LOCKED = () => line("Attacks locked in: Bear → Agent (attackers tapped)");
+const FINISHED = () => line("Player finishes declaring attackers: Bear — Agent to lock them in or respond");
 const ASKED = () => line("Player put on the stack: go to damage — declare any blocks, then announce it with the damage tool (yours to announce, my attack or yours)");
 const ANNOUNCED = () => line("Agent put on the stack: COMBAT DAMAGE\n  1. Bear → Player: 2");
 const APPLIED = () => line("Damage applied: Player 40 → 37; Gonti → Player commander damage 3");
@@ -209,6 +210,41 @@ describe("the combat prompt, step by step", () => {
     expect(id).toBe("finish-attacks");
     expect(action?.fn).toBeUndefined();
     expect(action?.hint).toMatch(/waiting/i);
+  });
+
+  it("stays down after you finish, even when the agent hands the window back", () => {
+    // What actually happened: the agent never resolved the declaration. It
+    // declared blocks on top of it, announced damage, and passed — so the
+    // ATTACKS item was still on the stack, nothing of ours was marked
+    // attacking, and waitingOn came back to "you" mid-combat. The button
+    // returned and a second press re-declared an attack that had already
+    // dealt its damage.
+    const v = view({
+      mine: [creature("bear")],
+      stack: [declaration("d1", "bear")],
+      log: [ENTERED(), FINISHED(), line("Agent declares blockers (on the stack): Spawn blocks Bear", "agent"), APPLIED()],
+    });
+    (v as any).waitingOn = "you";
+    const { id, action } = prompt(v);
+    expect(id).toBe("finish-attacks");
+    expect(action?.fn).toBeUndefined(); // no button to press twice
+    expect(action?.hint).toMatch(/waiting/i);
+  });
+
+  it("gives the button back when you undo the hand-over", () => {
+    // the undo notice QUOTES the line it took back, so an unanchored match
+    // would read the take-back as the thing itself and leave you with a
+    // declaration on the stack and no way to say you were finished with it
+    const v = view({
+      mine: [creature("bear")],
+      stack: [declaration("d1", "bear")],
+      log: [ENTERED(), line("↩ Player undid: Player finishes declaring attackers: Bear — Agent to lock them in", "system")],
+    });
+    (v as any).waitingOn = "you";
+    const { id, action } = prompt(v);
+    expect(id).toBe("finish-attacks");
+    expect(action?.label).toBe("Finish declaring attackers");
+    expect(action?.fn).toBeDefined();
   });
 
   it("counts every declaration, because each tap pushes its own", () => {
