@@ -56,6 +56,19 @@ describe("what undo steps back through", () => {
     expect(await life()).toBe(before);
   });
 
+  // A pass survives a rewind because it was something said. But undo cancels
+  // the wake that pass armed, so the agent never heard it — and with nothing
+  // thinking and nothing scheduled, leaving the window on the agent is a
+  // deadlock with no button on either side.
+  test("undoing back past your pass hands the window back to you", async () => {
+    await act("you", "life", { player: "you", delta: -1 });
+    await act("you", "done");
+    expect((await api("/api/state?viewer=you")).waitingOn).toBe("agent");
+
+    await api("/api/undo", {});
+    expect((await api("/api/state?viewer=you")).waitingOn).toBe("you");
+  });
+
   test("undo and redo leave what was SAID alone", async () => {
     const log = async () => ((await api("/api/state?viewer=you")).log as any[]).map((e) => e.text);
     const said = async (s: string) => (await log()).filter((t) => t.includes(s)).length;

@@ -371,6 +371,17 @@ const server = Bun.serve({
       // so the action being rewound is the one that armed it. Nothing happened,
       // so there is nothing to answer.
       wakes.cancel();
+      // ...and the window comes back with it. A pass survives a rewind on
+      // purpose (see restore in history.ts) — it is something said, not
+      // something played. But that only holds if it was HEARD. The wake this
+      // pass armed was just cancelled two lines up, so the agent never got
+      // the window and never will: nothing is thinking and nothing is
+      // scheduled. Leaving waitingOn on the agent then is a deadlock — the
+      // client's finish-attacks step reads it and shows "waiting on the
+      // agent" instead of the button, and the table sits with each side
+      // expecting the other. Undoing an attack declaration wedged a real game
+      // exactly this way.
+      if (game.waitingOn === "agent" && !agent.busy) game.waitingOn = "you";
       broadcast({ type: "update", seq: game.seq });
       return json({ ok: true, undone });
     }
