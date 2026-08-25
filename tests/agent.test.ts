@@ -286,6 +286,73 @@ describe("agent transport", () => {
     expect(prompt).not.toContain("declare them");
   });
 
+  // Taking `block` out of the reactive set stops a BLOCK from arming a wake,
+  // but it cannot stop one already armed: the defender resolving the ATTACKS
+  // item is a stack_resolve, which IS reactive, so a countdown is running when
+  // the first blocker goes down. Live in round 10 that wake fired seconds
+  // later and the agent locked in a one-creature blocks declaration Player was
+  // still adding to — the "Finish declaring blockers" gate skipped entirely.
+  // The gate is conduct, like the attack side, so the wake has to say so.
+  test("a declaration Player has not finished is not the agent's to resolve", () => {
+    resetGameState();
+    const rat = makeCard({ id: "r1", name: "Rat", owner: "agent", controller: "agent", zone: "battlefield", power: "1", toughness: "1" });
+    const blk = makeCard({ id: "k1", name: "Bear", owner: "you", controller: "you", zone: "battlefield", power: "2", toughness: "2" });
+    for (const c of [rat, blk]) {
+      game.cards[c.id] = c;
+      game.players[c.controller].zones.battlefield.push(c.id);
+    }
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("agent", "finish_attacks", {});
+    applyAction("you", "stack_resolve", {}); // the wake this arms is the problem
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+
+    // one blocker declared, and Player has not said they are finished
+    applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: rat.id }] });
+    const mid = a.composeWakePrompt("react");
+    expect(mid).toContain("PLAYER IS STILL DECLARING");
+    expect(mid).toContain("Do NOT resolve it");
+    // and NOT the attacker's standing instruction to lock the answer in
+    expect(mid).not.toContain("lock it in with stack_resolve");
+    expect(mid).not.toContain("THE BLOCKERS STEP IS OPEN");
+
+    // the duty flips the moment they hand it over
+    applyAction("you", "finish_blocks", {});
+    const after = a.composeWakePrompt("react");
+    expect(after).not.toContain("PLAYER IS STILL DECLARING");
+    expect(after).toContain("lock it in with stack_resolve");
+  });
+
+  // the same rule from the other side of the table: an ATTACKS item still
+  // being built is a draft too, and it never reaches a combatDuty branch of
+  // its own — it used to draw no line at all
+  test("...and the same holds for an attack declaration still being made", () => {
+    resetGameState();
+    const bear = makeCard({ id: "k2", name: "Bear", owner: "you", controller: "you", zone: "battlefield", power: "2", toughness: "2" });
+    game.cards[bear.id] = bear;
+    game.players.you.zones.battlefield.push(bear.id);
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).toMatch(/PLAYER IS STILL DECLARING — their ATTACKS item/);
+
+    applyAction("you", "finish_attacks", {});
+    expect(a.composeWakePrompt("react")).not.toContain("PLAYER IS STILL DECLARING");
+  });
+
+  test("the conduct rule is in the system prompt, not only the wake", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/AN UNFINISHED DECLARATION IS THE ONE EXCEPTION/);
+    expect(a.systemPrompt).toMatch(/NEVER resolve one/);
+  });
+
   test("…and says so plainly when a seat has nothing out", () => {
     resetGameState();
     const a = new AgentRunner();

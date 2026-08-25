@@ -522,10 +522,24 @@ export class AgentRunner {
     // Nagging for blocks already on the stack asks for a SECOND declaration —
     // and a second one is what holds the damage step shut, since resolving
     // either leaves the other still owed (resolveStackItem's stillOwed).
+    //
+    // And a declaration of PLAYER'S that they have not finished is not an item
+    // at all yet, however much it looks like one. Blocks stopped waking the
+    // agent when they became Player's to finish (see REACTIVE in wake.ts), but
+    // a countdown armed by something EARLIER still fires — the defender
+    // resolving the ATTACKS item is a stack_resolve, which is reactive — and
+    // the agent woke seconds later and locked in a blocks declaration with one
+    // creature in it while Player was still hovering the second (live, round
+    // 10). The gate is conduct rather than a refusal, exactly as it is for
+    // attacks, so the wake has to say which state the table is in.
+    const declaring = game.stack.find(
+      (i) => i.player === "you" && (i.apply?.type === "block" || i.apply?.type === "attack") && !i.finished
+    );
     const damageAnnounced = game.stack.some((i) => i.apply?.type === "damage" && i.apply.combatDamage);
     const blocksDeclared = game.stack.some((i) => i.apply?.type === "block" && i.player === "agent");
-    const combatDuty =
-      game.combat === "blockers" && blocksDeclared
+    const combatDuty = declaring
+      ? `\n⚠ PLAYER IS STILL DECLARING — their ${declaring.apply?.type === "block" ? "BLOCKS" : "ATTACKS"} item on the stack is NOT FINISHED and they are still adding to it. Do NOT resolve it. Respond on top at instant speed if you want to, or wait — however many windows that takes; it becomes yours to resolve only once the log says they have finished declaring.\n`
+      : game.combat === "blockers" && blocksDeclared
         ? `\nYour blocks declaration is on the stack — waiting for Player to lock it in. Nothing more is owed in this step; do not declare blocks again.\n`
         : game.combat === "blockers"
           ? game.turn === "agent"
@@ -1026,6 +1040,8 @@ YOUR WINDOW is yours to act in. Call get_state first if you need to re-inspect a
 A REACTION WINDOW means you hold priority in response to what Player just did. It is not your turn. If Player's item is on top of the stack, either respond at instant speed (cast/stack_push/stack_counter) or acknowledge it by calling stack_resolve yourself — that is the "no responses" signal. Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.
 
 PLAYER'S ITEMS ON THE STACK come before anything else you might do: respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve, top first. Never take other actions or call done while their items sit unresolved.
+
+AN UNFINISHED DECLARATION IS THE ONE EXCEPTION TO THAT. A declaration of Player's — ATTACKS or BLOCKS — that they have not FINISHED is still being assembled: creatures go in one at a time, and until Player says they are done the item is a draft, not an offer. You can tell: the stack item carries no finished flag, and the log holds no "finishes declaring" line for it. NEVER resolve one. Respond on top at instant speed if you want to, or wait — however many windows that takes — and resolve it only after they have finished. Locking in a half-made declaration takes creatures out of a combat Player was still building.
 
 CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 1. READ the card's full oracle text in get_state before playing it. Never play from memory of the name. The server enforces this: casting a card whose text was never delivered to you is rejected. Draw results include the full text of what you drew.
