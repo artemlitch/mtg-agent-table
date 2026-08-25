@@ -18,12 +18,12 @@
   body.lab { overflow: auto; height: auto; min-height: 100vh; padding: 20px; }
   h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
   .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
-  /* One row per sound, in the order sfx.js defines them, and that order is the
-     whole point: a layout that ranks rows — tallest first, alphabetical —
-     re-ranks them the moment you add a layer or rename something, and the row
-     you were working on walks out from under the cursor. Definition order
-     cannot do that. New sounds go on the end of SOUNDS and appear at the
-     bottom here, and everything above them stays exactly where it was.
+  /* One row per sound, listed by name. What a row is ranked ON is the thing
+     that decides whether the page holds still: the old masonry ranked by layer
+     count, so adding a layer re-ranked the page and the card you were working
+     on walked into another column. A name is not something editing changes, so
+     sorting by it cannot move anything while you work — only adding a whole
+     new sound does, and then it lands in one predictable place.
 
      The layers run left to right inside the row and the row scrolls, so a
      sound with six layers is as tall as a sound with one. */
@@ -101,7 +101,8 @@ function build() {
   const root = document.getElementById("sounds");
   for (const s of root.querySelectorAll(".lstrip")) scrollAt[s.dataset.sound] = s.scrollLeft;
   root.innerHTML = "";
-  for (const [name, def] of Object.entries(SOUNDS)) {
+  const byName = Object.entries(SOUNDS).sort(([a], [b]) => a.localeCompare(b));
+  for (const [name, def] of byName) {
     const card = document.createElement("div");
     card.className = "sound";
     card.innerHTML = `<div class="shead"><h2>${name}</h2><div class="desc">${def.desc}</div></div>`;

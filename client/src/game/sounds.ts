@@ -5,7 +5,12 @@ import type { LogEntry } from "../types";
 // first matching rule per log entry decides its sound
 const SOUND_RULES: [string, RegExp][] = [
   ["glimmer", /^— Round \d+:/],
-  ["attack", /(declares attackers)|(^Attacks locked in: )/],
+  // Two moments, seconds apart and two entries: you tap creatures to declare,
+  // then the declaration resolves and the attack is locked. One rule matched
+  // both lines and played the drum twice for what looked like one event.
+  ["attack", /declares attackers/],
+  ["lockin", /^Attacks locked in: /],
+  ["block", /declares blockers/],
   ["hit", / from battlefield to .*graveyard/],
   ["hit", / countered .* → .*graveyard/],
   ["thump", / resolved → .*battlefield/],
@@ -15,7 +20,7 @@ const SOUND_RULES: [string, RegExp][] = [
   // Above the stack rule on purpose: the pass is a stack item, and the generic
   // stack chime would otherwise swallow the one moment worth its own sound.
   ["passturn", /declares (the turn pass|an extra turn)/],
-  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )|(declares blockers)/],
+  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )/],
   // "Player moves to combat", "Agent moves to cleanup" — see set_phase in
   // server/game.ts. The trailing untap count rides on the same line, so this
   // is deliberately not anchored at the end.

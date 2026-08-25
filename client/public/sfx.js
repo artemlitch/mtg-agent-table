@@ -138,7 +138,8 @@
 
   // The sounds themselves, as data: each is a stack of tone/noise layers.
   // Values hand-tuned in the sound lab — the lab edits these objects in
-  // place, so what you hear there is what the table plays.
+  // place, so what you hear there is what the table plays. Order here does not
+  // matter: the lab lists them by name.
   const SOUNDS = {
     stack: {
       desc: "item goes on the stack — magical notification",
@@ -191,8 +192,30 @@
         { kind: "tone", freq: 84, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
       ],
     },
-    // Order here is the order the lab lists them in, so new sounds go on the
-    // END — see soundlab.html. Nothing above this line moves when one is added.
+    // A copy of `attack`, layer for layer. Declaring and locking in already
+    // played the same drum — one rule matched both lines — so this splits them
+    // into two entries that can be told apart in the lab without changing what
+    // the table sounds like today.
+    lockin: {
+      desc: "attackers locked in — the war drum again, its own copy to tune",
+      layers: [
+        { kind: "tone", freq: 41, dur: 0.86, vol: 0.555, t: 0, type: "triangle", slide: 174, verb: 0.82, atk: 0.013 },
+        { kind: "tone", freq: 133, dur: 0.36, vol: 0.525, t: 0, type: "triangle", slide: 252, verb: 0.78, atk: 0.011 },
+        { kind: "tone", freq: 226, dur: 0.94, vol: 0.33, t: 0, type: "sine", slide: 0, verb: 0.6, atk: 0.015 },
+        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
+      ],
+    },
+    block: {
+      // The answer to the war drum, and shaped against it: `attack` is 41Hz
+      // opening out over most of a second, so this is tight, bright and half
+      // as long — something stopping rather than something starting.
+      desc: "blockers declared — a shield taking the hit",
+      layers: [
+        { kind: "noise", freq: 900, dur: 0.18, vol: 0.09, t: 0, q: 1.2, slide: 220, verb: 0.25 },
+        { kind: "tone", freq: 160, dur: 0.2, vol: 0.14, t: 0, type: "triangle", slide: 110, verb: 0.3, atk: 0.006 },
+        { kind: "tone", freq: 620, dur: 0.07, vol: 0.05, t: 0, type: "sine", slide: 0 },
+      ],
+    },
     phase: {
       // The most FREQUENT sound on the table — several a turn, every turn — so
       // it is the quietest thing here and the shortest. A wooden tick and one
