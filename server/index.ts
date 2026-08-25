@@ -312,6 +312,12 @@ const server = Bun.serve({
           if (undoable) dropLastSnapshot();
           throw e;
         }
+        // An action that folded into one already on the stack is not a new
+        // step to take back — adding the fourth attacker to a declaration is
+        // part of making that declaration, not a play of its own. Dropping
+        // the snapshot leaves the one from before the FIRST attacker, so one
+        // press takes the whole declaration back.
+        if (undoable && (result as any)?.merged) dropLastSnapshot();
         saveSoon();
         // Wake policy lives in wake.ts — which actions are worth a window, and
         // how long each one waits first. Armed or not, the countdown restarts

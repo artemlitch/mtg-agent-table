@@ -76,22 +76,31 @@ describe("what undo steps back through", () => {
     // the test server's state file outlives the run, so the marker has to be
     // unique or an earlier run's copy is still in the log
     const marker = `marker-${Date.now()}`;
+    // and the count is taken from the marker onward, never from the whole
+    // view: that log is a fixed-length tail, and every ↩/↪ notice slides it by
+    // one, so a bare count changes for reasons that have nothing to do with
+    // what was said
+    const passesSinceMarker = async () => {
+      const l = await log();
+      const i = l.findIndex((t) => t.includes(marker));
+      return i < 0 ? -1 : l.slice(i).filter((t) => t.includes("passes")).length;
+    };
     await act("you", "life", { player: "you", delta: -3 });
     await act("you", "chat", { text: marker });
     await act("you", "done"); // a pass is a response, like the chat line
     expect(await said(marker)).toBe(1);
-    const passes = await said("passes");
+    const passes = await passesSinceMarker();
     expect(passes).toBeGreaterThan(0);
 
     // undo reaches past both to the life change, and takes neither with it
     await api("/api/undo", {});
     expect(await said(marker)).toBe(1);
-    expect(await said("passes")).toBe(passes);
+    expect(await passesSinceMarker()).toBe(passes);
 
     // and redo does not say them a second time
     await api("/api/redo", {});
     expect(await said(marker)).toBe(1);
-    expect(await said("passes")).toBe(passes);
+    expect(await passesSinceMarker()).toBe(passes);
   });
 });
 

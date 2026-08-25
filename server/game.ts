@@ -1386,19 +1386,40 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         `it is ${who(game.turn)}'s turn, so only ${who(game.turn)} declares attackers — use block to declare blockers (declaring none is still a declaration)`
       );
     }
-    const parts: string[] = [];
+    // ONE declaration, however many creatures it took to say it. Tapping four
+    // attackers with E is four calls, and each used to push its own stack item
+    // and its own undo step — so undo peeled one creature off a declaration
+    // the UI had presented as a single action ("Finish declaring attackers"),
+    // and the stack read as four declarations instead of one attack.
+    const open = game.stack.find((i) => i.player === ctx.actor && i.apply?.type === "attack");
+    const pairs = open?.apply?.type === "attack" ? [...open.apply.pairs] : [];
+    const added: string[] = [];
     for (const pair of p.pairs) {
       const c = getCard(pair.attacker);
       const tgt = pair.target === "you" || pair.target === "agent" ? who(pair.target) : publicDesc(getCard(pair.target));
-      parts.push(`${publicDesc(c)} → ${tgt}`);
+      // re-declaring a creature already in it changes its target, not its count
+      const at = pairs.findIndex((x) => x.attacker === pair.attacker);
+      if (at >= 0) pairs[at] = pair;
+      else pairs.push(pair);
+      added.push(`${publicDesc(c)} → ${tgt}`);
     }
-    pushStackItem(ctx.actor, {
-      cardId: null,
-      text: `ATTACKS: ${parts.join("; ")}`,
-      apply: { type: "attack", pairs: p.pairs },
+    const all = pairs.map((pair) => {
+      const c = getCard(pair.attacker);
+      const tgt = pair.target === "you" || pair.target === "agent" ? who(pair.target) : publicDesc(getCard(pair.target));
+      return `${publicDesc(c)} → ${tgt}`;
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${parts.join("; ")}`);
-    return { ok: true, stackSize: game.stack.length };
+    if (open) {
+      open.text = `ATTACKS: ${all.join("; ")}`;
+      open.apply = { type: "attack", pairs };
+    } else {
+      pushStackItem(ctx.actor, { cardId: null, text: `ATTACKS: ${all.join("; ")}`, apply: { type: "attack", pairs } });
+    }
+    // the log names the whole declaration as it now stands, so the ↩ notice
+    // for taking it back names the same thing the stack shows
+    addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${all.join("; ")}`);
+    // merged: the caller drops the undo step it just recorded, so the whole
+    // declaration comes back in one press rather than one press per creature
+    return { ok: true, stackSize: game.stack.length, ...(open ? { merged: true } : {}), added };
   },
 
   /** Declare blockers — goes ON THE STACK; the attacker resolves to lock it in. */

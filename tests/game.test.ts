@@ -629,6 +629,39 @@ describe("combat annotations", () => {
     expect(blk.blocking).toBe(null);
   });
 
+  // Tapping four creatures with E is four attack calls, and the UI calls the
+  // whole thing one action ("Finish declaring attackers"). Four stack items
+  // meant undo peeled one creature off instead of taking the declaration.
+  test("declaring attackers one at a time builds ONE stack item", () => {
+    const a = seedCard("Carrion Feeder", "you", "battlefield");
+    const b = seedCard("Tergrid", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: a.id, target: "agent" }] });
+    const second: any = applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
+    expect(game.stack).toHaveLength(1);
+    expect(second.merged).toBe(true);
+    expect(game.stack[0].apply).toEqual({ type: "attack", pairs: [
+      { attacker: a.id, target: "agent" },
+      { attacker: b.id, target: "agent" },
+    ] });
+    // the item and the log line both name the whole declaration
+    expect(game.stack[0].text).toContain("Carrion Feeder");
+    expect(game.stack[0].text).toContain("Tergrid");
+    expect(game.log.at(-1)!.text).toContain("Tergrid");
+    // and locking it in taps every attacker, not just the last one declared
+    applyAction("agent", "stack_resolve", {});
+    expect(a.attacking).toBe("agent");
+    expect(b.attacking).toBe("agent");
+  });
+
+  test("re-declaring a creature retargets it instead of listing it twice", () => {
+    const a = seedCard("Carrion Feeder", "you", "battlefield");
+    const pw = seedCard("Planeswalker", "agent", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: a.id, target: "agent" }] });
+    applyAction("you", "attack", { pairs: [{ attacker: a.id, target: pw.id }] });
+    expect(game.stack).toHaveLength(1);
+    expect((game.stack[0].apply as any).pairs).toEqual([{ attacker: a.id, target: pw.id }]);
+  });
+
   test("the defender cannot declare attackers — that is a blocks declaration", () => {
     const mine = seedCard("Blocker", "you", "battlefield");
     game.turn = "agent";
