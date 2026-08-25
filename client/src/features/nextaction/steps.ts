@@ -11,7 +11,7 @@ import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
 import { cardById, didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
-import type { Card, GameView, StackItem } from "../../types";
+import type { Card, GameView, SoundId, StackItem } from "../../types";
 
 export interface NextAction {
   label?: string;
@@ -116,10 +116,17 @@ export function nextActionContext(view: GameView): Ctx {
   };
 }
 
-interface Step {
+export interface Step {
   id: string;
   when: (c: Ctx) => boolean;
   step: (c: Ctx) => NextAction | null;
+  /** Played when the prompt ARRIVES at this step — see processSounds in
+   *  game/sounds.ts. Most steps have none and should: the log already sounds
+   *  for everything that happens at the table, and a second noise for the
+   *  prompt catching up is the same moment announced twice. A step earns one
+   *  only when it starts asking you for something no log line makes a sound
+   *  for, which in practice means during the agent's turn. */
+  sound?: SoundId;
 }
 
 export const NEXT_ACTION_STEPS: Step[] = [
@@ -127,6 +134,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   {
     id: "answer-question",
     when: (c) => !!c.view.pendingQuestion,
+    // A question is something SAID, and talk writes no event — so the one
+    // moment the agent stops and waits on an answer from you was the quietest
+    // thing at the table. The rising chime, because it is the table opening
+    // something rather than closing it.
+    sound: "glimmer",
     step: () => ({
       label: "Answer the agent",
       icon: "answer",
@@ -191,6 +203,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "no-blocks",
+    // The attack landing sounds like a phase moving along, because that is
+    // what locking one in is. Being the seat that has to answer it is a
+    // different thing and had no sound of its own — which is exactly the
+    // moment that gets missed while you are looking at your own hand.
+    sound: "block",
     // only while their attack is still live: their turn, still in combat, and
     // damage not dealt yet. Attackers keep the `attacking` flag after damage
     // until combat is cleared, and a dying attacker changes the signature —
@@ -372,13 +389,21 @@ export async function playCard(params: Record<string, any>): Promise<ActionResul
   return res;
 }
 
-/** The action the table is asking for right now, or null. */
-export function currentNextAction(): NextAction | null {
-  const view = gameView();
+/** Which step the table is on, and the context it was chosen with. The one
+ *  place the precedence list is walked — the component, the SPACE key and the
+ *  sound queue all want the same answer, and three copies of the find() is
+ *  three chances for them to disagree about what the table is asking. */
+export function currentStep(view: GameView | null = gameView()): { rule: Step; ctx: Ctx } | null {
   if (!view?.started) return null;
   const ctx = nextActionContext(view);
   const rule = NEXT_ACTION_STEPS.find((r) => r.when(ctx));
-  return rule ? rule.step(ctx) : null;
+  return rule ? { rule, ctx } : null;
+}
+
+/** The action the table is asking for right now, or null. */
+export function currentNextAction(): NextAction | null {
+  const cur = currentStep();
+  return cur ? cur.rule.step(cur.ctx) : null;
 }
 
 /** SPACE takes the floating next action, SHIFT+SPACE passes the turn.

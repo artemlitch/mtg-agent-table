@@ -87,12 +87,51 @@ export interface PlayerState {
   deckId?: number;
 }
 
+/** What HAPPENED, named. The table knows this for certain at the moment it
+ *  writes the log line, and used to throw it away: the client recovered it by
+ *  running fourteen regexes over the English. Rule order was load-bearing,
+ *  anchors mattered because an undo notice QUOTES the line it took back, and
+ *  rewording a sentence in here silently changed what the table sounded like.
+ *
+ *  These are events, not sounds. The server has no business knowing the table
+ *  has audio; which sound an event earns is the client's to decide, and lives
+ *  in one map in client/src/game/sounds.ts.
+ *
+ *  Only lines the client acts on are named. An untagged line is not an
+ *  oversight, it is "nothing out here reacts to this" — so the vocabulary
+ *  stays the size of its use, and the client's map can be total. */
+export const GAME_EVENTS = [
+  "round_start",
+  "phase_change",
+  "turn_pass_declared",
+  "cast",
+  "land_played",
+  "ability_stacked",
+  "sequence_proposed",
+  "spell_resolved",
+  "permanent_resolved",
+  "countered",
+  "permanent_died",
+  "attackers_declared",
+  "attacks_finished",
+  "attacks_locked",
+  "blockers_declared",
+  "drew",
+  "tapped",
+] as const;
+
+export type GameEvent = (typeof GAME_EVENTS)[number];
+
 export interface LogEntry {
   seq: number;
   ts: number;
   actor: PlayerId | "system";
   text: string; // public rendering
   private?: Partial<Record<PlayerId, string>>; // richer rendering for viewers allowed to know
+  /** what this line IS, for anything downstream that needs to know without
+   *  reading the sentence. Rides out to the client; never shown to the agent,
+   *  which reads the prose like a person (see renderLogFor). */
+  event?: GameEvent;
   /** The cards this entry is ABOUT, as ids — set by reveal, so the client can
    *  put the actual cards in front of you instead of a list of names in the
    *  log. Filtered per viewer on the way out; see renderLogFor. */
@@ -301,8 +340,23 @@ export function setNextCardId(n: number) {
 // seq, which is monotonic across restores, so the order is always right.
 let said: LogEntry[] = [];
 
-export function addLog(actor: LogEntry["actor"], text: string, priv?: LogEntry["private"]): LogEntry {
-  const entry: LogEntry = { seq: ++game.seq, ts: Date.now(), actor, text, ...(priv ? { private: priv } : {}) };
+/** The event comes BEFORE the private rendering: naming what happened is the
+ *  common case and the private text is the rare one, and a fourth positional
+ *  argument would have every tagged line carrying an `undefined` past it. */
+export function addLog(
+  actor: LogEntry["actor"],
+  text: string,
+  event?: GameEvent,
+  priv?: LogEntry["private"]
+): LogEntry {
+  const entry: LogEntry = {
+    seq: ++game.seq,
+    ts: Date.now(),
+    actor,
+    text,
+    ...(event ? { event } : {}),
+    ...(priv ? { private: priv } : {}),
+  };
   game.log.push(entry);
   return entry;
 }
@@ -550,6 +604,7 @@ export function renderLogFor(e: LogEntry, viewer: PlayerId) {
     ts: e.ts,
     actor: e.actor,
     text: (e.private && e.private[viewer]) || e.text,
+    ...(e.event ? { event: e.event } : {}),
     ...(cards?.length ? { cards } : {}),
   };
 }
@@ -742,9 +797,12 @@ function fizzleItem(ctx: ActionCtx, item: StackItem): ActionResult {
   if (item.cardId) {
     const card = getCard(item.cardId);
     placeCard(card, "graveyard", card.owner);
-    addLog(ctx.actor, `${card.name} was countered — fizzles → ${who(card.owner)}'s graveyard`);
+    addLog(ctx.actor, `${card.name} was countered — fizzles → ${who(card.owner)}'s graveyard`, "countered");
   } else {
-    addLog(ctx.actor, `Countered item fizzles: ${item.text}`);
+    // the same event either way. Only the card branch used to make a noise —
+    // the regex that caught it wanted a card name and an arrow, so a countered
+    // TRIGGER fizzled in silence for no reason anybody chose
+    addLog(ctx.actor, `Countered item fizzles: ${item.text}`, "countered");
   }
   return { ok: true, fizzled: item.text };
 }
@@ -760,7 +818,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
       parts.push(publicDesc(c));
     }
     game.phase = "combat";
-    addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`);
+    addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`, "attacks_locked");
     return { ok: true, resolved: item.text };
   }
   if (item.apply?.type === "phase") {
@@ -778,7 +836,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
       c.attacking = null;
       c.blocking = null;
     }
-    addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
+    addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`, "round_start");
     return { ok: true, resolved: item.text };
   }
   if (item.apply?.type === "damage") {
@@ -836,7 +894,13 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
       if (idx > 0) applyFace(card, idx);
     }
   }
-  addLog(ctx.actor, `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`);
+  // Landing on the table and going to the graveyard are different events, and
+  // the destination is the only thing that separates them.
+  addLog(
+    ctx.actor,
+    `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`,
+    toZone === "battlefield" ? "permanent_resolved" : "spell_resolved"
+  );
   const enterWatchers = toZone === "battlefield" ? zoneChangeWatchers("enters") : [];
   return {
     ok: true,
@@ -862,7 +926,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       drawnCards.push(card);
     }
     const drawn = drawnCards.map((c) => c.name);
-    addLog(ctx.actor, `${who(player)} drew ${drawn.length} card${drawn.length === 1 ? "" : "s"}`, {
+    addLog(ctx.actor, `${who(player)} drew ${drawn.length} card${drawn.length === 1 ? "" : "s"}`, "drew", {
       [player]: `${who(player)} drew: ${drawn.join(", ") || "(library empty)"}`,
     });
     // your own draw returns the full cards (same shape as get_state), so the
@@ -985,7 +1049,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const publicText = line(names.public);
     const priv: any = {};
     for (const v of PLAYERS) if (line(names[v]) !== publicText) priv[v] = line(names[v]);
-    addLog(ctx.actor, publicText, Object.keys(priv).length ? priv : undefined);
+    // A permanent reaching a graveyard is the one thing out here anybody
+    // listens for. deaths is already counted above for the death triggers, so
+    // the event is the count the move itself kept — not a reading of the
+    // sentence it wrote, which said nothing at all when the cards came from
+    // more than one zone.
+    addLog(ctx.actor, publicText, deaths ? "permanent_died" : undefined, Object.keys(priv).length ? priv : undefined);
 
     const deathWatchers = deaths ? zoneChangeWatchers("dies") : [];
     const leaveWatchers = leftBf ? zoneChangeWatchers("leaves") : [];
@@ -1020,7 +1089,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       c.tapped = tapped;
       names.push(publicDesc(c));
     }
-    addLog(ctx.actor, `${who(ctx.actor)} ${tapped ? "tapped" : "untapped"} ${names.join(", ")}`);
+    // untapping is deliberately not an event: it is bookkeeping at the top of
+    // every turn, and it was silent before only because " tapped " happens not
+    // to appear inside "untapped"
+    addLog(ctx.actor, `${who(ctx.actor)} ${tapped ? "tapped" : "untapped"} ${names.join(", ")}`, tapped ? "tapped" : undefined);
     return { ok: true };
   },
 
@@ -1240,7 +1312,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const entry =
       to === "all"
         ? addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`)
-        : addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, {
+        : addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, undefined, {
             [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
             [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
           });
@@ -1341,7 +1413,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       card.tapped = false;
       drawn.push(card);
     }
-    addLog(ctx.actor, `${who(player)} mulliganed to ${drawn.length}`, {
+    addLog(ctx.actor, `${who(player)} mulliganed to ${drawn.length}`, undefined, {
       [player]: `${who(player)} mulliganed to ${drawn.length}: ${drawn.map((c) => c.name).join(", ") || "(library empty)"}`,
     });
     return { ok: true, hand: drawn.length };
@@ -1363,7 +1435,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // The ACTIVE player's permanents, not the actor's: whoever moves the marker,
     // an untap step untaps the seat whose turn it is.
     const untapped = /^untap/i.test(phase) ? untapPermanents(game.turn) : 0;
-    addLog(ctx.actor, `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""));
+    addLog(
+      ctx.actor,
+      `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""),
+      "phase_change"
+    );
     return { ok: true, stackSize: game.stack.length, ...(untapped ? { untapped } : {}) };
   },
 
@@ -1393,7 +1469,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         : `TURN PASS: ${who(player)}'s turn begins when this resolves`,
       apply: { type: "turn", player },
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares ${extra && player === game.turn ? "an extra turn for" : "the turn pass to"} ${who(player)} (on the stack)`);
+    addLog(
+      ctx.actor,
+      `${who(ctx.actor)} declares ${extra && player === game.turn ? "an extra turn for" : "the turn pass to"} ${who(player)} (on the stack)`,
+      "turn_pass_declared"
+    );
     return { ok: true, stackSize: game.stack.length };
   },
 
@@ -1437,7 +1517,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     }
     // the log names the whole declaration as it now stands, so the ↩ notice
     // for taking it back names the same thing the stack shows
-    addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${all.join("; ")}`);
+    addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${all.join("; ")}`, "attackers_declared");
     return { ok: true, stackSize: game.stack.length, attacking: all };
   },
 
@@ -1463,7 +1543,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ...(lines.length > 1 ? { lines } : {}),
       apply: { type: "block", pairs: p.pairs },
     });
-    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${lines.join("; ") || "no blocks"}`);
+    addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${lines.join("; ") || "no blocks"}`, "blockers_declared");
     return { ok: true, stackSize: game.stack.length };
   },
 
@@ -1549,7 +1629,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (isLandPlay) {
       placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
-      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`);
+      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");
       const landTrig = triggerLines(card);
       const landWatchers = zoneChangeWatchers("enters");
       return {
@@ -1595,7 +1675,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
     const verb = /\bland\b/i.test(effType) ? "played" : "cast";
-    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`);
+    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`, "cast");
     const trig = triggerLines(card);
     return {
       ok: true,
@@ -1621,7 +1701,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ...(sourceId ? { sourceId } : {}),
       ...(lines ? { lines } : {}),
     });
-    addLog(ctx.actor, `${who(ctx.actor)} put on the stack: ${text}${lines ? "\n" + lines.map((l: string, i: number) => `  ${i + 1}. ${l}`).join("\n") : ""}`);
+    addLog(
+      ctx.actor,
+      `${who(ctx.actor)} put on the stack: ${text}${lines ? "\n" + lines.map((l: string, i: number) => `  ${i + 1}. ${l}`).join("\n") : ""}`,
+      "ability_stacked"
+    );
     return { ok: true, stackSize: game.stack.length };
   },
 
@@ -1652,7 +1736,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       }
     }
     if (pushed.length > 1) {
-      addLog(ctx.actor, `${who(ctx.actor)} proposed the ${pushed.length} items above as one sequence — resolve all, or respond at any point`);
+      addLog(
+        ctx.actor,
+        `${who(ctx.actor)} proposed the ${pushed.length} items above as one sequence — resolve all, or respond at any point`,
+        "sequence_proposed"
+      );
     }
     return { ok: true, groupId, items: pushed, stackSize: game.stack.length };
   },
@@ -1788,7 +1876,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (cardVisibleTo(c, opponent)) {
       addLog(ctx.actor, detail);
     } else {
-      addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, { [ctx.actor]: detail });
+      addLog(ctx.actor, `${who(ctx.actor)} turned a hidden card to its other face`, undefined, { [ctx.actor]: detail });
     }
     return { ok: true, face, name: c.name };
   },
@@ -1868,7 +1956,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const pairs = decl.apply?.type === "attack" ? decl.apply.pairs : [];
     const names = pairs.map((pair) => publicDesc(getCard(pair.attacker))).join(", ");
     game.waitingOn = ctx.actor === "you" ? "agent" : "you";
-    addLog(ctx.actor, `${who(ctx.actor)} finishes declaring attackers: ${names} — ${who(game.waitingOn)} to lock them in or respond`);
+    addLog(
+      ctx.actor,
+      `${who(ctx.actor)} finishes declaring attackers: ${names} — ${who(game.waitingOn)} to lock them in or respond`,
+      "attacks_finished"
+    );
     return { ok: true, attackers: names };
   },
 };

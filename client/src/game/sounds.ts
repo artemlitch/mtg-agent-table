@@ -1,101 +1,98 @@
-// Which sound a new log entry earns. The engine and the sound definitions live
-// in public/sfx.js, shared with the sound lab; here we only pick the category.
-import type { LogEntry } from "../types";
+// Which sound a thing that happened earns. The engine and the sound
+// definitions live in public/sfx.js, shared with the sound lab; this file only
+// picks the category.
+//
+// Two things make a noise, and they are different in kind:
+//
+//   the LOG — something happened at the table, to either seat. The server
+//   names the event when it writes the line (GAME_EVENTS in server/game.ts)
+//   and this file says what that event sounds like.
+//
+//   the PROMPT — the next-action machine moving to a new step, which is not an
+//   event in the game at all. It is the table starting to ask you for
+//   something, and some of those moments have nothing in the log to hear.
+//
+// It used to be fourteen regexes over the log's English. That made every log
+// sentence a frozen string — reword one and the table silently changes what it
+// sounds like — and it needed rules to survive its own side effects: an undo
+// notice QUOTES the line it took back, so undoing a land drop thumped and
+// undoing an attack drummed until a rule was added to mute anything starting
+// with ↩. An undo notice carries no event, so that whole class is gone.
+import { currentStep } from "../features/nextaction/steps";
+import type { GameEvent, GameView, LogEntry, SoundId } from "../types";
 
-// first matching rule per log entry decides its sound
-const SOUND_RULES: [string, RegExp][] = [
-  ["glimmer", /^— Round \d+:/],
-  // Two moments, seconds apart and two entries: you tap creatures to declare,
-  // then the declaration resolves and the attack is locked. One rule matched
-  // both lines and played the drum twice for what looked like one event.
-  ["attack", /declares attackers/],
-  // The blades belong to the press that COMMITS the swing — "Player finishes
-  // declaring attackers". That is the dramatic beat of a combat and the one
-  // the player performs.
-  //
-  // They used to hang off "Attacks locked in", which is the defender getting
-  // round to acknowledging it: a second or two later, off a press that is not
-  // yours, and by then the swing has already happened as far as you are
-  // concerned. Seventeen layers of swordfight arriving after the fact.
-  ["lockin", /finishes declaring attackers/],
-  // ...which leaves the acknowledgement as what it actually is — a step of
-  // the turn moving along, and it takes the phase sound like the rest of them.
-  ["phase", /^Attacks locked in: /],
-  ["block", /declares blockers/],
-  ["hit", / from battlefield to .*graveyard/],
-  ["hit", / countered .* → .*graveyard/],
-  ["thump", / resolved → .*battlefield/],
-  ["thump", / played .* — land drop/],
-  // Everything ELSE that resolves — which in practice means an instant or a
-  // sorcery, since those are the cards that resolve into a graveyard (see
-  // stack_resolve in server/game.ts). It needs no test of its own for where
-  // the card went: the thump rule above has already claimed every resolve
-  // that lands on a battlefield, and first match wins.
-  //
-  // These were silent. thump is a card LANDING on the table and was scoped to
-  // battlefield destinations on purpose, so a spell doing its work and going
-  // to the graveyard fell through all thirteen rules — while the same spell
-  // being COUNTERED matched `hit` and made a noise. The fizzle was audible
-  // and the spell was not.
-  ["spell", / resolved → /],
-  // YOU handing the table over — the moment you press End turn, and nothing
-  // else. Anchored at the start of the line, because the phrase turns up in
-  // sentences that are not a turn ending: the agent talking about one in chat,
-  // and an undo naming the action it just took back. Matching mid-sentence
-  // played the end-turn chime for a turn that had just been un-ended.
-  //
-  // The agent's own pass is deliberately not here. The round line that follows
-  // it already glimmers, and that pair — falling when you hand over, rising
-  // when a turn begins — is what the two sounds are for.
-  //
-  // Above the stack rule on purpose: the pass is a stack item, and the generic
-  // stack chime would otherwise swallow the one moment worth its own sound.
-  ["passturn", /^Player declares (the turn pass|an extra turn)/],
-  ["stack", /(→ on the stack$)|( put on the stack: )|( proposed the \d+ items )/],
-  // "Player moves to combat", "Agent moves to cleanup" — see set_phase in
-  // server/game.ts. The trailing untap count rides on the same line, so this
-  // is deliberately not anchored at the end.
-  ["phase", / moves to /],
-  // Handing priority over — "Player passes — Agent's window" — is left
-  // SILENT on purpose. It is the most common line in a game by a distance,
-  // thirty of them in five rounds, and a sound on every one of those is a
-  // metronome rather than information.
-  // your own draw reads "Player drew: Island" — the line the server writes for
-  // your eyes only — and everyone else's is a count
-  ["draw", /(^Player drew: )|( drew \d+ cards?$)/],
-  ["tap", / tapped /],
-];
+/** Every event, and what it sounds like. Total on purpose: a new name in
+ *  GAME_EVENTS does not compile until someone has decided what it does here. */
+export const EVENT_SOUND: Record<GameEvent, SoundId> = {
+  round_start: "glimmer",
+  phase_change: "phase",
+  // Falling when you hand the table over, rising when a turn begins. The
+  // agent's own turn pass takes neither: the round line that follows it
+  // already glimmers, and hearing both is one moment announced twice.
+  turn_pass_declared: "passturn",
+  cast: "stack",
+  ability_stacked: "stack",
+  sequence_proposed: "stack",
+  land_played: "thump",
+  permanent_resolved: "thump",
+  // ...which leaves `spell` for the cards that resolve into a graveyard. They
+  // were silent for a year while a COUNTERED spell made a noise: the fizzle
+  // was audible and the spell doing its work was not.
+  spell_resolved: "spell",
+  countered: "hit",
+  permanent_died: "hit",
+  // Two moments, seconds apart: you tap creatures to declare, then you commit
+  // the swing. The blades belong to the commit — the dramatic beat of a combat
+  // and the one you perform. Locking in is the defender acknowledging it, a
+  // second later off a press that is not yours, so it takes the phase sound
+  // like any other step of the turn moving along.
+  attackers_declared: "attack",
+  attacks_finished: "lockin",
+  attacks_locked: "phase",
+  blockers_declared: "block",
+  drew: "draw",
+  tapped: "tap",
+};
 
+/** Events only YOUR seat sounds for. Which seat did it is on the entry, so
+ *  this is a rule about the table's audio and stays out of the server. */
+const MINE_ONLY: Partial<Record<GameEvent, true>> = { turn_pass_declared: true };
+
+/** The sound a log line earns, or null. */
+export function soundFor(e: LogEntry): SoundId | null {
+  if (!e.event) return null;
+  if (MINE_ONLY[e.event] && e.actor !== "you") return null;
+  return EVENT_SOUND[e.event] ?? null;
+}
+
+// Where we had got to last time. Both start unset: the first view after a page
+// load only marks the position, or the whole history sounds off at once.
 let lastSoundSeq: number | null = null;
+let lastStepId: string | null | undefined;
 
-/** An undo QUOTES the action it took back — "↩ Player undid: Player played
- *  Swamp — land drop" — so every rule below matches inside it and the table
- *  plays the sound of the thing that just stopped having happened. Undoing a
- *  land drop thumped, undoing an attack drummed, undoing a turn pass chimed
- *  the turn away again.
- *
- *  A redo (↪) is left alone on purpose: it quotes the action too, but that
- *  action IS happening again, and it writes no other line to sound off. */
-const UNDONE = /^↩/;
-
-export function processSounds(log: LogEntry[]) {
-  if (!log.length || typeof SFX === "undefined") return;
+export function processSounds(view: GameView) {
+  const log = view.log;
+  if (!log?.length || typeof SFX === "undefined") return;
   const maxSeq = log[log.length - 1].seq;
+  const step = currentStep(view);
+
   if (lastSoundSeq === null) {
-    lastSoundSeq = maxSeq; // no barrage for history on page load
+    lastSoundSeq = maxSeq;
+    lastStepId = step?.rule.id ?? null;
     return;
   }
-  const cats: string[] = [];
-  for (const e of log) {
-    if (e.seq <= lastSoundSeq) continue;
-    if (UNDONE.test(e.text)) continue;
-    for (const [cat, re] of SOUND_RULES) {
-      if (re.test(e.text)) {
-        if (!cats.includes(cat)) cats.push(cat);
-        break;
-      }
-    }
-  }
+
+  const cats: SoundId[] = [];
+  const add = (c: SoundId | null | undefined) => {
+    if (c && !cats.includes(c)) cats.push(c);
+  };
+  for (const e of log) if (e.seq > lastSoundSeq) add(soundFor(e));
+  // the prompt asking for something it was not asking for a moment ago
+  if ((step?.rule.id ?? null) !== lastStepId) add(step?.rule.sound);
+
   lastSoundSeq = maxSeq;
+  lastStepId = step?.rule.id ?? null;
+  // a busy moment is a handful of entries at once — play the distinct sounds
+  // in order rather than all of them on the same millisecond, and stop at four
   cats.slice(0, 4).forEach((c, i) => setTimeout(() => SFX.play(c), i * 140));
 }

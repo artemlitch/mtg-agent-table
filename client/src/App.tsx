@@ -33,13 +33,15 @@ export function App() {
   useWindowFocus();
   useLayout();
 
-  // every log entry that earns a sound gets one, once — and a reveal puts its
-  // cards on screen the same way, off the same array
+  // every event that earns a sound gets one, once — and a reveal puts its
+  // cards on screen the same way, off the same array. Sounds take the whole
+  // view: the prompt changing what it asks of you is one of the things that
+  // can make a noise, and that is not in the log.
   useEffect(() => {
     if (!view?.log) return;
-    processSounds(view.log);
+    processSounds(view);
     processReveals(view.log);
-  }, [view?.log]);
+  }, [view]);
 
   // A drawn card flies out of the library into your hand. Before paint, not
   // after: the card is already in the fan by the time this view renders, and a

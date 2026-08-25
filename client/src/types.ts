@@ -69,11 +69,53 @@ export interface StackItem {
   card: Card | null;
 }
 
+/** What a log line IS. Mirrors GAME_EVENTS in server/game.ts — the two lists
+ *  are asserted identical in tests/sounds.test.ts, because a name that only
+ *  one side knows is a sound that silently stops happening. */
+export const GAME_EVENTS = [
+  "round_start",
+  "phase_change",
+  "turn_pass_declared",
+  "cast",
+  "land_played",
+  "ability_stacked",
+  "sequence_proposed",
+  "spell_resolved",
+  "permanent_resolved",
+  "countered",
+  "permanent_died",
+  "attackers_declared",
+  "attacks_finished",
+  "attacks_locked",
+  "blockers_declared",
+  "drew",
+  "tapped",
+] as const;
+
+export type GameEvent = (typeof GAME_EVENTS)[number];
+
+/** The sounds sfx.js can make — the keys of client/public/sounds.json. */
+export type SoundId =
+  | "stack"
+  | "thump"
+  | "attack"
+  | "glimmer"
+  | "hit"
+  | "draw"
+  | "tap"
+  | "lockin"
+  | "block"
+  | "phase"
+  | "passturn"
+  | "spell";
+
 export interface LogEntry {
   seq: number;
   ts: number;
   actor: PlayerId | "system";
   text: string;
+  /** what happened, as the server named it — never parsed out of the text */
+  event?: GameEvent;
   /** the cards this entry is about, as ids — set by reveal, and only ever
    *  carrying ids this viewer is allowed to look up (see renderLogFor) */
   cards?: string[];

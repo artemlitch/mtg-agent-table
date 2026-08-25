@@ -1536,3 +1536,70 @@ describe("create_token", () => {
     expect(game.cards[ids[2]].under).toBe(ids[0]);
   });
 });
+
+// What a log line IS, said by the code that knows. The client used to work it
+// out by running regexes over the sentence, which made every string in here a
+// frozen one — see tests/sounds.test.ts for the other half of the joint.
+describe("log lines name their event", () => {
+  const lastEvent = () => game.log.at(-1)!.event;
+
+  test("a cast and its resolution are different events, and the destination decides which", () => {
+    const bear = seedCard("Bear", "you", "hand");
+    applyAction("you", "cast", { card: bear.id });
+    expect(lastEvent()).toBe("cast");
+    applyAction("agent", "stack_resolve", {});
+    expect(lastEvent()).toBe("permanent_resolved");
+
+    const bolt = seedCard("Bolt", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: bolt.id });
+    applyAction("agent", "stack_resolve", {});
+    // same line, same words either way — only where it landed differs
+    expect(lastEvent()).toBe("spell_resolved");
+  });
+
+  test("a land drop is played, not cast — it never touches the stack", () => {
+    const swamp = seedCard("Swamp", "you", "hand", { typeLine: "Basic Land — Swamp" });
+    applyAction("you", "cast", { card: swamp.id });
+    expect(lastEvent()).toBe("land_played");
+  });
+
+  test("a permanent reaching a graveyard dies; going anywhere else does not", () => {
+    const a = seedCard("Doomed", "you", "battlefield");
+    applyAction("you", "move", { card: a.id, toZone: "graveyard" });
+    expect(lastEvent()).toBe("permanent_died");
+
+    const b = seedCard("Bounced", "you", "battlefield");
+    applyAction("you", "move", { card: b.id, toZone: "hand" });
+    expect(lastEvent()).toBeUndefined();
+  });
+
+  test("tapping is an event and untapping is not", () => {
+    const c = seedCard("Mox", "you", "battlefield");
+    applyAction("you", "tap", { cards: [c.id] });
+    expect(lastEvent()).toBe("tapped");
+    // bookkeeping at the top of every turn. It was silent before only because
+    // " tapped " happens not to appear inside the word "untapped".
+    applyAction("you", "untap", { cards: [c.id] });
+    expect(lastEvent()).toBeUndefined();
+  });
+
+  test("finishing a declaration is its own event, and so is the answer to it", () => {
+    game.turn = "you";
+    const c = seedCard("Swinger", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: c.id, target: "agent" }] });
+    expect(lastEvent()).toBe("attackers_declared");
+    applyAction("you", "finish_attacks", {});
+    expect(lastEvent()).toBe("attacks_finished");
+    applyAction("agent", "stack_resolve", {});
+    expect(lastEvent()).toBe("attacks_locked");
+  });
+
+  test("the event rides out to the client, and the prose is untouched", () => {
+    const swamp = seedCard("Swamp", "you", "hand", { typeLine: "Basic Land — Swamp" });
+    applyAction("you", "cast", { card: swamp.id });
+    const entry = viewFor("you").log.at(-1)!;
+    expect(entry.event).toBe("land_played");
+    // the agent reads the sentence like a person; the tag is for the client
+    expect(renderLogFor(game.log.at(-1)!, "agent").text).toContain("land drop");
+  });
+});

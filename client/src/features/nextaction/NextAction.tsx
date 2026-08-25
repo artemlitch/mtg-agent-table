@@ -5,7 +5,7 @@ import { Icon } from "../../components/Icon";
 import { KeyCaps } from "../../components/KeyCaps";
 import { Text } from "../../components/Text";
 import { useGame } from "../../store/game";
-import { nextActionContext, NEXT_ACTION_STEPS } from "./steps";
+import { currentStep } from "./steps";
 
 /** The centred prompt: the one thing the table is asking you to do. It used
  *  to carry satellites — undo and redo either side, a faded "skip to pass
@@ -13,9 +13,8 @@ import { nextActionContext, NEXT_ACTION_STEPS } from "./steps";
  *  controls, and the skip is a shortcut on the button itself. */
 export function NextAction() {
   const view = useGame((s) => s.view);
-  const ctx = view?.started ? nextActionContext(view) : null;
-  const rule = ctx ? NEXT_ACTION_STEPS.find((r) => r.when(ctx)) : null;
-  const a = rule && ctx ? rule.step(ctx) : null;
+  const cur = currentStep(view);
+  const a = cur ? cur.rule.step(cur.ctx) : null;
   // Keyed on what actually changes the box's shape, not on the render. The
   // view updates constantly during a turn and the label rarely moves with it;
   // re-running per render meant re-measuring in the middle of the animation
