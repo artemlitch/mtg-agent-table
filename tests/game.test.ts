@@ -661,6 +661,24 @@ describe("combat annotations", () => {
     expect((game.stack[0].apply as any).pairs).toEqual([{ attacker: a.id, target: pw.id }]);
   });
 
+  // Closing the declaration used to be a bare done, which is a pass: not a
+  // play, so not undoable, and it told the defender nothing about what it was
+  // being handed.
+  test("finishing a declaration names the attackers and hands the window over", () => {
+    const a = seedCard("Carrion Feeder", "you", "battlefield");
+    applyAction("you", "attack", { pairs: [{ attacker: a.id, target: "agent" }] });
+    applyAction("you", "finish_attacks", {});
+    expect(game.waitingOn).toBe("agent");
+    expect(game.log.at(-1)!.text).toContain("finishes declaring attackers: Carrion Feeder");
+    // the declaration is still the defender's to lock in — finishing is not resolving
+    expect(game.stack).toHaveLength(1);
+    expect(a.attacking).toBe(null);
+  });
+
+  test("there is nothing to finish without a declaration", () => {
+    expect(() => applyAction("you", "finish_attacks", {})).toThrow(/declare attackers first/);
+  });
+
   test("the defender cannot declare attackers — that is a blocks declaration", () => {
     const mine = seedCard("Blocker", "you", "battlefield");
     game.turn = "agent";

@@ -47,6 +47,15 @@ describe("what your action buys the agent", () => {
     expect(wakePlanFor("done", false, "you").reason).toBe("window");
   });
 
+  // Closing an attack declaration is its own action, not a pass — and the
+  // wake policy is the one place the two must behave alike. Miss it and the
+  // press hands the window over with nothing scheduled to answer it.
+  test("finishing a declaration hands over exactly like a pass", () => {
+    expect(wakePlanFor("finish_attacks", false, "you").reason).toBe("window");
+    expect(wakePlanFor("finish_attacks", false, "agent").reason).toBeNull();
+    expect(wakeDelayFor("finish_attacks")).toBe(WAKE_DELAY_MS);
+  });
+
   test("the plan carries the delay too, so the caller asks once", () => {
     expect(wakePlanFor("chat", false)).toEqual({ reason: "window", delay: TYPING_DELAY_MS });
     expect(wakePlanFor("cast", false)).toEqual({ reason: "react", delay: WAKE_DELAY_MS });

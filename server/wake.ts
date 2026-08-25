@@ -39,7 +39,8 @@ export type WakeReason = "window" | "react";
  *  creature used to buy a reaction window each time, and the agent would
  *  resolve the declaration while you were still adding to it — the attack is
  *  on the stack, but it is not locked in until you say you are finished. The
- *  "Finish declaring attackers" prompt is how you say so, and it calls done. */
+ *  "Finish declaring attackers" prompt is how you say so, and it sends
+ *  finish_attacks, which hands over like a pass (see HANDS_OVER). */
 const REACTIVE = new Set([
   "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
   "stack_counter", "stack_remove", "block", "set_turn", "create_token",
@@ -50,6 +51,11 @@ const REACTIVE = new Set([
  *
  *  Acting during the agent's turn always hands the table back, whatever the
  *  action was, because it is the agent's to continue. */
+/** The two ways you say "over to you". A pass on any stack, and the closing
+ *  move of an attack declaration — different events, same effect on whose
+ *  window it is, so the wake policy treats them alike and nothing else has to. */
+const HANDS_OVER = new Set(["done", "finish_attacks"]);
+
 export function wakePlanFor(
   action: string,
   agentsTurn: boolean,
@@ -63,8 +69,8 @@ export function wakePlanFor(
   // preempts it and starts it over. Four presses in a row meant four
   // interrupted windows and no progress at all — the fix has to be here rather
   // than in the button, because the button is only one way to send a pass.
-  if (action === "done" && heldPriority === "agent") return { reason: null, delay };
-  if (action === "done" || action === "chat" || agentsTurn) return { reason: "window", delay };
+  if (HANDS_OVER.has(action) && heldPriority === "agent") return { reason: null, delay };
+  if (HANDS_OVER.has(action) || action === "chat" || agentsTurn) return { reason: "window", delay };
   return { reason: REACTIVE.has(action) ? "react" : null, delay };
 }
 

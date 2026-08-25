@@ -286,9 +286,12 @@ export const NEXT_ACTION_STEPS: Step[] = [
             icon: "combat",
             sub: c.declared ? `${c.declared} attacking` : undefined,
             title: "tap [e] a creature to attack",
-            // nothing declared means you are not attacking, so the button is the
-            // way out of combat rather than a hand-over
-            fn: () => void (c.declared ? act("done", {}) : act("set_phase", { phase: "main 2" })),
+            // finish_attacks, not done: closing a declaration is the last move
+            // of a play, and a pass is not a play. It is undoable, it says in
+            // the log what is being handed over, and the defender is told what
+            // it is being asked for. Nothing declared means you are not
+            // attacking, so that branch is the way out of combat instead.
+            fn: () => void (c.declared ? act("finish_attacks", {}) : act("set_phase", { phase: "main 2" })),
           },
   },
   {

@@ -88,6 +88,16 @@ describe("what undo steps back through", () => {
     expect(after.stack.length).toBe(before + 1); // ONE item, not two
     expect(after.stack.at(-1).attackPairs).toHaveLength(2);
 
+    // finishing is its own step, so it comes back on its own press — a pass
+    // could not be taken back at all, which is what left the table wedged
+    // with the window on a seat that had nothing scheduled to use it
+    await act("you", "finish_attacks", {});
+    expect((await state()).waitingOn).toBe("agent");
+    await api("/api/undo", {});
+    const back = await state();
+    expect(back.waitingOn).toBe("you");
+    expect(back.stack.length).toBe(before + 1); // the declaration itself survives
+
     await api("/api/undo", {});
     expect((await state()).stack.length).toBe(before); // the whole declaration
   });

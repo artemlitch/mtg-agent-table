@@ -1827,6 +1827,27 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     addTalk(ctx.actor, `${who(ctx.actor)} passes — ${who(game.waitingOn)}'s window`);
     return { ok: true };
   },
+
+  /** The last thing you do when declaring attackers: the declaration is
+   *  finished, and it is the defender's to answer.
+   *
+   *  This hands priority over exactly the way done does, and for a while it
+   *  WAS done — which cost it everything a pass is not. A pass is not a play,
+   *  so it is not undoable, so pressing this button could not be taken back;
+   *  it says "Player passes", so the log never told the defender what it was
+   *  being handed; and it is the same event as passing on an empty stack, so
+   *  nothing downstream could treat the two differently. Finishing a
+   *  declaration is the closing move of a play, and it is undoable, named,
+   *  and its own event here. */
+  finish_attacks(ctx, _p) {
+    const decl = openAttackDeclaration(ctx.actor);
+    if (!decl) throw new Error("no attack declaration to finish — declare attackers first (attack)");
+    const pairs = decl.apply?.type === "attack" ? decl.apply.pairs : [];
+    const names = pairs.map((pair) => publicDesc(getCard(pair.attacker))).join(", ");
+    game.waitingOn = ctx.actor === "you" ? "agent" : "you";
+    addLog(ctx.actor, `${who(ctx.actor)} finishes declaring attackers: ${names} — ${who(game.waitingOn)} to lock them in or respond`);
+    return { ok: true, attackers: names };
+  },
 };
 
 export function applyAction(actor: PlayerId, type: string, params: any): ActionResult {
