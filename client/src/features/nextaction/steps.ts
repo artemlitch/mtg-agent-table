@@ -90,7 +90,15 @@ export function nextActionContext(view: GameView): Ctx {
     declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
     enteredCombatAt: lastLogIndex(log, /moves to combat/i),
     lockedAt: lastLogIndex(log, /^Attacks locked in:/),
-    damageAt: lastLogIndex(log, /combat damage|go to damage/i),
+    // Damage is done when it LANDS, not when it was asked for. Asking used to
+    // count — the pattern matched the "go to damage" push itself, whose text
+    // contains the words — so the step stood down the moment you pressed it and
+    // the table walked on to main 2 with the damage never applied. That is
+    // exactly what happened the turn the agent decided announcing was Player's
+    // job. Both patterns now match a log line only an ANSWER can write: the
+    // damage tool resolving, or the older hand-written announcement reaching
+    // the stack, which a game in flight may still be using.
+    damageAt: lastLogIndex(log, /^Damage applied:|put on the stack: COMBAT DAMAGE/i),
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
     agentBusy: useGame.getState().agentBusy,
   };
@@ -291,13 +299,14 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // match what the button pushes or the step never stands down at all.
     when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && c.damageAt < c.lockedAt,
     // one click straight onto the stack — the agent works out the numbers, the
-    // player never types damage. The text spells out what is being asked:
-    // a bare "go to damage" left the agent resolving the item and stopping,
-    // and combat never finished.
+    // player never types damage. The text spells out what is being asked and
+    // NAMES the tool: a bare "go to damage" left the agent resolving the item
+    // and stopping, and even the longer wording lost to its own system prompt,
+    // which described combat only from the side where the agent attacks.
     step: () => ({
       label: "Go to damage",
       icon: "damage",
-      fn: () => void act("stack_push", { text: "go to damage — declare blockers if you have any, then announce combat damage" }),
+      fn: () => void act("stack_push", { text: "go to damage — declare any blocks, then announce it with the damage tool (yours to announce, my attack or yours)" }),
     }),
   },
   {

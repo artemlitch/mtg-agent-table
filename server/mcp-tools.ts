@@ -214,6 +214,27 @@ export const TOOLS: Record<string, ToolDef> = {
       "Declare blockers — goes ON THE STACK: pairs of {blocker: cardId, attacker: cardId}. The attacker resolves the item to lock blocks in. After declaring, call done.",
     schema: obj({ pairs: arr(obj({ blocker: str("card id"), attacker: str("card id") }, ["blocker", "attacker"]), "blocks") }, ["pairs"]),
   },
+  damage: {
+    description:
+      "Announce damage and put it on the stack as ONE item — the whole damage step in a single call. " +
+      "YOU announce combat damage in EVERY combat, the ones you attack in AND the ones Player attacks in. It is never Player's job: you hold the tools and do the arithmetic, they never type a life total. " +
+      "Resolving the item applies it: life comes off, and a hit from a COMMANDER also books commander damage without a second call. " +
+      "dies carries the creatures the damage kills — you decide that, the table does not. Damage on a creature that survives is not tracked; say it in the note if it matters. " +
+      "Use it for non-combat damage too (a burn spell resolving), with text as the headline.",
+    schema: obj({
+      hits: arr(
+        obj({
+          source: str("card id dealing the damage"),
+          target: str(`who or what it hits: a card id, or a player — ${SEATS}`),
+          amount: num("damage dealt"),
+          note: str("anything the numbers do not say (deathtouch, trample split, lifelink)"),
+        }, ["source", "target", "amount"]),
+        "one entry per damage arrow — a blocked attacker and its blocker are TWO entries, one each way"
+      ),
+      dies: arr(str("card id"), "creatures this damage kills — they go to their owner's graveyard when the item resolves"),
+      text: str("headline, default 'COMBAT DAMAGE'"),
+    }),
+  },
   clear_combat: { description: "Clear all attack/block annotations after damage.", schema: obj({}) },
   roll: { description: "Roll a die.", schema: obj({ sides: num("sides, default 20") }) },
   flip: { description: "Flip a coin.", schema: obj({}) },

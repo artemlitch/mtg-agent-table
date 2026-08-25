@@ -615,6 +615,61 @@ describe("combat annotations", () => {
     expect(blk.blocking).toBe(null);
   });
 
+  test("damage announces on the stack and changes nothing until it resolves", () => {
+    const src = seedCard("Gonti", "you", "battlefield", { isCommander: true });
+    applyAction("agent", "damage", { hits: [{ source: src.id, target: "agent", amount: 3 }] });
+    expect(game.stack).toHaveLength(1);
+    expect(game.stack[0].text).toBe("COMBAT DAMAGE");
+    expect(game.stack[0].lines?.[0]).toContain("Gonti → Agent: 3 (commander damage)");
+    expect(game.players.agent.life).toBe(40);
+    applyAction("you", "stack_resolve", {});
+    expect(game.players.agent.life).toBe(37);
+  });
+
+  test("a commander's hit books life and commander damage off one call", () => {
+    const src = seedCard("Gonti", "you", "battlefield", { isCommander: true });
+    applyAction("agent", "damage", { hits: [{ source: src.id, target: "agent", amount: 3 }] });
+    applyAction("you", "stack_resolve", {});
+    applyAction("agent", "damage", { hits: [{ source: src.id, target: "agent", amount: 4 }] });
+    applyAction("you", "stack_resolve", {});
+    expect(game.players.agent.life).toBe(33);
+    expect(game.players.agent.commanderDamage).toEqual({ Gonti: 7 });
+  });
+
+  test("a non-commander source moves life only", () => {
+    const src = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "damage", { hits: [{ source: src.id, target: "agent", amount: 2 }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.players.agent.life).toBe(38);
+    expect(game.players.agent.commanderDamage).toEqual({});
+  });
+
+  test("declared deaths go to the owner's graveyard on resolve, creature hits do not", () => {
+    const att = seedCard("Attacker", "you", "battlefield");
+    const blk = seedCard("Blocker", "agent", "battlefield");
+    applyAction("agent", "damage", {
+      hits: [
+        { source: att.id, target: blk.id, amount: 3 },
+        { source: blk.id, target: att.id, amount: 1 },
+      ],
+      dies: [blk.id],
+    });
+    expect(blk.zone).toBe("battlefield");
+    applyAction("you", "stack_resolve", {});
+    expect(blk.zone).toBe("graveyard");
+    expect(att.zone).toBe("battlefield"); // took 1, was not declared dead
+    expect(game.players.you.life).toBe(40);
+    expect(game.players.agent.life).toBe(40);
+  });
+
+  test("damage rejects a bad id or an empty announcement before anything reaches the stack", () => {
+    const src = seedCard("Bear", "you", "battlefield");
+    expect(() => applyAction("you", "damage", { hits: [] })).toThrow(/at least one hit/);
+    expect(() => applyAction("you", "damage", { hits: [{ source: "nope", target: "agent", amount: 1 }] })).toThrow(/no card/);
+    expect(() => applyAction("you", "damage", { hits: [{ source: src.id, target: "agent" }] })).toThrow(/must be a number/);
+    expect(game.stack).toHaveLength(0);
+  });
+
   test("a resolved turn pass clears combat, tracks rounds, and hands priority over", () => {
     const c = seedCard("Guy", "you", "battlefield", { attacking: "agent" });
     const before = game.turnNumber;

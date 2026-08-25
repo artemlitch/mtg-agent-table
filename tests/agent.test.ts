@@ -75,7 +75,7 @@ const fakeTable = Bun.serve({
 
 const { AgentRunner, transportChoice, SUPERSEDED_STATE, trimOldThinking, DROPPED_THINKING, collapseSupersededState, KEEP_THINKING_WINDOWS, TRIM_ABOVE_CHARS } =
   await import("../server/agent");
-const { resetGameState, makeCard, game } = await import("../server/game");
+const { resetGameState, makeCard, game, applyAction } = await import("../server/game");
 
 afterAll(() => {
   fakeAnthropic.stop(true);
@@ -233,6 +233,27 @@ describe("agent transport", () => {
     expect(prompt).toMatch(/life 40\/40/);
     // it is the glance, not the study: no card text, no ids
     expect(prompt).not.toContain("b1");
+  });
+
+  test("owed combat damage rides every window until it lands — even when Player attacked", () => {
+    // The failure this exists for: Player attacked, the agent locked the attack
+    // in, read the combat procedure as "the attacker announces damage" and
+    // passed. Three damage and three commander damage were never applied.
+    resetGameState();
+    const gonti = makeCard({ id: "g1", name: "Gonti", owner: "you", controller: "you", zone: "battlefield", isCommander: true, power: "2", toughness: "3" });
+    game.cards[gonti.id] = gonti;
+    game.players.you.zones.battlefield.push(gonti.id);
+    applyAction("you", "attack", { pairs: [{ attacker: gonti.id, target: "agent" }] });
+    applyAction("agent", "stack_resolve", {});
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).toContain("COMBAT DAMAGE IS OWED");
+
+    applyAction("agent", "damage", { hits: [{ source: gonti.id, target: "agent", amount: 3 }] });
+    applyAction("you", "stack_resolve", {});
+    expect(game.players.agent.life).toBe(37);
+    expect(a.composeWakePrompt("react")).not.toContain("COMBAT DAMAGE IS OWED");
   });
 
   test("…and says so plainly when a seat has nothing out", () => {

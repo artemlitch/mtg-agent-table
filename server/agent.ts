@@ -505,6 +505,21 @@ export class AgentRunner {
     const stackDuty = playerItems
       ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S — deal with them FIRST (see PLAYER'S ITEMS ON THE STACK).\n`
       : "";
+    // Damage is the step that gets dropped, and it is the agent's to announce
+    // in EVERY combat — including the ones Player attacks in, which is the
+    // reading rule 6 used to leave open. Attackers still marked and nothing
+    // applied since they locked in: say so, every window, until it lands.
+    // The attacking flags clear on the turn pass, so this cannot outlive the
+    // combat it belongs to.
+    const lastLogAt = (re: RegExp) => {
+      for (let i = game.log.length - 1; i >= 0; i--) if (re.test(game.log[i].text)) return i;
+      return -1;
+    };
+    const attackersOut = Object.values(game.cards).some((c) => c.zone === "battlefield" && c.attacking);
+    const damageDuty =
+      attackersOut && lastLogAt(/^Damage applied:|put on the stack: COMBAT DAMAGE/) < lastLogAt(/^Attacks locked in:/)
+        ? `\n⚠ COMBAT DAMAGE IS OWED, and announcing it is YOURS whoever attacked (rule 6a) — attackers are locked in and nothing has applied damage since. Use the damage tool.\n`
+        : "";
     // turn-based trigger hints: "At the beginning of…" lines on the agent's
     // own battlefield, surfaced at the top of its turn (text-grep, not rulings)
     const turnTriggers =
@@ -548,7 +563,7 @@ export class AgentRunner {
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
     // points 2 and 9 of the system prompt and did not need saying twice
-    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${damageDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;
@@ -970,7 +985,8 @@ HOW TO PLAY YOUR WINDOW:
 3. Take your actions with tools, following the CASTING PROCEDURE below for every card. Use set_phase/set_turn to advance the game structure on your turn.
 4. Play honestly: respect mana costs, one land drop per turn, summoning sickness, casting your commander from the command zone with commander tax (+2 per prior cast). The tax is TRACKED on the table: every player in get_state carries commanderTax. Read it before you cast a commander and pay that much extra, then call commander_tax with delta 2 as part of the cast so the number stays true. Player's counter sits on their command zone and they bump it the same way — if theirs looks wrong for the number of times they have cast, say so rather than silently assuming.
 5. You share a physical table with Player, and you may arrange your side of it. Every battlefield card carries a pos on get_state — x 0 (left) to 1 (right), y 0 (your back edge) to 1 (Player's), midline 0.5 — and the place tool moves cards to the coordinates you choose. New cards put themselves down tidily, so use place when you want something somewhere particular: grouping a deck's pieces together, lining up attackers, putting an aura beside what it enchants. Batch several moves into one call. It is cosmetic — no priority, no undo step — so it costs Player nothing.
-6. Combat runs through the stack like everything else, one acknowledged step at a time: (a) attack tool → your declaration sits on the stack → done; Player resolves it (locks attacks, taps attackers) or responds on top. (b) Player declares blocks the same way → you resolve to lock them. (c) Announce combat damage with stack_push — text is the headline ("COMBAT DAMAGE") and lines carries ONE entry per attacker/blocker pairing ("Marchesa 7/7 → Warrior token: token dies; deals 1 back") so the table renders it as a readable table. Let it be resolved, THEN apply the numbers with life / commander_damage / move. Never apply damage that wasn't acknowledged on the stack first.
+6. Combat runs through the stack like everything else, one acknowledged step at a time. When YOU attack: (a) attack tool → your declaration sits on the stack → done; Player resolves it (locks attacks, taps attackers) or responds on top. (b) Player declares blocks the same way → you resolve to lock them. (c) you announce damage. When PLAYER attacks the steps are the same with the seats swapped — they declare, you resolve to lock it in, you declare your blocks with block (declaring none is still a declaration) — and step (c) does NOT swap: you announce damage in that combat too.
+6a. ANNOUNCING DAMAGE IS ALWAYS YOURS, in every combat, on either side of the table. Player never types a life total; you hold the tools and you do the arithmetic. Use the damage tool: one call carrying every arrow of damage (a blocked attacker and its blocker are two arrows, one each way) plus dies for the creatures it kills. It goes on the stack as one readable item, and resolving it takes the life off, books commander damage for a commander's hit, and puts the dead in the graveyard. Never change life for damage that was not acknowledged on the stack first. If Player pushes a "go to damage" item, that is them asking YOU for this — resolving it is not an answer on its own.
 6b. Resolving Player's item acknowledges it; it does not carry it out. The seat that ANNOUNCED an item applies its own effect — when you resolve their trigger, do not also set their counters, move their cards or change their life, or it lands twice. This has actually happened: a dethrone counter went on twice and a Phyrexian Reclamation cost was paid twice. If you think they have forgotten to apply something, say so with say or ask_user rather than doing it for them.
 7. You may interact with Player's cards and zones when a game effect allows it (e.g. your theft effects exiling from their library, tapping their creatures). Every such action is logged for them — never touch their cards without a game reason, and say which card/effect authorizes it.
 8. If Player does something you don't understand, or state seems wrong, use ask_user to ask them — then call done and wait for their answer.

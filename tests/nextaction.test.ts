@@ -53,7 +53,9 @@ function prompt(v: GameView) {
 
 const ENTERED = () => line("Player moves to combat");
 const LOCKED = () => line("Attacks locked in: Bear → Agent (attackers tapped)");
-const DAMAGE = () => line("Player put on the stack: go to damage — declare blockers if you have any, then announce combat damage");
+const ASKED = () => line("Player put on the stack: go to damage — declare any blocks, then announce it with the damage tool (yours to announce, my attack or yours)");
+const ANNOUNCED = () => line("Agent put on the stack: COMBAT DAMAGE\n  1. Bear → Player: 2");
+const APPLIED = () => line("Damage applied: Player 40 → 37; Gonti → Player commander damage 3");
 
 // A new game opens where every other turn opens, at untap/upkeep — see
 // newGameState in server/game.ts, which used to start at main 1 and skip the
@@ -234,8 +236,22 @@ describe("the combat prompt, step by step", () => {
     expect(action?.label).toBe("Go to damage");
   });
 
-  it("moves on once damage has been asked for", () => {
-    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), DAMAGE()] });
+  it("keeps asking while the ask is all that has happened", () => {
+    // Asking used to stand the step down, so one press moved the table to main
+    // 2 whether or not damage ever landed. It did not land the turn the agent
+    // read the combat procedure as "the attacker announces damage": three
+    // damage and three commander damage were simply lost.
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ASKED()] });
+    expect(prompt(v).id).toBe("combat-damage");
+  });
+
+  it("moves on once damage has actually landed", () => {
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ASKED(), APPLIED()] });
+    expect(prompt(v).id).toBe("past-combat");
+  });
+
+  it("…or once it has been announced by hand, the way a game in flight still does it", () => {
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ANNOUNCED()] });
     expect(prompt(v).id).toBe("past-combat");
   });
 });
@@ -256,7 +272,7 @@ describe("what used to break it", () => {
     // still in the log, and "did damage happen this turn" says yes forever
     const v = view({
       mine: [creature("bear")],
-      log: [ENTERED(), LOCKED(), DAMAGE(), line("↩ Player undid: Player moves to combat"), ENTERED()],
+      log: [ENTERED(), LOCKED(), APPLIED(), line("↩ Player undid: Player moves to combat"), ENTERED()],
     });
     expect(prompt(v).id).toBe("finish-attacks");
   });
@@ -264,7 +280,7 @@ describe("what used to break it", () => {
   it("and its own damage step", () => {
     const v = view({
       mine: [creature("bear", { attacking: "agent" })],
-      log: [ENTERED(), LOCKED(), DAMAGE(), ENTERED(), LOCKED()],
+      log: [ENTERED(), LOCKED(), APPLIED(), ENTERED(), LOCKED()],
     });
     expect(prompt(v).id).toBe("combat-damage");
   });
@@ -275,7 +291,7 @@ describe("what used to break it", () => {
     const v = view({
       mine: [creature("bear"), creature("wolf")],
       stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
-      log: [ENTERED(), LOCKED(), DAMAGE(), ENTERED()],
+      log: [ENTERED(), LOCKED(), APPLIED(), ENTERED()],
     });
     const { id, action } = prompt(v);
     expect(id).toBe("finish-attacks");

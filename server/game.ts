@@ -103,13 +103,27 @@ export interface LogEntry {
   talk?: true;
 }
 
+/** One arrow of damage: a source dealing an amount to a player or a creature.
+ *  Declared, never computed — the table has no rules engine and does not know
+ *  what a creature's damage output is, only what the announcer says it is. */
+export interface DamageHit {
+  source: string;
+  target: PlayerId | string;
+  amount: number;
+  note?: string;
+}
+
 export interface StackItem {
   id: string;
   player: PlayerId;
   cardId: string | null;
   text: string;
   // structured combat declarations apply their effects when resolved
-  apply?: { type: "attack" | "block"; pairs: any[] } | { type: "turn"; player: PlayerId } | { type: "phase"; phase: string };
+  apply?:
+    | { type: "attack" | "block"; pairs: any[] }
+    | { type: "turn"; player: PlayerId }
+    | { type: "phase"; phase: string }
+    | { type: "damage"; hits: DamageHit[]; dies: string[] };
   // destination declared at cast time (MDFC faces, exile-on-resolve effects)
   resolveTo?: Zone;
   // whose zone it resolves into (reanimation targets, returns to owner's hand)
@@ -733,6 +747,29 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     }
     addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`);
     return { ok: true, resolved: item.text };
+  }
+  if (item.apply?.type === "damage") {
+    const parts: string[] = [];
+    for (const hit of item.apply.hits) {
+      if (hit.target !== "you" && hit.target !== "agent") continue; // creature hits are the announcement; deaths do the work
+      const ps = game.players[hit.target];
+      const before = ps.life;
+      ps.life -= hit.amount;
+      parts.push(`${who(hit.target)} ${before} → ${ps.life}`);
+      // the second number a commander hit owes, applied off the same call
+      const src = game.cards[hit.source];
+      if (src?.isCommander) {
+        ps.commanderDamage[src.name] = (ps.commanderDamage[src.name] || 0) + hit.amount;
+        if (!ps.commanderDamage[src.name]) delete ps.commanderDamage[src.name];
+        parts.push(`${src.name} → ${who(hit.target)} commander damage ${ps.commanderDamage[src.name] || 0}`);
+      }
+    }
+    addLog(ctx.actor, `Damage applied: ${parts.join("; ") || "no life change"}`);
+    // deaths ride the normal move, so death triggers surface the way they do
+    // for any other creature reaching a graveyard
+    const dead = item.apply.dies.filter((id) => game.cards[id]);
+    const deaths = dead.length ? actions.move(ctx, { cards: dead, toZone: "graveyard" }) : null;
+    return { ok: true, resolved: item.text, life: parts, ...(deaths ? { deaths } : {}) };
   }
   if (item.apply?.type === "block") {
     const parts: string[] = [];
@@ -1365,6 +1402,50 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       apply: { type: "block", pairs: p.pairs },
     });
     addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${blocks}`);
+    return { ok: true, stackSize: game.stack.length };
+  },
+
+  /** Announce damage — the whole damage step as ONE stack item.
+   *
+   *  Announcing and applying used to be four calls (stack_push, then life,
+   *  then commander_damage, then move) and four chances to drop one. Commander
+   *  damage was the one that got dropped: a 3-point commander hit is two
+   *  numbers, and only the first one is visible on the life counter.
+   *
+   *  Resolving it applies exactly what was DECLARED — nothing here decides
+   *  lethality or reads a creature's power. Damage on a creature that lives is
+   *  not tracked either: a counter that nothing clears at end of turn would be
+   *  a worse lie than no counter at all. */
+  damage(ctx, p) {
+    const raw: any[] = Array.isArray(p.hits) ? p.hits : [];
+    const hits: DamageHit[] = raw.map((h, i) => {
+      const source = getCard(String(h?.source ?? ""));
+      const amount = Number(h?.amount);
+      if (!Number.isFinite(amount)) throw new Error(`hit ${i + 1} (${source.name}): amount must be a number`);
+      const target = h?.target === "you" || h?.target === "agent" ? (h.target as PlayerId) : getCard(String(h?.target ?? "")).id;
+      return { source: source.id, target, amount, ...(h?.note ? { note: String(h.note) } : {}) };
+    });
+    // resolved up front so a bad id fails before anything reaches the stack
+    const dies: string[] = (Array.isArray(p.dies) ? p.dies : []).map((id: string) => getCard(String(id)).id);
+    if (!hits.length && !dies.length) throw new Error("damage needs at least one hit, or a card in dies");
+
+    const lines = [
+      ...hits.map((h) => {
+        const src = getCard(h.source);
+        const toPlayer = h.target === "you" || h.target === "agent";
+        const tgt = toPlayer ? who(h.target as PlayerId) : publicDesc(getCard(h.target));
+        const cmd = toPlayer && src.isCommander ? " (commander damage)" : "";
+        return `${publicDesc(src)} → ${tgt}: ${h.amount}${cmd}${h.note ? ` — ${h.note}` : ""}`;
+      }),
+      ...dies.map((id) => `${publicDesc(getCard(id))} dies`),
+    ];
+    pushStackItem(ctx.actor, {
+      cardId: null,
+      text: String(p.text || "COMBAT DAMAGE"),
+      lines,
+      apply: { type: "damage", hits, dies },
+    });
+    addLog(ctx.actor, `${who(ctx.actor)} announces damage (on the stack): ${lines.join("; ")}`);
     return { ok: true, stackSize: game.stack.length };
   },
 
