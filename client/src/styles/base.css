@@ -251,3 +251,13 @@ textarea { cursor: text; }
   width: calc(var(--pip-em) / var(--pipnum-scale) * 1em);
   height: calc(var(--pip-em) / var(--pipnum-scale) * 1em);
 }
+/* {T} and {Q}: the same stone chip as a generic cost with the tap arrow in it
+   instead of a digit, which is how Magic prints them. The glyph is sized as a
+   fraction of the CHIP rather than in em — .gi is 1em square, and an em here
+   is the surrounding prose, which would have it burst straight out of the
+   disc it is meant to sit inside. */
+.pipglyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #c9c0b0; color: #17100a;
+}
+.pipglyph .gi { width: 74%; height: 74%; vertical-align: 0; }

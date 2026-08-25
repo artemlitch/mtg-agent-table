@@ -1,5 +1,6 @@
-// Mana written the way Magic writes it, drawn as pips. Only the symbols we
-// have art for — a wrong pip is worse than honest braces.
+// Mana written the way Magic writes it, drawn as pips — the colours, the
+// generic number, and the two costs paid by turning the card ({T}, {Q}). Only
+// the symbols we have art for: a wrong pip is worse than honest braces.
 import { describe, expect, it } from "vitest";
 import { plainMana, withMana } from "../client/src/components/Mana";
 
@@ -8,7 +9,14 @@ import { plainMana, withMana } from "../client/src/components/Mana";
 const parts = (text: string) => {
   const out = withMana(text);
   const arr = Array.isArray(out) ? out : [out];
-  return arr.map((n: any) => (typeof n === "string" ? n : `<${n.props.className}${n.props.children ? ":" + n.props.children : ""}>`));
+  return arr.map((n: any) => {
+    if (typeof n === "string") return n;
+    // a chip's contents are named only when they are the text inside it — the
+    // glyph pips hold an element, and "[object Object]" names nothing
+    const inside = n.props.children;
+    const label = typeof inside === "string" || typeof inside === "number" ? `:${inside}` : "";
+    return `<${n.props.className}${label}>`;
+  });
 };
 
 describe("mana symbols in a line of text", () => {
@@ -28,15 +36,24 @@ describe("mana symbols in a line of text", () => {
     expect(parts("{10}")).toEqual(["<pip pipnum:10>"]);
   });
 
+  it("draws the tap and untap costs as chips too", () => {
+    // {T} is a cost like any other — it belongs in the row of pips, not left
+    // in braces beside them
+    expect(parts("{T}")).toEqual(["<pip pipglyph>"]);
+    expect(parts("{Q}")).toEqual(["<pip pipglyph>"]);
+    expect(parts("{T}: Add {G}")).toEqual(["<pip pipglyph>", ": Add ", "<pip pipG>"]);
+  });
+
   it("leaves alone what it cannot draw", () => {
-    // no art for taps, X, or hybrids — braces are honest, a wrong pip is not
-    for (const t of ["{T}", "{X}", "{B/R}", "{2/W}", "{Q}"]) expect(withMana(t)).toBe(t);
+    // no art for X or hybrids — braces are honest, a wrong pip is not
+    for (const t of ["{X}", "{B/R}", "{2/W}"]) expect(withMana(t)).toBe(t);
   });
 
   it("draws what it can out of a mixed line and leaves the rest", () => {
     expect(parts("{1}{B}, {T}: return it")).toEqual([
-      "<pip pipnum:1>", "<pip pipB>", ", {T}: return it",
+      "<pip pipnum:1>", "<pip pipB>", ", ", "<pip pipglyph>", ": return it",
     ]);
+    expect(parts("{X}{R}, {T}: ping")).toEqual(["{X}", "<pip pipR>", ", ", "<pip pipglyph>", ": ping"]);
   });
 
   it("passes ordinary prose straight through", () => {
@@ -62,10 +79,13 @@ describe("mana in a place a pip cannot go", () => {
     expect(plainMana("Equip Skullclamp to Pest ({1})")).toBe("Equip Skullclamp to Pest (1)");
     expect(plainMana("{2}{U}{U}")).toBe("2UU");
     expect(plainMana("pay {B} then draw")).toBe("pay B then draw");
+    // the action costs are symbols here too, or the watchdog and the renderer
+    // would disagree about whether a bare "{T}" on screen is a leak
+    expect(plainMana("{T}: Add {G}")).toBe("T: Add G");
   });
 
   it("leaves alone exactly what withMana leaves alone", () => {
-    for (const t of ["{T}", "{X}", "{B/R}", "{2/W}", "{Q}", "nothing {here} to draw", "{", ""]) {
+    for (const t of ["{X}", "{B/R}", "{2/W}", "nothing {here} to draw", "{", ""]) {
       expect(plainMana(t)).toBe(t);
       expect(withMana(t)).toBe(t);
     }

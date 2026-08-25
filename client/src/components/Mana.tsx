@@ -2,17 +2,34 @@
 // pips instead of left as braces. Same six SVGs the search filter's colour
 // buttons use, so a symbol looks the same wherever it turns up.
 //
-// Only the symbols we have art for become pips. Anything else — {T}, {X},
-// hybrids like {B/R} — stays exactly as written, because a wrong pip is worse
-// than honest braces and half-drawn hybrid art is worse than both.
+// Only the symbols we have art for become pips. Anything else — {X}, hybrids
+// like {B/R} — stays exactly as written, because a wrong pip is worse than
+// honest braces and half-drawn hybrid art is worse than both.
 import type { ReactNode } from "react";
+import { Icon } from "./Icon";
 
 const COLORS: Record<string, string> = { W: "White", U: "Blue", B: "Black", R: "Red", G: "Green", C: "Colorless" };
+/** The costs that are an action rather than a colour: {T} is paid by tapping
+ *  the permanent, {Q} by untapping it. Drawn with the glyphs the card menus
+ *  already use for those two actions, so the arrow in a cost and the arrow on
+ *  the Tap row are the same arrow. */
+const GLYPHS: Record<string, { icon: string; title: string }> = {
+  T: { icon: "tap", title: "Tap this permanent" },
+  Q: { icon: "untap", title: "Untap this permanent" },
+};
 const SYMBOL = /\{([^{}]{1,4})\}/g;
 
 function pip(sym: string, key: string): ReactNode | null {
   const s = sym.toUpperCase();
   if (COLORS[s]) return <i key={key} className={`pip pip${s}`} title={COLORS[s]} />;
+  // an action cost: the same stone chip as a generic one, with the glyph in it
+  const glyph = GLYPHS[s];
+  if (glyph)
+    return (
+      <i key={key} className="pip pipglyph" title={glyph.title}>
+        <Icon name={glyph.icon} />
+      </i>
+    );
   // generic cost: the number rides inside a plain round chip
   if (/^\d{1,2}$/.test(s)) return <i key={key} className="pip pipnum" title={`${s} generic`}>{s}</i>;
   return null;
@@ -28,7 +45,7 @@ export function plainMana(text: string): string {
   if (!text || !text.includes("{")) return text;
   return text.replace(SYMBOL, (whole, sym: string) => {
     const s = sym.toUpperCase();
-    return COLORS[s] || /^\d{1,2}$/.test(s) ? sym : whole;
+    return COLORS[s] || GLYPHS[s] || /^\d{1,2}$/.test(s) ? sym : whole;
   });
 }
 
@@ -67,8 +84,8 @@ const leaks = (s: string) => plainMana(s) !== s;
  *  element they landed in. That turns "someone will notice it in a screenshot
  *  weeks later" into "it is named the moment it happens".
  *
- *  Undrawable symbols are not leaks: {T}, {X} and hybrids like {B/R} stay as
- *  braces on purpose, so `leaks` asks about exactly the ones we have art for.
+ *  Undrawable symbols are not leaks: {X} and hybrids like {B/R} stay as braces
+ *  on purpose, so `leaks` asks about exactly the ones we have art for.
  *
  *  Each distinct string is reported once — a leak inside a list that
  *  re-renders would otherwise fill the console with the same line. */
