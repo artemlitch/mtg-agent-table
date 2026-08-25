@@ -992,6 +992,25 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("attackers"); // and the swing can be made again
   });
 
+  // The same button is also the post-damage tidy-up, and there it is not a
+  // cancellation: the combat happened. Calling it "attackers" again would
+  // refuse a legal second damage announcement and drag a bare "main" back to
+  // main 1.
+  test("tidying up after damage leaves combat done", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    applyAction("agent", "damage", { hits: [{ source: rat.id, target: "you", amount: 1 }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("done");
+
+    applyAction("you", "clear_combat", {});
+    expect(rat.attacking).toBe(null); // the marks still go
+    expect(combatOf()).toBe("done"); // but the combat still happened
+  });
+
   test("clearing marks outside combat ends it", () => {
     game.turn = "agent";
     applyAction("agent", "set_phase", { phase: "main 2" });

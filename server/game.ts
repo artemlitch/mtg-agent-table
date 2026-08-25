@@ -1693,12 +1693,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   },
 
   clear_combat(ctx, _p) {
-    // this is the UI's "Cancel attack": cancelling a combat you are still in
-    // puts it back to declaring attackers, so the swing can be made again —
-    // leaving it null stranded the sub-machine, since re-declaring the phase
-    // you are already in is a no-op. Outside combat there is nothing to
-    // return to and clearing stray marks simply ends it.
-    game.combat = game.phase === "combat" ? "attackers" : null;
+    // Two jobs share this one button. Before damage it is "Cancel attack":
+    // the combat goes back to declaring attackers, so the swing can be made
+    // again — leaving it null stranded the sub-machine, since re-declaring
+    // the phase you are already in is a no-op. AFTER damage it is tidying up
+    // a combat that is over, and "done" is still the truth: saying
+    // "attackers" there would refuse a legal second damage announcement, and
+    // would take a bare "main" back to main 1. Outside combat there is
+    // nothing to return to, and clearing stray marks simply ends it.
+    game.combat = game.phase !== "combat" ? null : game.combat === "done" ? "done" : "attackers";
     clearCombatMarks();
     addLog(ctx.actor, `Combat cleared`);
     return { ok: true };
