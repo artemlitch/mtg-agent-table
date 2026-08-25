@@ -1797,6 +1797,9 @@ describe("phase labels are a vocabulary, not free text", () => {
 
   test("garbage is refused, naming the vocabulary", () => {
     expect(() => applyAction("you", "set_phase", { phase: "combatt" })).toThrow(/untap\/upkeep.*main 1.*combat.*main 2.*end/);
+    // an inherited key is not a phase: a bare lookup on an object literal hands
+    // back Object.prototype.constructor, and a function became the phase
+    expect(() => applyAction("you", "set_phase", { phase: "constructor" })).toThrow(/unknown phase/);
     expect(game.phase).toBe("untap/upkeep"); // unchanged
   });
 
@@ -1805,5 +1808,19 @@ describe("phase labels are a vocabulary, not free text", () => {
     applyAction("you", "set_phase", { phase: "untap" });
     expect(c.tapped).toBe(false);
     expect(game.phase).toBe("untap/upkeep");
+  });
+
+  test("the rest of the beginning phase does not untap — only the untap step does", () => {
+    // upkeep and draw fold into untap/upkeep, but declaring one of them is not
+    // an untap step and never untapped before phases were a vocabulary
+    const c = seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "upkeep" });
+    expect(c.tapped).toBe(true);
+    expect(game.phase).toBe("untap/upkeep");
+    applyAction("you", "set_phase", { phase: "draw" });
+    expect(c.tapped).toBe(true);
+
+    applyAction("you", "set_phase", { phase: "untap" });
+    expect(c.tapped).toBe(false);
   });
 });

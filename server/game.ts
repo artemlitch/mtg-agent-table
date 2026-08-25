@@ -201,7 +201,9 @@ const PHASE_ALIASES: Record<string, Phase> = {
  *  quietly false. */
 export function normalizePhase(raw: unknown): Phase {
   const key = String(raw ?? "").trim().toLowerCase();
-  const hit = PHASE_ALIASES[key];
+  // own-property only: a plain object inherits "constructor", "toString" and
+  // friends, and a bare lookup would hand one of those back as the phase
+  const hit = Object.hasOwn(PHASE_ALIASES, key) ? PHASE_ALIASES[key] : undefined;
   if (hit) return hit;
   // "main" alone is the agent's most common label and is genuinely ambiguous;
   // Task 2 refines this to "main 2 once this turn's combat is done"
@@ -1464,7 +1466,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     //
     // The ACTIVE player's permanents, not the actor's: whoever moves the marker,
     // an untap step untaps the seat whose turn it is.
-    const untapped = phase === "untap/upkeep" ? untapPermanents(game.turn) : 0;
+    //
+    // The RAW label decides, not the folded phase: "upkeep" and "draw" fold into
+    // untap/upkeep but are not the untap step, and declaring one of them never
+    // untapped before the vocabulary existed either. Gating this to once per
+    // turn waits for Task 5's turnDone flags.
+    const rawKey = String(p.phase ?? "").trim().toLowerCase();
+    const isUntapStep = phase === "untap/upkeep" && (rawKey === "untap" || rawKey === "untap/upkeep");
+    const untapped = isUntapStep ? untapPermanents(game.turn) : 0;
     addLog(
       ctx.actor,
       `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""),
