@@ -9,16 +9,11 @@ const SOUND_RULES: [string, RegExp][] = [
   // then the declaration resolves and the attack is locked. One rule matched
   // both lines and played the drum twice for what looked like one event.
   ["attack", /declares attackers/],
-  // Handing the finished declaration over, which used to be a bare pass and
-  // so made no sound at all. The drum again rather than one of its own: it is
-  // the same event as adding an attacker, said for the last time. NOT lockin —
-  // that is the defender answering, and it comes seconds later.
-  //
-  // The wording differs from the rule above ("declares" vs "declaring"), so
-  // this needs its own line. Worth watching: press the prompt straight after
-  // the last [E] and you get two drums close together, one for the creature
-  // and one for the hand-over.
-  ["attack", /finishes declaring attackers/],
+  // "Player finishes declaring attackers" is a hand-over and stays SILENT for
+  // the reason every hand-over does (see the note further down). It is also
+  // the wrong moment: the drum has already sounded for each creature, and the
+  // blades are two seconds away — a sound here only fills the gap they are
+  // meant to leave.
   ["lockin", /^Attacks locked in: /],
   ["block", /declares blockers/],
   ["hit", / from battlefield to .*graveyard/],
