@@ -30,7 +30,10 @@ export function openAbilityModal(c: Card) {
 
 function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<HTMLTextAreaElement | null> }) {
   const [text, setText] = useState("");
-  const arriving = c.zone === "hand";
+  // not on the table yet: this box is its arrival trigger, and the play is
+  // part of submitting. A commander waiting in the command zone is in exactly
+  // the same position as a card in your hand.
+  const arriving = c.zone === "hand" || c.zone === "command";
   const name = c.hidden ? "?" : c.name;
   const submit = async (tapToo: boolean) => {
     const t = text.trim();

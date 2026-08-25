@@ -114,8 +114,11 @@ export function cardMenu(c: Card, e: Anchor) {
 
   if (c.zone === "command") {
     // no "straight to battlefield" companion: a commander arriving in play is
-    // cast like anything else, so that row was this row under another name
-    items.push({ label: "Cast → stack", fn: () => void playCard({ card: c.id, note: "from command zone" }) });
+    // cast like anything else, so that row was this row under another name.
+    // The same pair the hand offers, because a commander waiting here is a
+    // card of yours waiting to be played — see cardPrimaryAction.
+    items.push({ label: "Cast → field", keys: ["E"], fn: () => void playCard({ card: c.id }) });
+    items.push({ label: "Cast → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
   }
 
   if (!c.hidden) {

@@ -9,7 +9,7 @@
 //   icon: a key into ICONS, drawn before the label.
 import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
-import { didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
+import { cardById, didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, StackItem } from "../../types";
 
@@ -331,7 +331,12 @@ export async function playCard(params: Record<string, any>): Promise<ActionResul
   const view = gameView();
   const ctx = view ? nextActionContext(view) : null;
   const shouldAdvance = !!ctx && NEXT_ACTION_STEPS.find((r) => r.when(ctx))?.id === "main-1";
-  const res = await act("cast", params);
+  // Where a card is cast FROM is a fact about the card, not something every
+  // caller has to remember to mention. The menu row, the E key and the ability
+  // box all send the same commander out of the same zone, and the log should
+  // say so whichever one you reached for.
+  const note = params.note ?? (cardById(params.card)?.zone === "command" ? "from command zone" : undefined);
+  const res = await act("cast", { ...params, ...(note ? { note } : {}) });
   if (res.ok && shouldAdvance) void act("set_phase", { phase: "main 1" });
   return res;
 }

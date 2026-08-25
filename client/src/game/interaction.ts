@@ -15,17 +15,21 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
   // fresh lookup: state may have re-rendered under the cursor since mouseenter
   const cur = cardById(card.id) ?? card;
   const phase = gameView()?.phase || "";
-  const mineInHand = cur.zone === "hand" && cur.controller === "you";
+  // Your hand and your command zone are the two places a card of yours waits
+  // to be played, so E means the same thing in both. playCard works out which
+  // one it came out of on its own.
+  const mineToPlay = (cur.zone === "hand" || cur.zone === "command") && cur.controller === "you";
   // Shift is one gesture wherever the card is: say what it does, and put that
   // on the stack. The box reads the rest off the card — an ability from the
-  // battlefield, an arrival trigger from your hand, which it plays on submit.
-  if (shift && (mineInHand || cur.zone === "battlefield")) {
+  // battlefield, an arrival trigger from the two zones above, which it plays
+  // on submit.
+  if (shift && (mineToPlay || cur.zone === "battlefield")) {
     openAbilityModal(cur);
     return;
   }
-  // on a hand card this plays it (lands = land drop, spells = onto the stack;
-  // a DFC plays whichever face it's showing)
-  if (mineInHand) {
+  // plays it: lands are a land drop, spells go onto the stack, a commander
+  // pays its tax, and a DFC plays whichever face it is showing
+  if (mineToPlay) {
     void playCard({ card: cur.id });
     return;
   }
