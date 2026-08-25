@@ -15,7 +15,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { Text } from "../../components/Text";
 import { startDrag } from "../../game/drag";
-import { chonkyPiles, liftedDeclarations, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
+import { chonkyPiles, liftedTriggers, pendingAttackOf, pendingBlockOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { openPileBrowser } from "../browsers/Browsers";
 import { settleUnplaced } from "../../game/settle";
 import { cardAnchor, measureSurface } from "../../game/table";
@@ -77,9 +77,6 @@ export function CardLayer() {
   const unresolved: StackItem[] = [];
   for (const p of PLAYERS) {
     for (const { item, source } of liftedTriggers(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
-    // a declared attacker or blocker waits off the felt too, and lands the
-    // moment the other seat locks the declaration in
-    for (const { item, source } of liftedDeclarations(p)) if (!lifts.has(source.id)) lifts.set(source.id, item);
     unresolved.push(...stackCardsOf(p));
   }
   const board = PLAYERS.flatMap((p) => view.players[p].zones.battlefield);
@@ -132,7 +129,10 @@ function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; i
     depth > 0 && "tucked",
     pile && "piled",
     lift && "lifted",
+    // a declared blocker waits exactly the way a declared attacker does —
+    // same lift, same bob, blue instead of red
     !item && pendingAttackOf(c.id) && "declaring",
+    !item && !pendingAttackOf(c.id) && pendingBlockOf(c.id) && "declaring declaring-blk",
   ]
     .filter(Boolean)
     .join(" ");

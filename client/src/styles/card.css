@@ -11,11 +11,17 @@
 .card .cardface { position: absolute; inset: 0; border-radius: 6px; }
 .card.tapped { transform: rotate(90deg); margin: 0 18px; }
 .card.attacking { outline: 2px solid var(--red); outline-offset: 1px; }
-/* declared attacker, not yet locked in: slight hover + red glow */
+/* declared attacker, not yet locked in: slight hover + red glow. A declared
+   BLOCKER is the same card in the same wait, so it gets the same treatment in
+   blue — nothing about the shape of it changes, only whose combat it is. */
 .card.declaring .cardface {
   outline: 2px solid var(--red); outline-offset: 1px;
   animation: declarebob 2.2s ease-in-out infinite;
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), 0 0 16px rgba(208, 85, 85, 0.55);
+}
+.card.declaring.declaring-blk .cardface {
+  outline-color: var(--blue);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), 0 0 16px rgba(91, 143, 208, 0.55);
 }
 @keyframes declarebob {
   0%, 100% { transform: translateY(-3px); }

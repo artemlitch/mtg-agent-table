@@ -101,7 +101,13 @@ export function incomingAttackers(): Card[] {
 export function nextUnblockedAttacker(): Card | null {
   const attackers = incomingAttackers();
   if (!attackers.length) return null;
-  const answered = new Set((gameView()?.players.you.zones.battlefield ?? []).map((c) => c.blocking).filter(Boolean));
+  // declared counts, not just locked in — otherwise pressing E twice piles
+  // both creatures onto the same attacker while the first block still waits
+  const v = gameView();
+  const answered = new Set([
+    ...(v?.players.you.zones.battlefield ?? []).map((c) => c.blocking).filter(Boolean),
+    ...(v?.stack ?? []).flatMap((it) => (it.blockPairs ?? []).map((pr) => pr.attacker)),
+  ]);
   return attackers.find((a) => !answered.has(a.id)) ?? attackers[0];
 }
 
@@ -111,35 +117,22 @@ export function nextUnblockedAttacker(): Card | null {
  *  card.attacking / card.blocking are only written when they do. Through that
  *  whole wait a committed creature looked exactly like one standing around,
  *  and a block you had just declared read as a block that never registered. */
-export const declaredAttacking = (c: Card): boolean =>
-  !!c.attacking || (gameView()?.stack ?? []).some((it) => it.attackPairs?.some((pr) => pr.attacker === c.id));
+export const declaredAttacking = (c: Card): boolean => !!c.attacking || !!pendingAttackOf(c.id);
 
-export const declaredBlocking = (c: Card): boolean =>
-  !!c.blocking || (gameView()?.stack ?? []).some((it) => it.blockPairs?.some((pr) => pr.blocker === c.id));
-
-/** Creatures named in a combat declaration that is still on the stack, matched
- *  to the seat whose board they sit on. They lift off the felt the way a
- *  pending trigger's source does, and settle back the moment the declaration
- *  is locked in — the lift IS the waiting. */
-export function liftedDeclarations(p: PlayerId): { item: StackItem; source: Card }[] {
-  const out: { item: StackItem; source: Card }[] = [];
-  const v = gameView();
-  if (!v) return out;
-  const bf = v.players[p].zones.battlefield;
-  for (const it of v.stack ?? []) {
-    const ids = [...(it.attackPairs ?? []).map((pr) => pr.attacker), ...(it.blockPairs ?? []).map((pr) => pr.blocker)];
-    for (const id of ids) {
-      const source = bf.find((c) => c.id === id && !c.hidden);
-      if (source) out.push({ item: it, source });
-    }
-  }
-  return out;
-}
+export const declaredBlocking = (c: Card): boolean => !!c.blocking || !!pendingBlockOf(c.id);
 
 /** The pending (unresolved) attack declaration containing this card, if any. */
 export function pendingAttackOf(cardId: string): StackItem | null {
   for (const it of gameView()?.stack ?? []) {
     if (it.attackPairs?.some((pair) => pair.attacker === cardId)) return it;
+  }
+  return null;
+}
+
+/** The same, for a blocks declaration waiting on the attacker to lock it in. */
+export function pendingBlockOf(cardId: string): StackItem | null {
+  for (const it of gameView()?.stack ?? []) {
+    if (it.blockPairs?.some((pair) => pair.blocker === cardId)) return it;
   }
   return null;
 }
