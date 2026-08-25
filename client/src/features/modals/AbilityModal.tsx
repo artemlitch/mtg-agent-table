@@ -10,37 +10,48 @@ import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card } from "../../types";
 
-/** Announce an ability of a battlefield card onto the stack: the card and its
- *  oracle text for reference, one input, Enter submits. The target palette
- *  floats beside the box, outside it. */
-export function openAbilityModal(c: Card) {
+/** Which announcement this is. An ability is something the card does while it
+ *  sits there, paid for by you; an ETB is what happens on the way in, and the
+ *  card has just been played. Same box either way — the difference is what it
+ *  offers and how the stack line reads. */
+type Announce = "ability" | "etb";
+
+/** Announce something a card is doing onto the stack: an ability of one on the
+ *  battlefield, or the enters-the-battlefield trigger of one you have just
+ *  played. The card and its oracle text for reference, one input, Enter
+ *  submits. The target palette floats beside the box, outside it. */
+export function openAbilityModal(c: Card, kind: Announce = "ability") {
   const input = createRef<HTMLTextAreaElement>();
   ui().openModal({
     compact: true,
-    body: <AbilityModal card={c} inputRef={input} />,
+    body: <AbilityModal card={c} kind={kind} inputRef={input} />,
     side: <TargetPanel inputRef={input} />,
   });
 }
 
-function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<HTMLTextAreaElement | null> }) {
+function AbilityModal({ card: c, kind, inputRef }: { card: Card; kind: Announce; inputRef: RefObject<HTMLTextAreaElement | null> }) {
   const [text, setText] = useState("");
-  // not everything taps to activate: [Tap + Stack] (⇧⏎) vs [Stack] (⏎)
+  const etb = kind === "etb";
+  // Tapping is a cost you pay to activate, so it is only on offer for a card
+  // that is on the battlefield and could be tapped. Nothing pays to enter.
+  const canTap = !etb && c.zone === "battlefield";
+  const name = c.hidden ? "?" : c.name;
   const submit = (tapToo: boolean) => {
     const t = text.trim();
     if (!t) return;
-    if (tapToo && !c.tapped) void act("tap", { cards: [c.id], tapped: true });
-    void act("stack_push", { text: `${c.hidden ? "?" : c.name}: ${t}`, source: c.id });
+    if (tapToo && canTap && !c.tapped) void act("tap", { cards: [c.id], tapped: true });
+    void act("stack_push", { text: etb ? `${name} enters the battlefield: ${t}` : `${name}: ${t}`, source: c.id });
     ui().closeModal();
   };
   return (
-    <ModalFrame title={<><Icon name="ability" /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>
+    <ModalFrame title={<><Icon name={etb ? "battlefield" : "ability"} /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>
       <div className="abilitymodal">
         {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <Text as="div" className="amoracle">{c.oracle || "(no rules text)"}</Text>}
         <div className="amcol">
           <textarea
             ref={inputRef}
             autoFocus
-            placeholder="What does the ability do? (targets, numbers…)"
+            placeholder={etb ? "What happens as it enters? (targets, numbers…)" : "What does the ability do? (targets, numbers…)"}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -50,12 +61,15 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
             }}
           />
           <div className="ambtns">
-            <button className="ambtn" onClick={() => submit(true)}>
-              <span><Icon name="tap" /> Tap + Stack</span>
-              <small>⇧⏎</small>
-            </button>
+            {/* not everything taps to activate: [Tap + Stack] (⇧⏎) vs [Stack] (⏎) */}
+            {canTap && (
+              <button className="ambtn" onClick={() => submit(true)}>
+                <span><Icon name="tap" /> Tap + Stack</span>
+                <small>⇧⏎</small>
+              </button>
+            )}
             <button className="ambtn accent" onClick={() => submit(false)}>
-              <span><Icon name="ability" /> Stack</span>
+              <span><Icon name={etb ? "battlefield" : "ability"} /> Stack</span>
               <small>⏎</small>
             </button>
           </div>

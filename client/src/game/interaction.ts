@@ -15,9 +15,12 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
   const cur = cardById(card.id) ?? card;
   const phase = gameView()?.phase || "";
   // on a hand card this plays it (lands = land drop, spells = onto the stack;
-  // a DFC plays whichever face it's showing)
+  // a DFC plays whichever face it's showing), and shift plays it with its
+  // arrival trigger — the same "say what it does" gesture shift means on the
+  // battlefield, asked at the moment the card is entering rather than sitting
   if (cur.zone === "hand" && cur.controller === "you") {
-    void playCard({ card: cur.id });
+    if (shift) void playWithEtb(cur);
+    else void playCard({ card: cur.id });
     return;
   }
   if (cur.zone !== "battlefield") return;
@@ -52,6 +55,16 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
   }
   // 4. anything else taps/untaps
   void act("tap", { cards: [cur.id], tapped: !cur.tapped });
+}
+
+/** Play a card and announce what it does on the way in. Two steps because
+ *  they are two things: the card goes down exactly the way it always does,
+ *  and the trigger is a separate item on the stack that the agent can answer.
+ *  The box only opens if the play landed — a refused cast has nothing to
+ *  trigger off. */
+export async function playWithEtb(c: Card) {
+  const res = await playCard({ card: c.id });
+  if (res.ok) openAbilityModal(c, "etb");
 }
 
 /** Remember the card the pointer is over, for the E keybind. */

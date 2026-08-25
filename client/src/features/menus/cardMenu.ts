@@ -3,6 +3,7 @@
 // browsers all open this same list.
 import { act } from "../../api";
 import { destItem } from "../../game/dest";
+import { playWithEtb } from "../../game/interaction";
 import { pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
@@ -21,8 +22,11 @@ export function cardMenu(c: Card, e: Anchor) {
       // one Play per face — the chosen face decides land-drop vs stack
       c.faces.forEach((f, i) => items.push({ label: `Play ${f.name}`, fn: () => void playCard({ card: c.id, face: i }) }));
     } else {
-      items.push({ label: "Play → stack", fn: () => void playCard({ card: c.id }) });
+      items.push({ label: "Play → field", fn: () => void playCard({ card: c.id }) });
     }
+    // the same card, played, plus the thing it does on arrival — one gesture,
+    // because reaching for the ability box afterwards is a step you forget
+    items.push({ label: "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => void playWithEtb(c) });
     items.push(destItem("graveyard", c, { note: "discard" }));
     items.push(destItem("exile", c));
     items.push({ label: "Reveal to agent", fn: () => void act("reveal", { cards: [c.id], to: "agent" }) });
