@@ -1476,10 +1476,11 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (p.face !== undefined) applyFace(card, Number(p.face));
     // the effective type is the ACTIVE face's for DFCs: the explicit face
     // param, else whatever face the card is already flipped to (a card turned
-    // to its land side in hand must play as a land) — else the whole card's
-    const activeFace = p.face !== undefined ? Number(p.face) : card.face;
-    const effType =
-      (activeFace !== undefined && card.faces ? card.faces[activeFace]?.typeLine : undefined) ?? card.typeLine ?? "";
+    // to its land side in hand must play as a land), else the front face.
+    // Never the whole card's — a DFC's composite type line names BOTH faces
+    // ("Sorcery // Land"), so every test against it answers yes twice.
+    const activeFace = p.face !== undefined ? Number(p.face) : (card.face ?? 0);
+    const effType = (card.faces ? card.faces[activeFace]?.typeLine : undefined) ?? card.typeLine ?? "";
     // an explicit resolveTo means this is an EFFECT moving the card (reanimate,
     // return to hand), not a land drop — those always use the stack
     const isLandPlay = !p.resolveTo && /\bland\b/i.test(effType) && !/\b(instant|sorcery)\b/i.test(effType);
@@ -1518,10 +1519,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     pushStackItem(ctx.actor, {
       cardId: card.id,
       text: `${p.note ? `${card.name} — ${p.note}` : card.name}${targetText}`,
-      ...(p.resolveTo ? { resolveTo: p.resolveTo as Zone } : {}),
+      // Which face was cast is known HERE and nowhere later: on the stack a
+      // DFC is one card with one composite type line, and the resolver reading
+      // it cannot tell a Sorcery // Land cast as a sorcery from the same card
+      // cast as a land. It guessed permanent, and Sundering Eruption resolved
+      // as Volcanic Fissure onto the battlefield. So the face decides the
+      // destination at cast time, and resolve just obeys.
+      ...(p.resolveTo
+        ? { resolveTo: p.resolveTo as Zone }
+        : card.faces
+          ? { resolveTo: (/\b(instant|sorcery)\b/i.test(effType) ? "graveyard" : "battlefield") as Zone }
+          : {}),
       ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
-    const verb = /\bland\b/i.test(card.typeLine ?? "") ? "played" : "cast";
+    const verb = /\bland\b/i.test(effType) ? "played" : "cast";
     addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`);
     const trig = triggerLines(card);
     return {

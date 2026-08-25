@@ -271,11 +271,23 @@ describe("MDFC face display", () => {
 
   test("an MDFC resolving to the battlefield auto-shows its permanent face", () => {
     const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
-    applyAction("you", "cast", { card: c.id });          // no face declared
-    applyAction("agent", "stack_resolve", {});            // lands on the battlefield
+    applyAction("you", "cast", { card: c.id, resolveTo: "battlefield" }); // an effect putting it onto the battlefield
+    applyAction("agent", "stack_resolve", {});
     expect(game.cards[c.id].zone).toBe("battlefield");
     expect(game.cards[c.id].face).toBe(1);                // shows the land side
     expect(viewFor("agent").players.you.zones.battlefield[0].name).toBe("Valakut Stoneforge");
+  });
+
+  // The land side of an MDFC is a land DROP — stackless, never a resolution.
+  // So anything that reached the stack with no face declared is the spell,
+  // and the composite "Instant // Land" must not talk the resolver into
+  // reading it as a permanent. It did, and a Sundering Eruption aimed at a
+  // land resolved as Volcanic Fissure onto its caster's battlefield instead.
+  test("an MDFC cast with no face declared resolves as its SPELL face", () => {
+    const c = seedCard("Valakut Awakening // Valakut Stoneforge", "you", "hand", { typeLine: "Instant // Land", faces: FACES } as any);
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.cards[c.id].zone).toBe("graveyard");
   });
 
   test("a normal transforming DFC is NOT auto-flipped when it resolves", () => {

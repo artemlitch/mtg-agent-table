@@ -1342,6 +1342,31 @@ describe("MDFC active face and hidden flips", () => {
     expect(c.zone).toBe("stack");
   });
 
+  test("the spell face resolves to the graveyard, not onto the battlefield as its land", () => {
+    const c = mdfc();
+    applyAction("you", "cast", { card: c.id });
+    expect(c.zone).toBe("stack");
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("graveyard");
+  });
+
+  test("the log calls a spell-face cast a cast, not a land drop", () => {
+    const c = mdfc();
+    applyAction("you", "cast", { card: c.id });
+    expect(game.log.at(-1)!.text).toContain("cast Agadeem's Awakening");
+  });
+
+  test("a permanent front face still resolves onto the battlefield", () => {
+    const c = seedCard("Beast // Cave", "you", "hand", {
+      typeLine: "Creature // Land",
+      faces: [{ name: "Beast", typeLine: "Creature — Beast" }, { name: "Cave", typeLine: "Land" }],
+    } as any);
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", {});
+    expect(c.zone).toBe("battlefield");
+    expect(c.face ?? 0).toBe(0); // still the creature, not flipped to its land
+  });
+
   test("flipping a hidden hand card does not leak its name to the opponent", () => {
     const c = mdfc();
     applyAction("you", "set_face", { card: c.id, face: 1 });
