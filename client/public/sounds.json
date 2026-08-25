@@ -510,5 +510,102 @@
         "slide": 0
       }
     ]
+  },
+  "spell": {
+    "desc": "an instant or sorcery resolves — sparkle gathering, then the zap",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 1568,
+        "dur": 0.09,
+        "vol": 0.04,
+        "t": 0,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.35
+      },
+      {
+        "kind": "tone",
+        "freq": 2093,
+        "dur": 0.09,
+        "vol": 0.042,
+        "t": 0.045,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.35
+      },
+      {
+        "kind": "tone",
+        "freq": 2637,
+        "dur": 0.09,
+        "vol": 0.044,
+        "t": 0.09,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.35
+      },
+      {
+        "kind": "tone",
+        "freq": 3136,
+        "dur": 0.1,
+        "vol": 0.046,
+        "t": 0.135,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.35
+      },
+      {
+        "kind": "noise",
+        "freq": 6000,
+        "dur": 0.12,
+        "vol": 0.15,
+        "t": 0.18,
+        "q": 1.4,
+        "slide": 700,
+        "verb": 0.2
+      },
+      {
+        "kind": "tone",
+        "freq": 1400,
+        "dur": 0.14,
+        "vol": 0.09,
+        "t": 0.18,
+        "type": "sawtooth",
+        "slide": 180,
+        "verb": 0.15,
+        "atk": 0.002
+      },
+      {
+        "kind": "tone",
+        "freq": 90,
+        "dur": 0.12,
+        "vol": 0.1,
+        "t": 0.18,
+        "type": "triangle",
+        "slide": 60,
+        "verb": 0.2,
+        "atk": 0.004
+      },
+      {
+        "kind": "tone",
+        "freq": 3520,
+        "dur": 0.35,
+        "vol": 0.028,
+        "t": 0.28,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.55
+      },
+      {
+        "kind": "tone",
+        "freq": 4699,
+        "dur": 0.28,
+        "vol": 0.02,
+        "t": 0.28,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.55
+      }
+    ]
   }
 }

@@ -15,6 +15,18 @@ const SOUND_RULES: [string, RegExp][] = [
   ["hit", / countered .* → .*graveyard/],
   ["thump", / resolved → .*battlefield/],
   ["thump", / played .* — land drop/],
+  // Everything ELSE that resolves — which in practice means an instant or a
+  // sorcery, since those are the cards that resolve into a graveyard (see
+  // stack_resolve in server/game.ts). It needs no test of its own for where
+  // the card went: the thump rule above has already claimed every resolve
+  // that lands on a battlefield, and first match wins.
+  //
+  // These were silent. thump is a card LANDING on the table and was scoped to
+  // battlefield destinations on purpose, so a spell doing its work and going
+  // to the graveyard fell through all thirteen rules — while the same spell
+  // being COUNTERED matched `hit` and made a noise. The fizzle was audible
+  // and the spell was not.
+  ["spell", / resolved → /],
   // YOU handing the table over — the moment you press End turn, and nothing
   // else. Anchored at the start of the line, because the phrase turns up in
   // sentences that are not a turn ending: the agent talking about one in chat,
