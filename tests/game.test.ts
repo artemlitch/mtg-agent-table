@@ -935,6 +935,41 @@ describe("the view says where combat is", () => {
     applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
     expect(viewFor("you").stack[0].finished).toBeUndefined();
   });
+
+  // Whether damage is COMBAT damage is settled where it is ANNOUNCED. A ping
+  // announced in main and left on the stack resolves into whatever step has
+  // opened above it, and it must not close that step on its way past.
+  test("a ping announced outside combat does not end the step it resolves into", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    const bystander = seedCard("Carrion Feeder", "you", "battlefield");
+    game.turn = "agent";
+    // announced in main: no combat is open, so this is not combat damage
+    applyAction("agent", "damage", { text: "PING", hits: [{ source: rat.id, target: bystander.id, amount: 1 }] });
+    const ping = game.stack[0].id;
+
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {}); // locks the attack in
+    expect(combatOf()).toBe("blockers");
+
+    applyAction("you", "stack_resolve", { item: ping });
+    expect(combatOf()).toBe("blockers"); // blocks are still owed
+  });
+
+  // A mark is only ever set during a combat, so a mark still standing when
+  // combat is entered belongs to the combat this entry replaces.
+  test("entering combat again sweeps the previous combat's marks", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    expect(rat.attacking).toBe("you");
+
+    applyAction("agent", "set_phase", { phase: "combat" });
+    expect(rat.attacking).toBe(null);
+    expect(combatOf()).toBe("attackers");
+  });
 });
 
 describe("windows, chat, questions", () => {

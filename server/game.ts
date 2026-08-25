@@ -162,7 +162,7 @@ export interface StackItem {
     | { type: "attack" | "block"; pairs: any[] }
     | { type: "turn"; player: PlayerId }
     | { type: "phase"; phase: string }
-    | { type: "damage"; hits: DamageHit[]; dies: string[] };
+    | { type: "damage"; hits: DamageHit[]; dies: string[]; combatDamage?: boolean };
   // destination declared at cast time (MDFC faces, exile-on-resolve effects)
   resolveTo?: Zone;
   // whose zone it resolves into (reanimation targets, returns to owner's hand)
@@ -899,11 +899,16 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text };
   }
   if (item.apply?.type === "damage") {
-    // guarded: a damage item resolved outside combat (a ping announced in
-    // main, or resolved after the phase moved on) must not resurrect a
-    // combat state that no longer exists. "blockers" is a legal source —
-    // later per-creature block declarations may still be resolving under it.
-    if (game.combat === "damage" || game.combat === "blockers") game.combat = "done";
+    // Only COMBAT damage ends the damage step, and only a combat that is
+    // still owed damage can end. The flag is what separates the two: a ping
+    // announced in main and resolved after combat opened must not close a
+    // blockers step it merely resolved into, and a combat that has moved on
+    // (or never started) must not be resurrected by a late item. "blockers"
+    // is a legal source — later per-creature block declarations may still be
+    // resolving under it.
+    if (item.apply.combatDamage && (game.combat === "damage" || game.combat === "blockers")) {
+      game.combat = "done";
+    }
     const parts: string[] = [];
     for (const hit of item.apply.hits) {
       if (hit.target !== "you" && hit.target !== "agent") continue; // creature hits are the announcement; deaths do the work
@@ -1491,8 +1496,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const phase = normalizePhase(p.phase);
     if (phase === "combat") {
       // always resets: re-entering combat after an undo is the ordinary
-      // second swing, and it gets a fresh declare-attackers step
+      // second swing, and it gets a fresh declare-attackers step — marks
+      // included. A mark is only ever set during a combat, so any mark still
+      // standing belongs to the combat this entry replaces: an extra combat
+      // used to open with the last one's attackers still ringed as attacking.
       game.combat = "attackers";
+      clearCombatMarks();
     } else if (game.combat !== null) {
       // Leaving combat ends it, marks included. The marks used to linger
       // until the turn passed — three creatures stood ringed as blocking
@@ -1670,7 +1679,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       cardId: null,
       text: String(p.text || "COMBAT DAMAGE"),
       lines,
-      apply: { type: "damage", hits, dies },
+      // whether this is COMBAT damage is decided here, when it is announced,
+      // not where it resolves: a ping announced in main is not combat damage
+      // however long it sits on the stack under a combat that started later
+      apply: { type: "damage", hits, dies, combatDamage: game.combat !== null },
     });
     addLog(ctx.actor, `${who(ctx.actor)} announces damage (on the stack): ${lines.join("; ")}`);
     return { ok: true, stackSize: game.stack.length };
