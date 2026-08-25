@@ -36,7 +36,18 @@ export function CardPreviewLayer() {
   const c = cardById(preview.card.id) ?? preview.card;
   const faces = (c.faceCount ?? 1) > 1 ? c.faces : undefined;
   const width = faces ? WIDE : NARROW;
-  const left = Math.min(x + 18, window.innerWidth - (width + 20));
+  // Beside the cursor, and it FLIPS to the left rather than sliding along the
+  // edge. What it has to clear is not the window but the SIDE PANEL: a card
+  // named in the chat sits a couple of hundred pixels from the right edge, so
+  // there is room in the viewport and the card lands square on the sentence
+  // you are reading it in. Hovering a card on the table is unchanged — the
+  // panel is off to the right of all of it.
+  const gap = 18;
+  const wall = document.getElementById("side")?.getBoundingClientRect().left ?? window.innerWidth;
+  // flipped, the card hangs off the cursor OR off the panel's edge, whichever
+  // is further left — a cursor inside the panel is itself past the wall, and
+  // measuring from it would leave the card lying over the last inch of chat
+  const left = x + gap + width <= wall - 12 ? x + gap : Math.max(6, Math.min(x - gap, wall - 12) - width);
   const top = Math.max(6, Math.min(y + 12, window.innerHeight - 380));
   return (
     <div id="cardpreview" style={{ left, top, width }}>

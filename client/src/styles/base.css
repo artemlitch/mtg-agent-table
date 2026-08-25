@@ -277,6 +277,7 @@ textarea { cursor: text; }
    --text simply reads as the brightest thing in its sentence — which is what
    it is — and the link only announces itself under the cursor. */
 .cardlink {
+  cursor: pointer;
   color: var(--text);
   text-decoration: underline dotted color-mix(in srgb, var(--accent) 28%, transparent);
   text-underline-offset: 2px;

@@ -1,7 +1,10 @@
 /* Things that float over everything: the hover preview, the one tooltip
    layer, keycaps, and the centred next action. */
 
-#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; }
+/* previewIn is named for this element and was only ever applied to the
+   tooltip below, so the card it is named after was the one thing that
+   appeared with no fade at all. */
+#cardpreview { position: fixed; z-index: 70; pointer-events: none; width: 260px; animation: previewIn 0.12s ease-out; }
 #cardpreview img { width: 100%; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8); }
 #cardpreview .pv-text {
   border: 1px solid transparent; border-radius: 8px; padding: 8px; font-size: var(--fs-body); white-space: pre-wrap;
