@@ -516,15 +516,24 @@ export class AgentRunner {
     // the reading rule 6 used to leave open. So it is said in every window
     // until it lands. Already on the stack is not owed: re-announcing an
     // unresolved damage item deals it twice.
+    //
+    // A declaration is owed until the OPPONENT resolves it, and blocks are the
+    // same as damage that way: the step stays open while the item sits there.
+    // Nagging for blocks already on the stack asks for a SECOND declaration —
+    // and a second one is what holds the damage step shut, since resolving
+    // either leaves the other still owed (resolveStackItem's stillOwed).
     const damageAnnounced = game.stack.some((i) => i.apply?.type === "damage" && i.apply.combatDamage);
+    const blocksDeclared = game.stack.some((i) => i.apply?.type === "block" && i.player === "agent");
     const combatDuty =
-      game.combat === "blockers"
-        ? game.turn === "agent"
-          ? `\n⚠ THE BLOCKERS STEP IS OPEN and the declaration is PLAYER'S to make — you are the attacker. Wait for it, or ask; lock it in with stack_resolve when it arrives. Damage cannot be announced before that.\n`
-          : `\n⚠ BLOCKS ARE OWED AND THEY ARE YOURS — Player's attackers are locked in and you are the defender. Declare them with the block tool; blocking nothing is still an answer, declared as block with pairs: []. Damage cannot be announced until that declaration is locked in.\n`
-        : game.combat === "damage" && !damageAnnounced
-          ? `\n⚠ COMBAT DAMAGE IS OWED, and announcing it is YOURS whoever attacked (rule 6a) — blocks are locked in and nothing has applied damage since. Use the damage tool.\n`
-          : "";
+      game.combat === "blockers" && blocksDeclared
+        ? `\nYour blocks declaration is on the stack — waiting for Player to lock it in. Nothing more is owed in this step; do not declare blocks again.\n`
+        : game.combat === "blockers"
+          ? game.turn === "agent"
+            ? `\n⚠ THE BLOCKERS STEP IS OPEN and the declaration is PLAYER'S to make — you are the attacker. Wait for it, or ask; lock it in with stack_resolve when it arrives. Damage cannot be announced before that.\n`
+            : `\n⚠ BLOCKS ARE OWED AND THEY ARE YOURS — Player's attackers are locked in and you are the defender. Declare them with the block tool; blocking nothing is still an answer, declared as block with pairs: []. Damage cannot be announced until that declaration is locked in.\n`
+          : game.combat === "damage" && !damageAnnounced
+            ? `\n⚠ COMBAT DAMAGE IS OWED, and announcing it is YOURS whoever attacked (rule 6a) — blocks are locked in and nothing has applied damage since. Use the damage tool.\n`
+            : "";
     // turn-based trigger hints: "At the beginning of…" lines on the agent's
     // own battlefield, surfaced at the top of its turn (text-grep, not rulings)
     const turnTriggers =

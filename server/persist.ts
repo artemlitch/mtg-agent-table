@@ -43,9 +43,14 @@ export function restoreState(snap: any): PersistedExtra {
   // than a missing one. Set before the phase migration below, which reads it.
   (game as any).combat ??= null;
   // whether the opening is over used to be read off the round counter, which
-  // only moves on the way back to Player. A save from then knows its own round:
-  // past round 1, the openers are long settled.
-  (game as any).openingOver ??= game.turnNumber > 1;
+  // only moves on the way back to Player — so round 1 alone would restore the
+  // agent's own first turn as the deal, the exact window this field exists for.
+  // A game starts on Player's turn (newGameState), so a round-1 save on the
+  // agent's turn can only have got there through a turn pass that resolved.
+  // Keyed off the SNAPSHOT's silence, not the live field's: ??= cannot work
+  // here, because the game being restored into already carries the newGameState
+  // default of `false`, which is not nullish and so swallows the migration.
+  if (snap.game?.openingOver === undefined) game.openingOver = game.turnNumber > 1 || game.turn !== "you";
   // what the turn has already seen used to be re-read out of the log; a save
   // from then knows nothing about its own turn, and starts it blank
   for (const ps of Object.values(game.players) as any[]) ps.turnDone ??= { untap: false, draw: false, lands: 0, acted: false };

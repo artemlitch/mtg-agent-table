@@ -50,6 +50,24 @@ describe("state serialization", () => {
     expect(Object.keys(game.cards)).not.toContain(fresh);
   });
 
+  // A save from before openingOver existed has to be read back into it, and the
+  // round counter alone cannot say: it only moves on the way back to Player, so
+  // the agent's own first turn is still round 1 — the one window where a
+  // restored game would have re-offered the mulligan it was written to stop.
+  test("a legacy save restores whether its opening was over", () => {
+    const legacy = (turn: "you" | "agent", turnNumber: number) => {
+      const snap = serializeState({ agent: null, lastDecks: null });
+      snap.game.turn = turn;
+      snap.game.turnNumber = turnNumber;
+      delete snap.game.openingOver; // written before the field existed
+      restoreState(snap);
+      return game.openingOver;
+    };
+    expect(legacy("you", 1)).toBe(false); // the deal itself
+    expect(legacy("agent", 1)).toBe(true); // only a resolved turn pass gets here
+    expect(legacy("you", 2)).toBe(true);
+  });
+
   test("legacy attachedTo migrates to under, fans linearize into chains", () => {
     applyAction("you", "create_token", { name: "Bearer", n: 1 });
     applyAction("you", "create_token", { name: "Sword", n: 1 });

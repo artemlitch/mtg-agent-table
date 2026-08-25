@@ -265,6 +265,27 @@ describe("agent transport", () => {
     expect(a.composeWakePrompt("react")).not.toContain("COMBAT DAMAGE IS OWED");
   });
 
+  // The same trap the damage line was already out of: a duty that is stated
+  // every window, and a declaration that stays owed until the OPPONENT resolves
+  // it. Nagging for blocks that are already on the stack asks for a second
+  // declaration, and a second declaration is what keeps the damage step shut —
+  // resolving one leaves the other still owed (see resolveStackItem's stillOwed).
+  test("blocks already declared are not owed — the wake says who is holding them", () => {
+    resetGameState();
+    const gonti = makeCard({ id: "g2", name: "Gonti", owner: "you", controller: "you", zone: "battlefield", isCommander: true, power: "2", toughness: "3" });
+    game.cards[gonti.id] = gonti;
+    game.players.you.zones.battlefield.push(gonti.id);
+    applyAction("you", "attack", { pairs: [{ attacker: gonti.id, target: "agent" }] });
+    applyAction("agent", "stack_resolve", {});
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    applyAction("agent", "block", { pairs: [] }); // declared, and NOT yet locked in
+    const prompt = a.composeWakePrompt("window");
+    expect(prompt).toContain("waiting for Player to lock it in");
+    expect(prompt).not.toContain("declare them");
+  });
+
   test("…and says so plainly when a seat has nothing out", () => {
     resetGameState();
     const a = new AgentRunner();
