@@ -14,13 +14,12 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { CardEl } from "../../components/Card";
 import { Text } from "../../components/Text";
-import { traceDraw } from "../../game/debug";
 import { startDrag } from "../../game/drag";
 import { chonkyPiles, liftedTriggers, pendingAttackOf, resolveZoneOf, stackCardsOf } from "../../game/rules";
 import { openPileBrowser } from "../browsers/Browsers";
 import { settleUnplaced } from "../../game/settle";
-import { PILE_DX, PILE_DY, measureSurface, posToPx } from "../../game/table";
-import { cardById, useGame } from "../../store/game";
+import { cardAnchor, measureSurface } from "../../game/table";
+import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, PlayerId, StackItem } from "../../types";
 import { StackItemButtons } from "../stack/StackItem";
@@ -112,7 +111,7 @@ export function CardLayer() {
  *  put it in is where it resolves — it just cannot be tapped, because
  *  tapping is not an action it has yet. */
 function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; item?: StackItem; pile?: number }) {
-  const anchor = anchorOf(c);
+  const anchor = cardAnchor(c);
   // not placed yet: it gets a spot in this same commit, before the frame is
   // painted, so it appears where it belongs rather than sliding there
   if (!anchor) return null;
@@ -193,27 +192,3 @@ function Placed({ card: c, lift, item, pile }: { card: Card; lift?: StackItem; i
   );
 }
 
-/** Walk up the pile to the card that actually owns a position, and count the
- *  rungs on the way so the cascade knows how far down this card hangs.
- *  Null means the card has not been placed yet — settleUnplaced() is about
- *  to give it a spot, and until it does there is nowhere honest to draw it. */
-function anchorOf(c: Card): { left: number; top: number; depth: number } | null {
-  let top: Card = c;
-  let depth = 0;
-  let guard = 0;
-  while (top.under && guard++ < 50) {
-    const next = cardById(top.under);
-    if (!next) break;
-    top = next;
-    depth++;
-  }
-  // a position you just dropped the card at outranks the one in the view: the
-  // server has not answered yet, and the card must not flick back meanwhile
-  const claimed = useGame.getState().pendingPos.get(top.id);
-  const pos = claimed ?? top.pos;
-  if (!pos) return null;
-  const at = posToPx(pos);
-  const out = { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
-  traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "MISSING", depth);
-  return out;
-}

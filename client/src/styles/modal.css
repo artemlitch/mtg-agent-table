@@ -126,22 +126,47 @@
 .abilitymodal .ambtn small { font-size: var(--fs-micro); opacity: 0.65; font-family: -apple-system, sans-serif; letter-spacing: 0.1em; }
 
 /* target palette hovering beside the ability modal */
-.targetpanel { display: flex; gap: 8px; align-items: flex-start; margin-left: 14px; margin-top: 10vh; max-height: calc(78vh - 20px); }
-.tcol {
-  width: 88px; display: flex; flex-direction: column; min-height: 0; max-height: calc(82vh - 20px);
-  border: 1px solid transparent; border-radius: 10px; padding: 5px;
-  background: linear-gradient(rgba(21, 17, 30, 0.92), rgba(21, 17, 30, 0.92)) padding-box, var(--chrome-dim) border-box;
+/* The table, small, standing beside the ability box and matching its height
+   and width. Its top edge lines up with the box's, the same as the palette
+   that used to be here. */
+.targetpanel {
+  position: relative; overflow: hidden; flex: none;
+  margin-left: 14px; margin-top: 10vh;
+  border: 1px solid transparent; border-radius: 10px;
+  /* the same leather the table is cut from — see --felt-layers in base.css.
+     The rim goes on a pseudo-element rather than in the background stack:
+     border-box/padding-box layers cannot sit in the same list as the blended
+     felt without joining the blend and coming out muddy. A shallower inset
+     shadow than the real felt's 70px, which on a box this size would be a
+     vignette with a hole in it rather than an edge. */
+  background: var(--felt-layers);
+  background-blend-mode: var(--felt-blend);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.55);
 }
-.tcolhead { font: var(--fw-heading) var(--fs-tiny)/1.5 var(--font-fantasy); letter-spacing: 0.06em; color: var(--accent); text-align: center; cursor: pointer; text-transform: uppercase; margin-bottom: 4px; }
-.tcolhead::after { content: " ▾"; font-size: var(--fs-tiny); color: var(--dim); }
-.tcol.collapsed .tcolhead::after { content: " ▸"; color: var(--gold-hi); }
-.tcol .tlist { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
-.tcol.collapsed .tlist { display: none; }
-.titem { cursor: pointer; border-radius: 5px; outline: 2px solid transparent; transition: var(--hover-transition); }
-.titem img { width: 100%; border-radius: 5px; display: block; }
-.titem span { display: block; font-size: var(--fs-tiny); padding: 3px; }
-.titem:hover { outline: 2px solid var(--accent); }
-.tsub { font: var(--fw-label) var(--fs-tiny)/1.5 var(--font-fantasy); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 5px; }
+.targetpanel::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  border: 1px solid transparent; border-radius: inherit;
+  background: var(--chrome-dim) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* The felt at ITS size, shrunk to fit and centred. Sizing the div to the real
+   board and scaling the whole thing is what keeps this honest: a card and its
+   badges, its outline, its P/T corner all shrink together, so nothing has to
+   be re-drawn small and nothing can be re-drawn wrong. */
+.tfboard { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; }
+.tfboard .card { position: absolute; transition: none; cursor: pointer; }
+/* everything painted ON a card is a control on the real table — the counter
+   chip, the flip arrow, the live counter badges. Here the card is the only
+   thing you can press, and what it does is put its name in the box. */
+.tfboard .card * { pointer-events: none; }
+.tfboard .card:hover { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 7px; }
+/* whose half is whose — the same marking the real table carries, drawn at one
+   real pixel by undoing the scale */
+.tfmid {
+  position: absolute; left: 0; right: 0; top: 50%; z-index: 0; opacity: 0.5;
+  background: linear-gradient(90deg, transparent, #b8892f 25%, var(--gold-hi) 50%, #b8892f 75%, transparent);
+}
 
 .tokencustom { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
 .tokencustom .tclabel { width: 100%; color: var(--accent); font: var(--fw-label) var(--fs-note)/1.5 var(--font-fantasy); letter-spacing: 0.08em; }

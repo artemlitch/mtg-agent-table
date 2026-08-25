@@ -17,7 +17,9 @@
 // pos -> px -> pos exact, which is what keeps a server ack from nudging a card
 // you just dropped.
 
-import { box, dlog, fr, px } from "./debug";
+import { cardById, useGame } from "../store/game";
+import type { Card } from "../types";
+import { box, dlog, fr, px, traceDraw } from "./debug";
 
 export interface Rect {
   left: number;
@@ -170,6 +172,39 @@ export function pxToPos(left: number, top: number): { x: number; y: number } {
     x: Math.max(0, Math.min(1, (left - s.place.left) / w)),
     y: Math.max(lim.min, Math.min(lim.max, (top - s.place.top) / h)),
   };
+}
+
+/** Where a card is DRAWN, in the same felt-local pixels: its own position, or
+ *  the position of the card at the top of the pile it hangs from, stepped one
+ *  rung further down for each card in between. `depth` is how many rungs — the
+ *  board reads it for the paint order and the dimming.
+ *
+ *  Null means the card has not been placed yet. settleUnplaced() is about to
+ *  give it a spot, and until it does there is nowhere honest to draw it.
+ *
+ *  Lives here rather than beside the board that draws it because it is not the
+ *  only board any more: the ability modal draws a small one, and it has to
+ *  agree with the real one exactly. Two copies of this walk would be two
+ *  boards that drift apart. */
+export function cardAnchor(c: Card): { left: number; top: number; depth: number } | null {
+  let top: Card = c;
+  let depth = 0;
+  let guard = 0;
+  while (top.under && guard++ < 50) {
+    const next = cardById(top.under);
+    if (!next) break;
+    top = next;
+    depth++;
+  }
+  // a position you just dropped the card at outranks the one in the view: the
+  // server has not answered yet, and the card must not flick back meanwhile
+  const claimed = useGame.getState().pendingPos.get(top.id);
+  const pos = claimed ?? top.pos;
+  if (!pos) return null;
+  const at = posToPx(pos);
+  const out = { left: at.left + depth * PILE_DX, top: at.top + depth * PILE_DY, depth };
+  traceDraw(c.id, c.name, out, pos, claimed ? "claim" : top.pos ? "server" : "MISSING", depth);
+  return out;
 }
 
 // ── drop regions ───────────────────────────────────────────────────────────

@@ -1,15 +1,15 @@
-import { createRef, useState, type RefObject } from "react";
+import { createRef, useLayoutEffect, useState, type RefObject } from "react";
 import { act } from "../../api";
+import { CardEl } from "../../components/Card";
 import { artFallback } from "../../components/cardArt";
-import { previewProps } from "../../components/CardPreview";
 import { Icon } from "../../components/Icon";
 import { ModalFrame } from "../../components/Modal";
 import { Text } from "../../components/Text";
-import { isLand } from "../../game/rules";
+import { cardAnchor, placeRect } from "../../game/table";
 import { playCard } from "../nextaction/steps";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
-import type { Card } from "../../types";
+import type { Card, PlayerId } from "../../types";
 
 /** Announce what a card is doing onto the stack: the card and its oracle text
  *  for reference, one input, Enter submits. The target palette floats beside
@@ -79,19 +79,34 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
   );
 }
 
-/** Every legal target, click to insert [Card Name] into the input at the
- *  cursor. */
+/** The table itself, small, beside the box: both battlefields with every card
+ *  where it actually sits and in the state it is actually in. Hovering one
+ *  raises the full-size preview the board raises; clicking one drops its name
+ *  into the input.
+ *
+ *  It is the REAL board scaled down, not a small board laid out again — the
+ *  same felt-local pixels from cardAnchor, in a div the size of the felt,
+ *  under one transform. That is what makes a tapped card tapped, a pile a
+ *  pile, and an attacker's badge an attacker's badge without this file
+ *  knowing what any of those look like. Laying the cards out again at a
+ *  smaller size would be a second board to keep in step with the first. */
 function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | null> }) {
   const view = useGame((s) => s.view);
-  if (!view) return null;
-  const P = view.players;
-  const cols: [string, Card[], boolean, Card[]][] = [
-    ["My field", P.you.zones.battlefield, false, []],
-    ["Agent field", P.agent.zones.battlefield, false, []],
-    ["My hand", P.you.zones.hand, false, []],
-    ["My graveyard", [...P.you.zones.graveyard].reverse(), true, [...P.you.zones.exile].reverse()],
-    ["Agent graveyard", [...P.agent.zones.graveyard].reverse(), true, [...P.agent.zones.exile].reverse()],
-  ];
+  // as tall and as wide as the box it stands beside, whatever size that box's
+  // own content settled at
+  const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = document.getElementById("modal-box");
+    if (!el) return;
+    // offset, not client: the box's own border is part of how tall it stands,
+    // and these two are meant to line up edge to edge
+    const read = () => setFit({ w: el.offsetWidth, h: el.offsetHeight });
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const insert = (name: string) => {
     const el = inputRef.current;
     if (!el) return;
@@ -101,53 +116,43 @@ function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | n
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.focus();
   };
-  return (
-    <div className="targetpanel">
-      {cols.map(([title, cards, collapsed, exileCards]) => (
-        <TargetColumn
-          key={title}
-          title={title}
-          cards={cards}
-          startCollapsed={collapsed}
-          exileCards={exileCards}
-          onPick={insert}
-        />
-      ))}
-    </div>
-  );
-}
 
-const sortLandsLast = (arr: Card[]) => [...arr].sort((a, b) => Number(isLand(a)) - Number(isLand(b)));
+  const board = placeRect();
+  if (!view || !fit || !board) return null;
+  const cards = (["agent", "you"] as PlayerId[])
+    .flatMap((p) => view.players[p].zones.battlefield)
+    .map((c) => ({ c, at: cardAnchor(c) }))
+    .filter((x): x is { c: Card; at: NonNullable<ReturnType<typeof cardAnchor>> } => !!x.at)
+    // paint order, exactly as the real board sorts it
+    .sort((a, b) => (a.c.z ?? 0) - (b.c.z ?? 0));
+  const scale = Math.min(fit.w / board.width, fit.h / board.height);
 
-function TargetColumn({
-  title,
-  cards,
-  exileCards,
-  startCollapsed,
-  onPick,
-}: {
-  title: string;
-  cards: Card[];
-  exileCards: Card[];
-  startCollapsed: boolean;
-  onPick: (name: string) => void;
-}) {
-  const [collapsed, setCollapsed] = useState(startCollapsed);
-  const item = (c: Card) =>
-    c.hidden || !c.name ? null : (
-      <div key={c.id} className="titem" {...previewProps(c)} onClick={() => onPick(c.name!)}>
-        {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <Text>{c.name}</Text>}
-      </div>
-    );
   return (
-    <div className={`tcol${collapsed ? " collapsed" : ""}`}>
-      <div className="tcolhead" title="Toggle" onClick={() => setCollapsed((c) => !c)}>
-        {title}
-      </div>
-      <div className="tlist">
-        {sortLandsLast(cards).map(item)}
-        {exileCards.some((c) => !c.hidden) && <div className="tsub">Exile</div>}
-        {exileCards.some((c) => !c.hidden) && sortLandsLast(exileCards).map(item)}
+    <div className="targetpanel" style={{ width: fit.w, height: fit.h }}>
+      <div
+        className="tfboard"
+        style={{ width: board.width, height: board.height, transform: `translate(-50%, -50%) scale(${scale})` }}
+        /* every control ON a card — the counter chip, the flip button, the
+           live badges — is dead in here (pointer-events, in the sheet). The
+           menu is the one that opens on the card itself, so it is refused on
+           the way down instead. This is a picker, not a second table. */
+        onContextMenuCapture={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <div className="tfmid" style={{ height: 1 / scale }} />
+        {cards.map(({ c, at }) => (
+          <CardEl
+            key={c.id}
+            card={c}
+            className="placed"
+            style={{ left: at.left - board.left, top: at.top - board.top, zIndex: at.depth > 0 ? Math.max(1, 20 - at.depth) : 21 }}
+            // a face-down card has no name to insert, and says so by doing
+            // nothing rather than by being left off the table
+            onClick={c.hidden || !c.name ? () => {} : () => insert(c.name!)}
+          />
+        ))}
       </div>
     </div>
   );

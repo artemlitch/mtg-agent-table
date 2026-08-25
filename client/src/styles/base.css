@@ -155,14 +155,23 @@ textarea { cursor: text; }
 #app { display: flex; height: 100vh; }
 #table { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 /* leather playmat: SVG turbulence does the work — a coarse mottle layer for
-   worn patches, a fine grain layer, over a deep umber base with a vignette */
-#table {
-  background:
+   worn patches, a fine grain layer, over a deep umber base with a vignette.
+   Written as a variable rather than straight onto #table, because there is
+   more than one felt now: the ability modal stands a small copy of the table
+   beside it, and it has to be the same leather rather than a second one that
+   looks nearly right. The blend modes travel with the layers — they line up
+   by position, so either half alone is not the material. */
+:root {
+  --felt-layers:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.32'/%3E%3C/svg%3E"),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='700' height='700'%3E%3Cfilter id='m' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0114286 0.0142857' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)' opacity='0.28'/%3E%3C/svg%3E"),
     radial-gradient(115% 90% at 50% 46%, rgba(43, 27, 14, 0.8), rgba(19, 12, 7, 0.94) 78%, rgba(9, 6, 3, 0.98) 100%),
     #0f0a06;
-  background-blend-mode: overlay, soft-light, normal, normal;
+  --felt-blend: overlay, soft-light, normal, normal;
+}
+#table {
+  background: var(--felt-layers);
+  background-blend-mode: var(--felt-blend);
   box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.55);
 }
 /* everything below the topbar; the glow measures itself against this rather
