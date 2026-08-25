@@ -45,15 +45,10 @@ const SOUND_RULES: [string, RegExp][] = [
   // server/game.ts. The trailing untap count rides on the same line, so this
   // is deliberately not anchored at the end.
   ["phase", / moves to /],
-  // Handing priority over: "Player passes — Agent's window". The most common
-  // line in a game by a distance — thirty of them in five rounds — and it
-  // matched nothing, so the most-pressed button in the app said nothing back.
-  //
-  // It is not just the small passes either: "Finish declaring attackers"
-  // sends `done` rather than a phase change (see steps.ts), so the moment you
-  // hand a declared attack over was silent too — which reads as the attack
-  // itself having made no sound.
-  ["pass", / passes — /],
+  // Handing priority over — "Player passes — Agent's window" — is left
+  // SILENT on purpose. It is the most common line in a game by a distance,
+  // thirty of them in five rounds, and a sound on every one of those is a
+  // metronome rather than information.
   // your own draw reads "Player drew: Island" — the line the server writes for
   // your eyes only — and everyone else's is a count
   ["draw", /(^Player drew: )|( drew \d+ cards?$)/],

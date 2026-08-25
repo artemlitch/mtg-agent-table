@@ -639,40 +639,5 @@
         "verb": 0.55
       }
     ]
-  },
-  "pass": {
-    "desc": "priority handed over — a soft tick and a step down",
-    "layers": [
-      {
-        "kind": "noise",
-        "freq": 1800,
-        "dur": 0.022,
-        "vol": 0.075,
-        "t": 0,
-        "q": 2.5,
-        "slide": 0,
-        "verb": 0.06
-      },
-      {
-        "kind": "tone",
-        "freq": 587,
-        "dur": 0.09,
-        "vol": 0.085,
-        "t": 0,
-        "type": "sine",
-        "slide": 0,
-        "verb": 0.15
-      },
-      {
-        "kind": "tone",
-        "freq": 494,
-        "dur": 0.14,
-        "vol": 0.075,
-        "t": 0.055,
-        "type": "sine",
-        "slide": 0,
-        "verb": 0.22
-      }
-    ]
   }
 }
