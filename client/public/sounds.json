@@ -229,49 +229,144 @@
     ]
   },
   "lockin": {
-    "desc": "attackers locked in — the old war drum, untuned",
+    "desc": "attackers locked in — blades meeting, three of them",
     "layers": [
       {
-        "kind": "tone",
-        "freq": 41,
-        "dur": 0.86,
-        "vol": 0.555,
+        "kind": "noise",
+        "freq": 700,
+        "dur": 0.07,
+        "vol": 0.115,
         "t": 0,
-        "type": "triangle",
-        "slide": 174,
-        "verb": 0.82,
-        "atk": 0.013
+        "q": 0.8,
+        "slide": 5200,
+        "verb": 0.06,
+        "atk": 0.008,
+        "shape": "swell"
+      },
+      {
+        "kind": "noise",
+        "freq": 4600,
+        "dur": 0.035,
+        "vol": 0.28,
+        "t": 0.07,
+        "q": 6.0,
+        "slide": 0,
+        "verb": 0.25
       },
       {
         "kind": "tone",
-        "freq": 133,
-        "dur": 0.36,
-        "vol": 0.525,
-        "t": 0,
-        "type": "triangle",
-        "slide": 252,
-        "verb": 0.78,
-        "atk": 0.011
-      },
-      {
-        "kind": "tone",
-        "freq": 226,
-        "dur": 0.94,
-        "vol": 0.33,
-        "t": 0,
+        "freq": 3140,
+        "dur": 0.3,
+        "vol": 0.072,
+        "t": 0.072,
         "type": "sine",
         "slide": 0,
-        "verb": 0.6,
-        "atk": 0.015
+        "verb": 0.4
       },
       {
         "kind": "tone",
-        "freq": 575,
-        "dur": 0.15,
-        "vol": 0.1,
-        "t": 0,
+        "freq": 4710,
+        "dur": 0.22,
+        "vol": 0.046,
+        "t": 0.072,
         "type": "sine",
-        "slide": 0
+        "slide": 0,
+        "verb": 0.4
+      },
+      {
+        "kind": "noise",
+        "freq": 900,
+        "dur": 0.06,
+        "vol": 0.098,
+        "t": 0.16,
+        "q": 0.7,
+        "slide": 6000,
+        "verb": 0.06,
+        "atk": 0.006,
+        "shape": "swell"
+      },
+      {
+        "kind": "noise",
+        "freq": 5400,
+        "dur": 0.03,
+        "vol": 0.238,
+        "t": 0.22,
+        "q": 7.0,
+        "slide": 0,
+        "verb": 0.25
+      },
+      {
+        "kind": "tone",
+        "freq": 2640,
+        "dur": 0.26,
+        "vol": 0.058,
+        "t": 0.222,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.45
+      },
+      {
+        "kind": "tone",
+        "freq": 3960,
+        "dur": 0.18,
+        "vol": 0.039,
+        "t": 0.222,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.45
+      },
+      {
+        "kind": "noise",
+        "freq": 600,
+        "dur": 0.08,
+        "vol": 0.103,
+        "t": 0.3,
+        "q": 0.9,
+        "slide": 4400,
+        "verb": 0.08,
+        "atk": 0.008,
+        "shape": "swell"
+      },
+      {
+        "kind": "noise",
+        "freq": 3900,
+        "dur": 0.045,
+        "vol": 0.319,
+        "t": 0.38,
+        "q": 5.0,
+        "slide": 0,
+        "verb": 0.3
+      },
+      {
+        "kind": "tone",
+        "freq": 1980,
+        "dur": 0.45,
+        "vol": 0.065,
+        "t": 0.382,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.5
+      },
+      {
+        "kind": "tone",
+        "freq": 2970,
+        "dur": 0.3,
+        "vol": 0.042,
+        "t": 0.382,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.5
+      },
+      {
+        "kind": "tone",
+        "freq": 190,
+        "dur": 0.16,
+        "vol": 0.163,
+        "t": 0.38,
+        "type": "triangle",
+        "slide": 110,
+        "verb": 0.25,
+        "atk": 0.004
       }
     ]
   },
