@@ -85,10 +85,21 @@
    ellipse parked almost entirely below the box, with only its top tenth
    clearing the overflow. It reads as a lit lip under the cards rather than as
    a border. */
+/* Graveyard and exile sit ON the rail rather than being cut into it: a plate a
+   shade lighter than the panel behind them, a warm hairline rim, and a soft
+   shadow under it. The lip ellipse below is that same shadow seen from inside
+   the box, so the two agree about where the light is coming from.
+   Slight on purpose. These are furniture beside the table and the cards have to
+   stay the brightest thing in the window.
+   The fill is a variable because the hover and drop-target washes need to layer
+   OVER it — those rules set the whole background, and a flat colour there would
+   drop the plate for as long as the cursor was on it. */
 .pile {
   position: relative; overflow: hidden;
-  border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
-  background: none;
+  border: 1px solid rgba(226, 179, 85, 0.11); border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
+  --plate: linear-gradient(180deg, color-mix(in srgb, var(--panel2) 93%, #f8e7a0), var(--panel2));
+  background: var(--plate);
+  box-shadow: inset 0 1px 0 rgba(248, 231, 160, 0.05), 0 2px 4px rgba(0, 0, 0, 0.38);
   /* its transition lives with the drop-target rule in the drag section — one
      declaration, so the slow outline fade cannot be overwritten from here */
 }
@@ -107,8 +118,8 @@
   filter: blur(7px);
   opacity: 0.86; transition: opacity var(--glow-dur) var(--glow-ease);
 }
-/* the plate used to carry the hover; a hairline rim does it now */
-.pile:hover { border-color: rgba(226, 179, 85, 0.4); background: rgba(226, 179, 85, 0.04); }
+/* a brighter rim, and the wash laid over the plate rather than in place of it */
+.pile:hover { border-color: rgba(226, 179, 85, 0.4); background: linear-gradient(rgba(226, 179, 85, 0.05), rgba(226, 179, 85, 0.05)), var(--plate); }
 .pile:hover::after { opacity: 1; }
 .pile .phead { display: flex; justify-content: space-between; align-items: baseline; }
 .pile .pname { font: var(--fw-label) var(--fs-micro)/1.6 var(--font-fantasy); letter-spacing: 0.06em; color: var(--dim); }
@@ -245,6 +256,16 @@ body.dragging #cardlayer { z-index: 49; }
    fade in, because an outline occupies no space.
    The repeated outline-color is deliberate — the later entry wins, so the
    dashes get their own timing while everything else keeps the house one. */
+/* The drop-target wash below is laid over --plate so the pile keeps its plate
+   while the cursor is on it. These two are holes in the rail with nothing
+   underneath, and they need the variable defined anyway: an undefined var makes
+   the whole background declaration invalid and they would lose the wash
+   entirely. Not folded into the rule below — same specificity as .pile and
+   later in the file, so it would win there and flatten the plate. */
+.handrow.fan,
+.cmdzone {
+  --plate: none;
+}
 .handrow.fan,
 .pile,
 .cmdzone {
@@ -269,7 +290,7 @@ body.dragging .handrow.fan:hover,
 body.dragging .pile:hover,
 body.dragging .cmdzone:hover {
   outline-color: var(--gold-hi);
-  background: rgba(226, 179, 85, 0.05);
+  background: linear-gradient(rgba(226, 179, 85, 0.05), rgba(226, 179, 85, 0.05)), var(--plate);
   transition: var(--hover-transition);
 }
 body.dragging .handrow.fan { border-radius: 10px; }
