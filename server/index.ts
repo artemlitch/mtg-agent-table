@@ -1,6 +1,6 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
-import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, transcript, getSaid, setSaid, leanCard, openAttackDeclaration, type PlayerId } from "./game";
+import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, transcript, getSaid, setSaid, leanCard, openAttackDeclaration, openBlockDeclaration, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
@@ -306,7 +306,11 @@ const server = Bun.serve({
         // attacker continues the step already recorded rather than starting a
         // new one — one press takes the whole attack back, which is how the
         // UI has always described it ("Finish declaring attackers").
-        const continues = body.type === "attack" && !!openAttackDeclaration(actor);
+        // ...and the same for blockers, which are declared a creature at a
+        // time from the other side of the combat.
+        const continues =
+          (body.type === "attack" && !!openAttackDeclaration(actor)) ||
+          (body.type === "block" && !!openBlockDeclaration(actor));
         const undoable = !NOT_UNDOABLE.has(body.type) && !continues;
         if (undoable) recordSnapshot();
         // who held priority BEFORE this — done overwrites it, and the wake

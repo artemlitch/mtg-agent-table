@@ -89,6 +89,7 @@ export const GAME_EVENTS = [
   "attacks_finished",
   "attacks_locked",
   "blockers_declared",
+  "blocks_finished",
   "drew",
   "tapped",
 ] as const;

@@ -50,6 +50,9 @@ export const EVENT_SOUND: Record<GameEvent, SoundId> = {
   attacks_finished: "lockin",
   attacks_locked: "phase",
   blockers_declared: "block",
+  // the same two beats from the other side of the table: blockers go down one
+  // at a time, then you commit the whole answer
+  blocks_finished: "lockin",
   drew: "draw",
   tapped: "tap",
 };

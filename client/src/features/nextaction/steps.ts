@@ -38,6 +38,12 @@ export interface Ctx {
   myAttackDecls: StackItem[];
   /** how many creatures those declarations add up to */
   declared: number;
+  /** my block declarations sitting on the stack, not yet locked in — the same
+   *  shape as myAttackDecls from the other side of the combat (block() amends
+   *  one open declaration in place, so in practice this is 0 or 1) */
+  myBlockDecls: StackItem[];
+  /** how many blockers those declarations add up to */
+  blocking: number;
   /** where combat is, straight off the view — see CombatStep in server/game.ts */
   combat: GameView["combat"];
   myTapped: boolean;
@@ -62,6 +68,7 @@ export const passTurnToAgent = async () => {
 export function nextActionContext(view: GameView): Ctx {
   const stack = view.stack || [];
   const myAttackDecls = stack.filter((it) => it.player === "you" && !!it.attackPairs);
+  const myBlockDecls = stack.filter((it) => it.player === "you" && !!it.blockPairs);
   const theirAttackers = view.players.agent.zones.battlefield.filter((c) => c.attacking);
   return {
     view,
@@ -74,6 +81,8 @@ export function nextActionContext(view: GameView): Ctx {
     myAttackers: view.players.you.zones.battlefield.filter((c) => c.attacking),
     myAttackDecls,
     declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
+    myBlockDecls,
+    blocking: myBlockDecls.reduce((n, it) => n + (it.blockPairs?.length ?? 0), 0),
     combat: view.combat ?? null,
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
     agentBusy: useGame.getState().agentBusy,
@@ -159,13 +168,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "waiting-on-agent-response",
-    // your own item on top — the agent answers it. Except an attack
-    // declaration you have not finished: that one is on the stack but has not
-    // been handed over, and the agent is deliberately not looking at it (see
-    // wakePlanFor in server/wake.ts), so saying it is waiting would be a lie.
-    // Tested by the type of the top item, not its identity: every creature you
-    // tap pushes its own declaration, so the top one is not the first one.
-    when: (c) => !!c.top && !(c.top.player === "you" && !!c.top.attackPairs),
+    // your own item on top — the agent answers it. Except a combat declaration
+    // you have not finished: those are on the stack but have not been handed
+    // over, and the agent is deliberately not looking at them (see wakePlanFor
+    // in server/wake.ts), so saying it is waiting would be a lie. Blocks are
+    // the same as attacks here — both are yours to finish, and the step that
+    // owns each of them says so.
+    when: (c) => !!c.top && !(c.top.player === "you" && (!!c.top.attackPairs || !!c.top.blockPairs)),
     step: (c) => ({ hint: waitingHint(c, "on the stack") }),
   },
   {
@@ -192,8 +201,42 @@ export const NEXT_ACTION_STEPS: Step[] = [
       // the attacker locks it in, and that is what opens the damage step.
       // The old chat message left the table never learning blocks were
       // answered — the step recognised its own English back out of the log.
-      fn: () => void act("block", { pairs: [] }),
+      //
+      // ...and then finish it, because declaring nothing is a whole answer in
+      // one press. Blockers stopped waking the agent when they became yours to
+      // finish (see wakePlanFor in server/wake.ts), so the declaration on its
+      // own now hands nothing over: this button would push an item nobody was
+      // going to look at.
+      fn: async () => {
+        await act("block", { pairs: [] });
+        await act("finish_blocks", {});
+      },
     }),
+  },
+  {
+    // Declaring blockers is yours to finish, exactly as declaring attackers is.
+    // Pressing E on a blocker no longer wakes the agent (see wakePlanFor in
+    // server/wake.ts) and every press amends the one declaration, so you can
+    // gang three creatures onto one attacker without the agent locking the
+    // first of them in while you are still deciding on the second — which is
+    // what made a multi-block impossible to declare from the table at all.
+    id: "finish-blocks",
+    when: (c) => !c.mine && c.combat === "blockers" && c.myBlockDecls.length > 0,
+    step: (c) =>
+      // handed over already: pressing again cannot help and a second wake
+      // preempts the window you are waiting for. The declaration carries
+      // whether you finished, the same way the attack side does — and it is
+      // the only authority, because declaring one more blocker clears the flag
+      // while waitingOn still points at the attacker.
+      c.myBlockDecls.every((d) => d.finished)
+        ? { hint: waitingHint(c, "blocks declared") }
+        : {
+            label: "Finish declaring blockers",
+            icon: "block",
+            sub: c.blocking ? `${c.blocking} blocking` : "no blocks",
+            title: "tap [e] a creature to block",
+            fn: () => void act("finish_blocks", {}),
+          },
   },
   {
     // The agent hands priority back all through its own turn — after a wipe,

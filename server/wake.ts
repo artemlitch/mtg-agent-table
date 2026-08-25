@@ -40,10 +40,16 @@ export type WakeReason = "window" | "react";
  *  resolve the declaration while you were still adding to it — the attack is
  *  on the stack, but it is not locked in until you say you are finished. The
  *  "Finish declaring attackers" prompt is how you say so, and it sends
- *  finish_attacks, which hands over like a pass (see HANDS_OVER). */
+ *  finish_attacks, which hands over like a pass (see HANDS_OVER).
+ *
+ *  Declaring blockers is not here either, and for the identical reason from
+ *  the other side of the combat: block used to be reactive, so the first
+ *  blocker woke the agent, which locked the declaration in before a second
+ *  one could be declared. Two creatures could not gang up on one attacker at
+ *  all. "Finish declaring blockers" sends finish_blocks. */
 const REACTIVE = new Set([
   "cast", "stack_push", "stack_batch", "stack_resolve", "stack_resolve_all",
-  "stack_counter", "stack_remove", "block", "set_turn", "create_token",
+  "stack_counter", "stack_remove", "set_turn", "create_token",
 ]);
 
 /** What one of your actions buys the agent: a full window, a reaction window,
@@ -51,10 +57,10 @@ const REACTIVE = new Set([
  *
  *  Acting during the agent's turn always hands the table back, whatever the
  *  action was, because it is the agent's to continue. */
-/** The two ways you say "over to you". A pass on any stack, and the closing
- *  move of an attack declaration — different events, same effect on whose
+/** The ways you say "over to you". A pass on any stack, and the closing move
+ *  of either combat declaration — different events, same effect on whose
  *  window it is, so the wake policy treats them alike and nothing else has to. */
-const HANDS_OVER = new Set(["done", "finish_attacks"]);
+const HANDS_OVER = new Set(["done", "finish_attacks", "finish_blocks"]);
 
 export function wakePlanFor(
   action: string,

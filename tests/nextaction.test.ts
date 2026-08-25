@@ -360,9 +360,10 @@ describe("what used to break it", () => {
 });
 
 /** What pressing a prompt actually SENDS. act() posts to /api/action and
- *  nothing else, so a stubbed fetch is the whole recording. The body is built
- *  before the first await, so there is nothing to wait for. */
-function pressed(fn: (() => void) | undefined) {
+ *  nothing else, so a stubbed fetch is the whole recording. Awaited, because
+ *  a step can be a SEQUENCE — declining blocks declares and then finishes —
+ *  and the calls after the first await land after the press returns. */
+async function pressed(fn: (() => void) | undefined) {
   const sent: { type: string; params: Record<string, unknown> }[] = [];
   const real = globalThis.fetch;
   globalThis.fetch = ((_url: string, init: { body: string }) => {
@@ -370,7 +371,7 @@ function pressed(fn: (() => void) | undefined) {
     return Promise.resolve({ json: () => Promise.resolve({ ok: true }) });
   }) as unknown as typeof fetch;
   try {
-    fn?.();
+    await fn?.();
   } finally {
     globalThis.fetch = real;
   }
@@ -420,14 +421,66 @@ describe("combat comes from the view, not from the words in the log", () => {
   // recognising its own English back out of the log. Declining to block is a
   // declaration; it has to make one, or the table never learns that the
   // blockers step is over and damage stays illegal.
-  it("declines blocks by declaring it, not by saying it", () => {
+  it("declines blocks by declaring it, not by saying it", async () => {
     const { action } = prompt(theirAttack("blockers"));
-    const sent = pressed(action?.fn);
-    expect(sent.map((s) => s.type)).toEqual(["block"]);
+    const sent = await pressed(action?.fn);
+    // ...and FINISHES it. Blockers stopped waking the agent when they became
+    // yours to finish, so the declaration alone hands nothing over: one press
+    // has to be the whole answer, or "no blocks" sits on the stack unread.
+    expect(sent.map((s) => s.type)).toEqual(["block", "finish_blocks"]);
     expect(sent[0].params).toEqual({ pairs: [] });
   });
 
   it("stops offering it once the view says the step has moved on", () => {
     expect(prompt(theirAttack("damage")).id).not.toBe("no-blocks");
+  });
+
+  // Declaring blockers is yours to finish, exactly as declaring attackers is.
+  // Each hover+E pushed its own declaration and woke the agent, which locked
+  // the first blocker in before the second could be named — so a gang block
+  // could not be declared at all. One declaration, and one press to hand it
+  // over.
+  describe("and finishing the blocks is yours too", () => {
+    const blocks = (id: string, ...blockers: string[]): StackItem =>
+      ({
+        id,
+        player: "you",
+        text: `BLOCKS: ${blockers.join(", ")} → Rat`,
+        blockPairs: blockers.map((b) => ({ blocker: b, attacker: "Rat" })),
+      }) as StackItem;
+
+    /** their attack locked in, mid-blockers, with whatever you have declared */
+    const declaring = (...stack: StackItem[]) => {
+      const v = theirAttack("blockers");
+      (v as any).stack = stack;
+      return v;
+    };
+
+    it("asks you to finish once you have declared a blocker", () => {
+      const { id, action } = prompt(declaring(blocks("b1", "blocker", "second")));
+      expect(id).toBe("finish-blocks");
+      expect(action?.label).toBe("Finish declaring blockers");
+      expect(action?.sub).toBe("2 blocking");
+    });
+
+    it("sends finish_blocks, not a pass", async () => {
+      const { action } = prompt(declaring(blocks("b1", "blocker")));
+      const sent = await pressed(action?.fn);
+      expect(sent.map((s) => s.type)).toEqual(["finish_blocks"]);
+      expect(sent[0].params).toEqual({});
+    });
+
+    it("says who it is waiting on once you have finished, rather than asking twice", () => {
+      const { id, action } = prompt(declaring({ ...blocks("b1", "blocker"), finished: true }));
+      expect(id).toBe("finish-blocks");
+      expect(action?.label).toBeUndefined();
+      expect(action?.hint).toMatch(/waiting for the agent/);
+    });
+
+    // the two entries answer the same step and must never both be live: the
+    // one that asks whether you block stands down once you have said
+    it("still offers the no-blocks answer while nothing is declared", () => {
+      expect(prompt(declaring()).id).toBe("no-blocks");
+    });
   });
 });

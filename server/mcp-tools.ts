@@ -213,6 +213,7 @@ export const TOOLS: Record<string, ToolDef> = {
   block: {
     description:
       "Declare blockers — goes ON THE STACK: pairs of {blocker: cardId, attacker: cardId}. The attacker resolves the item to lock blocks in. After declaring, call done." +
+      " Declaring blockers is ONE declaration however many calls it takes: while yours is on the stack, another block call amends it in place (naming a blocker again moves it to the new attacker) rather than starting a second one, and it is not handed over until you call done." +
       " Declaring pairs: [] is the explicit 'no blocks' — resolving it is what opens the damage step.",
     schema: obj({ pairs: arr(obj({ blocker: str("card id"), attacker: str("card id") }, ["blocker", "attacker"]), "blocks") }, ["pairs"]),
   },

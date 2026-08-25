@@ -15,10 +15,16 @@ describe("what your action buys the agent", () => {
     expect(onYourTurn("attack")).toBeNull();
   });
 
+  test("and declaring blockers does not either — the same rule, other seat", () => {
+    // block WAS reactive, which is why a multi-block could not be declared at
+    // all: the first blocker woke the agent, and it locked the declaration in
+    // before the second one had been named.
+    expect(onYourTurn("block")).toBeNull();
+  });
+
   test("but a spell cast in the middle of declaring still does", () => {
     expect(onYourTurn("cast")).toBe("react");
     expect(onYourTurn("stack_push")).toBe("react");
-    expect(onYourTurn("block")).toBe("react");
   });
 
   test("finishing, or saying something, is a full window", () => {
@@ -54,6 +60,12 @@ describe("what your action buys the agent", () => {
     expect(wakePlanFor("finish_attacks", false, "you").reason).toBe("window");
     expect(wakePlanFor("finish_attacks", false, "agent").reason).toBeNull();
     expect(wakeDelayFor("finish_attacks")).toBe(WAKE_DELAY_MS);
+  });
+
+  test("...and so does finishing the blocks — it is the same kind of move", () => {
+    expect(wakePlanFor("finish_blocks", false, "you").reason).toBe("window");
+    expect(wakePlanFor("finish_blocks", true, "you").reason).toBe("window");
+    expect(wakeDelayFor("finish_blocks")).toBe(WAKE_DELAY_MS);
   });
 
   test("the plan carries the delay too, so the caller asks once", () => {

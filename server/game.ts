@@ -121,6 +121,7 @@ export const GAME_EVENTS = [
   "attacks_finished",
   "attacks_locked",
   "blockers_declared",
+  "blocks_finished",
   "drew",
   "tapped",
 ] as const;
@@ -838,6 +839,16 @@ export function shuffleZone(player: PlayerId, zone: Zone = "library") {
  *  undo step: while this item is open, the declaration is still being made. */
 export const openAttackDeclaration = (actor: PlayerId): StackItem | undefined =>
   game.stack.find((i) => i.player === actor && i.apply?.type === "attack");
+
+/** The same, for the seat being attacked: a block declaration on the stack
+ *  that the attacker has not locked in yet.
+ *
+ *  Declaring blockers is ONE act however many creatures it names — the mirror
+ *  of the rule above, hit from the other side of the combat. Without it the
+ *  second blocker started a rival declaration, and the attacker locked the
+ *  first one in while it was still being made. */
+export const openBlockDeclaration = (actor: PlayerId): StackItem | undefined =>
+  game.stack.find((i) => i.player === actor && i.apply?.type === "block");
 
 /** The ONE way an item reaches the stack. Its id is derived from the seq of
  * the log line the caller writes next ("s" + seq) — the frontend pairs chat
@@ -1697,7 +1708,24 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** Declare blockers — goes ON THE STACK; the attacker resolves to lock it in. */
   block(ctx, p) {
-    const lines = blockLines(p.pairs);
+    // ONE declaration, however many creatures it took to say it — the same
+    // rule as attack() above, and it was missing here. Pressing E down a row
+    // of blockers is a call apiece, each used to push its own stack item, and
+    // block was in the reactive wake set: the agent woke on the first one and
+    // locked it in before the second could be declared. Multi-blocks were
+    // impossible to declare from the table.
+    const open = openBlockDeclaration(ctx.actor);
+    const pairs = open?.apply?.type === "block" ? [...open.apply.pairs] : [];
+    for (const pair of p.pairs) {
+      getCard(pair.blocker); // both resolve, so a bad id fails before anything changes
+      getCard(pair.attacker);
+      // re-declaring a creature already in it moves it to the new attacker,
+      // rather than blocking twice with the same body
+      const at = pairs.findIndex((x) => x.blocker === pair.blocker);
+      if (at >= 0) pairs[at] = pair;
+      else pairs.push(pair);
+    }
+    const lines = blockLines(pairs);
     // The stack item renders lines[] as rows under its headline (see the
     // damage announcement, which does the same), so a multi-attacker block is
     // a short list rather than one sentence with five semicolons in it.
@@ -1710,13 +1738,24 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ? "no blocks"
       : lines.length === 1
         ? lines[0]
-        : `${p.pairs.length} blockers on ${lines.length} attackers`;
-    pushStackItem(ctx.actor, {
-      cardId: null,
-      text: `BLOCKS: ${summary}`,
-      ...(lines.length > 1 ? { lines } : {}),
-      apply: { type: "block", pairs: p.pairs },
-    });
+        : `${pairs.length} blockers on ${lines.length} attackers`;
+    if (open) {
+      open.text = `BLOCKS: ${summary}`;
+      if (lines.length > 1) open.lines = lines;
+      else delete open.lines;
+      open.apply = { type: "block", pairs };
+      // declaring another blocker means you are not finished any more
+      delete open.finished;
+    } else {
+      pushStackItem(ctx.actor, {
+        cardId: null,
+        text: `BLOCKS: ${summary}`,
+        ...(lines.length > 1 ? { lines } : {}),
+        apply: { type: "block", pairs },
+      });
+    }
+    // the log names the whole declaration as it now stands, so the ↩ notice
+    // for taking it back names the same thing the stack shows
     addLog(ctx.actor, `${who(ctx.actor)} declares blockers (on the stack): ${lines.join("; ") || "no blocks"}`, "blockers_declared");
     return { ok: true, stackSize: game.stack.length };
   },
@@ -2172,6 +2211,32 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     );
     return { ok: true, attackers: names };
   },
+
+  /** The same closing move for the defender: the blocks are declared, and it
+   *  is the attacker's to lock in.
+   *
+   *  Blocks needed it for exactly the reason attacks did. Declaring one woke
+   *  the agent, which locked it in while the second blocker was still being
+   *  hovered — so a two-creature gang block could not be declared at all. The
+   *  wake now waits for this (see HANDS_OVER in server/wake.ts). */
+  finish_blocks(ctx, _p) {
+    const decl = openBlockDeclaration(ctx.actor);
+    if (!decl)
+      throw new Error("no block declaration to finish — declare blockers first (block), or declare none with pairs: []");
+    const pairs = decl.apply?.type === "block" ? decl.apply.pairs : [];
+    decl.finished = true;
+    // blocker ⇒ attacker, because "finishes declaring blockers: Carrion
+    // Feeder" leaves the attacker unsaid, and which Rat it is standing in
+    // front of is half the declaration
+    const names = pairs.map((pair) => `${publicDesc(getCard(pair.blocker))} ⇒ ${publicDesc(getCard(pair.attacker))}`).join(", ");
+    game.waitingOn = ctx.actor === "you" ? "agent" : "you";
+    addLog(
+      ctx.actor,
+      `${who(ctx.actor)} finishes declaring blockers: ${names || "no blocks"} — ${who(game.waitingOn)} to lock them in or respond`,
+      "blocks_finished"
+    );
+    return { ok: true, blockers: names };
+  },
 };
 
 /** The actions that count as having STARTED PLAYING — the same set the old
@@ -2184,7 +2249,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
  *  inner call never reaches this dispatcher — only the outer name does. So
  *  untapping a creature counted as nothing while tapping one counted as
  *  playing, and a batched cast counted as nothing while a plain one did. */
-const PLAY_ACTIONS = new Set(["cast", "tap", "untap", "untap_all", "move", "create_token", "attack", "block", "stack_push", "stack_batch", "set_phase", "set_turn", "damage", "finish_attacks"]);
+const PLAY_ACTIONS = new Set(["cast", "tap", "untap", "untap_all", "move", "create_token", "attack", "block", "stack_push", "stack_batch", "set_phase", "set_turn", "damage", "finish_attacks", "finish_blocks"]);
 
 export function applyAction(actor: PlayerId, type: string, params: any): ActionResult {
   const fn = actions[type];

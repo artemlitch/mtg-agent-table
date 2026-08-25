@@ -852,14 +852,16 @@ describe("combat happens in order", () => {
   });
 
   // seq 458-463: three blockers, three stack items, three lock-ins in the
-  // reverse order they were declared. That is BY DESIGN — one declaration per
-  // creature is an event apiece, same as the client's attack model — so what
-  // this pins is not the count but that every one of them still lands.
-  test("blockers declared one at a time all lock in, however many items that takes", () => {
+  // reverse order they were declared. Declaring blockers is ONE act however
+  // many creatures it names, so those three calls are one declaration now —
+  // but what this pins is what it always pinned, that every one of them still
+  // ends up marked.
+  test("blockers declared one at a time all lock in", () => {
     const { rats, blockers } = ratsAttack();
     applyAction("you", "block", { pairs: [{ blocker: blockers[0].id, attacker: rats[0].id }] });
     applyAction("you", "block", { pairs: [{ blocker: blockers[1].id, attacker: rats[1].id }] });
     applyAction("you", "block", { pairs: [{ blocker: blockers[2].id, attacker: rats[2].id }] });
+    expect(game.stack.filter((i) => i.apply?.type === "block")).toHaveLength(1);
     while (game.stack.length) applyAction("agent", "stack_resolve", {});
     expect(blockers.map((b) => b.blocking)).toEqual(rats.map((r) => r.id));
   });
@@ -907,11 +909,12 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("done");
   });
 
-  // Blocks are declared a creature at a time — three blockers are three stack
-  // items — and the FIRST one to resolve used to open the damage step, with
-  // two declarations still sitting on the stack unanswered. The step is over
-  // when there is nothing left to answer with.
-  test("the damage step waits for the last block declaration", () => {
+  // Blocks used to be declared a creature at a time — three blockers were
+  // three stack items, and the FIRST one to resolve opened the damage step
+  // with two declarations still sitting there unanswered. Three creatures
+  // ganging up is ONE decision, so it is one item and one lock-in now, and
+  // the whole answer arrives at once.
+  test("three blockers are one declaration, and one lock-in closes the step", () => {
     const rat = seedCard("Rat", "agent", "battlefield");
     const b1 = seedCard("Carrion Feeder", "you", "battlefield");
     const b2 = seedCard("Tergrid, God of Fright", "you", "battlefield");
@@ -923,12 +926,12 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("blockers");
 
     for (const b of [b1, b2, b3]) applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+    expect(game.stack.filter((i) => i.apply?.type === "block")).toHaveLength(1);
+    expect(combatOf()).toBe("blockers"); // declared is not locked in
+
     applyAction("agent", "stack_resolve", {});
-    expect(combatOf()).toBe("blockers"); // two declarations still owed an answer
-    applyAction("agent", "stack_resolve", {});
-    expect(combatOf()).toBe("blockers");
-    applyAction("agent", "stack_resolve", {});
-    expect(combatOf()).toBe("damage"); // the last one closes the step
+    expect(combatOf()).toBe("damage");
+    expect([b1, b2, b3].map((b) => b.blocking)).toEqual([rat.id, rat.id, rat.id]);
   });
 
   // Blocks are the DEFENDER's answer. The attacker declaring "no blocks" on its
@@ -991,6 +994,98 @@ describe("the view says where combat is", () => {
     // tapping one more creature reopens the declaration
     applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
     expect(viewFor("you").stack[0].finished).toBeUndefined();
+  });
+
+  // The bug the whole finish_blocks mirror exists for. Every hover+E on a
+  // blocker pushed its OWN declaration, and block was in the reactive wake
+  // set — so the agent woke on the first blocker and locked it in before the
+  // second could be named. A gang block was not declarable from the table.
+  describe("declaring blockers is yours to finish", () => {
+    /** one Rat swinging, two creatures of yours that could stand in front of
+     *  it, attackers already locked in — the blockers step, open */
+    function swungAt() {
+      const rat = seedCard("Rat", "agent", "battlefield");
+      const rat2 = seedCard("Rat", "agent", "battlefield");
+      const a = seedCard("Carrion Feeder", "you", "battlefield");
+      const b = seedCard("Tergrid, God of Fright", "you", "battlefield");
+      game.turn = "agent";
+      applyAction("agent", "set_phase", { phase: "combat" });
+      applyAction("agent", "attack", {
+        pairs: [rat, rat2].map((r) => ({ attacker: r.id, target: "you" })),
+      });
+      applyAction("you", "stack_resolve", {});
+      game.waitingOn = "you";
+      return { rat, rat2, a, b };
+    }
+
+    test("two blockers declared one at a time are ONE declaration", () => {
+      const { rat, a, b } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+      const decls = game.stack.filter((i) => i.apply?.type === "block");
+      expect(decls).toHaveLength(1);
+      expect(decls[0].apply).toEqual({
+        type: "block",
+        pairs: [{ blocker: a.id, attacker: rat.id }, { blocker: b.id, attacker: rat.id }],
+      });
+      // the headline is rewritten to the whole declaration as it now stands
+      expect(decls[0].text).toBe("BLOCKS: Carrion Feeder, Tergrid, God of Fright → Rat");
+    });
+
+    test("naming a blocker again moves it, rather than blocking twice with one body", () => {
+      const { rat, rat2, a } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat2.id }] });
+      const decl = game.stack.find((i) => i.apply?.type === "block")!;
+      expect(decl.apply).toEqual({ type: "block", pairs: [{ blocker: a.id, attacker: rat2.id }] });
+    });
+
+    test("finish_blocks marks the declaration, hands the window over and names the blockers", () => {
+      const { rat, a, b } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+      expect(viewFor("you").stack.at(-1)!.finished).toBeUndefined();
+
+      applyAction("you", "finish_blocks", {});
+      expect(viewFor("you").stack.at(-1)!.finished).toBe(true);
+      expect(game.waitingOn).toBe("agent");
+      const entry = viewFor("you").log.at(-1)!;
+      expect(entry.text).toBe(
+        "Player finishes declaring blockers: Carrion Feeder ⇒ Rat, Tergrid, God of Fright ⇒ Rat — Agent to lock them in or respond"
+      );
+      expect(entry.event).toBe("blocks_finished");
+
+      // ...and naming one more blocker means you are not finished any more
+      applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+      expect(viewFor("you").stack.at(-1)!.finished).toBeUndefined();
+    });
+
+    test("the answer the attacker locks in carries BOTH blockers, and only then is damage open", () => {
+      const { rat, a, b } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+      applyAction("you", "finish_blocks", {});
+      expect(combatOf()).toBe("blockers"); // finished is not locked in
+      expect(() => applyAction("agent", "damage", { hits: [{ source: rat.id, target: "you", amount: 1 }] })).toThrow(/block/i);
+
+      applyAction("agent", "stack_resolve", {});
+      expect([a.blocking, b.blocking]).toEqual([rat.id, rat.id]);
+      expect(combatOf()).toBe("damage");
+    });
+
+    test("declaring none is still a declaration, and it finishes the same way", () => {
+      swungAt();
+      applyAction("you", "block", { pairs: [] });
+      applyAction("you", "finish_blocks", {});
+      expect(game.waitingOn).toBe("agent");
+      expect(viewFor("you").log.at(-1)!.text).toMatch(/finishes declaring blockers: no blocks/);
+    });
+
+    test("finishing with nothing declared says what to declare first", () => {
+      swungAt();
+      expect(() => applyAction("you", "finish_blocks", {})).toThrow(/no block declaration to finish/i);
+      expect(game.waitingOn).toBe("you");
+    });
   });
 
   // Whether damage is COMBAT damage is settled where it is ANNOUNCED. A ping

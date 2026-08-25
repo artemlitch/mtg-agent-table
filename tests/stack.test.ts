@@ -333,7 +333,10 @@ describe("turn hygiene", () => {
       "Plant → Tergrid, God of Fright",
     ]);
     // one attacker blocked says the whole thing in the headline — a summary
-    // over a single row is longer than the row
+    // over a single row is longer than the row. Declared fresh, because a
+    // second block call now amends the declaration already open rather than
+    // starting a rival one (see block() in server/game.ts).
+    applyAction("you", "stack_resolve", {});
     applyAction("agent", "block", { pairs: [{ blocker: elves.id, attacker: marchesa.id }] });
     expect(game.stack.at(-1)!.text).toBe("BLOCKS: Llanowar Elves → Marchesa, the Black Rose");
     expect(game.stack.at(-1)!.lines).toBeUndefined();
