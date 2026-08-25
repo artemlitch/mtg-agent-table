@@ -975,6 +975,29 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("blockers"); // the step did not restart
     expect(rat.attacking).toBe("you"); // and the attacker is still attacking
   });
+
+  // clear_combat is the UI's "Cancel attack". Cancelling has to leave the
+  // combat somewhere it can be swung from again: with the phase still on
+  // combat, no set_phase can reopen the declare step, so cancel must.
+  test("cancelling an attack returns combat to declaring, not to nothing", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers");
+
+    applyAction("you", "clear_combat", {});
+    expect(rat.attacking).toBe(null); // the marks still go
+    expect(combatOf()).toBe("attackers"); // and the swing can be made again
+  });
+
+  test("clearing marks outside combat ends it", () => {
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "main 2" });
+    applyAction("you", "clear_combat", {});
+    expect(combatOf()).toBe(null);
+  });
 });
 
 describe("windows, chat, questions", () => {
