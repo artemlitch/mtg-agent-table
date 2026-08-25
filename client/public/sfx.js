@@ -55,7 +55,14 @@
   //   swell  quiet at the start, loudest at the end — the one that makes a
   //          rising slide sound like it is rising
   const SHAPES = ["decay", "hold", "swell"];
-  const RELEASE = 0.02; // s of fade at the end of a shape that would otherwise cut
+  // Every shape starts at t and is SILENT BY t + dur — no shape runs longer than
+  // the duration it was given, so switching between them does not re-time the
+  // sound and dur means one thing. swell used to overrun by this much, which is
+  // exactly the amount you had to take back off dur after choosing it.
+  //
+  // What still differs between the shapes is where the loud part sits INSIDE
+  // that window, which is the entire point of having them.
+  const RELEASE = 0.02; // s of fade at the end, so a shape that peaks late cannot cut
 
   function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004, shape = "decay" } = {}) {
     if (!audioCtx || audioCtx.state !== "running") return;
@@ -69,8 +76,9 @@
     // click is all small speakers reproduce — it reads as a high tick
     g.gain.setValueAtTime(0.0001, now);
     if (shape === "swell") {
-      g.gain.exponentialRampToValueAtTime(vol, now + dur);
-      g.gain.linearRampToValueAtTime(0.0001, now + dur + RELEASE);
+      // peaks a release short of the end, then fades inside its own duration
+      g.gain.exponentialRampToValueAtTime(vol, now + Math.max(atk, dur - RELEASE));
+      g.gain.linearRampToValueAtTime(0.0001, now + Math.max(dur, atk + RELEASE));
     } else if (shape === "hold") {
       g.gain.linearRampToValueAtTime(vol, now + atk);
       g.gain.setValueAtTime(vol, now + Math.max(atk, dur - RELEASE));
@@ -82,7 +90,7 @@
     o.connect(g);
     sfxOut(g, verb);
     o.start(now);
-    o.stop(now + dur + RELEASE + 0.05);
+    o.stop(now + Math.max(dur, atk + RELEASE) + 0.05);
   }
 
   function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0, atk = 0, shape = "decay" } = {}) {
@@ -95,8 +103,18 @@
     // node, which is where the original decay always was — keeping it there
     // means "decay" is unchanged to the sample, and the other two shapes are
     // the same one line read differently
+    // the release is capped at a quarter of the layer, so a very short one is
+    // still shaped rather than being all fade
+    const rel = Math.min(len / 4, RELEASE * audioCtx.sampleRate);
     for (let i = 0; i < len; i++) {
-      const env = shape === "swell" ? i / len : shape === "hold" ? Math.min(1, (len - i) / (RELEASE * audioCtx.sampleRate)) : 1 - i / len;
+      const env =
+        shape === "swell"
+          ? i < len - rel
+            ? i / (len - rel) // up to the peak…
+            : (len - i) / rel // …then out, inside the same duration
+          : shape === "hold"
+            ? Math.min(1, (len - i) / rel)
+            : 1 - i / len;
       data[i] = (Math.random() * 2 - 1) * env;
     }
     const src = audioCtx.createBufferSource();
@@ -157,11 +175,13 @@
       ],
     },
     draw: {
-      desc: "a card slides off the library — paper on paper, nothing else",
+      desc: "a card slides off the library — paper on paper, rising as it comes clear",
       layers: [
-        // one layer on purpose: the landing thud that used to follow it made
-        // the draw sound like something being put down rather than taken
-        { kind: "noise", freq: 1500, dur: 0.19, vol: 0.085, t: 0, q: 0.7, slide: 5000, atk: 0.035, verb: 0.07 },
+        // swell, so the sweep is loudest where it ends: the card leaves the pile
+        // rather than landing on it
+        { kind: "noise", freq: 695, dur: 0.19, vol: 0.035, t: 0, q: 0.7, slide: 4048, atk: 0.035, verb: 0.07, shape: "swell" },
+        // silent at vol 0 — parked mid-tuning, kept for the values
+        { kind: "tone", freq: 223, dur: 0.42, vol: 0, t: 0, type: "triangle", slide: 782, verb: 0.42, atk: 0.017 },
       ],
     },
     tap: {
