@@ -1371,6 +1371,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 
   /** Declare attackers — goes ON THE STACK; the defender resolves to lock it in (or responds first). */
   attack(ctx, p) {
+    // Only the active player has an attack step. This is not a judgment call
+    // the two seats can argue about like a targeting restriction — a defender
+    // declaring attackers is a category error, and it happened: an attack of
+    // Player's landed on the stack during the agent's combat, and the agent
+    // had to stop, refuse it, and ask for it to be taken back. The seat that
+    // is being attacked declares BLOCKS.
+    if (game.turn !== ctx.actor) {
+      throw new Error(
+        `it is ${who(game.turn)}'s turn, so only ${who(game.turn)} declares attackers — use block to declare blockers (declaring none is still a declaration)`
+      );
+    }
     const parts: string[] = [];
     for (const pair of p.pairs) {
       const c = getCard(pair.attacker);

@@ -90,6 +90,21 @@ export function chonkyPiles(board: Card[]): { size: Map<string, number>; swallow
   return { size, swallowed };
 }
 
+/** The agent's creatures currently attacking you. */
+export function incomingAttackers(): Card[] {
+  return (gameView()?.players.agent.zones.battlefield ?? []).filter((c) => c.attacking);
+}
+
+/** The attacker to answer next: the first one nothing of yours is already
+ *  declared against, so pressing E down a row of creatures spreads the blocks
+ *  out instead of piling them all onto the same attacker. */
+export function nextUnblockedAttacker(): Card | null {
+  const attackers = incomingAttackers();
+  if (!attackers.length) return null;
+  const answered = new Set((gameView()?.players.you.zones.battlefield ?? []).map((c) => c.blocking).filter(Boolean));
+  return attackers.find((a) => !answered.has(a.id)) ?? attackers[0];
+}
+
 /** The pending (unresolved) attack declaration containing this card, if any. */
 export function pendingAttackOf(cardId: string): StackItem | null {
   for (const it of gameView()?.stack ?? []) {

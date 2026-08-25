@@ -3,7 +3,7 @@
 // browsers all open this same list.
 import { act } from "../../api";
 import { destItem } from "../../game/dest";
-import { pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
+import { incomingAttackers, nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
 import type { Card } from "../../types";
@@ -41,9 +41,16 @@ export function cardMenu(c: Card, e: Anchor) {
   if (c.zone === "battlefield") {
     const pendingAtk = pendingAttackOf(c.id);
     const canAttack = c.controller === "you" && !c.attacking && !pendingAtk;
-    // in combat E declares the attack rather than tapping, so the menu leads
-    // with attack there and the [E] hint follows the gesture
-    const eAttacks = canAttack && typeCat(c) === "creature" && !c.tapped && /combat|attack/i.test(view.phase || "");
+    const inCombat = /combat|attack/i.test(view.phase || "");
+    const yourCombat = inCombat && view.turn === "you";
+    // E means "declare", and combat is the one place that word points two
+    // ways: in YOUR combat this creature attacks, in the agent's it blocks.
+    // The menu leads with whichever one E does. "Attack agent" is not offered
+    // at all in the agent's combat — offering it is how an illegal attack
+    // declaration reached the stack and had to be taken back.
+    const attackers = incomingAttackers();
+    const eAttacks = canAttack && typeCat(c) === "creature" && !c.tapped && yourCombat;
+    const eBlocks = !yourCombat && c.controller === "you" && !c.tapped && !c.blocking && attackers.length > 0;
     const attackItem: MenuItem = {
       label: "Attack agent",
       ...(eAttacks ? { keys: ["E"] } : {}),
@@ -51,28 +58,35 @@ export function cardMenu(c: Card, e: Anchor) {
     };
     const tapItem: MenuItem = {
       label: c.tapped ? "Untap" : "Tap",
-      ...(eAttacks ? {} : { keys: ["E"] }),
+      ...(eAttacks || eBlocks ? {} : { keys: ["E"] }),
       fn: () => void act("tap", { cards: [c.id], tapped: !c.tapped }),
     };
     // announcing an ability is the second thing you reach for after the main
     // gesture, so it sits directly under it rather than at the bottom
     const abilityItem: MenuItem = { label: "Ability → stack…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) };
-    const primary = eAttacks ? attackItem : tapItem;
-    const secondary = eAttacks ? tapItem : canAttack ? attackItem : null;
-    items.push(primary, abilityItem);
-    if (secondary) items.push(secondary);
+    // E answers the attacker nothing of yours is declared against yet
+    const eBlockId = eBlocks ? nextUnblockedAttacker()?.id : undefined;
+    const blockItems: MenuItem[] =
+      c.controller === "you"
+        ? attackers.map((a) => ({
+            label: `Block ${a.hidden ? "?" : a.name}`,
+            ...(a.id === eBlockId ? { keys: ["E"] } : {}),
+            fn: () => void act("block", { pairs: [{ blocker: c.id, attacker: a.id }] }),
+          }))
+        : [];
+    const leadBlock = blockItems.findIndex((it) => it.keys);
+    if (eAttacks) items.push(attackItem, abilityItem, tapItem);
+    else if (leadBlock >= 0) {
+      items.push(blockItems[leadBlock], abilityItem, ...blockItems.filter((_, i) => i !== leadBlock), tapItem);
+    } else {
+      items.push(tapItem, abilityItem);
+      if (canAttack && yourCombat) items.push(attackItem);
+      items.push(...blockItems);
+    }
     if (c.controller === "you" && pendingAtk) {
       items.push({ label: "Remove attacker", fn: () => void removeAttacker(c, pendingAtk) });
     }
     if (c.attacking) items.push({ label: "Cancel attack", fn: () => void act("clear_combat", {}) });
-    const attackers = view.players.agent.zones.battlefield.filter((x) => x.attacking);
-    if (c.controller === "you" && attackers.length) {
-      for (const a of attackers)
-        items.push({
-          label: `Block ${a.hidden ? "?" : a.name}`,
-          fn: () => void act("block", { pairs: [{ blocker: c.id, attacker: a.id }] }),
-        });
-    }
     if (c.power !== undefined && c.power !== null) {
       items.push({
         label: `Set P/T… (now ${c.power}/${c.toughness})`,

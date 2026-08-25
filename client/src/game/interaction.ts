@@ -6,7 +6,7 @@ import { hovered } from "../store/ui";
 import type { Card } from "../types";
 import { openAbilityModal } from "../features/modals/AbilityModal";
 import { playCard } from "../features/nextaction/steps";
-import { pendingAttackOf, removeAttacker, typeCat } from "./rules";
+import { nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "./rules";
 
 /** What E — and a left-click on a battlefield card — does to a card.
  *  shift = announce onto the stack instead; the modal works out the rest from
@@ -51,12 +51,25 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
       if (cur.tapped) void act("tap", { cards: [cur.id], tapped: false });
       return;
     }
-    // 3. in COMBAT, tapping your untapped creature declares the attack — that
-    // is what tapping a creature means at this point in the turn. Outside
-    // combat E stays a plain tap, for mana and everything else
+    // 3. in COMBAT, tapping your untapped creature declares — but WHAT it
+    // declares depends on whose turn it is. On yours the creature is an
+    // attacker. On the agent's it is a blocker, and declaring an attack there
+    // is not a play at all: it went on the stack anyway, and the agent had to
+    // stop and ask for it to be taken back. Outside combat E stays a plain
+    // tap, for mana and everything else
     if (typeCat(cur) === "creature" && !cur.attacking && !cur.tapped && /combat|attack/i.test(phase)) {
-      void act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
-      return;
+      const view = gameView();
+      if (view && view.turn !== "you") {
+        const attacker = nextUnblockedAttacker();
+        // E down a row of creatures answers the attackers one at a time
+        if (attacker && !cur.blocking) {
+          void act("block", { pairs: [{ blocker: cur.id, attacker: attacker.id }] });
+          return;
+        }
+      } else {
+        void act("attack", { pairs: [{ attacker: cur.id, target: "agent" }] });
+        return;
+      }
     }
   }
   // 4. anything else taps/untaps

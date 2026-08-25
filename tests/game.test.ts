@@ -605,6 +605,7 @@ describe("combat annotations", () => {
   test("resolved blocks mark blockers; clear_combat wipes both", () => {
     const att = seedCard("Attacker", "agent", "battlefield");
     const blk = seedCard("Blocker", "you", "battlefield");
+    game.turn = "agent";
     applyAction("agent", "attack", { pairs: [{ attacker: att.id, target: "you" }] });
     applyAction("you", "stack_resolve", {});
     applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: att.id }] });
@@ -613,6 +614,13 @@ describe("combat annotations", () => {
     applyAction("you", "clear_combat", {});
     expect(att.attacking).toBe(null);
     expect(blk.blocking).toBe(null);
+  });
+
+  test("the defender cannot declare attackers — that is a blocks declaration", () => {
+    const mine = seedCard("Blocker", "you", "battlefield");
+    game.turn = "agent";
+    expect(() => applyAction("you", "attack", { pairs: [{ attacker: mine.id, target: "agent" }] })).toThrow(/declares attackers/);
+    expect(game.stack).toHaveLength(0);
   });
 
   test("damage announces on the stack and changes nothing until it resolves", () => {
