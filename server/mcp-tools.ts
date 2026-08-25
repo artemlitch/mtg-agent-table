@@ -199,7 +199,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   mulligan: {
     description:
-      "Take your hand back and deal a fresh one — ONE call, not move+shuffle+draw. Shuffles your whole hand into your library, shuffles, and draws n (default 7). A mulligan is the deal happening again, not a play: it leaves nothing to undo, does not wake the other seat, and leaves the turn and phase alone. HOUSE RULE — FRIENDLY MULLIGANS: always to seven, no bottoming, as many times as you like. The table counts nothing and enforces nothing; n exists only for the rare case you deliberately want fewer.",
+      "Take your hand back and deal a fresh one — ONE call, not move+shuffle+draw. Shuffles your whole hand into your library, shuffles, and draws n (default 7). A mulligan is the deal happening again, not a play: it leaves nothing to undo, does not wake the other seat, and leaves the turn and phase alone. HOUSE RULE — FRIENDLY MULLIGANS: always to seven, no bottoming, as many times as you like. The table counts nothing, but it refuses a mulligan once you have acted this first turn — mulligan before you do anything else. n exists only for the rare case you deliberately want fewer.",
     schema: obj({ player: PLAYER, n: { type: "number", description: "cards to draw, default 7" } }),
   },
   set_phase: { description: "Declare a phase/step change — applies IMMEDIATELY (logged, no stack item). The only turn-structure stack item is the TURN PASS (set_turn); attack/block declarations still go on the stack, and end-of-turn responses happen against the TURN PASS.", schema: obj({ phase: str("one of: untap/upkeep, main 1, combat, main 2, end (aliases like untap, draw, second main, cleanup are folded in; bare 'main' resolves by whether combat is done)") }, ["phase"]) },

@@ -2119,8 +2119,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
 /** The actions that count as having STARTED PLAYING — the same set the old
  *  HAS_STARTED_PLAYING regex named by its log verbs, now named by action.
  *  Deliberately excludes draw (the deal draws for you), mulligan (taking the
- *  offer must not revoke it), and pure bookkeeping (life, counters). */
-const PLAY_ACTIONS = new Set(["cast", "tap", "untap_all", "move", "create_token", "attack", "block", "stack_push", "set_phase", "set_turn", "damage", "finish_attacks"]);
+ *  offer must not revoke it), and pure bookkeeping (life, counters).
+ *
+ *  A COMPOSED action has to be named here in its own right: untap calls
+ *  actions.tap and stack_batch calls actions.cast/stack_push directly, and an
+ *  inner call never reaches this dispatcher — only the outer name does. So
+ *  untapping a creature counted as nothing while tapping one counted as
+ *  playing, and a batched cast counted as nothing while a plain one did. */
+const PLAY_ACTIONS = new Set(["cast", "tap", "untap", "untap_all", "move", "create_token", "attack", "block", "stack_push", "stack_batch", "set_phase", "set_turn", "damage", "finish_attacks"]);
 
 export function applyAction(actor: PlayerId, type: string, params: any): ActionResult {
   const fn = actions[type];

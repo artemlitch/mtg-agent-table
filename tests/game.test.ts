@@ -1979,6 +1979,24 @@ describe("the turn knows what has already happened in it", () => {
     expect(() => applyAction("you", "mulligan", { n: 7 })).toThrow(/already/i);
   });
 
+  test("untapping a creature counts as playing, the same as tapping one", () => {
+    // untap is a delegator — it calls actions.tap directly, so the inner call
+    // never reaches the dispatcher and only the OUTER name is ever seen
+    const c = seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "untap", { cards: [c.id] });
+    expect(c.tapped).toBe(false);
+    expect(viewFor("you").players.you.turnDone.acted).toBe(true);
+  });
+
+  test("a batched cast counts as playing, the same as a plain one", () => {
+    // stack_batch is the other delegator: it calls actions.cast/stack_push
+    // itself, so "cast" being in the set does nothing for the items inside it
+    const bolt = seedCard("Bolt", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "stack_batch", { items: [{ card: bolt.id }] });
+    expect(game.stack.length).toBe(1);
+    expect(viewFor("you").players.you.turnDone.acted).toBe(true);
+  });
+
   test("the agent's seat never sees canMulligan on your turn", () => {
     game.started = true;
     seedCard("Keep Me", "you", "hand");
