@@ -1689,6 +1689,29 @@ describe("stack moves out of graveyard/exile", () => {
   });
 });
 
+describe("a land that enters tapped", () => {
+  const seedLand = () => seedCard("Sunken Hollow", "you", "hand", { typeLine: "Land" });
+
+  test("tapped:true actually turns the land sideways, and the log says so", () => {
+    const land = seedLand();
+    applyAction("you", "cast", { card: land.id, note: "enters tapped" });
+    expect(land.tapped).toBe(false);
+
+    const other = seedLand();
+    applyAction("you", "cast", { card: other.id, tapped: true });
+    expect(other.tapped).toBe(true);
+    expect(game.log.at(-1)!.text).toContain("played Sunken Hollow tapped");
+    expect(game.log.at(-1)!.text).toContain("land drop");
+  });
+
+  test("without the param the land arrives untapped", () => {
+    const land = seedLand();
+    applyAction("you", "cast", { card: land.id });
+    expect(land.tapped).toBe(false);
+    expect(game.log.at(-1)!.text).not.toContain("tapped");
+  });
+});
+
 describe("set_phase never stacks", () => {
   test("every phase applies directly — the turn pass is the only turn-structure stack item", () => {
     for (const phase of ["untap/upkeep", "main 1", "combat", "main 2", "end"]) {

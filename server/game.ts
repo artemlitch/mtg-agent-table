@@ -1817,8 +1817,13 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (isLandPlay) {
       placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
+      // "enters tapped" written in the note is prose the board never reads —
+      // only this param actually turns the land sideways, and the log says
+      // "tapped" off the param so the sentence can't outrun the board state
+      const entersTapped = p.tapped === true;
+      if (entersTapped) card.tapped = true;
       game.players[ctx.actor].turnDone.lands += 1;
-      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");
+      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${entersTapped ? " tapped" : ""}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");
       const landTrig = triggerLines(card);
       const landWatchers = zoneChangeWatchers("enters");
       return {
