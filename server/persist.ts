@@ -42,6 +42,12 @@ export function restoreState(snap: any): PersistedExtra {
   // genuine phase change. No step is guessed here — an invented step is worse
   // than a missing one. Set before the phase migration below, which reads it.
   (game as any).combat ??= null;
+  // whether this combat's blockers step has been answered joined the state
+  // beside it. A save from before knows nothing about its own combat, and
+  // false is the safe read: the worst it costs is being asked to declare
+  // blocks that are already in, which is what the field exists to prevent —
+  // but inventing an answer would walk a live combat straight past the step.
+  (game as any).blocksAnswered ??= false;
   // whether the opening is over used to be read off the round counter, which
   // only moves on the way back to Player — so round 1 alone would restore the
   // agent's own first turn as the deal, the exact window this field exists for.

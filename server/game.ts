@@ -251,6 +251,16 @@ export interface GameState {
   openingOver: boolean;
   phase: Phase;
   combat: CombatStep | null;
+  /** This combat's blockers step has been ANSWERED — a declaration of the
+   *  defender's has been locked in with nothing left owed.
+   *
+   *  Recorded rather than inferred, because the one thing that had to be
+   *  representable was answering with NOTHING. Reading it back off the
+   *  blocking marks ("does any creature block?") is right up until the
+   *  declaration is empty, which sets no marks at all: the defender said "no
+   *  blocks", the attacker locked it in, and the attack arm then asked for
+   *  the answer a second time. Combat-scoped — cleared wherever combat is. */
+  blocksAnswered: boolean;
   players: Record<PlayerId, PlayerState>;
   cards: Record<string, Card>;
   stack: StackItem[];
@@ -310,6 +320,7 @@ export function newGameState(): GameState {
     // case that opens on "Go to combat" with an untouched board
     phase: "untap/upkeep",
     combat: null,
+    blocksAnswered: false,
     players: { you: emptyPlayer(), agent: emptyPlayer() },
     cards: {},
     stack: [],
@@ -697,12 +708,20 @@ export function who(p: PlayerId) {
   return p === "you" ? "Player" : "Agent";
 }
 
-/** Take every attacking/blocking mark off the table. */
+/** Take every attacking/blocking mark off the table, and with them the fact
+ *  that this combat's blockers step was answered.
+ *
+ *  The flag belongs to a combat exactly as the marks do, so it is swept where
+ *  they are swept — which is every place combat resets or is re-entered
+ *  (set_phase in and out of combat, the turn pass, clear_combat) and nowhere
+ *  else. Keeping the reset here rather than at the four call sites is what
+ *  stops a fifth one from forgetting it. */
 function clearCombatMarks() {
   for (const c of Object.values(game.cards)) {
     c.attacking = null;
     c.blocking = null;
   }
+  game.blocksAnswered = false;
 }
 
 /** A fresh turn has seen nothing yet — for BOTH seats. The turn pass is the
@@ -930,15 +949,19 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     // Unconditional was still wrong in one order. The stack is LIFO, so a
     // defender who declares blocks BEFORE the ATTACKS item is resolved gets
     // its BLOCKS item resolved FIRST — while combat is still "attackers", so
-    // the block arm's guard below does nothing but apply the marks. Opening
+    // the block arm's guard below does nothing but record the answer. Opening
     // "blockers" here then asks for an answer that has already been given, and
     // the agent, told blocks were owed, declared a second time: the blockers
-    // step ran twice. Blocking marks cannot be stale hints either — entering
-    // and leaving combat both sweep them — so a mark with no declaration left
-    // on the stack is this combat's answer, already in.
-    const blocksAnswered =
-      Object.values(game.cards).some((c) => c.blocking) && !game.stack.some((i) => i.apply?.type === "block");
-    game.combat = blocksAnswered ? "damage" : "blockers";
+    // step ran twice.
+    //
+    // Asking the blocking MARKS whether that happened worked for every answer
+    // except the commonest one. An EMPTY declaration is a real answer and sets
+    // no marks, so "no blocks" locked in read as nobody having spoken, and the
+    // step ran twice again (live, seq 203-210). The answer is a fact about the
+    // combat now, recorded when it is given rather than reconstructed from its
+    // side effects.
+    game.combat =
+      game.blocksAnswered && !game.stack.some((i) => i.apply?.type === "block") ? "damage" : "blockers";
     addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`, "attacks_locked");
     return { ok: true, resolved: item.text };
   }
@@ -1007,7 +1030,14 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     // block of its own — "no blocks", on nobody's behalf — which locked in as
     // an answer the defender never gave.
     const stillOwed = game.stack.some((i) => i.apply?.type === "block");
-    if (game.combat === "blockers" && !stillOwed && item.player !== game.turn) game.combat = "damage";
+    // The answer is recorded whatever step combat is on, because this is where
+    // it is GIVEN — the attack arm above may not have run yet (LIFO), and it
+    // reads this rather than guessing from the marks, which an empty
+    // declaration never writes.
+    const answered = !stillOwed && item.player !== game.turn;
+    if (answered) game.blocksAnswered = true;
+    // ...but the step only advances from the step that owed it.
+    if (game.combat === "blockers" && answered) game.combat = "damage";
     for (const pair of item.apply.pairs) getCard(pair.blocker).blocking = pair.attacker;
     // declaring nothing is still a declaration, and it says so — an empty list
     // used to leave the line trailing off after its colon

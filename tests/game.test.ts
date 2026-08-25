@@ -1207,6 +1207,67 @@ describe("the view says where combat is", () => {
     expect(game.log.at(-1)!.text).toMatch(/Blocks locked in: no blocks/);
   });
 
+  // ...and the case the marks could never carry. The fix above read "has this
+  // combat been answered" off the blocking marks, which an EMPTY declaration
+  // never writes — so "no blocks", declared before the attack was locked in
+  // and locked in first, looked exactly like nobody having spoken. Live at
+  // seq 203-210: the agent said no blocks, the attack arm asked for blocks,
+  // and the agent was nagged into saying it a second time.
+  test("an empty declaration locked in first is still an answer", () => {
+    const bear = seedCard("Carrion Feeder", "you", "battlefield");
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+    applyAction("you", "finish_attacks", {});
+
+    // the defender has nothing worth blocking with and says so, on top
+    applyAction("agent", "block", { pairs: [] });
+    applyAction("you", "stack_resolve", {}); // LIFO: the BLOCKS item goes first
+    expect(combatOf()).toBe("attackers"); // the attack is still un-locked
+    expect(Object.values(game.cards).some((c) => c.blocking)).toBe(false); // no marks to read
+
+    applyAction("agent", "stack_resolve", {}); // now the ATTACKS item
+    expect(combatOf()).toBe("damage"); // not "blockers": the answer is in
+    // and the attacker may announce damage without being told to wait
+    applyAction("you", "damage", { hits: [{ source: bear.id, target: "agent", amount: 1 }] });
+    expect(game.stack.at(-1)!.text).toBe("COMBAT DAMAGE");
+  });
+
+  // The answer belongs to ONE combat. It is swept where the marks are swept,
+  // so a second combat in the same turn asks its own blockers step — carrying
+  // it over would walk the swing straight past blocks.
+  test("the answer does not survive into the next combat", () => {
+    const bear = seedCard("Carrion Feeder", "you", "battlefield");
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+    applyAction("agent", "block", { pairs: [] });
+    applyAction("you", "stack_resolve", {});
+    expect(game.blocksAnswered).toBe(true);
+
+    applyAction("you", "set_phase", { phase: "main 2" });
+    expect(game.blocksAnswered).toBe(false); // leaving combat ends it
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers"); // this combat has not been answered
+  });
+
+  test("cancelling a combat takes the answer back with the marks", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    applyAction("you", "block", { pairs: [] });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.blocksAnswered).toBe(true);
+
+    applyAction("agent", "clear_combat", {});
+    expect(combatOf()).toBe("attackers");
+    expect(game.blocksAnswered).toBe(false);
+  });
+
   test("clearing marks outside combat ends it", () => {
     game.turn = "agent";
     applyAction("agent", "set_phase", { phase: "main 2" });
