@@ -22,6 +22,19 @@ const TABS: { name: TabName; label: string }[] = [
 
 const NEAR_BOTTOM = 90; // px — within this of the bottom counts as "following"
 
+/** A click that ended a drag across text is not a click, it is a selection.
+ *
+ *  The panel is the one part of the app you can select in, and several of its
+ *  lines double as buttons — a stack message opens the Stack tab, a reveal
+ *  opens its cards, the peek line jumps into the Agent tab. Mouse-up fires the
+ *  click, the pane it was in unmounts, and the sentence you had just finished
+ *  dragging across goes with it. So a line asks first whether it is being read
+ *  rather than pressed. */
+const wasSelecting = () => {
+  const s = window.getSelection();
+  return !!s && !s.isCollapsed && s.toString().trim() !== "";
+};
+
 /** Keep a pane pinned to its newest entry while the reader is at the bottom;
  *  hold position when they have scrolled up to read.
  *
@@ -227,7 +240,7 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
       .replace(/ → on the stack$/, "")
       .replace(/ \(on the stack(?: — respond or resolve)?\)/, "");
     return (
-      <div className={`msg stackmsg ${e.actor === "you" ? "you" : "agent"}`} title="Open the Stack tab" onClick={onOpenStack}>
+      <div className={`msg stackmsg ${e.actor === "you" ? "you" : "agent"}`} title="Open the Stack tab" onClick={() => !wasSelecting() && onOpenStack()}>
         <div className="mwho">{e.actor === "you" ? "You" : "Agent"} · <Icon name="pile" /> stack</div>
         <Text>{text}</Text>
       </div>
@@ -257,7 +270,7 @@ function RevealLine({ e }: { e: LogEntry }) {
   const cards = revealedCards(e);
   if (!cards.length) return <Text as="div" className="msg actline">{e.text}</Text>;
   return (
-    <div className="msg actline revealline" title="Open the revealed cards" onClick={() => openRevealBrowser(cards)}>
+    <div className="msg actline revealline" title="Open the revealed cards" onClick={() => !wasSelecting() && openRevealBrowser(cards)}>
       <Text>{e.text}</Text>
       <span className="revealopen"><Icon name="reveal" /> {cards.length}</span>
     </div>
@@ -283,7 +296,7 @@ function TypingBubble() {
       <span
         className="peek-line"
         title={cur ? "Open in the Agent tab" : undefined}
-        onClick={() => cur && openBrainAt(cur.seq, setTab)}
+        onClick={() => cur && !wasSelecting() && openBrainAt(cur.seq, setTab)}
       >
         <Text>{cur?.text}</Text>
       </span>

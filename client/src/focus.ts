@@ -31,6 +31,15 @@ const FIELDS = "input, textarea, select, [contenteditable]";
 /** Everything the browser would otherwise put in the tab order. */
 const FOCUSABLE = `button, a[href], area[href], summary, [tabindex]:not([tabindex="-1"])`;
 
+/** Is this something you are meant to be able to drag across and copy? The
+ *  stylesheet already says so — selection is off for the whole table and
+ *  switched back on for the panes that are prose (see base.css) — so ask it,
+ *  rather than keeping a second list here that says the same thing worse. */
+const selectable = (el: Element) => {
+  const s = getComputedStyle(el);
+  return (s.userSelect || s.webkitUserSelect) === "text";
+};
+
 const strip = (el: Element) => {
   if (el.matches(FIELDS)) return;
   if (el.getAttribute("tabindex") !== "-1") el.setAttribute("tabindex", "-1");
@@ -71,7 +80,16 @@ export function fieldsOnlyFocus(): () => void {
   const onFocusIn = (e: FocusEvent) => {
     const el = e.target;
     if (!(el instanceof HTMLElement) || el === document.body) return;
-    if (!el.matches(FIELDS)) el.blur();
+    if (el.matches(FIELDS)) return;
+    // A pane you can select text in has to be allowed to hold focus. Chrome
+    // makes a scroller focusable and focuses it on mousedown — which is the
+    // first half of a drag-select — and taking that focus away again clears
+    // the selection with it, so the chat could not be copied out at all.
+    // Letting it keep focus costs nothing: Tab cannot reach it (tabindex -1),
+    // a click draws no ring, and the two keys a focused element could steal,
+    // Enter and Space, are taken by the document first (see useGlobalKeys).
+    if (selectable(el)) return;
+    el.blur();
   };
   document.addEventListener("focusin", onFocusIn);
 
