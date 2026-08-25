@@ -2,14 +2,14 @@
 // true wins. It is a state machine over the board, the stack and the log, and
 // it had no tests — which is how a chat message from the agent came to stand
 // the whole of combat down.
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Card, GameView, LogEntry, StackItem } from "../client/src/types";
 
 // the UI store reads a saved preference the moment it is imported, and these
 // tests run in node — the steps only need it to exist, never to remember
 globalThis.localStorage ??= { getItem: () => null, setItem: () => {} } as unknown as Storage;
 
-const { NEXT_ACTION_STEPS, nextActionContext } = await import("../client/src/features/nextaction/steps");
+const { NEXT_ACTION_STEPS, nextActionContext, noBlocks } = await import("../client/src/features/nextaction/steps");
 const { canMulligan } = await import("../client/src/game/rules");
 const { useGame } = await import("../client/src/store/game");
 
@@ -332,5 +332,86 @@ describe("what used to break it", () => {
     const { id, action } = prompt(v);
     expect(id).toBe("finish-attacks");
     expect(action?.sub).toBe("2 attacking");
+  });
+});
+
+/** What pressing a prompt actually SENDS. act() posts to /api/action and
+ *  nothing else, so a stubbed fetch is the whole recording. The body is built
+ *  before the first await, so there is nothing to wait for. */
+function pressed(fn: (() => void) | undefined) {
+  const sent: { type: string; params: Record<string, unknown> }[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = ((_url: string, init: { body: string }) => {
+    sent.push(JSON.parse(init.body));
+    return Promise.resolve({ json: () => Promise.resolve({ ok: true }) });
+  }) as unknown as typeof fetch;
+  try {
+    fn?.();
+  } finally {
+    globalThis.fetch = real;
+  }
+  return sent;
+}
+
+// Every fact this prompt knows about combat, it currently reads back out of
+// the log with a regex: enteredCombatAt, lockedAt, finishedAt, damageAt. Those
+// four are the combat STEPS, and once the view carries the step itself the
+// prompt should be asking the table where combat is rather than reading what
+// was said about it.
+describe("combat comes from the view, not from the words in the log", () => {
+  // which attack you have waved through is module state that outlives a test —
+  // without this the "stops offering it" case below passes on the signature
+  // the press two tests up left behind, which is no evidence of anything
+  beforeEach(() => {
+    noBlocks.declaredFor = null;
+  });
+
+  /** their attack, locked in, mid-combat — and NOTHING in the log about it */
+  const theirAttack = (combat: string) => {
+    const v = view({ phase: "combat", mine: [creature("blocker")] });
+    (v as any).turn = "agent";
+    (v as any).combat = combat;
+    v.players.agent.zones.battlefield = [creature("Rat", { controller: "agent", owner: "agent", attacking: "you" })];
+    return v;
+  };
+
+  it("asks for damage on a silent log, because the view says the damage step", () => {
+    const v = view({ mine: [creature("bear", { attacking: "agent", tapped: true })], phase: "combat" });
+    (v as any).combat = "damage";
+    expect(prompt(v).id).toBe("combat-damage");
+  });
+
+  it("asks you to finish declaring on a silent log, because the view says so", () => {
+    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], phase: "combat" });
+    (v as any).combat = "attackers";
+    (v as any).waitingOn = "you";
+    expect(prompt(v).id).toBe("finish-attacks");
+  });
+
+  it("stops asking for damage once the view says damage is done", () => {
+    const v = view({ mine: [creature("bear", { attacking: "agent", tapped: true })], phase: "combat" });
+    (v as any).combat = "done";
+    expect(prompt(v).id).toBe("past-combat");
+  });
+
+  // seq 458: you are the one being attacked and the step is yours to answer
+  it("offers the blocks answer while the view says the blockers step", () => {
+    expect(prompt(theirAttack("blockers")).id).toBe("no-blocks");
+  });
+
+  // The bug this is really about. The button sends a SENTENCE — act("chat",
+  // { text: "No blocks." }) — and the step then stands itself down by
+  // recognising its own English back out of the log. Declining to block is a
+  // declaration; it has to make one, or the table never learns that the
+  // blockers step is over and damage stays illegal.
+  it("declines blocks by declaring it, not by saying it", () => {
+    const { action } = prompt(theirAttack("blockers"));
+    const sent = pressed(action?.fn);
+    expect(sent.map((s) => s.type)).toEqual(["block"]);
+    expect(sent[0].params).toEqual({ pairs: [] });
+  });
+
+  it("stops offering it once the view says the step has moved on", () => {
+    expect(prompt(theirAttack("damage")).id).not.toBe("no-blocks");
   });
 });

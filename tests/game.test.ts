@@ -757,6 +757,173 @@ describe("combat annotations", () => {
   });
 });
 
+// Round 6 of the live game, seq 447-469. The agent made three Rats, swung with
+// all three, and the table let the whole combat happen in the wrong order.
+//
+// What the log shows, step by step:
+//
+//   455  Attacks locked in: Rat, Rat, Rat (attackers tapped)
+//   456  Agent announces damage: Rat → Player: 1 — unblocked  (×3)   ← WRONG
+//   457  Agent passes — Player's window
+//   458  Player declares blockers: Carrion Feeder → Rat              ← on top of it
+//   459  Player declares blockers: Tergrid, God of Fright → Rat      ← a 2nd item
+//   460  Player declares blockers: Marchesa, the Black Rose → Rat    ← a 3rd
+//   461  Blocks locked in: Marchesa, the Black Rose → Rat            ← LIFO:
+//   462  Blocks locked in: Tergrid, God of Fright → Rat                 reverse
+//   463  Blocks locked in: Carrion Feeder → Rat                         order
+//   464  Agent removed from the stack: COMBAT DAMAGE                 ← it unwound
+//   465  Agent announces damage: … lethal to Rat …                      its own mess
+//
+// Nothing in the table objected to any of it. The agent noticed and cleaned up
+// after itself, which is not the same thing as the rules holding.
+describe("combat happens in order", () => {
+  /** The Rat combat up to the moment attackers lock in: three attackers, three
+   *  creatures that could block, the defender yet to say anything. */
+  function ratsAttack() {
+    const rats = [1, 2, 3].map(() => seedCard("Rat", "agent", "battlefield"));
+    const blockers = [
+      seedCard("Carrion Feeder", "you", "battlefield"),
+      seedCard("Tergrid, God of Fright", "you", "battlefield"),
+      seedCard("Marchesa, the Black Rose", "you", "battlefield"),
+    ];
+    game.turn = "agent";
+    applyAction("agent", "attack", { pairs: rats.map((r) => ({ attacker: r.id, target: "you" })) });
+    applyAction("you", "stack_resolve", {}); // seq 455
+    return { rats, blockers };
+  }
+
+  const unblocked = (rats: Card[]) => ({
+    hits: rats.map((r) => ({ source: r.id, target: "you", amount: 1, note: "unblocked" })),
+  });
+
+  // seq 456. The declare-blockers step never happened: the agent asserted
+  // "unblocked" about three creatures before the defender had been given the
+  // chance to make that false.
+  test("damage cannot be announced while the defender still owes blockers", () => {
+    const { rats } = ratsAttack();
+    expect(rats[0].attacking).toBe("you");
+    expect(() => applyAction("agent", "damage", unblocked(rats))).toThrow(/block/i);
+    expect(game.stack).toHaveLength(0);
+  });
+
+  // seq 458-460 sat a block declaration ON TOP of a damage item that had
+  // already called those same creatures unblocked. Declaring is not enough —
+  // blocks are only real once the attacker locks them in (that is what marks
+  // the blockers), so damage has to wait for the resolve, not the declaration.
+  test("a block declaration still on the stack does not open the damage step", () => {
+    const { rats, blockers } = ratsAttack();
+    applyAction("you", "block", { pairs: [{ blocker: blockers[0].id, attacker: rats[0].id }] });
+    expect(blockers[0].blocking).toBe(null); // not locked in yet
+    expect(() => applyAction("agent", "damage", unblocked(rats))).toThrow(/block/i);
+  });
+
+  // The legal path out of the same position, and the reason the rule above is
+  // about the DECLARATION rather than about blockers existing: declining to
+  // block is a declaration too, and a table that would not let you swing at an
+  // empty board would be worse than the bug.
+  test("declaring no blocks is the declaration that opens the damage step", () => {
+    const { rats } = ratsAttack();
+    applyAction("you", "block", { pairs: [] });
+    applyAction("agent", "stack_resolve", {});
+    applyAction("agent", "damage", unblocked(rats));
+    expect(game.stack).toHaveLength(1);
+    expect(game.stack[0].text).toBe("COMBAT DAMAGE");
+  });
+
+  // The boundary. A ping, a burn spell, a drain — nothing is attacking, so
+  // there is no blocks step to be owed and nothing to wait for.
+  test("damage with nothing attacking is not a combat step and owes no blocks", () => {
+    const bolt = seedCard("Agate Instigator", "agent", "battlefield");
+    applyAction("agent", "damage", { hits: [{ source: bolt.id, target: "you", amount: 1 }] });
+    expect(game.stack).toHaveLength(1);
+  });
+
+  // seq 458-463: three blockers, three stack items, three lock-ins in the
+  // reverse order they were declared. That is BY DESIGN — one declaration per
+  // creature is an event apiece, same as the client's attack model — so what
+  // this pins is not the count but that every one of them still lands.
+  test("blockers declared one at a time all lock in, however many items that takes", () => {
+    const { rats, blockers } = ratsAttack();
+    applyAction("you", "block", { pairs: [{ blocker: blockers[0].id, attacker: rats[0].id }] });
+    applyAction("you", "block", { pairs: [{ blocker: blockers[1].id, attacker: rats[1].id }] });
+    applyAction("you", "block", { pairs: [{ blocker: blockers[2].id, attacker: rats[2].id }] });
+    while (game.stack.length) applyAction("agent", "stack_resolve", {});
+    expect(blockers.map((b) => b.blocking)).toEqual(rats.map((r) => r.id));
+  });
+});
+
+// The four facts the next-action prompt reconstructs by running regexes over
+// the log — enteredCombatAt, lockedAt, finishedAt, damageAt (see steps.ts) —
+// are the combat STEPS, and the server does not model them: `phase` is a free
+// string in which "combat" covers declaring attackers, declaring blockers and
+// dealing damage all at once.
+//
+// That single missing model is behind both halves of this. The server cannot
+// refuse damage announced before blockers because there is no step to be out
+// of; the client cannot ask where combat is, so it reads prose. Scraping has
+// already cost three bugs, each one documented in the comments at the scrape
+// site: an undo notice quoting the line it undid, a pattern that matched the
+// request for damage rather than damage landing, and a lock-in that is the
+// DEFENDER's answer and so never comes from an agent that does not give one.
+describe("the view says where combat is", () => {
+  function combatOf(p: PlayerId = "you") {
+    return (viewFor(p) as unknown as { combat: string | null }).combat;
+  }
+
+  test("combat reports its step, so nothing has to read the log for it", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    const blk = seedCard("Carrion Feeder", "you", "battlefield");
+    game.turn = "agent";
+    expect(combatOf()).toBe(null); // not in combat at all
+
+    applyAction("agent", "set_phase", { phase: "combat" });
+    expect(combatOf()).toBe("attackers");
+
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    expect(combatOf()).toBe("attackers"); // declared is not locked in
+
+    applyAction("you", "stack_resolve", {}); // seq 455
+    expect(combatOf()).toBe("blockers"); // ← the step the agent skipped at 456
+
+    applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: rat.id }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("damage");
+
+    applyAction("agent", "damage", { hits: [{ source: rat.id, target: blk.id, amount: 1 }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("done");
+  });
+
+  // Why the scrape used log POSITIONS rather than "has it happened yet": a
+  // turn can hold two combats, because undoing back past combat and swinging
+  // again is the ordinary way in. A step on the state needs no such trick — it
+  // is wherever combat currently is, not a search back through what was said.
+  test("a second combat in the same turn starts at attackers again", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers");
+    applyAction("agent", "set_phase", { phase: "main 2" });
+    expect(combatOf()).toBe(null);
+    applyAction("agent", "set_phase", { phase: "combat" });
+    expect(combatOf()).toBe("attackers");
+  });
+
+  // Both seats are being asked different questions in the same step, and both
+  // have to be able to see which one is theirs.
+  test("both seats see the same step", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf("you")).toBe("blockers");
+    expect(combatOf("agent")).toBe("blockers");
+  });
+});
+
 describe("windows, chat, questions", () => {
   test("done flips waitingOn", () => {
     game.waitingOn = "you";
