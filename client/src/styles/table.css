@@ -80,27 +80,24 @@
 /* the pile itself does not light up — the Draw button on it is the control */
 
 /* ── graveyard / exile piles ── */
-/* No plate and no metallic rim — the piles are furniture, not controls. What
-   separates one from the next is a soft glow along the bottom edge: a wide
-   ellipse parked almost entirely below the box, with only its top tenth
-   clearing the overflow. It reads as a lit lip under the cards rather than as
-   a border. */
-/* Graveyard and exile read as their own surface rather than as holes in the
-   rail: one flat colour, a shade lighter than the panel behind them. Flat is
-   the whole point — no gradient, no inset highlight, no drop shadow. Those
-   raise a thing off the page, and these are painted areas of the rail, not
-   panels floating over it.
+/* The piles are furniture, not controls: --panel2, flat. No gradient, no inset
+   highlight, no drop shadow, no metallic rim — those raise a thing off the
+   page, and these are painted areas of the rail rather than panels floating
+   over it.
    Nothing draws a border at rest either. The only ring these ever wear is the
    dashed one that arrives while a card is being dragged, which means "you can
    drop it here" — see the drop-target rules further down. A border that is
    always there cannot say that.
+   What separates one pile from the next is the soft glow along its bottom
+   edge: a wide ellipse parked almost entirely below the box, with only its top
+   tenth clearing the overflow. It reads as a lit lip under the cards.
    The fill is a variable because the hover and drop-target washes set the whole
    background, and a colour written into those rules would drop the fill for as
    long as the cursor was on it. */
 .pile {
   position: relative; overflow: hidden;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; cursor: pointer; user-select: none;
-  --plate: color-mix(in srgb, var(--panel2) 93%, #f8e7a0);
+  --plate: var(--panel2);
   background: var(--plate);
   /* its transition lives with the drop-target rule in the drag section — one
      declaration, so the slow outline fade cannot be overwritten from here */
