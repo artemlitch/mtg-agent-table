@@ -483,4 +483,31 @@ describe("combat comes from the view, not from the words in the log", () => {
       expect(prompt(declaring()).id).toBe("no-blocks");
     });
   });
+
+  // Going to damage is a hand-over, and hand-overs are `done`. The button used
+  // to push a sentence onto the stack telling the agent what to do next, from
+  // back when nothing on the state said where combat was. game.combat says it
+  // now and the wake prompt reads it, so the sentence was an extra item to
+  // resolve sitting on top of the work it described.
+  describe("and going to damage hands the window over", () => {
+    /** your attackers locked in, damage owed */
+    const swinging = () => view({ mine: [creature("bear", { attacking: "agent", tapped: true })], combat: "damage" });
+
+    it("passes the window instead of pushing a sentence about it", async () => {
+      const { id, action } = prompt(swinging());
+      expect(id).toBe("combat-damage");
+      const sent = await pressed(action?.fn);
+      expect(sent.map((s) => s.type)).toEqual(["done"]);
+      expect(sent[0].params).toEqual({});
+    });
+
+    it("says who it is waiting on once the window is theirs, rather than asking twice", () => {
+      const v = swinging();
+      (v as any).waitingOn = "agent";
+      const { id, action } = prompt(v);
+      expect(id).toBe("combat-damage");
+      expect(action?.fn).toBeUndefined(); // no second press to preempt the window
+      expect(action?.hint).toMatch(/waiting for the agent/);
+    });
+  });
 });

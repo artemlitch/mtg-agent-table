@@ -353,16 +353,24 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // combat in the same turn is just the step reopening — no reading back
     // through the turn for the last "Damage applied" line.
     when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && (c.combat === "blockers" || c.combat === "damage"),
-    // one click straight onto the stack — the agent works out the numbers, the
-    // player never types damage. The text spells out what is being asked and
-    // NAMES the tool: a bare "go to damage" left the agent resolving the item
-    // and stopping, and even the longer wording lost to its own system prompt,
-    // which described combat only from the side where the agent attacks.
-    step: () => ({
-      label: "Go to damage",
-      icon: "damage",
-      fn: () => void act("stack_push", { text: "go to damage — declare any blocks, then announce it with the damage tool (yours to announce, my attack or yours)" }),
-    }),
+    // Announcing damage is the agent's — the player never types a life total —
+    // so this press is a hand-over, nothing more. It used to push a sentence
+    // onto the stack telling the agent what to do next, from back when the
+    // table could not say where combat was: the agent read prose or nothing.
+    // game.combat carries the step now and the wake prompt reads it off the
+    // state, so the sentence was a stack item nobody needed, arriving as work
+    // to resolve on top of the work it was describing.
+    step: (c) =>
+      // Already handed over — same rule as finishing attackers: a second press
+      // while the agent is mid-window preempts it and starts it over, which is
+      // exactly what pressing again because nothing seemed to happen does.
+      c.view.waitingOn === "agent"
+        ? { hint: waitingHint(c, "damage owed") }
+        : {
+            label: "Go to damage",
+            icon: "damage",
+            fn: () => void act("done", {}),
+          },
   },
   {
     // what is left of combat once damage is done — declaring and damage are

@@ -224,13 +224,29 @@ function useGlobalKeys() {
         return;
       }
 
-      // keybinds are inert while typing
-      if (typing) return;
+      // Keybinds are inert while typing — but only while there is something
+      // TYPED. An empty box is not a conversation in progress: it is a box
+      // that was clicked once and left, and with the caret parked in it every
+      // table gesture died silently. The composer collected a row of spaces
+      // from SPACE presses aimed at the prompt, and E over a card did nothing
+      // at all. Whitespace counts as empty for the same reason — otherwise the
+      // first swallowed SPACE arms the field and every one after it types too.
+      //
+      // The field lets go at the moment a gesture actually FIRES, never on the
+      // way past: "e" is the first letter of plenty of messages, and it has to
+      // keep typing when there is no card under the cursor for it to act on.
+      const idleField = typing && !(t as HTMLInputElement).value.trim();
+      if (typing && !idleField) return;
+      /** hand this key to the table, and let the empty field go with it */
+      const leaveField = () => {
+        if (idleField) t!.blur();
+      };
       // CMD/CTRL+Z undoes the last table action, +SHIFT walks back forward.
       // Below the typing guard on purpose: inside a text field it stays the
       // browser's text undo.
       if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
+        leaveField();
         void (e.shiftKey ? redoLastAction() : undoLastAction());
         return;
       }
@@ -239,15 +255,20 @@ function useGlobalKeys() {
       // activation, so a focused button fires once.
       if (e.key === " " || e.code === "Space") {
         e.preventDefault();
+        leaveField();
         fireNextAction(e.shiftKey);
         return;
       }
       // the chat, in and out. Only where it can go anywhere: at full width it
       // is a column of the layout and the key would have nothing to do.
       if (e.key === SIDE_KEY) {
-        e.preventDefault();
         const s = ui();
-        if (s.narrow) s.setSideOpen(!s.sideOpen);
+        // ...so at full width it is not a gesture at all, and an empty
+        // composer keeps the keystroke rather than losing it to a no-op
+        if (!s.narrow) return;
+        e.preventDefault();
+        leaveField();
+        s.setSideOpen(!s.sideOpen);
         return;
       }
       // E acts on the card under the cursor, SHIFT+E announces an ability.
@@ -257,6 +278,7 @@ function useGlobalKeys() {
       // Modifiers are the OS's — CMD+E is not this keybind.
       if ((e.key === "e" || e.key === "E") && !e.metaKey && !e.ctrlKey && !e.altKey && hovered.card) {
         e.preventDefault();
+        leaveField();
         cardPrimaryAction(hovered.card, e.shiftKey);
       }
     };
