@@ -9,12 +9,18 @@ const SOUND_RULES: [string, RegExp][] = [
   // then the declaration resolves and the attack is locked. One rule matched
   // both lines and played the drum twice for what looked like one event.
   ["attack", /declares attackers/],
-  // "Player finishes declaring attackers" is a hand-over and stays SILENT for
-  // the reason every hand-over does (see the note further down). It is also
-  // the wrong moment: the drum has already sounded for each creature, and the
-  // blades are two seconds away — a sound here only fills the gap they are
-  // meant to leave.
-  ["lockin", /^Attacks locked in: /],
+  // The blades belong to the press that COMMITS the swing — "Player finishes
+  // declaring attackers". That is the dramatic beat of a combat and the one
+  // the player performs.
+  //
+  // They used to hang off "Attacks locked in", which is the defender getting
+  // round to acknowledging it: a second or two later, off a press that is not
+  // yours, and by then the swing has already happened as far as you are
+  // concerned. Seventeen layers of swordfight arriving after the fact.
+  ["lockin", /finishes declaring attackers/],
+  // ...which leaves the acknowledgement as what it actually is — a step of
+  // the turn moving along, and it takes the phase sound like the rest of them.
+  ["phase", /^Attacks locked in: /],
   ["block", /declares blockers/],
   ["hit", / from battlefield to .*graveyard/],
   ["hit", / countered .* → .*graveyard/],
