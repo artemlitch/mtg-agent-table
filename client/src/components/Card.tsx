@@ -209,9 +209,13 @@ function CardFace({ c }: { c: Card }) {
         <button
           className="flipbtn"
           title={plainMana(`Flip to ${c.faces[((c.face ?? 0) + 1) % c.faceCount!].name}`)}
+          // the preview STAYS, and turns over with the card. Every other
+          // control here dismisses it because it is about to take you
+          // somewhere else; this one leaves the card exactly where it is,
+          // under the same cursor, showing its other side — which is the one
+          // thing you flipped it to look at.
           onClick={(e) => {
             e.stopPropagation();
-            ui().hidePreview();
             void act("set_face", { card: c.id, face: ((c.face ?? 0) + 1) % c.faceCount! });
           }}
         >

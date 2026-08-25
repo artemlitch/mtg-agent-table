@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useGame } from "../store/game";
+import { cardById, useGame } from "../store/game";
 import { previewLost, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
@@ -27,7 +27,13 @@ export function CardPreviewLayer() {
     if (previewLost()) useUI.getState().hidePreview();
   }, [seq]);
   if (!preview) return null;
-  const { card: c, x, y } = preview;
+  const { x, y } = preview;
+  // the card AS IT IS, not as it was when the pointer arrived. Hovering
+  // snapshots a Card object, and a card that changes while you are looking at
+  // it — turned over with its flip button, given a counter, tapped — would
+  // otherwise go on showing the side it had a moment ago. Falls back to the
+  // snapshot for the previewable things that are not board cards.
+  const c = cardById(preview.card.id) ?? preview.card;
   const faces = (c.faceCount ?? 1) > 1 ? c.faces : undefined;
   const width = faces ? WIDE : NARROW;
   const left = Math.min(x + 18, window.innerWidth - (width + 20));
