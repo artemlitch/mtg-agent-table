@@ -4,15 +4,16 @@
    saves them back to that same file. */
 (function (global) {
   let audioCtx = null;
-  document.addEventListener(
-    "pointerdown",
-    () => {
-      // browsers only allow audio after a user gesture
-      if (!audioCtx) audioCtx = new (global.AudioContext || global.webkitAudioContext)();
-      if (audioCtx.state === "suspended") audioCtx.resume();
-    },
-    { capture: true }
-  );
+  // Browsers only allow audio after a user gesture — and a KEYSTROKE is one.
+  // Listening for the mouse alone left the table silent for anyone playing it
+  // the way it is meant to be played: declaring attackers is [E] on each
+  // creature and space on the prompt, so a whole combat could go by without a
+  // pointerdown, and every sound in it was dropped by the guard in play().
+  const unlock = () => {
+    if (!audioCtx) audioCtx = new (global.AudioContext || global.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  };
+  for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, unlock, { capture: true });
 
   // shared convolution reverb (synthesized decaying-noise impulse response);
   // layers opt in with verb: 0..1 (wet send amount)
