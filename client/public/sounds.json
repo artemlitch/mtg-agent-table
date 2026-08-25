@@ -239,12 +239,12 @@
     ]
   },
   "lockin": {
-    "desc": "attackers locked in — three blades, the last one ringing up",
+    "desc": "attackers locked in — four blades, three climbing and one that ends it",
     "layers": [
       {
         "kind": "noise",
         "freq": 700,
-        "dur": 0.07,
+        "dur": 0.06,
         "vol": 0.115,
         "t": 0,
         "q": 0.8,
@@ -256,19 +256,19 @@
       {
         "kind": "noise",
         "freq": 3900,
-        "dur": 0.045,
-        "vol": 0.319,
-        "t": 0.07,
+        "dur": 0.04,
+        "vol": 0.28,
+        "t": 0.06,
         "q": 5.0,
         "slide": 0,
-        "verb": 0.3
+        "verb": 0.28
       },
       {
         "kind": "tone",
         "freq": 1980,
-        "dur": 0.3,
-        "vol": 0.072,
-        "t": 0.072,
+        "dur": 0.26,
+        "vol": 0.07,
+        "t": 0.062,
         "type": "sine",
         "slide": 0,
         "verb": 0.4
@@ -276,32 +276,21 @@
       {
         "kind": "tone",
         "freq": 2970,
-        "dur": 0.22,
-        "vol": 0.046,
-        "t": 0.072,
+        "dur": 0.2,
+        "vol": 0.045,
+        "t": 0.062,
         "type": "sine",
         "slide": 0,
         "verb": 0.4
       },
       {
-        "kind": "tone",
-        "freq": 190,
-        "dur": 0.16,
-        "vol": 0.163,
-        "t": 0.07,
-        "type": "triangle",
-        "slide": 110,
-        "verb": 0.25,
-        "atk": 0.004
-      },
-      {
         "kind": "noise",
-        "freq": 900,
-        "dur": 0.06,
+        "freq": 850,
+        "dur": 0.055,
         "vol": 0.098,
-        "t": 0.16,
+        "t": 0.13,
         "q": 0.7,
-        "slide": 6000,
+        "slide": 5800,
         "verb": 0.06,
         "atk": 0.006,
         "shape": "swell"
@@ -310,18 +299,18 @@
         "kind": "noise",
         "freq": 4600,
         "dur": 0.035,
-        "vol": 0.238,
-        "t": 0.22,
+        "vol": 0.255,
+        "t": 0.19,
         "q": 6.0,
         "slide": 0,
-        "verb": 0.25
+        "verb": 0.26
       },
       {
         "kind": "tone",
         "freq": 2640,
-        "dur": 0.26,
+        "dur": 0.24,
         "vol": 0.058,
-        "t": 0.222,
+        "t": 0.192,
         "type": "sine",
         "slide": 0,
         "verb": 0.45
@@ -330,30 +319,30 @@
         "kind": "tone",
         "freq": 3960,
         "dur": 0.18,
-        "vol": 0.039,
-        "t": 0.222,
+        "vol": 0.038,
+        "t": 0.192,
         "type": "sine",
         "slide": 0,
         "verb": 0.45
       },
       {
         "kind": "noise",
-        "freq": 600,
-        "dur": 0.08,
-        "vol": 0.103,
-        "t": 0.3,
-        "q": 0.9,
-        "slide": 5600,
-        "verb": 0.08,
-        "atk": 0.008,
+        "freq": 950,
+        "dur": 0.055,
+        "vol": 0.1,
+        "t": 0.26,
+        "q": 0.7,
+        "slide": 6400,
+        "verb": 0.06,
+        "atk": 0.006,
         "shape": "swell"
       },
       {
         "kind": "noise",
         "freq": 5400,
         "dur": 0.03,
-        "vol": 0.28,
-        "t": 0.38,
+        "vol": 0.27,
+        "t": 0.32,
         "q": 7.0,
         "slide": 0,
         "verb": 0.25
@@ -361,9 +350,9 @@
       {
         "kind": "tone",
         "freq": 3140,
-        "dur": 0.45,
-        "vol": 0.065,
-        "t": 0.382,
+        "dur": 0.26,
+        "vol": 0.062,
+        "t": 0.322,
         "type": "sine",
         "slide": 3520,
         "verb": 0.5
@@ -371,12 +360,65 @@
       {
         "kind": "tone",
         "freq": 4710,
-        "dur": 0.3,
-        "vol": 0.042,
-        "t": 0.382,
+        "dur": 0.2,
+        "vol": 0.04,
+        "t": 0.322,
         "type": "sine",
         "slide": 5280,
         "verb": 0.5
+      },
+      {
+        "kind": "noise",
+        "freq": 600,
+        "dur": 0.075,
+        "vol": 0.105,
+        "t": 0.39,
+        "q": 0.9,
+        "slide": 3800,
+        "verb": 0.08,
+        "atk": 0.008,
+        "shape": "swell"
+      },
+      {
+        "kind": "noise",
+        "freq": 3200,
+        "dur": 0.05,
+        "vol": 0.33,
+        "t": 0.46,
+        "q": 4.5,
+        "slide": 0,
+        "verb": 0.32
+      },
+      {
+        "kind": "tone",
+        "freq": 2093,
+        "dur": 0.46,
+        "vol": 0.068,
+        "t": 0.462,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.52
+      },
+      {
+        "kind": "tone",
+        "freq": 3140,
+        "dur": 0.32,
+        "vol": 0.042,
+        "t": 0.462,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.52
+      },
+      {
+        "kind": "tone",
+        "freq": 190,
+        "dur": 0.17,
+        "vol": 0.163,
+        "t": 0.46,
+        "type": "triangle",
+        "slide": 110,
+        "verb": 0.26,
+        "atk": 0.004
       }
     ]
   },
