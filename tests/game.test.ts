@@ -1002,6 +1002,8 @@ describe("the view says where combat is", () => {
     applyAction("agent", "set_phase", { phase: "combat" });
     applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
     applyAction("you", "stack_resolve", {});
+    applyAction("you", "block", { pairs: [] }); // the blocks step is owed even when there are none
+    applyAction("agent", "stack_resolve", {});
     applyAction("agent", "damage", { hits: [{ source: rat.id, target: "you", amount: 1 }] });
     applyAction("you", "stack_resolve", {});
     expect(combatOf()).toBe("done");

@@ -1657,6 +1657,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    *  not tracked either: a counter that nothing clears at end of turn would be
    *  a worse lie than no counter at all. */
   damage(ctx, p) {
+    // Combat has an order. This is the whole reason game.combat exists: the
+    // agent once announced "unblocked ×3" before the defender had a
+    // declare-blockers step, and nothing here objected. "attackers" and
+    // "blockers" both mean blocks are still owed — a declaration on the stack
+    // is not an answer until the attacker locks it in. null and "done" pass:
+    // a ping in main owes nobody a blocks step, and re-announcing after
+    // damage resolved is a legal correction.
+    if (game.combat === "attackers" || game.combat === "blockers") {
+      throw new Error(
+        "declare blockers first — blocks must be declared AND locked in (stack_resolve) before damage is announced. A defender with nothing to block declares block with pairs: [], and resolving that opens the damage step."
+      );
+    }
     const raw: any[] = Array.isArray(p.hits) ? p.hits : [];
     const hits: DamageHit[] = raw.map((h, i) => {
       const source = getCard(String(h?.source ?? ""));

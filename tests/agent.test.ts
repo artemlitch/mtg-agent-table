@@ -250,6 +250,8 @@ describe("agent transport", () => {
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     expect(a.composeWakePrompt("react")).toContain("COMBAT DAMAGE IS OWED");
 
+    applyAction("agent", "block", { pairs: [] }); // the blocks step is owed even when there are none
+    applyAction("you", "stack_resolve", {});
     applyAction("agent", "damage", { hits: [{ source: gonti.id, target: "agent", amount: 3 }] });
     applyAction("you", "stack_resolve", {});
     expect(game.players.agent.life).toBe(37);

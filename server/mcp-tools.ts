@@ -211,11 +211,13 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   block: {
     description:
-      "Declare blockers — goes ON THE STACK: pairs of {blocker: cardId, attacker: cardId}. The attacker resolves the item to lock blocks in. After declaring, call done.",
+      "Declare blockers — goes ON THE STACK: pairs of {blocker: cardId, attacker: cardId}. The attacker resolves the item to lock blocks in. After declaring, call done." +
+      " Declaring pairs: [] is the explicit 'no blocks' — resolving it is what opens the damage step.",
     schema: obj({ pairs: arr(obj({ blocker: str("card id"), attacker: str("card id") }, ["blocker", "attacker"]), "blocks") }, ["pairs"]),
   },
   damage: {
     description:
+      "Requires blocks to be settled first: while attackers are locked in, a blocks declaration must be declared and resolved before damage is announced — if the defender has not answered yet, pass (done) or ask. " +
       "Announce damage and put it on the stack as ONE item — the whole damage step in a single call. " +
       "YOU announce combat damage in EVERY combat, the ones you attack in AND the ones Player attacks in. It is never Player's job: you hold the tools and do the arithmetic, they never type a life total. " +
       "Resolving the item applies it: life comes off, and a hit from a COMMANDER also books commander damage without a second call. " +
@@ -235,7 +237,11 @@ export const TOOLS: Record<string, ToolDef> = {
       text: str("headline, default 'COMBAT DAMAGE'"),
     }),
   },
-  clear_combat: { description: "Clear all attack/block annotations after damage.", schema: obj({}) },
+  clear_combat: {
+    description:
+      "Clear all attack/block annotations — post-damage cleanup (combat stays done), or cancelling a combat in progress (reopens declare-attackers).",
+    schema: obj({}),
+  },
   roll: { description: "Roll a die.", schema: obj({ sides: num("sides, default 20") }) },
   flip: { description: "Flip a coin.", schema: obj({}) },
   say: {
