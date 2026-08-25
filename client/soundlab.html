@@ -9,7 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/src/styles/index.css">
 <style>
-  body { overflow: auto; padding: 20px; }
+  /* A CLASS, not a bare `body`, and the reason is load order in the BUILT page:
+     Vite appends its bundled stylesheet after this block, so index.css's
+     `body { overflow: hidden }` — right for a table you drag cards across —
+     won on equal specificity and clipped this page at the fold with no way to
+     reach the rest. It scrolled in dev and not in the app. swap.html has used
+     `body.studio` from the start, which is why the studio page never had this. */
+  body.lab { overflow: auto; height: auto; min-height: 100vh; padding: 20px; }
   h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
   .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
   /* pinterest-style masonry: JS packs tallest-first into the shortest column,
@@ -39,7 +45,7 @@
   .exportwrap { margin-top: 22px; max-width: 760px; }
 </style>
 </head>
-<body>
+<body class="lab">
 <h1>Sound Lab</h1>
 <div class="hint">Tweak, hit Play, repeat. When a sound is right, hit “Export all values” and send me the block. (Click anywhere once to arm audio.)</div>
 <div class="sounds" id="sounds"></div>
