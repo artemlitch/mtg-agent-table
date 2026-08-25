@@ -9,25 +9,27 @@ import { playCard } from "../features/nextaction/steps";
 import { pendingAttackOf, removeAttacker, typeCat } from "./rules";
 
 /** What E — and a left-click on a battlefield card — does to a card.
- *  shift = announce an ability instead (the modal decides tap vs no-tap). */
+ *  shift = announce onto the stack instead; the modal works out the rest from
+ *  the card (tap vs no-tap, ability vs arrival trigger). */
 export function cardPrimaryAction(card: Card, shift: boolean) {
   // fresh lookup: state may have re-rendered under the cursor since mouseenter
   const cur = cardById(card.id) ?? card;
   const phase = gameView()?.phase || "";
-  // on a hand card this plays it (lands = land drop, spells = onto the stack;
-  // a DFC plays whichever face it's showing), and shift plays it with its
-  // arrival trigger — the same "say what it does" gesture shift means on the
-  // battlefield, asked at the moment the card is entering rather than sitting
-  if (cur.zone === "hand" && cur.controller === "you") {
-    if (shift) void playWithEtb(cur);
-    else void playCard({ card: cur.id });
-    return;
-  }
-  if (cur.zone !== "battlefield") return;
-  if (shift) {
+  const mineInHand = cur.zone === "hand" && cur.controller === "you";
+  // Shift is one gesture wherever the card is: say what it does, and put that
+  // on the stack. The box reads the rest off the card — an ability from the
+  // battlefield, an arrival trigger from your hand, which it plays on submit.
+  if (shift && (mineInHand || cur.zone === "battlefield")) {
     openAbilityModal(cur);
     return;
   }
+  // on a hand card this plays it (lands = land drop, spells = onto the stack;
+  // a DFC plays whichever face it's showing)
+  if (mineInHand) {
+    void playCard({ card: cur.id });
+    return;
+  }
+  if (cur.zone !== "battlefield") return;
   // E is a TOGGLE on the battlefield:
   if (cur.controller === "you") {
     // 1. pending attack declaration → undo it
@@ -55,16 +57,6 @@ export function cardPrimaryAction(card: Card, shift: boolean) {
   }
   // 4. anything else taps/untaps
   void act("tap", { cards: [cur.id], tapped: !cur.tapped });
-}
-
-/** Play a card and announce what it does on the way in. Two steps because
- *  they are two things: the card goes down exactly the way it always does,
- *  and the trigger is a separate item on the stack that the agent can answer.
- *  The box only opens if the play landed — a refused cast has nothing to
- *  trigger off. */
-export async function playWithEtb(c: Card) {
-  const res = await playCard({ card: c.id });
-  if (res.ok) openAbilityModal(c, "etb");
 }
 
 /** Remember the card the pointer is over, for the E keybind. */

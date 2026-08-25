@@ -3,7 +3,6 @@
 // browsers all open this same list.
 import { act } from "../../api";
 import { destItem } from "../../game/dest";
-import { playWithEtb } from "../../game/interaction";
 import { pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
@@ -29,8 +28,9 @@ export function cardMenu(c: Card, e: Anchor) {
       items.push({ label: "Play → field", keys: ["E"], fn: () => void playCard({ card: c.id }) });
     }
     // the same card, played, plus the thing it does on arrival — one gesture,
-    // because reaching for the ability box afterwards is a step you forget
-    items.push({ label: "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => void playWithEtb(c) });
+    // because reaching for the ability box afterwards is a step you forget.
+    // The box plays it on submit, so closing it leaves the card in hand.
+    items.push({ label: "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
     items.push(destItem("graveyard", c, { note: "discard" }));
     items.push(destItem("exile", c));
     items.push({ label: "Reveal to agent", fn: () => void act("reveal", { cards: [c.id], to: "agent" }) });
