@@ -82,20 +82,20 @@
     ]
   },
   "glimmer": {
-    "desc": "turn is over — magical glimmer",
+    "desc": "turn is over — the glimmer, falling",
     "layers": [
       {
         "kind": "tone",
-        "freq": 660,
+        "freq": 2093,
         "dur": 0.5,
         "vol": 0.045,
-        "t": 0,
+        "t": 0.0,
         "type": "sine",
         "slide": 0
       },
       {
         "kind": "tone",
-        "freq": 880,
+        "freq": 1568,
         "dur": 0.5,
         "vol": 0.045,
         "t": 0.09,
@@ -113,7 +113,7 @@
       },
       {
         "kind": "tone",
-        "freq": 1568,
+        "freq": 880,
         "dur": 0.5,
         "vol": 0.045,
         "t": 0.27,
@@ -122,7 +122,7 @@
       },
       {
         "kind": "tone",
-        "freq": 2093,
+        "freq": 660,
         "dur": 0.5,
         "vol": 0.045,
         "t": 0.36,
@@ -175,7 +175,7 @@
         "kind": "noise",
         "freq": 3400,
         "dur": 0.022,
-        "vol": 0.22,
+        "vol": 0.2,
         "t": 0.085,
         "q": 4.5,
         "slide": 0,
@@ -183,12 +183,12 @@
       },
       {
         "kind": "tone",
-        "freq": 168,
-        "dur": 0.09,
-        "vol": 0.16,
+        "freq": 202,
+        "dur": 0.01,
+        "vol": 0.13,
         "t": 0.085,
-        "type": "triangle",
-        "slide": 96,
+        "type": "sine",
+        "slide": 551,
         "verb": 0.18,
         "atk": 0.002
       },
@@ -196,11 +196,11 @@
         "kind": "tone",
         "freq": 1980,
         "dur": 0.05,
-        "vol": 0.035,
+        "vol": 0,
         "t": 0.086,
         "type": "sine",
         "slide": 0,
-        "verb": 0.22
+        "verb": 0.25
       }
     ]
   },
