@@ -1070,6 +1070,48 @@ describe("the view says where combat is", () => {
     expect(combatOf()).toBe("done"); // but the combat still happened
   });
 
+  // The stack is LIFO, so a defender who answers before the attack is locked
+  // in has its BLOCKS item resolved FIRST — while combat is still "attackers",
+  // where the block arm cannot advance the step. Locking the attack in after
+  // that used to open "blockers" and ask for the answer already given: the
+  // agent, told blocks were owed, declared a second time and the step ran
+  // twice. Blocks already in are blocks already in, whichever order they land.
+  test("blocks declared before the attack locked in are not asked for twice", () => {
+    const bear = seedCard("Carrion Feeder", "you", "battlefield");
+    const blk = seedCard("Tergrid, God of Fright", "agent", "battlefield");
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+
+    // the defender answers without waiting for the attack to be locked in
+    applyAction("agent", "block", { pairs: [{ blocker: blk.id, attacker: bear.id }] });
+    applyAction("you", "stack_resolve", {}); // the BLOCKS item is on top
+    expect(combatOf()).toBe("attackers"); // the attack is still un-locked
+    expect(blk.blocking).toBe(bear.id); // but the answer is in
+
+    applyAction("agent", "stack_resolve", {}); // now the ATTACKS item
+    expect(combatOf()).toBe("damage"); // not "blockers": nothing is owed
+
+    // and the attacker may announce damage without being told to wait
+    applyAction("you", "damage", { hits: [{ source: bear.id, target: blk.id, amount: 1 }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("done");
+  });
+
+  // Declaring nothing is a real declaration, and the lock-in line says so
+  // rather than trailing off after its colon.
+  test("locking in an empty block declaration says no blocks", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+
+    applyAction("you", "block", { pairs: [] });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.log.at(-1)!.text).toMatch(/Blocks locked in: no blocks/);
+  });
+
   test("clearing marks outside combat ends it", () => {
     game.turn = "agent";
     applyAction("agent", "set_phase", { phase: "main 2" });

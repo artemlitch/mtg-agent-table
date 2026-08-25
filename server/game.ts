@@ -914,8 +914,20 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     // locking attackers in IS entering combat, whether or not set_phase was
     // called first — so this is deliberately unguarded (spec deviation: the
     // spec guards it on "attackers", but an attack locked in from main must
-    // still open the blockers step, or damage() would owe no blocks)
-    game.combat = "blockers";
+    // still open the blockers step, or damage() would owe no blocks).
+    //
+    // Unconditional was still wrong in one order. The stack is LIFO, so a
+    // defender who declares blocks BEFORE the ATTACKS item is resolved gets
+    // its BLOCKS item resolved FIRST — while combat is still "attackers", so
+    // the block arm's guard below does nothing but apply the marks. Opening
+    // "blockers" here then asks for an answer that has already been given, and
+    // the agent, told blocks were owed, declared a second time: the blockers
+    // step ran twice. Blocking marks cannot be stale hints either — entering
+    // and leaving combat both sweep them — so a mark with no declaration left
+    // on the stack is this combat's answer, already in.
+    const blocksAnswered =
+      Object.values(game.cards).some((c) => c.blocking) && !game.stack.some((i) => i.apply?.type === "block");
+    game.combat = blocksAnswered ? "damage" : "blockers";
     addLog(ctx.actor, `Attacks locked in: ${parts.join(", ")} (attackers tapped)`, "attacks_locked");
     return { ok: true, resolved: item.text };
   }
@@ -986,7 +998,9 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     const stillOwed = game.stack.some((i) => i.apply?.type === "block");
     if (game.combat === "blockers" && !stillOwed && item.player !== game.turn) game.combat = "damage";
     for (const pair of item.apply.pairs) getCard(pair.blocker).blocking = pair.attacker;
-    addLog(ctx.actor, `Blocks locked in: ${blockLines(item.apply.pairs).join("; ")}`);
+    // declaring nothing is still a declaration, and it says so — an empty list
+    // used to leave the line trailing off after its colon
+    addLog(ctx.actor, `Blocks locked in: ${blockLines(item.apply.pairs).join("; ") || "no blocks"}`);
     return { ok: true, resolved: item.text };
   }
   if (!item.cardId) {
