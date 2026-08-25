@@ -580,7 +580,7 @@ describe("scry: peek and reorder", () => {
   });
 
   test("reorder_top rearranges and bottoms cards", () => {
-    const [a, b, c] = seedLibrary("you", ["A", "B", "C"]);
+    const [a, b] = seedLibrary("you", ["A", "B", "C"]);
     applyAction("you", "reorder_top", { top: [b.id], toBottom: [a.id] });
     expect(game.players.you.zones.library.map((id) => game.cards[id].name)).toEqual(["B", "C", "A"]);
   });
@@ -1249,7 +1249,7 @@ describe("two-faced cards", () => {
   });
 
   test("hidden cards never leak their faces", () => {
-    const c = seedCard("Secret // Back", "you", "hand", {
+    seedCard("Secret // Back", "you", "hand", {
       faces: [{ name: "Secret", image: "a.jpg" }, { name: "Back", image: "b.jpg" }],
     } as any);
     const v = viewFor("agent").players.you.zones.hand[0];

@@ -1,7 +1,7 @@
 // Archive writing: summary + transcript from a raw game state.
 import { test, expect } from "vitest";
 import { archiveGame, summarizeGame } from "../server/archive";
-import { game, resetGameState, applyAction, newCardId } from "../server/game";
+import { game, resetGameState, applyAction } from "../server/game";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 

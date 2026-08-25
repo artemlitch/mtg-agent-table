@@ -168,7 +168,7 @@ describe("pickTokenFace", () => {
 });
 
 describe("commander detection", () => {
-  const spec = (name, cats, extra = {}) => ({
+  const spec = (name: string, cats: string[], extra: Record<string, unknown> = {}) => ({
     name, quantity: 1, isCommander: cats.some((c) => /commander/i.test(c)),
     uid: null, imageHash: null, flippedDefault: false,
     oracle: { name, superTypes: ["Legendary"], types: ["Creature"], subTypes: [], ...extra },

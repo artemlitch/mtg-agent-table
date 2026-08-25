@@ -129,7 +129,9 @@ describe("casting onto the stack", () => {
     applyAction("agent", "cast", { card: c.id });
     const v = viewFor("you");
     expect(v.stack.length).toBe(1);
-    expect(v.stack[0].card.name).toBe("Bribery");
+    // a stack item's card is nullable (text-only items have none) and hidden
+    // cards serialize without a name — this one is neither, and says so
+    expect((v.stack[0].card as { name: string }).name).toBe("Bribery");
     expect(v.stack[0].player).toBe("agent");
   });
 });

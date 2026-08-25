@@ -1,0 +1,22 @@
+// Everything that runs under Bun rather than in the browser: the table server,
+// the deck studio, the tools, and the test suite.
+//
+// This exists because tsconfig.json includes only client/src, so for the life
+// of the project the server was never typechecked at all. It compiled by being
+// run. That is fine right up until a signature changes underneath a caller —
+// three addLog calls passed their private-text object into a new parameter and
+// only the tests noticed.
+//
+// Separate from the client config rather than merged into it because of the
+// one line below: server code needs Bun's globals and the browser bundle must
+// not see them.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  // vite-env.d.ts comes along because the tests import client modules, and
+  // those read globals it declares — SFX, which sfx.js installs from a plain
+  // script tag.
+  "include": ["server", "tests", "tools", "client/vite-env.d.ts", "vite.config.ts", "vitest.config.ts"]
+}

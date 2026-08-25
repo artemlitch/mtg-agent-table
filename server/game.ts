@@ -1884,7 +1884,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
   /** Move cards around the table surface. Cosmetic: no log entry, no undo
    *  step, and it never wakes the agent — sliding a card is not a game action.
    *  Either seat may place any battlefield card; the table is shared. */
-  place(ctx, p) {
+  place(_ctx, p) {
     const positions: { card: string; x: number; y: number }[] = p.positions ?? [];
     const moved: string[] = [];
     for (const at of positions) {

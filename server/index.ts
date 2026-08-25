@@ -6,7 +6,7 @@ import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
 import { archiveGame } from "./archive";
 import { recordSnapshot, dropLastSnapshot, undoLast, redoLast, redoSize, historySize, clearHistory, getHistory, setHistory } from "./history";
-import { loadKey, saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
+import { saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveProvider, deleteProvider } from "./keystore";
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
 import { WakeScheduler, wakePlanFor } from "./wake";

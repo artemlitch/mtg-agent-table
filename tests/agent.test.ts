@@ -387,6 +387,11 @@ describe("superseded board snapshots", () => {
     a.messages
       .flatMap((m: any) => (Array.isArray(m.content) ? m.content : []))
       .find((b: any) => b.type === "tool_result" && b.tool_use_id === id);
+  /** What the tool_result at this index is carrying. The fixtures below are
+   *  hand-written wire payloads, so a literal array types as a union of the
+   *  two block shapes and reaching straight for .content asks TypeScript to
+   *  say which one this is. */
+  const bodyAt = (messages: any[], i: number) => messages[i].content[0].content;
 
   // each fake board is 45k characters, so two stale ones clear the 80k
   // threshold and one does not
@@ -476,9 +481,9 @@ describe("superseded board snapshots", () => {
       { role: "user", content: [{ type: "tool_result", tool_use_id: "v3", content: listing(3) }] },
     ];
     collapseSupersededState(messages);
-    expect(messages[1].content[0].content).toBe(SUPERSEDED_STATE);
-    expect(messages[3].content[0].content).toBe(SUPERSEDED_STATE);
-    expect(messages[5].content[0].content).toBe(listing(3)); // the live one stays
+    expect(bodyAt(messages, 1)).toBe(SUPERSEDED_STATE);
+    expect(bodyAt(messages, 3)).toBe(SUPERSEDED_STATE);
+    expect(bodyAt(messages, 5)).toBe(listing(3)); // the live one stays
   });
 
   test("a different zone is not superseded by a library search", () => {
@@ -491,8 +496,8 @@ describe("superseded board snapshots", () => {
       { role: "user", content: [{ type: "tool_result", tool_use_id: "l1", content: big("lib") }] },
     ];
     collapseSupersededState(messages);
-    expect(messages[1].content[0].content).toBe(big("gy"));
-    expect(messages[3].content[0].content).toBe(big("lib"));
+    expect(bodyAt(messages, 1)).toBe(big("gy"));
+    expect(bodyAt(messages, 3)).toBe(big("lib"));
   });
 
   test("the threshold is a knob, so a caller can still collapse on sight", () => {
@@ -503,7 +508,7 @@ describe("superseded board snapshots", () => {
       { role: "user", content: [{ type: "tool_result", tool_use_id: "new", content: '{"live":1}' }] },
     ];
     collapseSupersededState(messages, 0);
-    expect(messages[1].content[0].content).toBe(SUPERSEDED_STATE);
+    expect(bodyAt(messages, 1)).toBe(SUPERSEDED_STATE);
   });
 });
 

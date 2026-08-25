@@ -887,7 +887,11 @@ export class AgentRunner {
   private async readLoop(proc: Bun.Subprocess) {
     try {
       let buf = "";
-      for await (const chunk of proc.stdout as ReadableStream) {
+      // A Bun subprocess pipe IS async-iterable; the DOM's ReadableStream type
+      // does not say so, and the DOM lib is in scope here because the tests
+      // import both this file and the browser code. So the cast states the
+      // thing that is true at runtime rather than the config bending around it.
+      for await (const chunk of proc.stdout as unknown as AsyncIterable<Uint8Array>) {
         buf += new TextDecoder().decode(chunk);
         let nl;
         while ((nl = buf.indexOf("\n")) >= 0) {
@@ -909,7 +913,7 @@ export class AgentRunner {
 
   private async drainStderr(proc: Bun.Subprocess) {
     try {
-      for await (const chunk of proc.stderr as ReadableStream) {
+      for await (const chunk of proc.stderr as unknown as AsyncIterable<Uint8Array>) {
         this.stderrTail = (this.stderrTail + new TextDecoder().decode(chunk)).slice(-2000);
       }
     } catch {}
