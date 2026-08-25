@@ -3,7 +3,7 @@
 // browsers all open this same list.
 import { act } from "../../api";
 import { destItem } from "../../game/dest";
-import { incomingAttackers, nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
+import { incomingAttackers, isSpellCard, nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
 import type { Card } from "../../types";
@@ -30,7 +30,9 @@ export function cardMenu(c: Card, e: Anchor) {
     // the same card, played, plus the thing it does on arrival — one gesture,
     // because reaching for the ability box afterwards is a step you forget.
     // The box plays it on submit, so closing it leaves the card in hand.
-    items.push({ label: "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
+    // ...and a spell has no arrival to trigger on — the same box, asked for
+    // the thing an instant or a sorcery actually needs saying: its targets
+    items.push({ label: isSpellCard(c) ? "Play → with targets…" : "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
     items.push(destItem("graveyard", c, { note: "discard" }));
     items.push(destItem("exile", c));
     items.push({ label: "Reveal to agent", fn: () => void act("reveal", { cards: [c.id], to: "agent" }) });
@@ -132,7 +134,7 @@ export function cardMenu(c: Card, e: Anchor) {
     // The same pair the hand offers, because a commander waiting here is a
     // card of yours waiting to be played — see cardPrimaryAction.
     items.push({ label: "Cast → field", keys: ["E"], fn: () => void playCard({ card: c.id }) });
-    items.push({ label: "Cast → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
+    items.push({ label: isSpellCard(c) ? "Cast → with targets…" : "Cast → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
   }
 
   if (!c.hidden) {

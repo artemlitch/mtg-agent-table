@@ -5,6 +5,7 @@ import { artFallback } from "../../components/cardArt";
 import { Icon } from "../../components/Icon";
 import { ModalFrame } from "../../components/Modal";
 import { Text } from "../../components/Text";
+import { isSpellCard } from "../../game/rules";
 import { cardAnchor, placeRect } from "../../game/table";
 import { playCard } from "../nextaction/steps";
 import { useGame } from "../../store/game";
@@ -18,7 +19,9 @@ import type { Card, PlayerId } from "../../types";
  *  Which announcement it is comes off the card. One on the battlefield is
  *  activating an ability, and may be tapping to do it. One still in HAND is
  *  not activating anything — it is arriving, so the box is its
- *  enters-the-battlefield trigger, and playing it is part of submitting. */
+ *  enters-the-battlefield trigger, and playing it is part of submitting. An
+ *  instant or a sorcery is the third case: it is played the same way, but it
+ *  resolves rather than arrives, so nothing here says "enters". */
 export function openAbilityModal(c: Card) {
   const input = createRef<HTMLTextAreaElement>();
   ui().openModal({
@@ -34,6 +37,11 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
   // part of submitting. A commander waiting in the command zone is in exactly
   // the same position as a card in your hand.
   const arriving = c.zone === "hand" || c.zone === "command";
+  // ...unless it is an instant or a sorcery, which resolves and goes to the
+  // graveyard. It is still played on submit, and the box is still what it
+  // does — but a spell never enters the battlefield, and saying it does put
+  // "Come Back Wrong enters the battlefield: …" on the stack.
+  const spell = isSpellCard(c);
   const name = c.hidden ? "?" : c.name;
   const submit = async (tapToo: boolean) => {
     const t = text.trim();
@@ -42,18 +50,24 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
     // thought better of costs you nothing.
     if (arriving && !(await playCard({ card: c.id })).ok) return;
     if (tapToo && !arriving && !c.tapped) void act("tap", { cards: [c.id], tapped: true });
-    void act("stack_push", { text: `${name}${arriving ? " enters the battlefield" : ""}: ${t}`, source: c.id });
+    void act("stack_push", { text: `${name}${arriving && !spell ? " enters the battlefield" : ""}: ${t}`, source: c.id });
     ui().closeModal();
   };
   return (
-    <ModalFrame title={<><Icon name={arriving ? "battlefield" : "ability"} /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>
+    <ModalFrame title={<><Icon name={spell ? "cast" : arriving ? "battlefield" : "ability"} /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>
       <div className="abilitymodal">
         {c.image ? <img src={c.image} alt="" {...artFallback(c.name)} /> : <Text as="div" className="amoracle">{c.oracle || "(no rules text)"}</Text>}
         <div className="amcol">
           <textarea
             ref={inputRef}
             autoFocus
-            placeholder={arriving ? "What happens as it enters? (targets, numbers…)" : "What does the ability do? (targets, numbers…)"}
+            placeholder={
+              spell
+                ? "What does the spell do? (targets, modes, X…)"
+                : arriving
+                  ? "What happens as it enters? (targets, numbers…)"
+                  : "What does the ability do? (targets, numbers…)"
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -72,7 +86,7 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
               </button>
             )}
             <button className="ambtn accent" onClick={() => void submit(false)}>
-              <span><Icon name={arriving ? "battlefield" : "ability"} /> Stack</span>
+              <span><Icon name={spell ? "cast" : arriving ? "battlefield" : "ability"} /> Stack</span>
               <small>⏎</small>
             </button>
           </div>

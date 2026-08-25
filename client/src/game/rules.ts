@@ -46,6 +46,17 @@ export function resolveZoneOf(item: StackItem): string {
   return item.resolveTo ?? (isSpell ? "graveyard" : "battlefield");
 }
 
+/** Does this card RESOLVE rather than arrive? The same rule resolveZoneOf
+ *  applies to a stack item, read off the face the card is showing: an instant
+ *  or a sorcery goes to the graveyard, so it never enters the battlefield and
+ *  nothing about it should be framed as entering one. The land guard is for
+ *  MDFCs whose combined type line names both ("Instant // Land") — that half
+ *  does arrive. */
+export function isSpellCard(c: Card): boolean {
+  const tl = c.faces?.[c.face ?? 0]?.typeLine ?? c.typeLine ?? "";
+  return /\b(instant|sorcery)\b/i.test(tl) && !/\bland\b/i.test(tl);
+}
+
 /** Is a mulligan still on the table? The server decides — same fact the
  *  mulligan action itself enforces, so the offer and the rule cannot drift. */
 export function canMulligan(view: GameView | null | undefined): boolean {

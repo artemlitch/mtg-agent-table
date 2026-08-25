@@ -138,7 +138,10 @@ export const MENU_LOOK: [RegExp, string, string][] = [
   // before the plain play rule: "Play → ETB trigger" is a play, and would
   // otherwise sit one row under "Play → field" wearing its glyph. It is the
   // announcement that makes it different, so it takes the announcement's.
-  [/etb|enters/i, "ability", "scry"],
+  // "Play → with targets" is that same row on an instant or a sorcery, which
+  // has no arrival to trigger on — and it must not collapse onto the play
+  // glyph either.
+  [/etb|enters|with targets/i, "ability", "scry"],
   [/play |cast|→ stack/i, "cast", "surveil"],
   // steal and give before the plain battlefield rule: all of these name a
   // battlefield, and the specific ones must not collapse onto its glyph
