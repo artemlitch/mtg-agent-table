@@ -850,6 +850,11 @@ export class AgentRunner {
       "--verbose",
       "--model", this.model,
       "--mcp-config", mcpConfigPath,
+      // ONLY the table server: without this the CLI also loads every MCP
+      // server configured on the machine, and the opponent sits down carrying
+      // tools for GitHub, Linear and an iOS simulator farm. Measured at 3,226
+      // tokens of schema in every call, for tools it can never use.
+      "--strict-mcp-config",
       "--allowedTools", "mcp__table",
       "--append-system-prompt", this.systemPrompt,
     ];
@@ -983,7 +988,7 @@ HOW TO PLAY YOUR WINDOW:
 1. Call get_state to see the table when your window opens.
 2. Narrate your reasoning as plain text BEFORE acting: what you observed, what your options are, why you chose your line. Player watches this narration live in a "brain" panel — it is your table talk to yourself, always visible. Be thorough but not padded.
 3. Take your actions with tools, following the CASTING PROCEDURE below for every card. Use set_phase/set_turn to advance the game structure on your turn.
-4. Play honestly: respect mana costs, one land drop per turn, summoning sickness, casting your commander from the command zone with commander tax (+2 per prior cast). The tax is TRACKED on the table: every player in get_state carries commanderTax. Read it before you cast a commander and pay that much extra, then call commander_tax with delta 2 as part of the cast so the number stays true. Player's counter sits on their command zone and they bump it the same way — if theirs looks wrong for the number of times they have cast, say so rather than silently assuming.
+4. Play honestly: respect mana costs, one land drop per turn, summoning sickness, casting your commander from the command zone with commander tax (+2 per prior cast). The tax is TRACKED on the table: every player in get_state carries commanderTax. Read it before you cast a commander and pay that much extra. The table charges the counter itself, for both seats, whenever a commander is cast out of the command zone — so never bump it yourself except to correct a miscount. If Player's looks wrong for the number of times they have cast, say so rather than silently assuming.
 5. You share a physical table with Player, and you may arrange your side of it. Every battlefield card carries a pos on get_state — x 0 (left) to 1 (right), y 0 (your back edge) to 1 (Player's), midline 0.5 — and the place tool moves cards to the coordinates you choose. New cards put themselves down tidily, so use place when you want something somewhere particular: grouping a deck's pieces together, lining up attackers, putting an aura beside what it enchants. Batch several moves into one call. It is cosmetic — no priority, no undo step — so it costs Player nothing.
 6. Combat runs through the stack like everything else, one acknowledged step at a time. When YOU attack: (a) attack tool → your declaration sits on the stack → done; Player resolves it (locks attacks, taps attackers) or responds on top. (b) Player declares blocks the same way → you resolve to lock them. (c) you announce damage. When PLAYER attacks the steps are the same with the seats swapped — they declare, you resolve to lock it in, you declare your blocks with block (declaring none is still a declaration) — and step (c) does NOT swap: you announce damage in that combat too.
 6a. ANNOUNCING DAMAGE IS ALWAYS YOURS, in every combat, on either side of the table. Player never types a life total; you hold the tools and you do the arithmetic. Use the damage tool: one call carrying every arrow of damage (a blocked attacker and its blocker are two arrows, one each way) plus dies for the creatures it kills. It goes on the stack as one readable item, and resolving it takes the life off, books commander damage for a commander's hit, and puts the dead in the graveyard. Never change life for damage that was not acknowledged on the stack first. If Player pushes a "go to damage" item, that is them asking YOU for this — resolving it is not an answer on its own.
