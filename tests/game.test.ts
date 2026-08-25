@@ -1603,3 +1603,40 @@ describe("log lines name their event", () => {
     expect(renderLogFor(game.log.at(-1)!, "agent").text).toContain("land drop");
   });
 });
+
+describe("phase labels are a vocabulary, not free text", () => {
+  test("aliases fold into the five canonical phases", () => {
+    for (const [raw, canon] of [
+      ["untap", "untap/upkeep"],
+      ["upkeep", "untap/upkeep"],
+      ["draw", "untap/upkeep"],
+      ["Main 1", "main 1"],
+      ["combat", "combat"],
+      ["second main", "main 2"],
+      ["cleanup", "end"],
+      ["end step", "end"],
+    ] as const) {
+      applyAction("you", "set_phase", { phase: raw });
+      expect(game.phase).toBe(canon);
+    }
+  });
+
+  test("bare main resolves to main 1 before combat has resolved", () => {
+    // the agent's most common label — "Agent moves to main" — is ambiguous,
+    // and before this turn's combat is done it means the first main phase
+    applyAction("agent", "set_phase", { phase: "main" });
+    expect(game.phase).toBe("main 1");
+  });
+
+  test("garbage is refused, naming the vocabulary", () => {
+    expect(() => applyAction("you", "set_phase", { phase: "combatt" })).toThrow(/untap\/upkeep.*main 1.*combat.*main 2.*end/);
+    expect(game.phase).toBe("untap/upkeep"); // unchanged
+  });
+
+  test("the auto-untap still fires on an alias of the untap step", () => {
+    const c = seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "untap" });
+    expect(c.tapped).toBe(false);
+    expect(game.phase).toBe("untap/upkeep");
+  });
+});

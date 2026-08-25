@@ -182,11 +182,38 @@ export interface StackItem {
   lines?: string[];
 }
 
+/** The five phases this table tracks. Not the CR's eleven steps — the table
+ *  runs at the granularity the two seats actually play at. */
+export const PHASES = ["untap/upkeep", "main 1", "combat", "main 2", "end"] as const;
+export type Phase = (typeof PHASES)[number];
+
+const PHASE_ALIASES: Record<string, Phase> = {
+  "untap/upkeep": "untap/upkeep", untap: "untap/upkeep", upkeep: "untap/upkeep", draw: "untap/upkeep", beginning: "untap/upkeep",
+  "main 1": "main 1", main1: "main 1", "first main": "main 1", "precombat main": "main 1", "pre-combat main": "main 1",
+  combat: "combat", attack: "combat", attackers: "combat", "declare attackers": "combat", "declare blockers": "combat", blockers: "combat", "combat damage": "combat",
+  "main 2": "main 2", main2: "main 2", "second main": "main 2", "postcombat main": "main 2", "post-combat main": "main 2",
+  end: "end", "end step": "end", "end of turn": "end", cleanup: "end",
+};
+
+/** Any phase label a seat might write, folded to the canonical five — or a
+ *  loud error naming them. A typo used to become the phase: set_phase stored
+ *  whatever string arrived, and every phase comparison downstream went
+ *  quietly false. */
+export function normalizePhase(raw: unknown): Phase {
+  const key = String(raw ?? "").trim().toLowerCase();
+  const hit = PHASE_ALIASES[key];
+  if (hit) return hit;
+  // "main" alone is the agent's most common label and is genuinely ambiguous;
+  // Task 2 refines this to "main 2 once this turn's combat is done"
+  if (key === "main") return "main 1";
+  throw new Error(`unknown phase "${String(raw)}" — use one of: ${PHASES.join(", ")}`);
+}
+
 export interface GameState {
   started: boolean;
   turn: PlayerId;
   turnNumber: number;
-  phase: string;
+  phase: Phase;
   players: Record<PlayerId, PlayerState>;
   cards: Record<string, Card>;
   stack: StackItem[];
@@ -822,7 +849,10 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text };
   }
   if (item.apply?.type === "phase") {
-    game.phase = item.apply.phase;
+    // phases stacked before they applied immediately, so nothing writes this
+    // payload any more — but a save from back then can still hold one, with a
+    // label from before the vocabulary existed
+    game.phase = normalizePhase(item.apply.phase);
     addLog(ctx.actor, `Phase: ${game.phase}`);
     return { ok: true, resolved: item.text };
   }
@@ -1423,7 +1453,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    * stack item is the TURN PASS (set_turn); attack/block declarations and any
    * announced triggers still create their own priority windows. */
   set_phase(ctx, p) {
-    const phase = String(p.phase).slice(0, 40);
+    const phase = normalizePhase(p.phase);
     game.phase = phase;
     // The untap step is the one part of a turn with nothing to decide in it, so
     // it should not be something a seat can forget — and it was. The untap
@@ -1434,7 +1464,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     //
     // The ACTIVE player's permanents, not the actor's: whoever moves the marker,
     // an untap step untaps the seat whose turn it is.
-    const untapped = /^untap/i.test(phase) ? untapPermanents(game.turn) : 0;
+    const untapped = phase === "untap/upkeep" ? untapPermanents(game.turn) : 0;
     addLog(
       ctx.actor,
       `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""),

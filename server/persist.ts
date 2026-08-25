@@ -1,7 +1,7 @@
 // Snapshot/restore of the whole table (game + agent session) so a server
 // restart doesn't throw the game away.
 
-import { game, getNextCardId, setNextCardId } from "./game";
+import { game, getNextCardId, setNextCardId, normalizePhase } from "./game";
 import type { AgentSnapshot } from "./agent";
 
 /** Everything saved alongside the game that is NOT the game. The undo history
@@ -36,6 +36,12 @@ export function restoreState(snap: any): PersistedExtra {
   // migrations for snapshots from before the stack existed
   (game as any).stack ??= [];
   (game as any).tokenCatalog ??= {};
+  // phase became a closed vocabulary; live saves hold the old free strings
+  try {
+    game.phase = normalizePhase(game.phase);
+  } catch {
+    game.phase = "main 1";
+  }
   // Conversation used to live in game.log, where undo could rewind it. Lift
   // the old entries out into `said` so a game in progress gets the same
   // guarantee as a new one. Matching on the rendering is only safe because
