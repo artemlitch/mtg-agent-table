@@ -88,21 +88,37 @@ function build() {
       rm.onclick = () => { def.layers.splice(li, 1); build(); };
       head.appendChild(rm);
       ld.appendChild(head);
-      if (layer.kind === "tone") {
+      // the picked-from-a-list params: a tone's waveform, and — on both kinds —
+      // the amplitude shape, which is what decides whether a slide UP can be
+      // heard as one. Everything defaults to "decay", which is what every sound
+      // here has always done.
+      const chooser = (label, values, get, set, tip) => {
         const row = document.createElement("div");
         row.className = "param";
-        row.innerHTML = `<span>wave</span><span></span>`;
+        row.innerHTML = `<span>${label}</span><span></span>`;
         const sel = document.createElement("select");
-        for (const w of ["sine", "triangle", "square", "sawtooth"]) {
+        if (tip) sel.title = tip;
+        for (const v of values) {
           const o = document.createElement("option");
-          o.value = w; o.textContent = w;
-          if (layer.type === w) o.selected = true;
+          o.value = v; o.textContent = v;
+          if (get() === v) o.selected = true;
           sel.appendChild(o);
         }
-        sel.onchange = () => (layer.type = sel.value);
+        sel.onchange = () => { set(sel.value); play(name); };
         row.appendChild(sel);
         ld.appendChild(row);
+      };
+      if (layer.kind === "tone") {
+        chooser("wave", ["sine", "triangle", "square", "sawtooth"], () => layer.type, (v) => (layer.type = v));
       }
+      chooser(
+        "shape",
+        SFX.SHAPES,
+        () => layer.shape ?? "decay",
+        // "decay" is the default, so it is not worth a field in the export
+        (v) => (v === "decay" ? delete layer.shape : (layer.shape = v)),
+        "decay: loudest at the start · hold: steady · swell: loudest at the end — use swell to hear a slide going UP"
+      );
       for (const [p, min, max, step] of PARAMS[layer.kind]) {
         const row = document.createElement("div");
         row.className = "param";

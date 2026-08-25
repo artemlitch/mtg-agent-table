@@ -41,7 +41,23 @@
     }
   }
 
-  function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004 } = {}) {
+  // How a layer's loudness behaves over its life.
+  //
+  // Everything here used to decay and only decay, so a slide UP could not be
+  // heard as one: the pitch rose the whole way, but by the top of the sweep the
+  // sound was at 22% of its peak and the ear had already been handed the loud
+  // low part. Rendered offline, the draw layer measured 1692Hz at 69%, 2153 at
+  // 100%, then 2739/78%, 3484/52%, 4433/22%.
+  //
+  //   decay  loudest at the start, fading out — what every sound did, and still
+  //          does bit for bit: it is the default and nothing about it moved
+  //   hold   steady, with just enough release not to click
+  //   swell  quiet at the start, loudest at the end — the one that makes a
+  //          rising slide sound like it is rising
+  const SHAPES = ["decay", "hold", "swell"];
+  const RELEASE = 0.02; // s of fade at the end of a shape that would otherwise cut
+
+  function sfxTone(freq, { t = 0, dur = 0.15, type = "sine", vol = 0.1, slide = null, verb = 0, atk = 0.004, shape = "decay" } = {}) {
     if (!audioCtx || audioCtx.state !== "running") return;
     const now = audioCtx.currentTime + t;
     const o = audioCtx.createOscillator();
@@ -52,21 +68,37 @@
     // short attack ramp: an instant-on envelope clicks, and on low tones the
     // click is all small speakers reproduce — it reads as a high tick
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(vol, now + atk);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(dur, atk + 0.01));
+    if (shape === "swell") {
+      g.gain.exponentialRampToValueAtTime(vol, now + dur);
+      g.gain.linearRampToValueAtTime(0.0001, now + dur + RELEASE);
+    } else if (shape === "hold") {
+      g.gain.linearRampToValueAtTime(vol, now + atk);
+      g.gain.setValueAtTime(vol, now + Math.max(atk, dur - RELEASE));
+      g.gain.linearRampToValueAtTime(0.0001, now + Math.max(dur, atk + RELEASE));
+    } else {
+      g.gain.linearRampToValueAtTime(vol, now + atk);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(dur, atk + 0.01));
+    }
     o.connect(g);
     sfxOut(g, verb);
     o.start(now);
-    o.stop(now + dur + 0.05);
+    o.stop(now + dur + RELEASE + 0.05);
   }
 
-  function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0, atk = 0 } = {}) {
+  function sfxNoise({ t = 0, dur = 0.08, vol = 0.15, freq = 1000, q = 1, slide = null, verb = 0, atk = 0, shape = "decay" } = {}) {
     if (!audioCtx || audioCtx.state !== "running") return;
     const now = audioCtx.currentTime + t;
     const len = Math.ceil(audioCtx.sampleRate * dur);
     const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    // a noise layer's envelope lives in its SAMPLES rather than in the gain
+    // node, which is where the original decay always was — keeping it there
+    // means "decay" is unchanged to the sample, and the other two shapes are
+    // the same one line read differently
+    for (let i = 0; i < len; i++) {
+      const env = shape === "swell" ? i / len : shape === "hold" ? Math.min(1, (len - i) / (RELEASE * audioCtx.sampleRate)) : 1 - i / len;
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
     const src = audioCtx.createBufferSource();
     src.buffer = buf;
     const f = audioCtx.createBiquadFilter();
@@ -150,5 +182,5 @@
     }
   }
 
-  global.SFX = { SOUNDS, play, tone: sfxTone, noise: sfxNoise };
+  global.SFX = { SOUNDS, SHAPES, play, tone: sfxTone, noise: sfxNoise };
 })(window);
