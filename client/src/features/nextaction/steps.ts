@@ -119,8 +119,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "lock-their-attack",
+    // Resolving their ATTACKS item is not the way to damage any more — it opens
+    // the blockers step, and the next thing asked of you is whether you block.
+    // The old label promised the step after the one this press reaches.
     when: (c) => c.top?.player === "agent" && !!c.top.attackPairs,
-    step: (c) => ({ label: "Go to damage", icon: "damage", fn: () => void act("stack_resolve", { item: c.top!.id }) }),
+    step: (c) => ({ label: "Lock in their attack", icon: "damage", fn: () => void act("stack_resolve", { item: c.top!.id }) }),
   },
   {
     id: "resolve-all",
@@ -279,7 +282,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
       // stands the step down is YOU having finished, and the declaration
       // itself carries that: finish_attacks marks it, and undoing the
       // hand-over restores the item without the flag.
-      c.view.waitingOn === "agent" || (c.myAttackDecls.length > 0 && c.myAttackDecls.every((d) => d.finished))
+      //
+      // And when there IS a declaration it is the only authority — waitingOn is
+      // not a second opinion. Tapping one more creature after finishing amends
+      // the declaration and clears the flag, but leaves waitingOn pointing at
+      // the defender: reading that as "handed over" left the amendment
+      // undeliverable, with a hint where the button should have been.
+      (c.myAttackDecls.length ? c.myAttackDecls.every((d) => d.finished) : c.view.waitingOn === "agent")
         ? { hint: waitingHint(c, "declared") }
         : {
             label: "Finish declaring attackers",

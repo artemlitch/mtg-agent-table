@@ -248,10 +248,17 @@ describe("agent transport", () => {
 
     const a = new AgentRunner();
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-    expect(a.composeWakePrompt("react")).toContain("COMBAT DAMAGE IS OWED");
+    // The blockers step is open and the agent is the defender: what it owes
+    // here is a blocks declaration, not damage. The prompt used to ask for
+    // damage the moment attackers were locked in, and the damage tool would
+    // refuse it — the wake message named a move the table would not accept.
+    expect(a.composeWakePrompt("react")).toContain("BLOCKS ARE OWED");
+    expect(a.composeWakePrompt("react")).not.toContain("COMBAT DAMAGE IS OWED");
 
     applyAction("agent", "block", { pairs: [] }); // the blocks step is owed even when there are none
     applyAction("you", "stack_resolve", {});
+    expect(a.composeWakePrompt("react")).toContain("COMBAT DAMAGE IS OWED");
+
     applyAction("agent", "damage", { hits: [{ source: gonti.id, target: "agent", amount: 3 }] });
     applyAction("you", "stack_resolve", {});
     expect(game.players.agent.life).toBe(37);

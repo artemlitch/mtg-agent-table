@@ -198,11 +198,21 @@ export type Phase = (typeof PHASES)[number];
 
 const PHASE_ALIASES: Record<string, Phase> = {
   "untap/upkeep": "untap/upkeep", untap: "untap/upkeep", upkeep: "untap/upkeep", draw: "untap/upkeep", beginning: "untap/upkeep",
-  "main 1": "main 1", main1: "main 1", "first main": "main 1", "precombat main": "main 1", "pre-combat main": "main 1",
+  "main 1": "main 1", main1: "main 1", "first main": "main 1", "precombat main": "main 1", "main phase 1": "main 1",
+  "pre-combat main": "main 1",
   combat: "combat", attack: "combat", attackers: "combat", "declare attackers": "combat", "declare blockers": "combat", blockers: "combat", "combat damage": "combat",
-  "main 2": "main 2", main2: "main 2", "second main": "main 2", "postcombat main": "main 2", "post-combat main": "main 2",
+  "main 2": "main 2", main2: "main 2", "second main": "main 2", "postcombat main": "main 2", "main phase 2": "main 2",
+  "post-combat main": "main 2",
   end: "end", "end step": "end", "end of turn": "end", cleanup: "end",
 };
+
+/** The decoration a seat writes around a step's name — the CR's own wording,
+ *  "beginning of combat", "untap step", "combat phase". Stripping it is not
+ *  new vocabulary: what is left still has to be a word the table knows, so
+ *  "combatt" is as unknown after the fold as before it. */
+function foldPhaseKey(key: string): string {
+  return key.replace(/^beginning of /, "").replace(/ (step|phase)$/, "").trim();
+}
 
 /** Any phase label a seat might write, folded to the canonical five — or a
  *  loud error naming them. A typo used to become the phase: set_phase stored
@@ -212,12 +222,14 @@ export function normalizePhase(raw: unknown): Phase {
   const key = String(raw ?? "").trim().toLowerCase();
   // own-property only: a plain object inherits "constructor", "toString" and
   // friends, and a bare lookup would hand one of those back as the phase
-  const hit = Object.hasOwn(PHASE_ALIASES, key) ? PHASE_ALIASES[key] : undefined;
+  const look = (k: string) => (Object.hasOwn(PHASE_ALIASES, k) ? PHASE_ALIASES[k] : undefined);
+  const folded = foldPhaseKey(key);
+  const hit = look(key) ?? look(folded);
   if (hit) return hit;
   // "main" alone is the agent's most common label and is genuinely ambiguous;
   // this turn's combat settles it — once damage is done, a bare "main" is the
   // second one
-  if (key === "main") return game.combat === "done" ? "main 2" : "main 1";
+  if (folded === "main") return game.combat === "done" ? "main 2" : "main 1";
   throw new Error(`unknown phase "${String(raw)}" — use one of: ${PHASES.join(", ")}`);
 }
 
@@ -232,6 +244,10 @@ export interface GameState {
   started: boolean;
   turn: PlayerId;
   turnNumber: number;
+  // The opening hands are settled. turnNumber cannot say this: it only moves
+  // when the turn comes BACK to Player, so the agent's first turn is still
+  // round 1 with a freshly reset turnDone — indistinguishable from the deal.
+  openingOver: boolean;
   phase: Phase;
   combat: CombatStep | null;
   players: Record<PlayerId, PlayerState>;
@@ -288,6 +304,7 @@ export function newGameState(): GameState {
     started: false,
     turn: "you",
     turnNumber: 1,
+    openingOver: false,
     // where the turn pass puts every later turn, so turn 1 is not a special
     // case that opens on "Go to combat" with an untouched board
     phase: "untap/upkeep",
@@ -624,6 +641,7 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
     canMulligan:
       game.started &&
       game.turnNumber === 1 &&
+      !game.openingOver &&
       game.turn === viewer &&
       game.players[viewer].zones.hand.length > 0 &&
       !game.players[viewer].turnDone.acted,
@@ -918,6 +936,9 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     game.combat = null;
     clearCombatMarks();
     resetTurnDone();
+    // one turn has been played, so nobody is on their opening hand any more —
+    // the reset above has just made this turn look like the deal again
+    game.openingOver = true;
     addLog(ctx.actor, `— Round ${game.turnNumber}: ${who(player)}'s turn —`, "round_start");
     return { ok: true, resolved: item.text };
   }
@@ -955,7 +976,15 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
     return { ok: true, resolved: item.text, life: parts, ...(deaths ? { deaths } : {}) };
   }
   if (item.apply?.type === "block") {
-    if (game.combat === "blockers") game.combat = "damage";
+    // What closes the blockers step is the DEFENDER having answered in full.
+    // Two ways that was got wrong: blocks are declared a creature at a time, so
+    // three blockers are three items and the first to resolve opened damage
+    // with two declarations still pending (the item being resolved is already
+    // spliced off, so this sees only the others); and the ATTACKER can push a
+    // block of its own — "no blocks", on nobody's behalf — which locked in as
+    // an answer the defender never gave.
+    const stillOwed = game.stack.some((i) => i.apply?.type === "block");
+    if (game.combat === "blockers" && !stillOwed && item.player !== game.turn) game.combat = "damage";
     for (const pair of item.apply.pairs) getCard(pair.blocker).blocking = pair.attacker;
     addLog(ctx.actor, `Blocks locked in: ${blockLines(item.apply.pairs).join("; ")}`);
     return { ok: true, resolved: item.text };
@@ -1490,7 +1519,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    *  nothing to undo, and one line in the log saying what happened. */
   mulligan(ctx, p) {
     const player: PlayerId = p.player === undefined ? ctx.actor : asPlayer(p.player);
-    if (game.turnNumber !== 1 || game.players[player].turnDone.acted) {
+    if (game.turnNumber !== 1 || game.openingOver || game.players[player].turnDone.acted) {
       throw new Error("mulligans are decided before anything is played — you have already started the turn");
     }
     const n = Math.max(0, Math.min(20, Number(p.n ?? 7)));
@@ -1558,7 +1587,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // And once per turn: the turn remembers its untap, so re-announcing the
     // step a seat is already past does not turn a creature tapped for mana
     // back over. Saying it outright (untap_all) is still always allowed.
-    const rawKey = String(p.phase ?? "").trim().toLowerCase();
+    //
+    // Folded the same way normalizePhase folds it, so "untap step" is the
+    // untap step: the decoration is what a seat writes, not a different move.
+    const rawKey = foldPhaseKey(String(p.phase ?? "").trim().toLowerCase());
     const isUntapStep = phase === "untap/upkeep" && (rawKey === "untap" || rawKey === "untap/upkeep");
     const untapped = isUntapStep && !game.players[game.turn].turnDone.untap ? untapPermanents(game.turn) : 0;
     addLog(
@@ -1694,9 +1726,16 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // is not an answer until the attacker locks it in. null and "done" pass:
     // a ping in main owes nobody a blocks step, and re-announcing after
     // damage resolved is a legal correction.
+    //
+    // The two seats are stuck on different things here, and telling the
+    // attacker to "declare block with pairs: []" invited it to answer for the
+    // defender — which is exactly the move resolveStackItem now refuses to
+    // count. Each seat is told about its own move.
     if (game.combat === "attackers" || game.combat === "blockers") {
       throw new Error(
-        "declare blockers first — blocks must be declared AND locked in (stack_resolve) before damage is announced. A defender with nothing to block declares block with pairs: [], and resolving that opens the damage step."
+        ctx.actor === game.turn
+          ? `the defender has not answered blocks yet — ${who(ctx.actor === "you" ? "agent" : "you")}'s block declaration comes first, and you lock it in with stack_resolve. Wait for it, or ask. Declaring blocks yourself is not an answer.`
+          : "declare blockers first — blocks must be declared AND locked in (stack_resolve) before damage is announced. A defender with nothing to block declares block with pairs: [], and resolving that opens the damage step."
       );
     }
     const raw: any[] = Array.isArray(p.hits) ? p.hits : [];

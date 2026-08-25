@@ -186,7 +186,7 @@ describe("the combat prompt, step by step", () => {
   it("says the agent is thinking while it is, not just that we are waiting", () => {
     // the press DID land and the agent DID wake — it just took a minute, and
     // an unchanged prompt through a sixty-second window reads as a dead press
-    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], combat: "attackers" });
+    const v = view({ mine: [creature("bear")], stack: [{ ...declaration("d1", "bear"), finished: true }], combat: "attackers" });
     (v as any).waitingOn = "agent";
     useGame.setState({ agentBusy: true });
     expect(prompt(v).action?.hint).toMatch(/thinking/i);
@@ -200,7 +200,7 @@ describe("the combat prompt, step by step", () => {
     // four interrupted windows and no progress.
     const v = view({
       mine: [creature("bear"), creature("wolf")],
-      stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
+      stack: [{ ...declaration("d1", "bear"), finished: true }, { ...declaration("d2", "wolf"), finished: true }],
       combat: "attackers",
     });
     (v as any).waitingOn = "agent";
@@ -208,6 +208,24 @@ describe("the combat prompt, step by step", () => {
     expect(id).toBe("finish-attacks");
     expect(action?.fn).toBeUndefined();
     expect(action?.hint).toMatch(/waiting/i);
+  });
+
+  it("gives the button back when you amend a declaration you had already finished", () => {
+    // Tapping one more creature after finishing reopens the declaration —
+    // attack() deletes the finished flag — but nothing moves waitingOn back, so
+    // it still points at the defender. Reading either fact as "handed over"
+    // left the table hintlocked: the amendment was never sent, and there was no
+    // button to send it with. What was DECLARED is the authority here.
+    const v = view({
+      mine: [creature("bear"), creature("wolf")],
+      stack: [declaration("d1", "bear", "wolf")],
+      combat: "attackers",
+    });
+    (v as any).waitingOn = "agent";
+    const { id, action } = prompt(v);
+    expect(id).toBe("finish-attacks");
+    expect(action?.label).toBe("Finish declaring attackers");
+    expect(action?.fn).toBeDefined();
   });
 
   it("stays down after you finish, even when the agent hands the window back", () => {
@@ -259,6 +277,18 @@ describe("the combat prompt, step by step", () => {
   it("hands over to the agent once you finish, and waits while it holds an item", () => {
     const other = { id: "s1", player: "agent", text: "some agent item" } as StackItem;
     expect(prompt(view({ stack: [other], combat: "attackers" })).id).toBe("resolve-one");
+  });
+
+  it("names what locking in their attack actually reaches: the blockers step", () => {
+    // it used to say "Go to damage", which was true when locking an attack in
+    // was the last thing before damage. It opens the blockers step now, and the
+    // next question is whether you block.
+    const theirs = { ...declaration("a1", "Rat"), player: "agent" } as StackItem;
+    const v = view({ mine: [creature("bear")], stack: [theirs], combat: "blockers" });
+    (v as any).turn = "agent";
+    const { id, action } = prompt(v);
+    expect(id).toBe("lock-their-attack");
+    expect(action?.label).toBe("Lock in their attack");
   });
 
   it("asks for damage once the attackers are locked in", () => {

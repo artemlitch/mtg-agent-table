@@ -505,21 +505,26 @@ export class AgentRunner {
     const stackDuty = playerItems
       ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S — deal with them FIRST (see PLAYER'S ITEMS ON THE STACK).\n`
       : "";
-    // Damage is the step that gets dropped, and it is the agent's to announce
-    // in EVERY combat — including the ones Player attacks in, which is the
-    // reading rule 6 used to leave open. Attackers still marked and nothing
-    // applied since they locked in: say so, every window, until it lands.
-    // The attacking flags clear on the turn pass, so this cannot outlive the
-    // combat it belongs to.
-    const lastLogAt = (re: RegExp) => {
-      for (let i = game.log.length - 1; i >= 0; i--) if (re.test(game.log[i].text)) return i;
-      return -1;
-    };
-    const attackersOut = Object.values(game.cards).some((c) => c.zone === "battlefield" && c.attacking);
-    const damageDuty =
-      attackersOut && lastLogAt(/^Damage applied:|put on the stack: COMBAT DAMAGE/) < lastLogAt(/^Attacks locked in:/)
-        ? `\n⚠ COMBAT DAMAGE IS OWED, and announcing it is YOURS whoever attacked (rule 6a) — attackers are locked in and nothing has applied damage since. Use the damage tool.\n`
-        : "";
+    // Combat has an order, and game.combat is where it currently is. This used
+    // to be read back out of the log — which line came last — and the reading
+    // fired the damage prompt while the blockers step was still open, telling
+    // the agent to use a tool that would refuse it and leaving it to argue with
+    // the refusal. Each step names the move that is actually available in it.
+    //
+    // Damage is still the step that gets dropped, and it is the agent's to
+    // announce in EVERY combat — including the ones Player attacks in, which is
+    // the reading rule 6 used to leave open. So it is said in every window
+    // until it lands. Already on the stack is not owed: re-announcing an
+    // unresolved damage item deals it twice.
+    const damageAnnounced = game.stack.some((i) => i.apply?.type === "damage" && i.apply.combatDamage);
+    const combatDuty =
+      game.combat === "blockers"
+        ? game.turn === "agent"
+          ? `\n⚠ THE BLOCKERS STEP IS OPEN and the declaration is PLAYER'S to make — you are the attacker. Wait for it, or ask; lock it in with stack_resolve when it arrives. Damage cannot be announced before that.\n`
+          : `\n⚠ BLOCKS ARE OWED AND THEY ARE YOURS — Player's attackers are locked in and you are the defender. Declare them with the block tool; blocking nothing is still an answer, declared as block with pairs: []. Damage cannot be announced until that declaration is locked in.\n`
+        : game.combat === "damage" && !damageAnnounced
+          ? `\n⚠ COMBAT DAMAGE IS OWED, and announcing it is YOURS whoever attacked (rule 6a) — blocks are locked in and nothing has applied damage since. Use the damage tool.\n`
+          : "";
     // turn-based trigger hints: "At the beginning of…" lines on the agent's
     // own battlefield, surfaced at the top of its turn (text-grep, not rulings)
     const turnTriggers =
@@ -563,7 +568,7 @@ export class AgentRunner {
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
     // points 2 and 9 of the system prompt and did not need saying twice
-    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${damageDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;

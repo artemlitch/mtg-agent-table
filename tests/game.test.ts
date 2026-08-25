@@ -830,6 +830,19 @@ describe("combat happens in order", () => {
     expect(game.stack[0].text).toBe("COMBAT DAMAGE");
   });
 
+  // The refusal has to name a move the seat reading it can actually make. Told
+  // "a defender with nothing to block declares block with pairs: []", the
+  // ATTACKER did exactly that — answered its own attack on the defender's
+  // behalf — which is the one thing the blockers step exists to prevent.
+  test("the refusal names the move belonging to the seat that hit it", () => {
+    const { rats } = ratsAttack();
+    // the attacker: what it is waiting for is Player's declaration
+    expect(() => applyAction("agent", "damage", unblocked(rats))).toThrow(/defender has not answered/i);
+    expect(() => applyAction("agent", "damage", unblocked(rats))).not.toThrow(/pairs: \[\]/);
+    // the defender: what it is owed is a declaration, and declining is one
+    expect(() => applyAction("you", "damage", unblocked(rats))).toThrow(/pairs: \[\]/);
+  });
+
   // The boundary. A ping, a burn spell, a drain — nothing is attacking, so
   // there is no blocks step to be owed and nothing to wait for.
   test("damage with nothing attacking is not a combat step and owes no blocks", () => {
@@ -892,6 +905,50 @@ describe("the view says where combat is", () => {
     applyAction("agent", "damage", { hits: [{ source: rat.id, target: blk.id, amount: 1 }] });
     applyAction("you", "stack_resolve", {});
     expect(combatOf()).toBe("done");
+  });
+
+  // Blocks are declared a creature at a time — three blockers are three stack
+  // items — and the FIRST one to resolve used to open the damage step, with
+  // two declarations still sitting on the stack unanswered. The step is over
+  // when there is nothing left to answer with.
+  test("the damage step waits for the last block declaration", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    const b1 = seedCard("Carrion Feeder", "you", "battlefield");
+    const b2 = seedCard("Tergrid, God of Fright", "you", "battlefield");
+    const b3 = seedCard("Guy", "you", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers");
+
+    for (const b of [b1, b2, b3]) applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat.id }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers"); // two declarations still owed an answer
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers");
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("damage"); // the last one closes the step
+  });
+
+  // Blocks are the DEFENDER's answer. The attacker declaring "no blocks" on its
+  // own behalf and having that locked in walked combat into damage without the
+  // defender ever being asked — the one thing the sub-machine exists to stop.
+  test("only the defending seat's declaration opens the damage step", () => {
+    const rat = seedCard("Rat", "agent", "battlefield");
+    const blk = seedCard("Carrion Feeder", "you", "battlefield");
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "combat" });
+    applyAction("agent", "attack", { pairs: [{ attacker: rat.id, target: "you" }] });
+    applyAction("you", "stack_resolve", {});
+
+    applyAction("agent", "block", { pairs: [] }); // the ATTACKER, answering for nobody
+    applyAction("you", "stack_resolve", {});
+    expect(combatOf()).toBe("blockers"); // Player has still not been asked
+
+    applyAction("you", "block", { pairs: [{ blocker: blk.id, attacker: rat.id }] });
+    applyAction("agent", "stack_resolve", {});
+    expect(combatOf()).toBe("damage");
   });
 
   // Why the scrape used log POSITIONS rather than "has it happened yet": a
@@ -1885,6 +1942,32 @@ describe("phase labels are a vocabulary, not free text", () => {
     }
   });
 
+  // A seat writing the CR's own words for a step — "beginning of combat",
+  // "untap step", "main phase 1" — was writing garbage as far as the table was
+  // concerned, and set_phase threw at it. The decoration folds off; what is
+  // underneath still has to be a word the table knows.
+  test("step/phase decoration folds off, and the vocabulary stays closed", () => {
+    for (const [raw, canon] of [
+      ["untap step", "untap/upkeep"],
+      ["upkeep step", "untap/upkeep"],
+      ["combat phase", "combat"],
+      ["beginning of combat", "combat"],
+      ["main phase 1", "main 1"],
+      ["main phase 2", "main 2"],
+    ] as const) {
+      applyAction("you", "set_phase", { phase: raw });
+      expect(game.phase).toBe(canon);
+    }
+    // stripping is not a licence to invent: the fold leaves "combatt" alone
+    expect(() => applyAction("you", "set_phase", { phase: "combatt" })).toThrow(/unknown phase/);
+  });
+
+  test("the auto-untap fires on the decorated untap step too", () => {
+    const c = seedCard("Guy", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "untap step" });
+    expect(c.tapped).toBe(false);
+  });
+
   test("bare main resolves to main 1 before combat has resolved", () => {
     // the agent's most common label — "Agent moves to main" — is ambiguous,
     // and before this turn's combat is done it means the first main phase
@@ -2001,5 +2084,24 @@ describe("the turn knows what has already happened in it", () => {
     game.started = true;
     seedCard("Keep Me", "you", "hand");
     expect(viewFor("agent").canMulligan).toBe(false);
+  });
+
+  // The opening is over when the first turn pass lands — not when the round
+  // counter moves, which it only does on the way BACK to Player. Turn 1 for the
+  // agent used to look exactly like the opening: same round number, and the
+  // pass had just cleared `acted`. So the table opened the agent's first turn
+  // by offering to shuffle away the hand it had just drawn into.
+  test("the opening ends at the first turn pass, not at the round counter", () => {
+    game.started = true;
+    seedCard("Keep Me", "agent", "hand");
+    seedLibrary("agent", ["A", "B", "C", "D", "E", "F", "G"]);
+    // before any pass, mulliganing the agent's opener is still legal
+    applyAction("agent", "mulligan", { n: 7 });
+
+    applyAction("you", "set_turn", { player: "agent" });
+    applyAction("agent", "stack_resolve", {});
+    expect(game.turnNumber).toBe(1); // the round counter has NOT moved
+    expect(viewFor("agent").canMulligan).toBe(false);
+    expect(() => applyAction("agent", "mulligan", { n: 7 })).toThrow(/already/i);
   });
 });
