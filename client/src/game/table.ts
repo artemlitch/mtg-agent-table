@@ -49,9 +49,14 @@ export const CW = () => cw;
 export const CH = () => ch;
 
 /** A tucked card peeks out from under the one it hangs from by this much, one
- *  step per rung, so every card in a pile has a strip you can grab. */
+ *  step per rung, so every card in a pile has a strip you can grab.
+ *
+ *  Only ever seen on a cascade of three or fewer — past that the pile draws as
+ *  one chonky stack and the cards under the top are not drawn at all (see
+ *  CHONKY_PILE_AT). So the vertical step is set for the short pile: a full card
+ *  title's worth of drop cost more board height than three cards are worth. */
 export const PILE_DX = 15;
-export const PILE_DY = 26;
+export const PILE_DY = 13;
 
 
 interface Surface {
