@@ -9,7 +9,7 @@
 //   icon: a key into ICONS, drawn before the label.
 import { act, type ActionResult } from "../../api";
 import { HAS_STARTED_PLAYING, stackItemCard, stackSubText } from "../../game/rules";
-import { cardById, didThisTurn, gameView, lastLogIndex, useGame } from "../../store/game";
+import { cardById, didThisTurn, gameView, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, SoundId, StackItem } from "../../types";
 
@@ -30,23 +30,16 @@ export interface Ctx {
   mine: boolean;
   phase: string;
   theirAttackers: Card[];
-  attackSig: string;
   iAmBlocking: boolean;
   myAttackers: Card[];
-  /** my attack declarations sitting on the stack, not yet locked in. Each tap
-   *  pushes its OWN item (see attack() in server/game.ts), so declaring three
-   *  creatures leaves three of them */
+  /** my attack declarations sitting on the stack, not yet locked in: the one
+   *  open declaration, still unresolved (attack() amends it in place — see
+   *  server/game.ts) */
   myAttackDecls: StackItem[];
   /** how many creatures those declarations add up to */
   declared: number;
-  /** Where this combat is, as log positions rather than "has it happened yet".
-   *  A turn can hold two combats — undoing back past combat and swinging again
-   *  is the ordinary way in — so what matters is the ORDER of these, not
-   *  whether each occurred. -1 means not this round. */
-  enteredCombatAt: number;
-  finishedAt: number;
-  lockedAt: number;
-  damageAt: number;
+  /** where combat is, straight off the view — see CombatStep in server/game.ts */
+  combat: GameView["combat"];
   myTapped: boolean;
   /** the agent is mid-window right now — a window can run a minute on a big
    *  context, and without saying so the table looks identical to a table that
@@ -66,13 +59,8 @@ export const passTurnToAgent = async () => {
   await act("done", {});
 };
 
-// declining blocks is per-attack: remembering the signature stops the prompt
-// reappearing for an attack you already waved through
-export const noBlocks: { declaredFor: string | null } = { declaredFor: null };
-
 export function nextActionContext(view: GameView): Ctx {
   const stack = view.stack || [];
-  const log = view.log ?? [];
   const myAttackDecls = stack.filter((it) => it.player === "you" && !!it.attackPairs);
   const theirAttackers = view.players.agent.zones.battlefield.filter((c) => c.attacking);
   return {
@@ -82,35 +70,11 @@ export function nextActionContext(view: GameView): Ctx {
     mine: view.turn === "you",
     phase: view.phase || "",
     theirAttackers,
-    // one signature per attack, so declining blocks hides the prompt for THAT
-    // attack only — the next one asks again
-    attackSig: theirAttackers.map((c) => c.id).sort().join(","),
     iAmBlocking: view.players.you.zones.battlefield.some((c) => c.blocking),
     myAttackers: view.players.you.zones.battlefield.filter((c) => c.attacking),
     myAttackDecls,
     declared: myAttackDecls.reduce((n, it) => n + (it.attackPairs?.length ?? 0), 0),
-    enteredCombatAt: lastLogIndex(log, /moves to combat/i),
-    lockedAt: lastLogIndex(log, /^Attacks locked in:/),
-    // You saying you are finished — which is the thing the finish-attacks step
-    // exists to get, and so the thing that stands it down. It cannot use
-    // lockedAt for that: that is the DEFENDER's answer, and an agent that
-    // never gives one leaves the step asking forever.
-    //
-    // ANCHORED, so an undo cannot keep it true. "↩ Player undid: Player
-    // finishes declaring attackers" quotes the line, and lastLogIndex reads
-    // undo notices like any other entry — unanchored, taking the hand-over
-    // back would leave the step believing you had made it, with no button to
-    // make it again. Same trick as damageAt and lockedAt above.
-    finishedAt: lastLogIndex(log, /^(Player|Agent) finishes declaring attackers/),
-    // Damage is done when it LANDS, not when it was asked for. Asking used to
-    // count — the pattern matched the "go to damage" push itself, whose text
-    // contains the words — so the step stood down the moment you pressed it and
-    // the table walked on to main 2 with the damage never applied. That is
-    // exactly what happened the turn the agent decided announcing was Player's
-    // job. Both patterns now match a log line only an ANSWER can write: the
-    // damage tool resolving, or the older hand-written announcement reaching
-    // the stack, which a game in flight may still be using.
-    damageAt: lastLogIndex(log, /^Damage applied:|put on the stack: COMBAT DAMAGE/i),
+    combat: view.combat ?? null,
     myTapped: view.players.you.zones.battlefield.some((c) => c.tapped),
     agentBusy: useGame.getState().agentBusy,
   };
@@ -208,24 +172,24 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // different thing and had no sound of its own — which is exactly the
     // moment that gets missed while you are looking at your own hand.
     sound: "block",
-    // only while their attack is still live: their turn, still in combat, and
-    // damage not dealt yet. Attackers keep the `attacking` flag after damage
-    // until combat is cleared, and a dying attacker changes the signature —
-    // between them the prompt used to come back and sit there.
+    // only while the blockers step is actually open — the table's own answer,
+    // not a phase regex plus a memory of which attacks were waved through
     when: (c) =>
       !c.mine &&
-      /combat|attack|block|damage/i.test(c.phase) &&
-      !didThisTurn(/combat damage|no blocks/i) &&
+      c.combat === "blockers" &&
       c.theirAttackers.length > 0 &&
       !c.iAmBlocking &&
-      noBlocks.declaredFor !== c.attackSig,
-    step: (c) => ({
+      // your declaration may still be on the stack, unresolved — the step is
+      // answered even though the view has not moved yet
+      !c.stack.some((i) => i.player === "you" && !!i.blockPairs),
+    step: () => ({
       label: "No blocks — take the damage",
       icon: "noBlocks",
-      fn: () => {
-        noBlocks.declaredFor = c.attackSig;
-        void act("chat", { text: "No blocks." });
-      },
+      // a DECLARATION, not a sentence: block with no pairs is "no blocks",
+      // the attacker locks it in, and that is what opens the damage step.
+      // The old chat message left the table never learning blocks were
+      // answered — the step recognised its own English back out of the log.
+      fn: () => void act("block", { pairs: [] }),
     }),
   },
   {
@@ -297,12 +261,10 @@ export const NEXT_ACTION_STEPS: Step[] = [
     // the attack, and the agent cannot lock in a declaration you are still
     // adding to. Pressing it with nothing declared means you are not attacking.
     id: "finish-attacks",
-    // Declarations on the stack always mean you are still declaring, whatever
-    // happened earlier in the turn. With none, this is the entry state, which
-    // lasts until damage — and it is damage since you ENTERED combat, so a
-    // second swing after an undo gets its own declare window.
-    when: (c) =>
-      c.phase === "combat" && c.myAttackers.length === 0 && (c.declared > 0 || c.damageAt < c.enteredCombatAt),
+    // The view says the attackers step is open; nothing of yours is attacking
+    // yet. A second combat in the same turn reopens it by itself — the table
+    // walks back to "attackers", so there is no turn history to keep.
+    when: (c) => c.phase === "combat" && c.combat === "attackers" && c.myAttackers.length === 0,
     step: (c) =>
       // Already handed over: pressing again cannot help, and it does harm —
       // a pass while the agent is mid-thought preempts it and starts it over,
@@ -314,8 +276,10 @@ export const NEXT_ACTION_STEPS: Step[] = [
       // the declaration, and then waitingOn is "you" again with the ATTACKS
       // item still sitting there. The button came back mid-combat and a second
       // press re-declared attacks that had already dealt their damage. What
-      // stands the step down is YOU having finished, which is what it asked.
-      c.view.waitingOn === "agent" || c.finishedAt > c.enteredCombatAt
+      // stands the step down is YOU having finished, and the declaration
+      // itself carries that: finish_attacks marks it, and undoing the
+      // hand-over restores the item without the flag.
+      c.view.waitingOn === "agent" || (c.myAttackDecls.length > 0 && c.myAttackDecls.every((d) => d.finished))
         ? { hint: waitingHint(c, "declared") }
         : {
             label: "Finish declaring attackers",
@@ -332,11 +296,11 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
   {
     id: "combat-damage",
-    // Damage is owed while the last one asked for came BEFORE these attackers
-    // were locked in. "Not yet this turn" was wrong twice over: it stood the
-    // step down for a second combat in the same turn, and the pattern has to
-    // match what the button pushes or the step never stands down at all.
-    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && c.damageAt < c.lockedAt,
+    // Damage is owed from the moment your attackers are locked in until the
+    // table says it landed. The view carries which of those it is, so a second
+    // combat in the same turn is just the step reopening — no reading back
+    // through the turn for the last "Damage applied" line.
+    when: (c) => c.phase === "combat" && c.myAttackers.length > 0 && (c.combat === "blockers" || c.combat === "damage"),
     // one click straight onto the stack — the agent works out the numbers, the
     // player never types damage. The text spells out what is being asked and
     // NAMES the tool: a bare "go to damage" left the agent resolving the item

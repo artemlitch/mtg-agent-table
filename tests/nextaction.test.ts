@@ -2,14 +2,14 @@
 // true wins. It is a state machine over the board, the stack and the log, and
 // it had no tests — which is how a chat message from the agent came to stand
 // the whole of combat down.
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Card, GameView, LogEntry, StackItem } from "../client/src/types";
 
 // the UI store reads a saved preference the moment it is imported, and these
 // tests run in node — the steps only need it to exist, never to remember
 globalThis.localStorage ??= { getItem: () => null, setItem: () => {} } as unknown as Storage;
 
-const { NEXT_ACTION_STEPS, nextActionContext, noBlocks } = await import("../client/src/features/nextaction/steps");
+const { NEXT_ACTION_STEPS, nextActionContext } = await import("../client/src/features/nextaction/steps");
 const { canMulligan } = await import("../client/src/game/rules");
 const { useGame } = await import("../client/src/store/game");
 
@@ -28,12 +28,21 @@ function view({
   log = [] as LogEntry[],
   phase = "combat",
   turnNumber = 4,
-}: { mine?: Card[]; stack?: StackItem[]; log?: LogEntry[]; phase?: string; turnNumber?: number }): GameView {
+  combat = null as GameView["combat"],
+}: {
+  mine?: Card[];
+  stack?: StackItem[];
+  log?: LogEntry[];
+  phase?: string;
+  turnNumber?: number;
+  combat?: GameView["combat"];
+}): GameView {
   return {
     started: true,
     turn: "you",
     turnNumber,
     phase,
+    combat,
     stack,
     log: [line("— Round 4: Player's turn —", "you"), ...log],
     players: {
@@ -50,13 +59,6 @@ function prompt(v: GameView) {
   const rule = NEXT_ACTION_STEPS.find((r) => r.when(ctx));
   return { id: rule?.id, action: rule?.step(ctx) ?? null };
 }
-
-const ENTERED = () => line("Player moves to combat");
-const LOCKED = () => line("Attacks locked in: Bear → Agent (attackers tapped)");
-const FINISHED = () => line("Player finishes declaring attackers: Bear — Agent to lock them in or respond");
-const ASKED = () => line("Player put on the stack: go to damage — declare any blocks, then announce it with the damage tool (yours to announce, my attack or yours)");
-const ANNOUNCED = () => line("Agent put on the stack: COMBAT DAMAGE\n  1. Bear → Player: 2");
-const APPLIED = () => line("Damage applied: Player 40 → 37; Gonti → Player commander damage 3");
 
 // A new game opens where every other turn opens, at untap/upkeep — see
 // newGameState in server/game.ts, which used to start at main 1 and skip the
@@ -179,7 +181,7 @@ describe("priority handed back during the agent's turn", () => {
 
 describe("the combat prompt, step by step", () => {
   it("asks you to declare as soon as you reach combat", () => {
-    const { id, action } = prompt(view({ mine: [creature("bear")], log: [ENTERED()] }));
+    const { id, action } = prompt(view({ mine: [creature("bear")], combat: "attackers" }));
     expect(id).toBe("finish-attacks");
     expect(action?.label).toBe("Finish declaring attackers");
     expect(action?.sub).toBeUndefined(); // nothing declared yet
@@ -188,7 +190,7 @@ describe("the combat prompt, step by step", () => {
   it("says the agent is thinking while it is, not just that we are waiting", () => {
     // the press DID land and the agent DID wake — it just took a minute, and
     // an unchanged prompt through a sixty-second window reads as a dead press
-    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], log: [ENTERED()] });
+    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], combat: "attackers" });
     (v as any).waitingOn = "agent";
     useGame.setState({ agentBusy: true });
     expect(prompt(v).action?.hint).toMatch(/thinking/i);
@@ -203,7 +205,7 @@ describe("the combat prompt, step by step", () => {
     const v = view({
       mine: [creature("bear"), creature("wolf")],
       stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
-      log: [ENTERED()],
+      combat: "attackers",
     });
     (v as any).waitingOn = "agent";
     const { id, action } = prompt(v);
@@ -218,11 +220,12 @@ describe("the combat prompt, step by step", () => {
     // ATTACKS item was still on the stack, nothing of ours was marked
     // attacking, and waitingOn came back to "you" mid-combat. The button
     // returned and a second press re-declared an attack that had already
-    // dealt its damage.
+    // dealt its damage. The declaration's own `finished` flag is what stands
+    // the step down now — no reading the log for who said what.
     const v = view({
       mine: [creature("bear")],
-      stack: [declaration("d1", "bear")],
-      log: [ENTERED(), FINISHED(), line("Agent declares blockers (on the stack): Spawn blocks Bear", "agent"), APPLIED()],
+      stack: [{ ...declaration("d1", "bear"), finished: true }],
+      combat: "attackers",
     });
     (v as any).waitingOn = "you";
     const { id, action } = prompt(v);
@@ -232,14 +235,9 @@ describe("the combat prompt, step by step", () => {
   });
 
   it("gives the button back when you undo the hand-over", () => {
-    // the undo notice QUOTES the line it took back, so an unanchored match
-    // would read the take-back as the thing itself and leave you with a
-    // declaration on the stack and no way to say you were finished with it
-    const v = view({
-      mine: [creature("bear")],
-      stack: [declaration("d1", "bear")],
-      log: [ENTERED(), line("↩ Player undid: Player finishes declaring attackers: Bear — Agent to lock them in", "system")],
-    });
+    // undo restores the snapshot, and the snapshot's declaration has no
+    // finished flag — no log-quoting regex required to know you took it back
+    const v = view({ mine: [creature("bear")], stack: [declaration("d1", "bear")], combat: "attackers" });
     (v as any).waitingOn = "you";
     const { id, action } = prompt(v);
     expect(id).toBe("finish-attacks");
@@ -252,7 +250,7 @@ describe("the combat prompt, step by step", () => {
       view({
         mine: [creature("bear"), creature("wolf")],
         stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
-        log: [ENTERED()],
+        combat: "attackers",
       })
     );
     // the bug this replaces: the second declaration made the top item differ
@@ -263,11 +261,11 @@ describe("the combat prompt, step by step", () => {
 
   it("hands over to the agent once you finish, and waits while it holds an item", () => {
     const other = { id: "s1", player: "agent", text: "some agent item" } as StackItem;
-    expect(prompt(view({ stack: [other], log: [ENTERED()] })).id).toBe("resolve-one");
+    expect(prompt(view({ stack: [other], combat: "attackers" })).id).toBe("resolve-one");
   });
 
   it("asks for damage once the attackers are locked in", () => {
-    const { id, action } = prompt(view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED()] }));
+    const { id, action } = prompt(view({ mine: [creature("bear", { attacking: "agent" })], combat: "blockers" }));
     expect(id).toBe("combat-damage");
     expect(action?.label).toBe("Go to damage");
   });
@@ -276,18 +274,14 @@ describe("the combat prompt, step by step", () => {
     // Asking used to stand the step down, so one press moved the table to main
     // 2 whether or not damage ever landed. It did not land the turn the agent
     // read the combat procedure as "the attacker announces damage": three
-    // damage and three commander damage were simply lost.
-    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ASKED()] });
+    // damage and three commander damage were simply lost. Pushing the ask
+    // moves nothing at the table, so the view still says the damage is owed.
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], combat: "damage" });
     expect(prompt(v).id).toBe("combat-damage");
   });
 
   it("moves on once damage has actually landed", () => {
-    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ASKED(), APPLIED()] });
-    expect(prompt(v).id).toBe("past-combat");
-  });
-
-  it("…or once it has been announced by hand, the way a game in flight still does it", () => {
-    const v = view({ mine: [creature("bear", { attacking: "agent" })], log: [ENTERED(), LOCKED(), ANNOUNCED()] });
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], combat: "done" });
     expect(prompt(v).id).toBe("past-combat");
   });
 });
@@ -295,29 +289,27 @@ describe("the combat prompt, step by step", () => {
 describe("what used to break it", () => {
   it("ignores the agent TALKING about combat damage", () => {
     // the agent narrates constantly; "please announce combat damage" is not
-    // combat damage, and reading it as such stood combat down for the turn
+    // combat damage, and reading it as such stood combat down for the turn.
+    // The guard no longer looks at the log at all — this is the bug class the
+    // view field exists to close.
     const v = view({
       mine: [creature("bear", { attacking: "agent" })],
-      log: [ENTERED(), LOCKED(), said("Please announce combat damage on the stack and I will resolve it.")],
+      combat: "blockers",
+      log: [said("Please announce combat damage on the stack and I will resolve it.")],
     });
     expect(prompt(v).id).toBe("combat-damage");
   });
 
   it("gives a second combat in the same turn its own declare window", () => {
     // undo back past combat and swing again: the first combat's damage is
-    // still in the log, and "did damage happen this turn" says yes forever
-    const v = view({
-      mine: [creature("bear")],
-      log: [ENTERED(), LOCKED(), APPLIED(), line("↩ Player undid: Player moves to combat"), ENTERED()],
-    });
+    // still in the log, and "did damage happen this turn" says yes forever.
+    // The view walks back to "attackers", which is the whole answer.
+    const v = view({ mine: [creature("bear")], combat: "attackers" });
     expect(prompt(v).id).toBe("finish-attacks");
   });
 
   it("and its own damage step", () => {
-    const v = view({
-      mine: [creature("bear", { attacking: "agent" })],
-      log: [ENTERED(), LOCKED(), APPLIED(), ENTERED(), LOCKED()],
-    });
+    const v = view({ mine: [creature("bear", { attacking: "agent" })], combat: "blockers" });
     expect(prompt(v).id).toBe("combat-damage");
   });
 
@@ -327,7 +319,7 @@ describe("what used to break it", () => {
     const v = view({
       mine: [creature("bear"), creature("wolf")],
       stack: [declaration("d1", "bear"), declaration("d2", "wolf")],
-      log: [ENTERED(), LOCKED(), APPLIED(), ENTERED()],
+      combat: "attackers",
     });
     const { id, action } = prompt(v);
     expect(id).toBe("finish-attacks");
@@ -353,19 +345,11 @@ function pressed(fn: (() => void) | undefined) {
   return sent;
 }
 
-// Every fact this prompt knows about combat, it currently reads back out of
-// the log with a regex: enteredCombatAt, lockedAt, finishedAt, damageAt. Those
-// four are the combat STEPS, and once the view carries the step itself the
-// prompt should be asking the table where combat is rather than reading what
-// was said about it.
+// Every fact this prompt knows about combat, it used to read back out of the
+// log with a regex: entered, locked, finished, damaged. Those four are the
+// combat STEPS, and the view carries the step itself now — so the prompt asks
+// the table where combat is instead of reading what was said about it.
 describe("combat comes from the view, not from the words in the log", () => {
-  // which attack you have waved through is module state that outlives a test —
-  // without this the "stops offering it" case below passes on the signature
-  // the press two tests up left behind, which is no evidence of anything
-  beforeEach(() => {
-    noBlocks.declaredFor = null;
-  });
-
   /** their attack, locked in, mid-combat — and NOTHING in the log about it */
   const theirAttack = (combat: string) => {
     const v = view({ phase: "combat", mine: [creature("blocker")] });
