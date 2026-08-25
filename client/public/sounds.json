@@ -1,0 +1,396 @@
+{
+  "stack": {
+    "desc": "item goes on the stack — magical notification",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 880,
+        "dur": 0.12,
+        "vol": 0.07,
+        "t": 0,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 1320,
+        "dur": 0.18,
+        "vol": 0.06,
+        "t": 0.07,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 1760,
+        "dur": 0.28,
+        "vol": 0.045,
+        "t": 0.13,
+        "type": "sine",
+        "slide": 0
+      }
+    ]
+  },
+  "thump": {
+    "desc": "card resolves onto the field — a clean reverberant THUD",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 95,
+        "dur": 0.22,
+        "vol": 0.32,
+        "t": 0,
+        "type": "sine",
+        "slide": 48,
+        "verb": 0.24
+      }
+    ]
+  },
+  "attack": {
+    "desc": "attack declared — a tight bright strike",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 900,
+        "dur": 0.18,
+        "vol": 0.195,
+        "t": 0,
+        "q": 1.2,
+        "slide": 220,
+        "verb": 0.25
+      },
+      {
+        "kind": "tone",
+        "freq": 160,
+        "dur": 0.2,
+        "vol": 0.14,
+        "t": 0,
+        "type": "triangle",
+        "slide": 110,
+        "verb": 0.3,
+        "atk": 0.006
+      },
+      {
+        "kind": "tone",
+        "freq": 620,
+        "dur": 0.07,
+        "vol": 0.05,
+        "t": 0,
+        "type": "sine",
+        "slide": 0
+      }
+    ]
+  },
+  "glimmer": {
+    "desc": "turn is over — magical glimmer",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 660,
+        "dur": 0.5,
+        "vol": 0.045,
+        "t": 0,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 880,
+        "dur": 0.5,
+        "vol": 0.045,
+        "t": 0.09,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 1174,
+        "dur": 0.5,
+        "vol": 0.045,
+        "t": 0.18,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 1568,
+        "dur": 0.5,
+        "vol": 0.045,
+        "t": 0.27,
+        "type": "sine",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 2093,
+        "dur": 0.5,
+        "vol": 0.045,
+        "t": 0.36,
+        "type": "sine",
+        "slide": 0
+      }
+    ]
+  },
+  "hit": {
+    "desc": "creature dies",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 430,
+        "dur": 0.84,
+        "vol": 0.06,
+        "t": 0,
+        "q": 2.5,
+        "slide": 1400,
+        "verb": 0.13
+      },
+      {
+        "kind": "tone",
+        "freq": 262,
+        "dur": 0.1,
+        "vol": 0.13,
+        "t": 0,
+        "type": "sine",
+        "slide": 926,
+        "verb": 0.32
+      }
+    ]
+  },
+  "draw": {
+    "desc": "a card comes off the library — a latch sliding and snapping home",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 1100,
+        "dur": 0.085,
+        "vol": 0.045,
+        "t": 0,
+        "q": 0.9,
+        "slide": 2600,
+        "atk": 0.01,
+        "verb": 0.05,
+        "shape": "swell"
+      },
+      {
+        "kind": "noise",
+        "freq": 3400,
+        "dur": 0.022,
+        "vol": 0.22,
+        "t": 0.085,
+        "q": 4.5,
+        "slide": 0,
+        "verb": 0.1
+      },
+      {
+        "kind": "tone",
+        "freq": 168,
+        "dur": 0.09,
+        "vol": 0.16,
+        "t": 0.085,
+        "type": "triangle",
+        "slide": 96,
+        "verb": 0.18,
+        "atk": 0.002
+      },
+      {
+        "kind": "tone",
+        "freq": 1980,
+        "dur": 0.05,
+        "vol": 0.035,
+        "t": 0.086,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.22
+      }
+    ]
+  },
+  "tap": {
+    "desc": "card taps",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 130,
+        "dur": 0.15,
+        "vol": 0.095,
+        "t": 0,
+        "q": 1.5,
+        "slide": 1170,
+        "verb": 0.23
+      },
+      {
+        "kind": "tone",
+        "freq": 84,
+        "dur": 0.15,
+        "vol": 0.1,
+        "t": 0,
+        "type": "sine",
+        "slide": 0
+      }
+    ]
+  },
+  "lockin": {
+    "desc": "attackers locked in — the old war drum, untuned",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 41,
+        "dur": 0.86,
+        "vol": 0.555,
+        "t": 0,
+        "type": "triangle",
+        "slide": 174,
+        "verb": 0.82,
+        "atk": 0.013
+      },
+      {
+        "kind": "tone",
+        "freq": 133,
+        "dur": 0.36,
+        "vol": 0.525,
+        "t": 0,
+        "type": "triangle",
+        "slide": 252,
+        "verb": 0.78,
+        "atk": 0.011
+      },
+      {
+        "kind": "tone",
+        "freq": 226,
+        "dur": 0.94,
+        "vol": 0.33,
+        "t": 0,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.6,
+        "atk": 0.015
+      },
+      {
+        "kind": "tone",
+        "freq": 575,
+        "dur": 0.15,
+        "vol": 0.1,
+        "t": 0,
+        "type": "sine",
+        "slide": 0
+      }
+    ]
+  },
+  "block": {
+    "desc": "blockers declared — war drum (hand-tuned)",
+    "layers": [
+      {
+        "kind": "tone",
+        "freq": 41,
+        "dur": 0.86,
+        "vol": 0.325,
+        "t": 0,
+        "type": "triangle",
+        "slide": 174,
+        "verb": 0.18,
+        "atk": 0.013
+      },
+      {
+        "kind": "tone",
+        "freq": 133,
+        "dur": 0.36,
+        "vol": 0.275,
+        "t": 0,
+        "type": "triangle",
+        "slide": 252,
+        "verb": 0.18,
+        "atk": 0.011
+      },
+      {
+        "kind": "tone",
+        "freq": 226,
+        "dur": 0.94,
+        "vol": 0.235,
+        "t": 0,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.12,
+        "atk": 0.015
+      },
+      {
+        "kind": "tone",
+        "freq": 575,
+        "dur": 0.15,
+        "vol": 0.1,
+        "t": 0,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.08
+      }
+    ]
+  },
+  "phase": {
+    "desc": "the turn moves on a step — a quiet wooden tick and a step up",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 2400,
+        "dur": 0.025,
+        "vol": 0.05,
+        "t": 0,
+        "q": 3.2,
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 494,
+        "dur": 0.07,
+        "vol": 0.05,
+        "t": 0,
+        "type": "triangle",
+        "slide": 0
+      },
+      {
+        "kind": "tone",
+        "freq": 740,
+        "dur": 0.11,
+        "vol": 0.04,
+        "t": 0.055,
+        "type": "sine",
+        "slide": 0,
+        "verb": 0.12
+      }
+    ]
+  },
+  "passturn": {
+    "desc": "the turn is handed over — a falling chime with air behind it",
+    "layers": [
+      {
+        "kind": "noise",
+        "freq": 1800,
+        "dur": 0.34,
+        "vol": 0.03,
+        "t": 0,
+        "q": 0.8,
+        "slide": 320,
+        "verb": 0.3
+      },
+      {
+        "kind": "tone",
+        "freq": 392,
+        "dur": 0.3,
+        "vol": 0.09,
+        "t": 0,
+        "type": "sine",
+        "slide": 262,
+        "verb": 0.4,
+        "atk": 0.008
+      },
+      {
+        "kind": "tone",
+        "freq": 196,
+        "dur": 0.5,
+        "vol": 0.11,
+        "t": 0.06,
+        "type": "triangle",
+        "slide": 131,
+        "verb": 0.5,
+        "atk": 0.012
+      }
+    ]
+  }
+}

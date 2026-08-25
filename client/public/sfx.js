@@ -1,6 +1,7 @@
-/* The table's sound: one Web Audio engine and ONE set of sound definitions.
-   Plain script (no modules) shared by app.js, which plays them, and
-   soundlab.html, which edits them live and exports the layer JSON. */
+/* The table's sound: one Web Audio engine, and one set of sound definitions
+   read from sounds.json beside this file. Plain script (no modules) shared by
+   the app, which plays them, and soundlab.html, which edits them live and
+   saves them back to that same file. */
 (function (global) {
   let audioCtx = null;
   document.addEventListener(
@@ -136,117 +137,33 @@
     src.start(now);
   }
 
-  // The sounds themselves, as data: each is a stack of tone/noise layers.
-  // Values hand-tuned in the sound lab — the lab edits these objects in
-  // place, so what you hear there is what the table plays. Order here does not
-  // matter: the lab lists them by name.
-  const SOUNDS = {
-    stack: {
-      desc: "item goes on the stack — magical notification",
-      layers: [
-        { kind: "tone", freq: 880, dur: 0.12, vol: 0.07, t: 0, type: "sine", slide: 0 },
-        { kind: "tone", freq: 1320, dur: 0.18, vol: 0.06, t: 0.07, type: "sine", slide: 0 },
-        { kind: "tone", freq: 1760, dur: 0.28, vol: 0.045, t: 0.13, type: "sine", slide: 0 },
-      ],
-    },
-    thump: {
-      desc: "card resolves onto the field — a clean reverberant THUD",
-      layers: [{ kind: "tone", freq: 95, dur: 0.22, vol: 0.32, t: 0, type: "sine", slide: 48, verb: 0.24 }],
-    },
-    attack: {
-      // Swung the other way round on purpose. The long low drum reads as
-      // something LANDING, which is the block; declaring an attack is the
-      // strike itself — short, bright, and gone before the answer comes.
-      desc: "attack declared — a tight bright strike",
-      layers: [
-        { kind: "noise", freq: 900, dur: 0.18, vol: 0.09, t: 0, q: 1.2, slide: 220, verb: 0.25 },
-        { kind: "tone", freq: 160, dur: 0.2, vol: 0.14, t: 0, type: "triangle", slide: 110, verb: 0.3, atk: 0.006 },
-        { kind: "tone", freq: 620, dur: 0.07, vol: 0.05, t: 0, type: "sine", slide: 0 },
-      ],
-    },
-    glimmer: {
-      desc: "turn is over — magical glimmer",
-      layers: [660, 880, 1174, 1568, 2093].map((f, i) => ({
-        kind: "tone", freq: f, dur: 0.5, vol: 0.045, t: +(i * 0.09).toFixed(2), type: "sine", slide: 0,
-      })),
-    },
-    hit: {
-      desc: "creature dies",
-      layers: [
-        { kind: "noise", freq: 430, dur: 0.84, vol: 0.06, t: 0, q: 2.5, slide: 1400, verb: 0.13 },
-        { kind: "tone", freq: 262, dur: 0.1, vol: 0.13, t: 0, type: "sine", slide: 926, verb: 0.32 },
-      ],
-    },
-    draw: {
-      desc: "a card slides off the library — paper on paper, rising as it comes clear",
-      layers: [
-        // swell, so the sweep is loudest where it ends: the card leaves the pile
-        // rather than landing on it
-        { kind: "noise", freq: 695, dur: 0.59, vol: 0.035, t: 0, q: 0.7, slide: 4048, atk: 0.035, verb: 0.07, shape: "swell" },
-        // a low triangle rising under the paper, carrying most of the weight
-        { kind: "tone", freq: 101, dur: 1.07, vol: 0.59, t: 0, type: "triangle", slide: 782, verb: 0.42, atk: 0.017 },
-      ],
-    },
-    tap: {
-      desc: "card taps",
-      layers: [
-        { kind: "noise", freq: 130, dur: 0.15, vol: 0.095, t: 0, q: 1.5, slide: 1170, verb: 0.23 },
-        { kind: "tone", freq: 84, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
-      ],
-    },
-    // Started as a copy of `attack` so the two could be told apart in the lab.
-    // It is the untuned original — attack has since been tuned down and then
-    // traded shapes with block — so this is now the loudest, wettest thing on
-    // the table and the one still waiting for a pass.
-    lockin: {
-      desc: "attackers locked in — the old war drum, untuned",
-      layers: [
-        { kind: "tone", freq: 41, dur: 0.86, vol: 0.555, t: 0, type: "triangle", slide: 174, verb: 0.82, atk: 0.013 },
-        { kind: "tone", freq: 133, dur: 0.36, vol: 0.525, t: 0, type: "triangle", slide: 252, verb: 0.78, atk: 0.011 },
-        { kind: "tone", freq: 226, dur: 0.94, vol: 0.33, t: 0, type: "sine", slide: 0, verb: 0.6, atk: 0.015 },
-        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 },
-      ],
-    },
-    block: {
-      // The war drum, hand-tuned in the lab, now on the block: a wall of
-      // creatures coming down in front of an attack is the heaviest thing
-      // that happens in combat, and 41Hz opening out over most of a second is
-      // what that weight sounds like.
-      desc: "blockers declared — war drum (hand-tuned)",
-      layers: [
-        { kind: "tone", freq: 41, dur: 0.86, vol: 0.325, t: 0, type: "triangle", slide: 174, verb: 0.18, atk: 0.013 },
-        { kind: "tone", freq: 133, dur: 0.36, vol: 0.275, t: 0, type: "triangle", slide: 252, verb: 0.18, atk: 0.011 },
-        { kind: "tone", freq: 226, dur: 0.94, vol: 0.235, t: 0, type: "sine", slide: 0, verb: 0.12, atk: 0.015 },
-        { kind: "tone", freq: 575, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0, verb: 0.08 },
-      ],
-    },
-    phase: {
-      // The most FREQUENT sound on the table — several a turn, every turn — so
-      // it is the quietest thing here and the shortest. A wooden tick and one
-      // step up a fifth: forward, small, over before you have looked up.
-      desc: "the turn moves on a step — a quiet wooden tick and a step up",
-      layers: [
-        { kind: "noise", freq: 2400, dur: 0.025, vol: 0.05, t: 0, q: 3.2, slide: 0 },
-        { kind: "tone", freq: 494, dur: 0.07, vol: 0.05, t: 0, type: "triangle", slide: 0 },
-        { kind: "tone", freq: 740, dur: 0.11, vol: 0.04, t: 0.055, type: "sine", slide: 0, verb: 0.12 },
-      ],
-    },
-    passturn: {
-      // The mirror of `phase`: that one steps UP a fifth in a tenth of a
-      // second, this one falls a fifth twice and takes half a second doing it,
-      // with air behind it. Handing the table over is the one moment in a turn
-      // worth a sound that finishes rather than ticks.
-      desc: "the turn is handed over — a falling chime with air behind it",
-      layers: [
-        { kind: "noise", freq: 1800, dur: 0.34, vol: 0.03, t: 0, q: 0.8, slide: 320, verb: 0.3 },
-        { kind: "tone", freq: 392, dur: 0.3, vol: 0.09, t: 0, type: "sine", slide: 262, verb: 0.4, atk: 0.008 },
-        { kind: "tone", freq: 196, dur: 0.5, vol: 0.11, t: 0.06, type: "triangle", slide: 131, verb: 0.5, atk: 0.012 },
-      ],
-    },
-  };
+  // The sounds themselves live in sounds.json, next to this file — the lab
+  // edits them and saves them straight back (POST /api/sounds), so tuning a
+  // sound is a file change rather than a paste into a source literal.
+  //
+  // Loaded, not bundled: the object below is filled IN PLACE so that anything
+  // already holding a reference to SFX.SOUNDS — the lab does — sees the real
+  // values the moment they land. Until then it is empty, and play() says so
+  // rather than throwing.
+  const SOUNDS = {};
+  const ready = fetch("/sounds.json", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((data) => {
+      Object.assign(SOUNDS, data);
+      return SOUNDS;
+    })
+    .catch((e) => {
+      console.error("[sfx] could not load sounds.json —", e);
+      return SOUNDS;
+    });
 
   function play(name) {
-    for (const l of SOUNDS[name].layers) {
+    // a sound the file does not define, or a play() that beat the fetch: the
+    // table asks for sounds from a log-line rule, and a missing one is not
+    // worth throwing over
+    const def = SOUNDS[name];
+    if (!def) return;
+    for (const l of def.layers) {
       // slide 0 means "no slide" — the lab's sliders bottom out there
       const opts = { ...l, slide: l.slide > 0 ? l.slide : null };
       if (l.kind === "tone") sfxTone(l.freq, opts);
@@ -254,5 +171,5 @@
     }
   }
 
-  global.SFX = { SOUNDS, SHAPES, play, tone: sfxTone, noise: sfxNoise };
+  global.SFX = { SOUNDS, SHAPES, ready, play, tone: sfxTone, noise: sfxNoise };
 })(window);

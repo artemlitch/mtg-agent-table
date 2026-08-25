@@ -16,6 +16,13 @@ import { STATE_FILE, GAMES_DIR } from "./datadir";
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
 const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+// The sound definitions the lab edits. Two paths for one file: client/public
+// is the copy in git — the one a rebuild copies FROM — and web/ is the one
+// being served right now. Saving writes both, so a tuned sound is live on the
+// next reload AND survives the next `vite build` instead of being overwritten
+// by the stale source it was built from.
+const SOUNDS_SRC = new URL("../client/public/sounds.json", import.meta.url).pathname;
+const SOUNDS_WEB = WEB_DIR + "sounds.json";
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
@@ -76,6 +83,30 @@ function json(data: any, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** Is this shaped like the sound file? Returns the first thing wrong with it,
+ *  or null. Deliberately structural rather than exhaustive — the lab is what
+ *  writes this, and the job here is to refuse an empty or truncated body
+ *  before it lands on top of a good file, not to police the numbers. */
+function validateSounds(v: any): string | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return "expected an object of sounds";
+  const names = Object.keys(v);
+  if (!names.length) return "no sounds — refusing to write an empty file";
+  for (const name of names) {
+    const def = v[name];
+    if (!def || typeof def !== "object") return `${name}: not an object`;
+    if (typeof def.desc !== "string") return `${name}: desc must be a string`;
+    if (!Array.isArray(def.layers)) return `${name}: layers must be an array`;
+    for (const [i, l] of def.layers.entries()) {
+      if (!l || typeof l !== "object") return `${name} layer ${i + 1}: not an object`;
+      if (l.kind !== "tone" && l.kind !== "noise") return `${name} layer ${i + 1}: kind must be tone or noise`;
+      for (const [k, n] of Object.entries(l)) {
+        if (typeof n === "number" && !Number.isFinite(n)) return `${name} layer ${i + 1}: ${k} is not a finite number`;
+      }
+    }
+  }
+  return null;
 }
 
 const server = Bun.serve({
@@ -411,6 +442,45 @@ const server = Bun.serve({
         // that skips the countdown, since you did not act to cause it
         queueMicrotask(wakeAgent);
         return json({ ok: true, you: yours.name, agent: theirs.name });
+      } catch (e: any) {
+        return json({ ok: false, error: e.message }, 500);
+      }
+    }
+
+    // The sound lab saving ONE sound. A dev tool writing a source file, so it
+    // is fussy about what it accepts: this is the only endpoint in the server
+    // that puts bytes into the checkout, and a malformed write here is a
+    // silent table and a file to hand-repair.
+    //
+    // Read, replace one key, write back — so saving `draw` cannot touch a
+    // `block` you were half-way through, and two lab tabs cannot overwrite
+    // each other with a whole-file snapshot each took minutes ago.
+    if (path === "/api/sounds" && req.method === "POST") {
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, error: "bad json" }, 400);
+      }
+      const name = body?.name;
+      // a plain identifier: it becomes a key on an object we build, and
+      // "__proto__" is a key that does not behave like a key
+      if (typeof name !== "string" || !/^[a-z][a-z0-9]{0,31}$/i.test(name)) {
+        return json({ ok: false, error: "name must be a plain identifier" }, 400);
+      }
+      const bad = validateSounds({ [name]: body?.sound });
+      if (bad) return json({ ok: false, error: bad }, 400);
+      try {
+        // the file on disk is what we merge into — never the copy the browser
+        // is holding, which is the whole point of saving one at a time
+        const current = await Bun.file(SOUNDS_SRC).json();
+        const merged = { ...current, [name]: body.sound };
+        const text = JSON.stringify(merged, null, 2) + "\n";
+        await Bun.write(SOUNDS_SRC, text);
+        await Bun.write(SOUNDS_WEB, text);
+        // byteLength, not length: the descriptions are full of em-dashes, and
+        // a count of UTF-16 units reported 7042 for a 7060-byte file
+        return json({ ok: true, saved: name, sounds: Object.keys(merged).length, bytes: Buffer.byteLength(text) });
       } catch (e: any) {
         return json({ ok: false, error: e.message }, 500);
       }

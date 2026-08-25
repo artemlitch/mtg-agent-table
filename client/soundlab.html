@@ -18,6 +18,17 @@
   body.lab { overflow: auto; height: auto; min-height: 100vh; padding: 20px; }
   h1 { font: 700 22px/1.4 var(--font-fantasy); color: var(--accent); letter-spacing: 0.08em; margin-bottom: 4px; }
   .hint { color: var(--dim); font-size: 12px; margin-bottom: 18px; }
+  /* Save belongs to its own row, beside the Play that tells you whether it is
+     worth saving. Its result reads out next to it — a save that writes a file
+     in the checkout should say so where you are looking. */
+  .savemsg { font-size: 11px; color: var(--dim); align-self: center; }
+  .savemsg.ok { color: var(--green, #59a86c); }
+  .savemsg.bad { color: var(--red, #d05555); }
+  /* the row that changed since it was loaded gets its Save lit */
+  .savebtn.dirty {
+    background: linear-gradient(180deg, #f0d078, #b8862c) padding-box, var(--chrome) border-box;
+    color: #2a1c04;
+  }
   /* One row per sound, listed by name. What a row is ranked ON is the thing
      that decides whether the page holds still: the old masonry ranked by layer
      count, so adding a layer re-ranked the page and the card you were working
@@ -70,13 +81,14 @@
 </head>
 <body class="lab">
 <h1>Sound Lab</h1>
-<div class="hint">Tweak, hit Play, repeat. When a sound is right, hit “Export all values” and send me the block. (Click anywhere once to arm audio.)</div>
-<div class="sounds" id="sounds"></div>
+<div class="hint">Tweak, hit Play, repeat. Each row saves itself into public/sounds.json — the file the table reads. (Click anywhere once to arm audio.)</div>
+<div class="sounds" id="sounds">loading sounds.json…</div>
 
 <script src="/sfx.js"></script>
 <script>
-// the engine and the sounds themselves come from sfx.js — the lab edits those
-// very objects, so the table plays exactly what you hear here
+// The engine comes from sfx.js and the sounds from sounds.json, which sfx.js
+// fills this very object with — the lab edits it in place, so the table plays
+// exactly what you hear here, and Save writes it back to that same file.
 const SOUNDS = SFX.SOUNDS;
 const play = SFX.play;
 
@@ -96,6 +108,43 @@ const PARAMS = {
 // strip to the left. Remembered by name, so the row you are working in is
 // still looking at the layer you were looking at.
 const scrollAt = {};
+// which rows have been touched since they were last loaded or saved — the
+// only thing that tells you, hours in, which of eleven rows you actually
+// changed. Survives a rebuild, since a rebuild is itself an edit.
+const dirty = new Set();
+
+/** Write ONE sound back to public/sounds.json. Per sound rather than per
+ *  file: the server re-reads the file and replaces this one key, so saving a
+ *  row you have finished cannot carry along a row you are half-way through. */
+async function saveSound(name, btn, msg) {
+  btn.disabled = true;
+  msg.className = "savemsg";
+  msg.textContent = "saving…";
+  try {
+    const res = await fetch("/api/sounds", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, sound: SOUNDS[name] }),
+    });
+    const out = await res.json();
+    if (out.ok) {
+      dirty.delete(name);
+      btn.classList.remove("dirty");
+      msg.className = "savemsg ok";
+      msg.textContent = `saved → sounds.json (${out.sounds} sounds, ${out.bytes} bytes)`;
+      setTimeout(() => { if (!dirty.has(name)) msg.textContent = ""; }, 4000);
+    } else {
+      // the server refuses a body it cannot recognise rather than writing it,
+      // and names the layer it objected to — that is the one to go and look at
+      msg.className = "savemsg bad";
+      msg.textContent = `not saved — ${out.error}`;
+    }
+  } catch (e) {
+    msg.className = "savemsg bad";
+    msg.textContent = `not saved — ${e.message} (is the server running?)`;
+  }
+  btn.disabled = false;
+}
 
 function build() {
   const root = document.getElementById("sounds");
@@ -110,6 +159,13 @@ function build() {
     strip.className = "lstrip";
     strip.dataset.sound = name;
     card.appendChild(strip);
+    // any edit anywhere in this row lights its Save. Called from the handlers
+    // rather than inferred by diffing: the row is what got edited, and the row
+    // is what gets saved.
+    const touched = () => {
+      dirty.add(name);
+      card.querySelector(".savebtn")?.classList.add("dirty");
+    };
     def.layers.forEach((layer, li) => {
       const ld = document.createElement("div");
       ld.className = "layer";
@@ -118,7 +174,7 @@ function build() {
       head.innerHTML = `<span>layer ${li + 1} — ${layer.kind}</span>`;
       const rm = document.createElement("button");
       rm.textContent = "✕";
-      rm.onclick = () => { def.layers.splice(li, 1); build(); };
+      rm.onclick = () => { def.layers.splice(li, 1); dirty.add(name); build(); };
       head.appendChild(rm);
       ld.appendChild(head);
       // the picked-from-a-list params: a tone's waveform, and — on both kinds —
@@ -137,7 +193,7 @@ function build() {
           if (get() === v) o.selected = true;
           sel.appendChild(o);
         }
-        sel.onchange = () => { set(sel.value); play(name); };
+        sel.onchange = () => { set(sel.value); touched(); play(name); };
         row.appendChild(sel);
         ld.appendChild(row);
       };
@@ -190,6 +246,7 @@ function build() {
           slider.value = toSlider(Number(v));
           num.value = v;
           if (noteEl) noteEl.textContent = noteOf(Number(v));
+          touched();
         };
         slider.oninput = () => { sync(fromSlider(slider.value)); };
         slider.onchange = () => play(name);
@@ -210,7 +267,7 @@ function build() {
     playB.onclick = () => play(name);
     // a new layer goes on the right-hand end, so the strip is asked to end up
     // there — Infinity is clamped to the far edge, whatever the new width is
-    const addLayer = (layer) => { def.layers.push(layer); scrollAt[name] = Infinity; build(); };
+    const addLayer = (layer) => { def.layers.push(layer); dirty.add(name); scrollAt[name] = Infinity; build(); };
     const addT = document.createElement("button");
     addT.textContent = "+ tone";
     addT.onclick = () => addLayer({ kind: "tone", freq: 800, dur: 0.15, vol: 0.1, t: 0, type: "sine", slide: 0 });
@@ -235,7 +292,14 @@ function build() {
       copy.textContent = "✓ Copied";
       setTimeout(() => (copy.textContent = "⧉ Copy"), 1200);
     };
-    btns.append(playB, addT, addN, copy);
+    const saveB = document.createElement("button");
+    saveB.className = "savebtn" + (dirty.has(name) ? " dirty" : "");
+    saveB.textContent = "💾 Save";
+    saveB.title = `Write ${name} into public/sounds.json`;
+    const saveM = document.createElement("span");
+    saveM.className = "savemsg";
+    saveB.onclick = () => saveSound(name, saveB, saveM);
+    btns.append(playB, addT, addN, copy, saveB, saveM);
     card.appendChild(btns);
     root.appendChild(card);
     // a new layer is appended to the right, so land the strip on it rather
@@ -243,7 +307,9 @@ function build() {
     strip.scrollLeft = scrollAt[name] ?? 0;
   }
 }
-build();
+
+// nothing to draw until sounds.json has landed
+SFX.ready.then(build);
 </script>
 </body>
 </html>
