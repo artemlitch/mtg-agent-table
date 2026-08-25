@@ -69,6 +69,29 @@ describe("what undo steps back through", () => {
     expect((await api("/api/state?viewer=you")).waitingOn).toBe("you");
   });
 
+  // Declaring attackers is one act however many creatures it names, so it is
+  // one press to take back. It used to be one press per creature: undo pulled
+  // the last creature off a declaration the UI calls a single action.
+  test("one undo takes back the whole attack declaration", async () => {
+    const state = async () => api("/api/state?viewer=you");
+    // two creatures of our own to swing with, made here rather than hunted for
+    // on the shared test table — image supplied so the token never calls out
+    const token = async (name: string) =>
+      (await act("you", "create_token", { name, n: 1, player: "you", power: "1", toughness: "1", typeLine: "Token Creature", image: "x.jpg" })).ids[0];
+    const first = await token("Swinger A");
+    const second = await token("Swinger B");
+
+    const before = (await state()).stack.length;
+    await act("you", "attack", { pairs: [{ attacker: first, target: "agent" }] });
+    await act("you", "attack", { pairs: [{ attacker: second, target: "agent" }] });
+    const after = await state();
+    expect(after.stack.length).toBe(before + 1); // ONE item, not two
+    expect(after.stack.at(-1).attackPairs).toHaveLength(2);
+
+    await api("/api/undo", {});
+    expect((await state()).stack.length).toBe(before); // the whole declaration
+  });
+
   test("undo and redo leave what was SAID alone", async () => {
     const log = async () => ((await api("/api/state?viewer=you")).log as any[]).map((e) => e.text);
     const said = async (s: string) => (await log()).filter((t) => t.includes(s)).length;

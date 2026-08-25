@@ -1,6 +1,6 @@
 // Game server: REST + WebSocket + static frontend. Single source of truth.
 
-import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, transcript, getSaid, setSaid, leanCard, type PlayerId } from "./game";
+import { game, applyAction, viewFor, resetGameState, addLog, renderLogFor, transcript, getSaid, setSaid, leanCard, openAttackDeclaration, type PlayerId } from "./game";
 import { loadPlayerDeck, scryfallToken } from "./decks";
 import { agent } from "./agent";
 import { loadStateFile, scheduleSave, saveNow, serializeState } from "./persist";
@@ -300,7 +300,14 @@ const server = Bun.serve({
         // conversation, and passing priority — nobody reaches for undo to
         // un-pass a turn, and a pass between every action turns one undo into
         // three.
-        const undoable = !NOT_UNDOABLE.has(body.type);
+        // ...and neither is adding a creature to a declaration you are still
+        // making. Declaring attackers is one act however many creatures it
+        // names, so while the declaration is open on the stack, another
+        // attacker continues the step already recorded rather than starting a
+        // new one — one press takes the whole attack back, which is how the
+        // UI has always described it ("Finish declaring attackers").
+        const continues = body.type === "attack" && !!openAttackDeclaration(actor);
+        const undoable = !NOT_UNDOABLE.has(body.type) && !continues;
         if (undoable) recordSnapshot();
         // who held priority BEFORE this — done overwrites it, and the wake
         // policy needs to know whether a pass actually handed anything over
@@ -312,12 +319,6 @@ const server = Bun.serve({
           if (undoable) dropLastSnapshot();
           throw e;
         }
-        // An action that folded into one already on the stack is not a new
-        // step to take back — adding the fourth attacker to a declaration is
-        // part of making that declaration, not a play of its own. Dropping
-        // the snapshot leaves the one from before the FIRST attacker, so one
-        // press takes the whole declaration back.
-        if (undoable && (result as any)?.merged) dropLastSnapshot();
         saveSoon();
         // Wake policy lives in wake.ts — which actions are worth a window, and
         // how long each one waits first. Armed or not, the countdown restarts

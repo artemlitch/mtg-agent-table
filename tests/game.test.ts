@@ -636,9 +636,8 @@ describe("combat annotations", () => {
     const a = seedCard("Carrion Feeder", "you", "battlefield");
     const b = seedCard("Tergrid", "you", "battlefield");
     applyAction("you", "attack", { pairs: [{ attacker: a.id, target: "agent" }] });
-    const second: any = applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
+    applyAction("you", "attack", { pairs: [{ attacker: b.id, target: "agent" }] });
     expect(game.stack).toHaveLength(1);
-    expect(second.merged).toBe(true);
     expect(game.stack[0].apply).toEqual({ type: "attack", pairs: [
       { attacker: a.id, target: "agent" },
       { attacker: b.id, target: "agent" },

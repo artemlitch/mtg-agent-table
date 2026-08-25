@@ -662,6 +662,14 @@ export function shuffleZone(player: PlayerId, zone: Zone = "library") {
   }
 }
 
+/** A seat's attack declaration that is on the stack and not yet locked in.
+ *
+ *  Declaring attackers is ONE act however many creatures it names, so this is
+ *  both where a new attacker is added and the reason adding one is not its own
+ *  undo step: while this item is open, the declaration is still being made. */
+export const openAttackDeclaration = (actor: PlayerId): StackItem | undefined =>
+  game.stack.find((i) => i.player === actor && i.apply?.type === "attack");
+
 /** The ONE way an item reaches the stack. Its id is derived from the seq of
  * the log line the caller writes next ("s" + seq) — the frontend pairs chat
  * lines with live stack items by that id, so nothing else may mint one. */
@@ -1391,17 +1399,14 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // and its own undo step — so undo peeled one creature off a declaration
     // the UI had presented as a single action ("Finish declaring attackers"),
     // and the stack read as four declarations instead of one attack.
-    const open = game.stack.find((i) => i.player === ctx.actor && i.apply?.type === "attack");
+    const open = openAttackDeclaration(ctx.actor);
     const pairs = open?.apply?.type === "attack" ? [...open.apply.pairs] : [];
-    const added: string[] = [];
     for (const pair of p.pairs) {
-      const c = getCard(pair.attacker);
-      const tgt = pair.target === "you" || pair.target === "agent" ? who(pair.target) : publicDesc(getCard(pair.target));
+      getCard(pair.attacker); // resolves, so a bad id fails before anything changes
       // re-declaring a creature already in it changes its target, not its count
       const at = pairs.findIndex((x) => x.attacker === pair.attacker);
       if (at >= 0) pairs[at] = pair;
       else pairs.push(pair);
-      added.push(`${publicDesc(c)} → ${tgt}`);
     }
     const all = pairs.map((pair) => {
       const c = getCard(pair.attacker);
@@ -1417,9 +1422,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // the log names the whole declaration as it now stands, so the ↩ notice
     // for taking it back names the same thing the stack shows
     addLog(ctx.actor, `${who(ctx.actor)} declares attackers (on the stack): ${all.join("; ")}`);
-    // merged: the caller drops the undo step it just recorded, so the whole
-    // declaration comes back in one press rather than one press per creature
-    return { ok: true, stackSize: game.stack.length, ...(open ? { merged: true } : {}), added };
+    return { ok: true, stackSize: game.stack.length, attacking: all };
   },
 
   /** Declare blockers — goes ON THE STACK; the attacker resolves to lock it in. */
