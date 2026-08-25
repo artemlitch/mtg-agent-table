@@ -129,6 +129,7 @@ function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | n
 
   return (
     <div className="targetpanel" style={{ width: fit.w, height: fit.h }}>
+      <div className="tfhint">select one or more targets</div>
       <div
         className="tfboard"
         style={{ width: board.width, height: board.height, transform: `translate(-50%, -50%) scale(${scale})` }}

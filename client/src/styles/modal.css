@@ -150,6 +150,14 @@
   -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
+/* What the board is for, said once along its top edge. Click-through, or it
+   would be a strip of dead felt across the row of cards nearest the top. */
+.tfhint {
+  position: absolute; top: 2px; left: 0; right: 0; z-index: 3; pointer-events: none;
+  text-align: center; color: var(--accent);
+  font: var(--fw-label) var(--fs-tiny)/1.6 var(--font-fantasy); letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
 /* The felt at ITS size, shrunk to fit and centred. Sizing the div to the real
    board and scaling the whole thing is what keeps this honest: a card and its
    badges, its outline, its P/T corner all shrink together, so nothing has to
