@@ -122,6 +122,17 @@ export function previewCard(snapshot: Card): Card {
   return live && !live.hidden ? live : snapshot;
 }
 
+/** Is there anything to draw for this card?
+ *
+ *  A card whose face you were never given has no preview, and an empty one is
+ *  worse than none: the layer is a fixed-width box that then just sits over
+ *  the table with nothing in it, following the cursor. No face, no hover.
+ *
+ *  A token we drew ourselves has a name and no printed art and still previews
+ *  fine — TokenFace draws it — so the test is a face of ANY kind, not an
+ *  image. */
+export const previewable = (c: Card) => !c.hidden && !!(c.name || c.image || c.faces?.length);
+
 /** The card tucked directly beneath `id` — piles may span controllers, so
  *  both battlefields are searched. */
 export function cardBeneathOf(id: string): Card | null {

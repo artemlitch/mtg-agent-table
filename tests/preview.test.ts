@@ -10,7 +10,7 @@
 import { describe, test, expect, beforeEach } from "vitest";
 import type { Card, GameView } from "../client/src/types";
 
-const { previewCard, useGame } = await import("../client/src/store/game");
+const { previewCard, previewable, useGame } = await import("../client/src/store/game");
 
 const ZONES = ["library", "hand", "battlefield", "graveyard", "exile", "command", "stack"] as const;
 
@@ -59,5 +59,30 @@ describe("which copy of the card the preview draws", () => {
 
   test("the snapshot, before any view has arrived", () => {
     expect(previewCard(card()).name).toBe("Sylvan Library");
+  });
+});
+
+describe("when there is nothing to draw, nothing is drawn", () => {
+  // an empty preview is worse than no preview: the layer is a fixed-width box,
+  // so a card with no face left one hanging over the table under the cursor
+  test("a card whose face you were never given has no preview", () => {
+    expect(previewable(card({ hidden: true, name: undefined }))).toBe(false);
+  });
+
+  test("nor does a stripped card that was never even marked hidden", () => {
+    expect(previewable(card({ name: undefined, image: undefined }))).toBe(false);
+  });
+
+  test("a printed card previews", () => {
+    expect(previewable(card({ name: "Sylvan Library", image: "art.jpg" }))).toBe(true);
+  });
+
+  test("so does a token we drew ourselves, which has a name and no art", () => {
+    // TokenFace draws it, so the test is a face of any kind, not an image
+    expect(previewable(card({ name: "Beast", isToken: true, image: undefined }))).toBe(true);
+  });
+
+  test("and a card known only by its faces", () => {
+    expect(previewable(card({ name: undefined, faces: [{ name: "Delver of Secrets" }] as any }))).toBe(true);
   });
 });

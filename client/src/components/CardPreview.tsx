@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { previewCard, useGame } from "../store/game";
+import { previewCard, previewable, useGame } from "../store/game";
 import { previewLost, useUI } from "../store/ui";
 import type { Card } from "../types";
 import { artFallback } from "./cardArt";
@@ -31,6 +31,9 @@ export function CardPreviewLayer() {
   // the card AS IT IS, not as it was when the pointer arrived — except where
   // the snapshot is the only copy with a face on it. See previewCard.
   const c = previewCard(preview.card);
+  // nothing to draw beats an empty box: a face-down card of the agent's, a
+  // card that went face-down or left for a library while the cursor sat on it
+  if (!previewable(c)) return null;
   const faces = (c.faceCount ?? 1) > 1 ? c.faces : undefined;
   const width = faces ? WIDE : NARROW;
   // Beside the cursor, and it FLIPS to the left rather than sliding along the

@@ -5,6 +5,7 @@
 import type React from "react";
 import type { ReactNode } from "react";
 import { create } from "zustand";
+import { previewable } from "./game";
 import type { Card } from "../types";
 
 export interface MenuItem {
@@ -213,7 +214,10 @@ export const menuOpen = () => !!useUI.getState().menu;
  *  other's dependency. */
 export function previewProps(card: Card) {
   return {
-    onMouseEnter: (e: React.MouseEvent) => useUI.getState().showPreview(card, e, e.currentTarget),
+    // a card with no face never opens one — see previewable. The layer checks
+    // again at draw time, because a card can lose its face while you hover it
+    onMouseEnter: (e: React.MouseEvent) =>
+      previewable(card) && useUI.getState().showPreview(card, e, e.currentTarget),
     onMouseMove: (e: React.MouseEvent) => useUI.getState().movePreview(e),
     onMouseLeave: () => useUI.getState().hidePreview(),
   };
