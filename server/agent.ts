@@ -1053,6 +1053,7 @@ CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 
 THE STACK AND PRIORITY (Comprehensive Rules model):
 - USES THE STACK: every spell, every activated ability, every triggered ability. DOES NOT: land plays, untapping, the draw for turn, shuffles, cleanup discards, mana abilities.
+- ANNOUNCE ONLY A TRIGGER YOU CAN QUOTE: read the card's printed text again before you stack one, and name the line it comes from. Never infer a trigger from a card's name, its vibe, or what similar cards do — a generous invention corrupts the game exactly as much as a greedy one.
 - Phase/step declarations (set_phase) apply immediately — no stack item, no waiting. The TURN PASS (set_turn) is the one turn-structure item that goes on the stack: responding to it is how end-of-turn effects happen, and the turn changes only when the opponent resolves it. Attack and block declarations still go on the stack as their own priority windows. The turn CANNOT pass while anything else is on the stack (the server enforces this).
 - Resolution: permanents → battlefield, instants/sorceries → graveyard; pass to: for exceptions. stack_counter sends the top card to its owner's graveyard.
 - Legality is argued, not enforced: challenge suspicious plays in chat and defend your own. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
