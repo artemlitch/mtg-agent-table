@@ -10,7 +10,7 @@ import { saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveP
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
 import { WakeScheduler, wakePlanFor } from "./wake";
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 
 import { STATE_FILE, GAMES_DIR, SAMPLE_LIB_DIR } from "./datadir";
 
@@ -165,8 +165,14 @@ function samplePacks(fresh = false) {
     if (kept.length) packs.push({ id: "kept", base: "/assets/sounds", files: kept });
   } catch {}
   try {
-    for (const d of readdirSync(SAMPLE_LIB_DIR, { withFileTypes: true })) {
-      if (!d.isDirectory()) continue;
+    // Newest first. A library you have just unpacked, or a recording just
+    // sliced up, is the one you opened the drawer to hear — and with a
+    // commercial bundle already in the list, alphabetical order buries it.
+    const dirs = readdirSync(SAMPLE_LIB_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => ({ name: d.name, at: statSync(`${SAMPLE_LIB_DIR}/${d.name}`).mtimeMs }))
+      .sort((a, b) => b.at - a.at);
+    for (const d of dirs) {
       const files = walkAudio(`${SAMPLE_LIB_DIR}/${d.name}`).sort();
       if (files.length) packs.push({ id: d.name, base: `/sample-lib/${d.name}`, files });
     }
