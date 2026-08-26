@@ -9,8 +9,13 @@
   // the way it is meant to be played: declaring attackers is [E] on each
   // creature and space on the prompt, so a whole combat could go by without a
   // pointerdown, and every sound in it was dropped by the guard in play().
+  // Making the context is allowed at any time; it just starts suspended. Only
+  // RESUMING needs the gesture — which matters here because samples have to be
+  // decoded into a context, and waiting for a gesture to start decoding is
+  // waiting until the first sound is already due.
+  const ensureCtx = () => (audioCtx ??= new (global.AudioContext || global.webkitAudioContext)());
   const unlock = () => {
-    if (!audioCtx) audioCtx = new (global.AudioContext || global.webkitAudioContext)();
+    ensureCtx();
     if (audioCtx.state === "suspended") audioCtx.resume();
   };
   for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, unlock, { capture: true });
@@ -158,10 +163,88 @@
       return SOUNDS;
     });
 
-  function play(name) {
-    // a sound the file does not define, or a play() that beat the fetch: the
-    // table asks for sounds from a log-line rule, and a missing one is not
-    // worth throwing over
+  // ── recordings ───────────────────────────────────────────────────────────
+  // A sound may name recordings in `samples`. If it has them and they have
+  // arrived, one of them plays and the layers below are not used; otherwise
+  // the layers play, exactly as they always have. So the synthesis is the
+  // default and the fallback both — a sound with no recordings, and a sound
+  // whose recordings have not decoded yet, are the same case.
+  const samples = new Map(); // url → { buf, gain }
+  const lastPick = {}; // sound name → the url it played last
+
+  // Peak-normalised on decode. A commercial library file is mastered near full
+  // scale and a hand-tuned layer sits around 0.1, so playing one straight after
+  // the other at the same gain is a jump of twenty-odd dB. Crude next to a
+  // loudness measurement, but it is two lines and it stops a recording
+  // arriving at ten times the volume of the sound it replaced.
+  const TARGET_PEAK = 0.4;
+  function normalise(buf) {
+    let peak = 0;
+    for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < d.length; i++) {
+        const v = d[i] < 0 ? -d[i] : d[i];
+        if (v > peak) peak = v;
+      }
+    }
+    return { buf, gain: peak > 0 ? TARGET_PEAK / peak : 1 };
+  }
+
+  /** Decode every recording named in sounds.json. Safe to call again — it
+   *  skips what it already holds — which is how a sound edited in the lab and
+   *  saved gets its new recordings without a reload. */
+  async function preload() {
+    ensureCtx();
+    const urls = new Set();
+    for (const def of Object.values(SOUNDS)) for (const u of def.samples ?? []) urls.add(u);
+    await Promise.all(
+      [...urls]
+        .filter((u) => !samples.has(u))
+        .map(async (u) => {
+          try {
+            const res = await fetch(u);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            samples.set(u, normalise(await audioCtx.decodeAudioData(await res.arrayBuffer())));
+          } catch (e) {
+            console.warn("[sfx] could not load", u, "—", e.message);
+          }
+        })
+    );
+  }
+
+  /** Which take to play. Never the one we just played: a sound the table makes
+   *  thirty times a game is a metronome if it is the same recording each time,
+   *  and the immediate repeat is the part the ear catches. */
+  function pick(name, list) {
+    if (list.length === 1) return list[0];
+    let url;
+    do url = list[Math.floor(Math.random() * list.length)];
+    while (url === lastPick[name]);
+    lastPick[name] = url;
+    return url;
+  }
+
+  function playSample(name, def) {
+    const entry = samples.get(pick(name, def.samples));
+    if (!entry) return false; // not decoded yet — let the layers cover it
+    const src = audioCtx.createBufferSource();
+    src.buffer = entry.buf;
+    // A few percent either way. This is the one trick that stops a repeated
+    // sound reading as a recording being replayed, and it works even on a
+    // sound with a single take.
+    const j = def.jitter ?? 0.05;
+    src.playbackRate.value = 1 + (Math.random() * 2 - 1) * j;
+    const g = audioCtx.createGain();
+    g.gain.value = entry.gain * (def.gain ?? 1);
+    src.connect(g);
+    sfxOut(g, def.verb ?? 0);
+    src.start();
+    return true;
+  }
+
+  /** The synthesised sound, whatever recordings the sound may also have. What
+   *  the table plays when there are none, and what the lab is tuning. */
+  function playLayers(name) {
     const def = SOUNDS[name];
     if (!def) return;
     for (const l of def.layers) {
@@ -172,5 +255,19 @@
     }
   }
 
-  global.SFX = { SOUNDS, SHAPES, ready, play, tone: sfxTone, noise: sfxNoise };
+  function play(name) {
+    // a sound the file does not define, or a play() that beat the fetch: the
+    // table asks for sounds from a log-line rule, and a missing one is not
+    // worth throwing over
+    const def = SOUNDS[name];
+    if (!def) return;
+    if (!audioCtx || audioCtx.state !== "running") return;
+    if (def.samples?.length && playSample(name, def)) return;
+    playLayers(name);
+  }
+
+  // decoding starts the moment the definitions land, not on the first gesture
+  ready.then(preload);
+
+  global.SFX = { SOUNDS, SHAPES, ready, play, playLayers, preload, tone: sfxTone, noise: sfxNoise };
 })(window);

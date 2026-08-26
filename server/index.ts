@@ -113,6 +113,13 @@ function validateSounds(v: any): string | null {
       if (!Array.isArray(def.samples)) return `${name}: samples must be an array`;
       for (const s of def.samples) if (typeof s !== "string") return `${name}: every sample must be a string`;
     }
+    // trims on a recording: gain multiplies the peak-normalised level, jitter
+    // is how far the playback rate wanders per play. Hand-edited for now.
+    for (const k of ["gain", "jitter"]) {
+      if (def[k] !== undefined && (typeof def[k] !== "number" || !Number.isFinite(def[k]))) {
+        return `${name}: ${k} must be a number`;
+      }
+    }
     if (!Array.isArray(def.layers)) return `${name}: layers must be an array`;
     for (const [i, l] of def.layers.entries()) {
       if (!l || typeof l !== "object") return `${name} layer ${i + 1}: not an object`;
