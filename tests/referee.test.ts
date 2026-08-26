@@ -302,4 +302,41 @@ describe("refereeing, continued", () => {
     // and resolving is assent, not a formality
     expect(a.systemPrompt).toMatch(/Resolving is your assent that the item was legal/);
   });
+
+  // The duty above, unbounded, went where it was never pointed. Told that
+  // refereeing was half its seat, the agent refereed how Player was WRITING
+  // DOWN a number: an Equipment's +6/+6 recorded as counters. It said so, was
+  // told "not a big deal, can you fix it", fixed it — and then said it twice
+  // more, told Player to put their printed P/T back, and only in the fourth
+  // window found that it had counted six Forests on a board that had five and
+  // been wrong about the total the entire time.
+  test("the duty stops at plays, and does not reach Player's bookkeeping", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/WHAT THIS COVERS IS PLAYS/);
+    expect(a.systemPrompt).toMatch(/It does NOT cover Player's bookkeeping/);
+    // said once, and dropped when answered
+    expect(a.systemPrompt).toMatch(/say a correction ONCE/);
+    expect(a.systemPrompt).toMatch(/a seat's call about their own table is final/);
+  });
+
+  test("...because the table cannot hold a continuous effect at all", () => {
+    // printed + counters is the whole model (see effectivePT). An Equipment's
+    // +X/+X has nowhere to live, so every way of recording it is a workaround
+    // and none of them is the canonical one the agent invented.
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/THE TABLE HAS NO FIELD FOR A CONTINUOUS EFFECT/);
+    expect(a.systemPrompt).toMatch(/All three are correct and none is more correct/);
+  });
+
+  test("and it has to check its own arithmetic first", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/COUNT AGAIN BEFORE YOU CONTRADICT/);
+    expect(a.systemPrompt).toMatch(/as likely to be your arithmetic as theirs/);
+  });
 });
