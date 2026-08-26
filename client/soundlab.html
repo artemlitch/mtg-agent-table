@@ -247,13 +247,51 @@ const packsReady = fetch("/api/samples")
   .then((d) => (PACKS = d.packs ?? []))
   .catch(() => (PACKS = []));
 
-// one player, reused: clicking down a list is a comparison, and two files
-// playing over each other is not one
-const auditioner = new Audio();
-const audition = (url) => {
-  auditioner.src = url;
-  auditioner.play().catch(() => {});
-};
+// Auditioning went through an <audio> element, and that put a delay between
+// the click and the sound every single time. Assigning .src runs the whole
+// resource pipeline again — abort whatever is playing, fetch, parse the
+// container, decode enough to begin, wait for it to be playable, start — and
+// none of that work is kept. It is not the network: the server answers a
+// sample in about 0.6ms. It is also not cached between plays, because static
+// files go out no-cache and carry no validator, so "revalidate" means
+// download the whole thing again.
+//
+// So decode once and keep the buffer. A repeat play is then a source node and
+// a start() with no I/O in it, which is what the synthesised sounds have
+// always been and why they felt immediate by comparison.
+let labCtx = null;
+const decoded = new Map(); // url → Promise<AudioBuffer>
+let playing = null;
+
+function decode(url) {
+  if (!decoded.has(url)) {
+    labCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    const p = fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((b) => labCtx.decodeAudioData(b));
+    // a file that fails to decode must not poison its own slot, or every
+    // later click on it is a silent no-op with nothing to show for it
+    p.catch(() => decoded.delete(url));
+    decoded.set(url, p);
+  }
+  return decoded.get(url);
+}
+
+async function audition(url) {
+  try {
+    const buf = await decode(url);
+    if (labCtx.state === "suspended") await labCtx.resume();
+    playing?.stop(); // one at a time: clicking down a list is a comparison
+    const src = labCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(labCtx.destination);
+    src.onended = () => { if (playing === src) playing = null; };
+    src.start();
+    playing = src;
+  } catch {
+    /* a file that will not decode simply does not play */
+  }
+}
 
 /** What to file a sample under.
  *
@@ -348,6 +386,7 @@ function renderPicked() {
     play.className = "pickname";
     play.textContent = sampleName(url);
     play.title = url;
+    play.onpointerenter = () => decode(url);
     play.onclick = () => audition(url);
     const rm = document.createElement("button");
     rm.textContent = "✕";
@@ -383,6 +422,9 @@ function renderBrowser() {
         const b = document.createElement("button");
         b.className = "file" + (chosen.includes(url) ? " on" : "");
         b.dataset.url = url; // so a pick can light this row without a rebuild
+        // the cursor arrives before the click does, so the first play of a
+        // file is already decoded by the time you ask for it
+        b.onpointerenter = () => decode(url);
         // the heading already carries the directory, so the row is the name
         b.textContent = file.slice(file.lastIndexOf("/") + 1);
         // one click does both: you are here to hear it, and picking it is
