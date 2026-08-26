@@ -498,16 +498,23 @@ const server = Bun.serve({
     // happens to name things, not something the server should decide for all
     // of them.
     if (path === "/api/samples") {
+      // Paths are pack-relative, subdirectories and all: a pack that ships
+      // battle/ and inventory/ has already said how it wants to be grouped,
+      // and that beats anything read off a filename.
+      const walk = (dir: string, prefix = ""): string[] =>
+        readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+          d.isDirectory()
+            ? walk(`${dir}/${d.name}`, `${prefix}${d.name}/`)
+            : /\.(ogg|mp3|wav|m4a|flac)$/i.test(d.name)
+              ? [prefix + d.name]
+              : []
+        );
       try {
         const packs = readdirSync(SAMPLES_SRC, { withFileTypes: true })
           .filter((d) => d.isDirectory())
-          .map((d) => ({
-            id: d.name,
-            files: readdirSync(SAMPLES_SRC + d.name)
-              .filter((f) => /\.(ogg|mp3|wav|m4a|flac)$/i.test(f))
-              .sort(),
-          }))
-          .filter((p) => p.files.length);
+          .map((d) => ({ id: d.name, files: walk(SAMPLES_SRC + d.name).sort() }))
+          .filter((p) => p.files.length)
+          .sort((a, b) => a.id.localeCompare(b.id));
         return json({ packs });
       } catch {
         return json({ packs: [] }); // no samples directory yet is not an error

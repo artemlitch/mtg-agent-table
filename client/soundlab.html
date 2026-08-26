@@ -116,6 +116,15 @@
   #browserlist .file:hover { background: var(--panel2); }
   #browserlist .file.on { color: var(--accent); border-color: var(--accent); }
   #browserlist .none { color: var(--dim); font-size: 11px; padding: 10px 8px; }
+  /* five packs and getting on for four hundred files: scrolling to the one you
+     want is the slowest part of the job, so the packs are a filter and not
+     just headings */
+  #browser .packs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  #browser .packs button {
+    font-size: 10px; padding: 2px 8px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--dim);
+  }
+  #browser .packs button.on { color: var(--accent); border-color: var(--accent); }
 </style>
 </head>
 <body class="lab">
@@ -134,6 +143,7 @@ The 🎧 chip opens the sample packs in client/public/samples. Picking one only 
       <button id="browserclose">Close</button>
     </div>
     <input type="search" id="browsersearch" placeholder="filter by name…" autocomplete="off">
+    <div class="packs" id="browserpacks"></div>
   </header>
   <div id="browserlist"></div>
 </aside>
@@ -219,15 +229,46 @@ const audition = (url) => {
   auditioner.play().catch(() => {});
 };
 
-/** The leading run of lowercase letters in a filename, which is how these
- *  packs name things: bookFlip1, doorClose_2, footstep07, metalPot3 →
- *  book, door, footstep, metal. Not a manifest anybody maintains — a pack
- *  that names things some other way just groups differently. */
-const categoryOf = (file) => (file.match(/^[a-z]+/) || [file])[0];
+/** What to file a sample under.
+ *
+ *  A pack that ships directories has already answered this — the OpenGameArt
+ *  pack sorts itself into battle, interface, inventory, world, and no reading
+ *  of a filename beats the author saying it.
+ *
+ *  Flat packs get their FAMILY: the name with its variant number taken off, so
+ *  click_001 · click_002 · click_003 are one entry to audition down rather
+ *  than three headings, and impactMetal_light keeps its distance from
+ *  impactMetal_heavy. */
+const categoryOf = (path) => {
+  const slash = path.lastIndexOf("/");
+  if (slash >= 0) return path.slice(0, slash);
+  return path.replace(/\.[a-z0-9]+$/i, "").replace(/([_-]?\d+)+$/, "");
+};
 
 const chips = {}; // sound name → its chip in the row header
 const touchers = {}; // sound name → the row's "this changed" callback
 let browsingFor = null;
+let packFilter = null; // null = every pack
+
+/** The pack chips, drawn once the list has landed. */
+function renderPackFilter() {
+  const row = document.getElementById("browserpacks");
+  row.innerHTML = "";
+  const chip = (id, label) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.className = packFilter === id ? "on" : "";
+    b.onclick = () => {
+      packFilter = id;
+      renderPackFilter();
+      renderBrowser();
+    };
+    row.appendChild(b);
+  };
+  if (PACKS.length < 2) return;
+  chip(null, "all");
+  for (const p of PACKS) chip(p.id, p.id.replace(/^(kenney|oga)-/, ""));
+}
 
 const sampleName = (path) => (path ? path.split("/").pop() : "no sample");
 
@@ -247,6 +288,7 @@ function renderBrowser() {
   const chosen = browsingFor ? SOUNDS[browsingFor].sample : null;
   let shown = 0;
   for (const pack of PACKS) {
+    if (packFilter && pack.id !== packFilter) continue;
     const groups = {};
     for (const file of pack.files) {
       if (q && !file.toLowerCase().includes(q)) continue;
@@ -255,14 +297,15 @@ function renderBrowser() {
     for (const cat of Object.keys(groups).sort()) {
       const h = document.createElement("div");
       h.className = "cat";
-      // the pack only earns a mention once there is more than one of them
-      h.textContent = PACKS.length > 1 ? `${pack.id} · ${cat}` : cat;
+      // the pack earns a mention only when the list is showing more than one
+      h.textContent = PACKS.length > 1 && !packFilter ? `${pack.id} · ${cat}` : cat;
       list.appendChild(h);
       for (const file of groups[cat]) {
         const url = `/samples/${pack.id}/${file}`;
         const b = document.createElement("button");
         b.className = "file" + (url === chosen ? " on" : "");
-        b.textContent = file;
+        // the heading already carries the directory, so the row is the name
+        b.textContent = file.slice(file.lastIndexOf("/") + 1);
         // one click does both: you are here to hear it, and picking it is
         // cheap — nothing is written until Save, and the chip says what is set
         b.onclick = () => {
@@ -293,6 +336,7 @@ function openBrowser(name) {
   document.getElementById("browser").classList.add("open");
   document.body.classList.add("browsing");
   document.getElementById("browserfor").textContent = `matching against: ${name} — ${SOUNDS[name].desc}`;
+  renderPackFilter();
   renderBrowser();
 }
 

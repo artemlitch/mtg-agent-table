@@ -1,0 +1,14 @@
+RPG Sound Pack
+by artisticdude
+
+	https://opengameart.org/content/rpg-sound-pack
+
+License (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+Public domain. Usable in personal and commercial projects, with no
+attribution required. Credit is appreciated by the author.
+
+Subset: the original pack also ships NPC/ (monster and beast vocalisations)
+and misc/. Neither has anything a card table would play, so they are not
+checked in here. The full pack is at the link above.
