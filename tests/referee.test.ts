@@ -135,6 +135,68 @@ describe("refereeing a spell on the stack", () => {
     expect(prompt).toContain("Bear (attacking), Forest");
   });
 
+  test("the wake says what Player's card actually DOES", () => {
+    // Live game, round 5: Player cast Archdruid's Charm and the agent — asked
+    // to resolve it — spent a whole thinking block reconstructing the card
+    // from memory before it thought to look:
+    //
+    //   "Actually, Archdruid's Charm is a real card (MH3). Its modes:
+    //    - Search your library … (or put creature onto battlefield? Let me
+    //      recall.)  - Create a 3/3 green Beast token? No.
+    //    - Put a +1/+1 counter…? Hmm.  … Wait, let me get the exact text."
+    //
+    // The text was on the server the whole time. The table already refuses to
+    // let the agent cast a card whose oracle it has never been shown
+    // (READ FIRST, in cast) — it guaranteed the agent had read its OWN cards
+    // and guaranteed nothing about the one it is being asked to adjudicate.
+    resetGameState();
+    const charm = makeCard({
+      id: "adc",
+      name: "Archdruid's Charm",
+      owner: "you",
+      controller: "you",
+      zone: "hand",
+      mana: "{G}{G}{G}",
+      typeLine: "Instant",
+      oracle: "Choose one —\n• Search your library for a creature or land card and reveal it.\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.",
+    });
+    game.cards[charm.id] = charm;
+    game.players.you.zones.hand.push(charm.id);
+    applyAction("you", "cast", { card: charm.id });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const prompt = a.composeWakePrompt("react");
+    expect(prompt).toContain("Put a +1/+1 counter on target creature you control");
+    expect(prompt).toContain("Choose one");
+  });
+
+  test("...and says nothing about a card it is not allowed to see", () => {
+    // a face-down item is text the agent has not been shown, and inventing it
+    // here would be worse than the guessing this replaces
+    resetGameState();
+    const morph = makeCard({
+      id: "mo",
+      name: "Secret",
+      owner: "you",
+      controller: "you",
+      zone: "hand",
+      mana: "{3}",
+      typeLine: "Creature",
+      oracle: "Nobody's business",
+      faceDown: true,
+      visibleTo: ["you"],
+    });
+    game.cards[morph.id] = morph;
+    game.players.you.zones.hand.push(morph.id);
+    applyAction("you", "cast", { card: morph.id });
+    applyAction("you", "flip_card", { cards: [morph.id] });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).not.toContain("Nobody's business");
+  });
+
   test("the duty in the system prompt has the shape the evasion check has", () => {
     // The evasion line works and this one did not, and they were not written
     // alike: "check X before you Y", the inputs named, an observable output

@@ -27,7 +27,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { effectivePT, game, renderLogFor, transcript, triggerLines, type Card, type PlayerId } from "./game";
+import { cardVisibleTo, effectivePT, game, renderLogFor, transcript, triggerLines, type Card, type PlayerId } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadKey, isCliVerified, loadProvider } from "./keystore";
 import { DEFAULT_MODEL, PROVIDERS, modelSpec, type ProviderId } from "./models";
@@ -520,16 +520,39 @@ export class AgentRunner {
     // and the seat holding the cards knows which. Handing over the price and
     // the sideways permanents is the most the table can say without reading
     // a card and deciding what it does.
-    const priced = game.stack
+    //
+    // ...and the same window is the one the agent has to work out what the
+    // card DOES in, which it was left to do from memory. Live game, round 5,
+    // asked to resolve Archdruid's Charm: "Its modes: - Search your library …
+    // (or put creature onto battlefield? Let me recall.) - Create a 3/3 green
+    // Beast token? No. - Put a +1/+1 counter…? Hmm. … Wait, let me get the
+    // exact text." A whole thinking block spent reconstructing a card whose
+    // oracle was sitting on the server, before it thought to call get_state.
+    //
+    // The table already refuses to let the agent cast a card whose text it has
+    // never been shown (READ FIRST, in cast) — so it guaranteed the agent had
+    // read its OWN cards and guaranteed nothing about the one it is being
+    // asked to adjudicate. This is that guarantee, from the other side.
+    const theirs = game.stack
       .filter((i) => i.player === "you" && i.cardId)
       .map((i) => game.cards[i.cardId!])
-      .filter((c): c is Card => !!c?.mana);
+      // a face-down item is text the agent has not been shown, and printing it
+      // here would leak exactly what turning it over hid
+      .filter((c): c is Card => !!c && cardVisibleTo(c, "agent"));
     const theirTapped = game.players.you.zones.battlefield
       .map((id) => game.cards[id])
       .filter((c): c is Card => !!c?.tapped);
-    const paymentCheck = priced.length
-      ? `\n⚠ PAYMENT CHECK — price Player's item(s) against what they turned sideways BEFORE you resolve:\n` +
-        priced.map((c) => `  · ${c.name} costs ${c.mana}`).join("\n") +
+    /** Long enough for a charm's three modes; read_card is there for the rest. */
+    const oracleFor = (c: Card) => {
+      const text = (c.oracle ?? "").trim();
+      if (!text) return "";
+      const clipped = text.length > 700 ? `${text.slice(0, 700)}… (read_card for the rest)` : text;
+      return clipped.split("\n").map((l) => `\n      ${l}`).join("");
+    };
+    const paymentCheck = theirs.length
+      ? `\n⚠ PLAYER'S ITEM(S) ARE YOURS TO ADJUDICATE — the text and the price, so neither is yours to remember:\n` +
+        theirs.map((c) => `  · ${c.name}${c.mana ? ` costs ${c.mana}` : ""}${oracleFor(c)}`).join("\n") +
+        `\n  PAYMENT CHECK — price that against what Player turned sideways BEFORE you resolve.` +
         // an attacker is turned sideways by attacking, not for mana, and in a
         // combat trick it would otherwise pad the count with creatures that
         // paid for nothing. Marked rather than dropped: which permanents make
