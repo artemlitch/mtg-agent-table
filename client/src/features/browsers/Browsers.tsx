@@ -54,13 +54,14 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
     // the moment you send it somewhere.
     const move = (params: MoveParams) => void runDest(c, params).then(refresh);
     return [
-      // a commander leads with home: it is the usual thing to do with one in a
-      // pile, and the row exists nowhere else for a card sitting in this zone
-      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("myBattlefield", c, (params) => void runDest(c, { ...params, note: `played from ${zone}` }).then(refresh)),
       destButton("putBattlefield", c, (params) => void runDest(c, { ...params, note: `put onto the battlefield from ${zone}` }).then(refresh)),
       destButton("hand", c, move),
       destButton(zone === "exile" ? "graveyard" : "exile", c, move),
+      // down here with the other pile-to-pile rows rather than at the top: a
+      // commander in a graveyard is usually being recurred, not conceded, and
+      // the row you reach for by reflex should not be the one that files it away
+      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("top", c, move),
       destButton("bottom", c, move),
     ];
@@ -116,11 +117,11 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
     // is a theft effect, and taking the card is the point
     const found = (params: MoveParams) => move({ ...params, note: "from library search" });
     return [
-      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("hand", c, move),
       destButton("myBattlefield", c, move),
       destButton("putBattlefield", c, move),
       destButton("graveyard", c, found),
+      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("exile", c, found),
       destButton("exileDown", c, found),
       destButton("top", c, move),
