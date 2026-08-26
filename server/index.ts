@@ -113,6 +113,10 @@ function validateSounds(v: any): string | null {
       if (!Array.isArray(def.samples)) return `${name}: samples must be an array`;
       for (const s of def.samples) if (typeof s !== "string") return `${name}: every sample must be a string`;
     }
+    // A sound belonging to a CARD rather than to an event. Named by the card
+    // it follows, and played on top of whatever the moment was already going
+    // to sound like — see cardSounds in client/src/game/cardsounds.ts.
+    if (def.card !== undefined && typeof def.card !== "string") return `${name}: card must be a string`;
     // trims on a recording: gain multiplies the peak-normalised level, jitter
     // is how far the playback rate wanders per play. Hand-edited for now.
     for (const k of ["gain", "jitter"]) {

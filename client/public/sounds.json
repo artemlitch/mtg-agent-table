@@ -163,6 +163,13 @@
         "slide": 926,
         "verb": 0.32
       }
+    ],
+    "samples": [
+      "/sample-lib/hits/hit_1.wav",
+      "/sample-lib/hits/hit_2.wav",
+      "/sample-lib/hits/hit_3.wav",
+      "/sample-lib/hits/hit_4.wav",
+      "/sample-lib/hits/hit_5.wav"
     ]
   },
   "draw": {
@@ -449,6 +456,13 @@
         "slide": 0,
         "verb": 0.08
       }
+    ],
+    "samples": [
+      "/sample-lib/blocks/block_01.wav",
+      "/sample-lib/blocks/block_02.wav",
+      "/sample-lib/blocks/block_03.wav",
+      "/sample-lib/blocks/block_04.wav",
+      "/sample-lib/blocks/block_05.wav"
     ]
   },
   "phase": {
@@ -619,6 +633,19 @@
         "slide": 0,
         "verb": 0.55
       }
+    ]
+  },
+  "blor": {
+    "desc": "Blor the Impervious does something — plays over whatever else is happening",
+    "card": "Blor",
+    "layers": [],
+    "samples": [
+      "/sample-lib/blor/blor-1.wav",
+      "/sample-lib/blor/blor-2.wav",
+      "/sample-lib/blor/blor-3.wav",
+      "/sample-lib/blor/blor-4.wav",
+      "/sample-lib/blor/blor-5.wav",
+      "/sample-lib/blor/blor-6.wav"
     ]
   }
 }

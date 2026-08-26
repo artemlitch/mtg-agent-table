@@ -10,6 +10,7 @@ import { fieldsOnlyFocus } from "./focus";
 import { cardPrimaryAction } from "./game/interaction";
 import { processDraws } from "./game/draws";
 import { processReveals } from "./game/reveals";
+import { processCardSounds } from "./game/cardsounds";
 import { processSounds } from "./game/sounds";
 import { useGame } from "./store/game";
 import { hovered, isNarrow, menuOpen, NARROW_AT, ui, useUI } from "./store/ui";
@@ -40,6 +41,7 @@ export function App() {
   useEffect(() => {
     if (!view?.log) return;
     processSounds(view);
+    processCardSounds(view); // after, so a card's own sound lands over the event's
     processReveals(view.log);
   }, [view]);
 
