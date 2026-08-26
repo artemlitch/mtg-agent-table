@@ -1,5 +1,4 @@
 import { createRef, useLayoutEffect, useState, type RefObject } from "react";
-import { act } from "../../api";
 import { CardEl } from "../../components/Card";
 import { artFallback } from "../../components/cardArt";
 import { Icon } from "../../components/Icon";
@@ -7,7 +6,7 @@ import { ModalFrame } from "../../components/Modal";
 import { Text } from "../../components/Text";
 import { isSpellCard } from "../../game/rules";
 import { cardAnchor, placeRect } from "../../game/table";
-import { playCard } from "../nextaction/steps";
+import { announceOnStack } from "../../game/announce";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
@@ -42,16 +41,23 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
   // does — but a spell never enters the battlefield, and saying it does put
   // "Come Back Wrong enters the battlefield: …" on the stack.
   const spell = isSpellCard(c);
-  const name = c.hidden ? "?" : c.name;
+  // one gesture at a time: Enter is easy to hit twice, and the box used to
+  // stay open across its own awaits — a second press cast the card again and
+  // pushed a second copy of the trigger
+  const [busy, setBusy] = useState(false);
   const submit = async (tapToo: boolean) => {
     const t = text.trim();
-    if (!t) return;
+    if (!t || busy) return;
+    setBusy(true);
     // The play happens HERE, not on the way in, so a box you opened and
-    // thought better of costs you nothing.
-    if (arriving && !(await playCard({ card: c.id })).ok) return;
-    if (tapToo && !arriving && !c.tapped) void act("tap", { cards: [c.id], tapped: true });
-    void act("stack_push", { text: `${name}${arriving && !spell ? " enters the battlefield" : ""}: ${t}`, source: c.id });
-    ui().closeModal();
+    // thought better of costs you nothing — and it is ONE action, so taking it
+    // back is one press of cmd+Z (see announceOnStack).
+    try {
+      if (!(await announceOnStack(c, t, { tapToo })).ok) return;
+      ui().closeModal();
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <ModalFrame title={<><Icon name={spell ? "cast" : arriving ? "battlefield" : "ability"} /> <Text>{c.hidden ? "Hidden card" : c.name}</Text></>}>

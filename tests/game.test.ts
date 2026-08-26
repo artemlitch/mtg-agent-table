@@ -4,6 +4,7 @@
 import { describe, test, expect, beforeEach } from "vitest";
 import {
   game,
+  GAME_EVENTS,
   resetGameState,
   applyAction,
   viewFor,
@@ -465,6 +466,9 @@ describe("tap, counters, piles", () => {
   test("an untap step with nothing to untap says nothing about it", () => {
     seedCard("Ready", "you", "battlefield");
     game.turn = "you";
+    // from somewhere else: declaring the phase you are already in is a no-op
+    // now, and this test is about the sentence, not about the guard
+    applyAction("you", "set_phase", { phase: "end" });
     applyAction("you", "set_phase", { phase: "untap/upkeep" });
     expect(transcript().at(-1)!.text).toBe("Player moves to untap/upkeep");
   });
@@ -2392,5 +2396,125 @@ describe("the turn knows what has already happened in it", () => {
     expect(game.turnNumber).toBe(1); // the round counter has NOT moved
     expect(viewFor("agent").canMulligan).toBe(false);
     expect(() => applyAction("agent", "mulligan", { n: 7 })).toThrow(/already/i);
+  });
+});
+
+describe("what a log entry's event tag is allowed to be", () => {
+  // Live game, seq 135: `Player turned a card face-down` went out tagged
+  // `[object Object]`. addLog takes (actor, text, event, private) and
+  // flip_card passed its private-text map in the EVENT slot, with an `as any`
+  // over the top that turned the compiler's own objection off. The tag rides
+  // the wire to the client's sound map and to every reader that switches on
+  // it, and the private text — the one line that tells the flipper WHICH card
+  // they just hid — never arrived at all.
+  test("flip_card tags nothing and tells the flipper what they hid", () => {
+    const a = seedCard("Ancestral Vision", "you", "battlefield");
+    const b = seedCard("Bear", "you", "battlefield");
+    applyAction("you", "flip_card", { cards: [a.id, b.id] });
+
+    const entry = game.log.at(-1)!;
+    expect(entry.event).toBeUndefined();
+    // the table says two cards went face-down and names neither
+    expect(renderLogFor(entry, "agent").text).toBe("Player turned 2 cards face-down");
+    // ...except to the seat that turned them
+    expect(renderLogFor(entry, "you").text).toBe("You turned Ancestral Vision, Bear face-down");
+  });
+
+  test("no action writes an event tag outside the vocabulary", () => {
+    // The `as any` slipped one object into the slot; nothing would have caught
+    // a plain misspelling either. Every entry a game produces is checked here.
+    const c = seedCard("Bear", "you", "hand");
+    const d = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
+    applyAction("you", "cast", { card: d.id });
+    applyAction("you", "cast", { card: c.id });
+    applyAction("agent", "stack_resolve", {});
+    applyAction("you", "flip_card", { cards: [c.id] });
+    applyAction("you", "tap", { cards: [c.id] });
+    applyAction("you", "set_phase", { phase: "combat" });
+
+    for (const e of game.log) {
+      if (e.event === undefined) continue;
+      expect(GAME_EVENTS, `${e.text} carries ${JSON.stringify(e.event)}`).toContain(e.event);
+    }
+  });
+});
+
+describe("a phase declaration that changes no phase", () => {
+  // set_turn already refuses to hand the turn to the seat that has it —
+  // "almost always a slip of the wrist". The same move on the phase marker was
+  // logged as a phase change every time, which made a noise, moved the sound
+  // marker and put a line in the log saying something had happened. The untap
+  // step sends one of these on every turn (untap_all, then set_phase
+  // untap/upkeep from the phase it is already in).
+  test("says nothing and sounds nothing", () => {
+    applyAction("you", "set_phase", { phase: "main 1" });
+    const before = game.log.length;
+    const res: any = applyAction("you", "set_phase", { phase: "main 1" });
+    expect(game.phase).toBe("main 1");
+    expect(game.log.length).toBe(before);
+    expect(res.unchanged).toBe(true);
+  });
+
+  test("...and an alias for the phase you are in is the same non-move", () => {
+    applyAction("you", "set_phase", { phase: "main 1" });
+    const before = game.log.length;
+    applyAction("you", "set_phase", { phase: "precombat main" });
+    expect(game.log.length).toBe(before);
+  });
+
+  test("but the untap step still untaps when it is genuinely declared", () => {
+    // the one thing set_phase does besides move the marker, and the reason
+    // this cannot simply be "same phase, return early": arriving at untap from
+    // anywhere else is a real step with work in it
+    const c = seedCard("Bear", "you", "battlefield", { tapped: true });
+    applyAction("you", "set_phase", { phase: "end" });
+    applyAction("you", "set_phase", { phase: "untap" });
+    expect(c.tapped).toBe(false);
+    expect(game.log.at(-1)!.text).toMatch(/untapped 1 permanent/);
+  });
+});
+
+describe("playing a card while the turn is still in its beginning step", () => {
+  // "Playing a card already says you're moving on" — this used to be a client
+  // convenience: playCard noticed the next-action prompt was parked on
+  // "untap → main phase 1" and fired a SECOND action to advance it. Two
+  // actions is two undo steps for one gesture, and the player who took a card
+  // back had to press cmd+Z twice to get past their own phase marker.
+  test("moves the marker as part of the same action", () => {
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "untap" });
+    const c = seedCard("Bear", "you", "hand");
+    const before = game.log.length;
+    applyAction("you", "cast", { card: c.id });
+
+    expect(game.phase).toBe("main 1");
+    // the phase line comes FIRST: the card was cast in main 1, not in untap
+    const added = game.log.slice(before);
+    expect(added[0].event).toBe("phase_change");
+    expect(added[1].event).toBe("cast");
+  });
+
+  test("a land drop moves it too", () => {
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "untap" });
+    const l = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
+    applyAction("you", "cast", { card: l.id });
+    expect(game.phase).toBe("main 1");
+  });
+
+  test("but not on the other seat's turn — responding is not moving on", () => {
+    game.turn = "agent";
+    applyAction("agent", "set_phase", { phase: "untap" });
+    const c = seedCard("Bolt", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: c.id });
+    expect(game.phase).toBe("untap/upkeep");
+  });
+
+  test("and never drags a turn out of combat or a later phase", () => {
+    game.turn = "you";
+    applyAction("you", "set_phase", { phase: "combat" });
+    const c = seedCard("Bolt", "you", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: c.id });
+    expect(game.phase).toBe("combat");
   });
 });

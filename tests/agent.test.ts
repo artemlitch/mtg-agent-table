@@ -345,6 +345,21 @@ describe("agent transport", () => {
     expect(a.composeWakePrompt("react")).not.toContain("PLAYER IS STILL DECLARING");
   });
 
+  // The other half of the rewind fix: undo calls this on a window that is
+  // already open. A cancelled countdown was never enough — a turn in flight
+  // kept calling tools onto the board the rewind had just restored.
+  test("kill takes down a window that is already thinking", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    a.busy = true;
+    a.kill();
+    expect(a.busy).toBe(false);
+    // and it is safe on a seat that was doing nothing — undo calls it blind
+    a.kill();
+    expect(a.busy).toBe(false);
+  });
+
   test("the conduct rule is in the system prompt, not only the wake", () => {
     resetGameState();
     const a = new AgentRunner();

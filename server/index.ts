@@ -454,6 +454,19 @@ const server = Bun.serve({
       // so the action being rewound is the one that armed it. Nothing happened,
       // so there is nothing to answer.
       wakes.cancel();
+      // ...and a window ALREADY OPEN is cut, not just an armed one. cancel()
+      // only un-arms a countdown; a turn already in flight kept running, kept
+      // calling tools, and landed its actions on top of the board the rewind
+      // had just restored — so the player pressing cmd+Z was racing a seat
+      // that was still playing. It was reported from a live game exactly that
+      // way: "as I undid, the agent was still typing and it didn't undo that."
+      //
+      // The whole window goes, not the last action of it: the agent is
+      // reasoning from a board that no longer exists, and there is no way to
+      // rewind a thought. It reads the ↩ notice like any other new event on
+      // its next wake and starts again from what is actually there.
+      const interrupted = agent.busy;
+      if (interrupted) agent.kill();
       // ...and the window comes back with it. A pass survives a rewind on
       // purpose (see restore in history.ts) — it is something said, not
       // something played. But that only holds if it was HEARD. The wake this
@@ -465,8 +478,9 @@ const server = Bun.serve({
       // expecting the other. Undoing an attack declaration wedged a real game
       // exactly this way.
       if (game.waitingOn === "agent" && !agent.busy) game.waitingOn = "you";
+      if (interrupted) addLog("system", "↩ …and the agent's window was cut short — it will look again");
       broadcast({ type: "update", seq: game.seq });
-      return json({ ok: true, undone });
+      return json({ ok: true, undone, interrupted });
     }
 
     if (path === "/api/redo" && req.method === "POST") {

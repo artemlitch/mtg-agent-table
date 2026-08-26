@@ -107,6 +107,20 @@ describe("what undo steps back through", () => {
     expect((await state()).stack.length).toBe(before); // the whole declaration
   });
 
+  // cancel() un-arms a countdown; it does nothing to a window already open.
+  // The agent kept playing through a rewind — "as I undid, the agent was still
+  // typing and it didn't undo that" — so the reply now reports whether it cut
+  // a window short, and the branch that does it is wired to agent.busy.
+  test("undo reports whether it cut the agent's window short", async () => {
+    await act("you", "life", { player: "you", delta: -2 });
+    const res = await api("/api/undo", {});
+    expect(res.ok).toBe(true);
+    // nothing was thinking on this table (AGENT_DISABLED), so nothing was cut
+    expect(res.interrupted).toBe(false);
+    const texts = ((await api("/api/state?viewer=you")).log as any[]).map((e) => e.text);
+    expect(texts.some((t) => /window was cut short/.test(t))).toBe(false);
+  });
+
   test("undo and redo leave what was SAID alone", async () => {
     const log = async () => ((await api("/api/state?viewer=you")).log as any[]).map((e) => e.text);
     const said = async (s: string) => (await log()).filter((t) => t.includes(s)).length;

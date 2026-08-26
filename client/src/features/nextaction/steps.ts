@@ -9,7 +9,7 @@
 //   icon: a key into ICONS, drawn before the label.
 import { act, type ActionResult } from "../../api";
 import { stackItemCard, stackSubText } from "../../game/rules";
-import { cardById, gameView, useGame } from "../../store/game";
+import { gameView, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, GameView, SoundId, StackItem } from "../../types";
 
@@ -395,22 +395,13 @@ export const NEXT_ACTION_STEPS: Step[] = [
   },
 ];
 
-/** Cast a card, and if that was the thing the next-action prompt was waiting
- *  on — "untap → main phase 1", still parked in the beginning step — skip the
- *  click and go straight there. Playing a card already says you're moving
- *  on; no reason to make the player advance the phase by hand first. */
+/** Cast a card. Nothing else: this used to fire a SECOND action behind the
+ *  cast to advance the phase marker off the beginning step, and to work out
+ *  which zone the card came from. Both are facts about the table rather than
+ *  about the prompt, and both now happen inside cast itself (server/game.ts) —
+ *  one action, one undo step, and the same behaviour whichever seat plays. */
 export async function playCard(params: Record<string, any>): Promise<ActionResult> {
-  const view = gameView();
-  const ctx = view ? nextActionContext(view) : null;
-  const shouldAdvance = !!ctx && NEXT_ACTION_STEPS.find((r) => r.when(ctx))?.id === "main-1";
-  // Where a card is cast FROM is a fact about the card, not something every
-  // caller has to remember to mention. The menu row, the E key and the ability
-  // box all send the same commander out of the same zone, and the log should
-  // say so whichever one you reached for.
-  const note = params.note ?? (cardById(params.card)?.zone === "command" ? "from command zone" : undefined);
-  const res = await act("cast", { ...params, ...(note ? { note } : {}) });
-  if (res.ok && shouldAdvance) void act("set_phase", { phase: "main 1" });
-  return res;
+  return act("cast", params);
 }
 
 /** Which step the table is on, and the context it was chosen with. The one

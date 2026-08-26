@@ -1605,6 +1605,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
    * announced triggers still create their own priority windows. */
   set_phase(ctx, p) {
     const phase = normalizePhase(p.phase);
+    const phaseBefore = game.phase;
     if (phase === "combat") {
       // a genuine ENTRY resets the sub-machine, marks included; re-declaring
       // combat (or narrating a step label that folds to it — "declare
@@ -1648,6 +1649,17 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const rawKey = foldPhaseKey(String(p.phase ?? "").trim().toLowerCase());
     const isUntapStep = phase === "untap/upkeep" && (rawKey === "untap" || rawKey === "untap/upkeep");
     const untapped = isUntapStep && !game.players[game.turn].turnDone.untap ? untapPermanents(game.turn) : 0;
+    // Declaring the phase you are already in is a slip of the wrist — the same
+    // one set_turn refuses — and it was logged as a phase change every time:
+    // a line in the log saying something happened, a phase_change event, and
+    // the sound that rides it. The client's own untap step sends one on every
+    // turn (untap_all, then set_phase from the phase it is already in).
+    //
+    // Below the untap work on purpose. Arriving at the untap step is the one
+    // phase declaration with something IN it, and a seat re-declaring untap
+    // after untapping by hand has still done that work — so the early return
+    // has to come after untapPermanents has had its say, and reports it.
+    if (phase === phaseBefore && !untapped) return { ok: true, unchanged: true, stackSize: game.stack.length };
     addLog(
       ctx.actor,
       `${who(ctx.actor)} moves to ${phase}` + (untapped ? ` — untapped ${untapped} permanent${untapped === 1 ? "" : "s"}` : ""),
@@ -1900,6 +1912,24 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         `READ FIRST: ${card.name}'s oracle text has not been shown to you this game — call get_state (hand and command zone), read_card, or view_zone, then cast it`
       );
     }
+    // Playing a card says you are moving on. This lived in the client — it
+    // watched the next-action prompt sit on "untap → main phase 1" and fired a
+    // SECOND action to advance it — which made one gesture two undo steps, and
+    // left the taker-back pressing cmd+Z twice to get past their own phase
+    // marker. It is a fact about the table, not about the prompt, so it
+    // happens here, inside the same action, for whichever seat is playing.
+    //
+    // The active player only: casting at instant speed on the opponent's turn
+    // is responding, not moving on.
+    if (game.turn === ctx.actor && game.phase === "untap/upkeep") {
+      actions.set_phase(ctx, { phase: "main 1" });
+    }
+    // Where a card is cast FROM is a fact about the card, not something every
+    // caller has to remember to mention. The menu row, the E key, the ability
+    // box and the agent all send the same commander out of the same zone, and
+    // the log should say so whichever one reached for it. Read before
+    // placeCard moves it, and never over a note the caller wrote themselves.
+    const note = p.note ?? (card.zone === "command" ? "from command zone" : undefined);
     if (p.face !== undefined) applyFace(card, Number(p.face));
     // the effective type is the ACTIVE face's for DFCs: the explicit face
     // param, else whatever face the card is already flipped to (a card turned
@@ -1927,10 +1957,10 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       // 645 after the fix. A seat that SAYS its land enters tapped gets taken
       // at its word, because the alternative is a log that lies about the
       // board.
-      const entersTapped = p.tapped === true || /enters?\s+tapped/i.test(String(p.note ?? ""));
+      const entersTapped = p.tapped === true || /enters?\s+tapped/i.test(String(note ?? ""));
       if (entersTapped) card.tapped = true;
       game.players[ctx.actor].turnDone.lands += 1;
-      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${entersTapped ? " tapped" : ""}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");
+      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${entersTapped ? " tapped" : ""}${note ? ` (${note})` : ""} — land drop, special action, no stack`, "land_played");
       const landTrig = triggerLines(card);
       const landWatchers = zoneChangeWatchers("enters");
       return {
@@ -1961,7 +1991,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     card.tapped = false;
     pushStackItem(ctx.actor, {
       cardId: card.id,
-      text: `${p.note ? `${card.name} — ${p.note}` : card.name}${targetText}`,
+      text: `${note ? `${card.name} — ${note}` : card.name}${targetText}`,
       // Which face was cast is known HERE and nowhere later: on the stack a
       // DFC is one card with one composite type line, and the resolver reading
       // it cannot tell a Sorcery // Land cast as a sorcery from the same card
@@ -1976,7 +2006,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
     const verb = /\bland\b/i.test(effType) ? "played" : "cast";
-    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${p.note ? ` (${p.note})` : ""}${targetText} → on the stack`, "cast");
+    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${note ? ` (${note})` : ""}${targetText} → on the stack`, "cast");
     const trig = triggerLines(card);
     return {
       ok: true,
@@ -2155,10 +2185,15 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     }
     const n = ids.length;
     if (faceDown) {
+      // the private text is addLog's FOURTH argument. It used to be passed as
+      // the third — the event slot — under an `as any` that turned the
+      // compiler's objection off, so the wire carried `[object Object]` as the
+      // event tag and the flipper was never told which card they had hidden.
       addLog(
         ctx.actor,
         `${who(ctx.actor)} turned ${n === 1 ? "a card" : `${n} cards`} face-down`,
-        { [ctx.actor]: `You turned ${names.join(", ")} face-down` } as any
+        undefined,
+        { [ctx.actor]: `You turned ${names.join(", ")} face-down` }
       );
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} turned ${names.join(", ")} face-up`);

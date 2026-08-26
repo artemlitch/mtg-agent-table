@@ -138,4 +138,47 @@ describe("what actually reaches the speaker", () => {
     expect(run(view(base, { pendingQuestion: "Do you have a response?" }))).toEqual([]);
     vi.useRealTimers();
   });
+
+  // A rewind takes log entries away and a redo puts them back, and "where we
+  // got to" was being read off the log's own last entry — so the entries came
+  // back looking new and sounded a second time. Undoing and redoing a card
+  // played from hand replayed its whole gesture into the room.
+  //
+  // The server keeps game.seq monotonic across a restore for exactly this kind
+  // of reason (see restore() in server/history.ts): a seq is never handed out
+  // twice, so a seq already heard is already heard, whatever the log currently
+  // holds. The marker is a high-water mark, not a cursor.
+  it("does not replay a sound when a rewind hands the same entries back", () => {
+    vi.useFakeTimers();
+    const base = [line("— Round 7: Player's turn —", "round_start")];
+    run(view(base));
+
+    const cast = line("Player cast Meltstrider's Resolve → on the stack", "cast");
+    const phase = line("Player moves to main 1", "phase_change");
+    expect(run(view([...base, cast, phase]))).toEqual(["stack", "phase"]);
+
+    // ↩ — the two entries are gone and a notice stands where they were. A
+    // notice carries no event, so it makes no sound of its own.
+    const notice = line("↩ Player undid: Player cast Meltstrider's Resolve → on the stack", undefined, "system");
+    expect(run(view([...base, notice]))).toEqual([]);
+
+    // ↪ — and back they come, with the seqs they already had
+    expect(run(view([...base, cast, phase, notice, line("↪ Player redid: …", undefined, "system")]))).toEqual([]);
+    vi.useRealTimers();
+  });
+
+  it("still sounds a genuinely new action after a rewind", () => {
+    vi.useFakeTimers();
+    const base = [line("— Round 8: Player's turn —", "round_start")];
+    run(view(base));
+    const drew = line("Player drew 1 card", "drew");
+    expect(run(view([...base, drew]))).toEqual(["draw"]);
+
+    const notice = line("↩ Player undid: Player drew 1 card", undefined, "system");
+    expect(run(view([...base, notice]))).toEqual([]);
+    // the server never re-issues a seq, so a real new play always outranks the
+    // high-water mark
+    expect(run(view([...base, notice, line("Player played Swamp — land drop", "land_played")]))).toEqual(["thump"]);
+    vi.useRealTimers();
+  });
 });
