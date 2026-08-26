@@ -77,12 +77,66 @@
   #exportbox { width: 100%; height: 180px; margin-top: 8px; background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 8px; font: 11px/1.5 ui-monospace, monospace; padding: 8px; }
   .exportwrap { margin-top: 22px; max-width: 760px; }
+
+  /* ── the sample browser ──────────────────────────────────────────────────
+     A drawer rather than a modal: the point is comparing a recording against
+     the synthesised sound it might replace, so the row you are matching has
+     to stay on screen and stay playable while you work down the list. */
+  .samplechip {
+    font-size: 11px; color: var(--dim); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer;
+  }
+  .samplechip.set { color: var(--accent); border-color: var(--accent); }
+  #browser {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 340px; z-index: 50;
+    display: none; flex-direction: column;
+    background: var(--panel); border-left: 1px solid var(--line);
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
+  }
+  #browser.open { display: flex; }
+  body.browsing { padding-right: 360px; } /* nothing hides behind the drawer */
+  #browser header { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+  #browser h3 { font: 700 13px/1.5 var(--font-fantasy); color: var(--accent); letter-spacing: 0.06em; }
+  #browser .for { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  #browser .hrow { display: flex; gap: 6px; align-items: center; }
+  #browser input[type="search"] {
+    width: 100%; margin-top: 8px; padding: 4px 8px; font-size: 12px;
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+  }
+  #browserlist { overflow-y: auto; flex: 1; padding: 6px 8px 20px; scrollbar-color: var(--line) transparent; }
+  #browserlist .cat {
+    font: 700 10px/2.2 var(--font-fantasy); color: var(--dim);
+    letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 6px 2px;
+    position: sticky; top: 0; background: var(--panel);
+  }
+  #browserlist .file {
+    display: block; width: 100%; text-align: left; font-size: 12px;
+    padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--text);
+  }
+  #browserlist .file:hover { background: var(--panel2); }
+  #browserlist .file.on { color: var(--accent); border-color: var(--accent); }
+  #browserlist .none { color: var(--dim); font-size: 11px; padding: 10px 8px; }
 </style>
 </head>
 <body class="lab">
 <h1>Sound Lab</h1>
-<div class="hint">Tweak, hit Play, repeat. Each row saves itself into public/sounds.json — the file the table reads. (Click anywhere once to arm audio.)</div>
+<div class="hint">Tweak, hit Play, repeat. Each row saves itself into public/sounds.json — the file the table reads. (Click anywhere once to arm audio.)<br>
+The 🎧 chip opens the sample packs in client/public/samples. Picking one only records the filename against that sound; nothing plays it yet.</div>
 <div class="sounds" id="sounds">loading sounds.json…</div>
+
+<aside id="browser">
+  <header>
+    <h3>Sample browser</h3>
+    <div class="for" id="browserfor"></div>
+    <div class="hrow">
+      <button class="playbtn" id="browsercompare">▶ Compare</button>
+      <button id="browserclear">✕ Clear</button>
+      <button id="browserclose">Close</button>
+    </div>
+    <input type="search" id="browsersearch" placeholder="filter by name…" autocomplete="off">
+  </header>
+  <div id="browserlist"></div>
+</aside>
 
 <script src="/sfx.js"></script>
 <script>
@@ -146,6 +200,119 @@ async function saveSound(name, btn, msg) {
   btn.disabled = false;
 }
 
+// ── sample browser ─────────────────────────────────────────────────────────
+// The packs live in client/public/samples, one directory each, and the server
+// lists them (GET /api/samples). Picking one writes a `sample` field into the
+// sound and NOTHING ELSE: the engine still synthesises every sound it plays,
+// and this is a note of which recording a sound is being matched against.
+let PACKS = [];
+const packsReady = fetch("/api/samples")
+  .then((r) => r.json())
+  .then((d) => (PACKS = d.packs ?? []))
+  .catch(() => (PACKS = []));
+
+// one player, reused: clicking down a list is a comparison, and two files
+// playing over each other is not one
+const auditioner = new Audio();
+const audition = (url) => {
+  auditioner.src = url;
+  auditioner.play().catch(() => {});
+};
+
+/** The leading run of lowercase letters in a filename, which is how these
+ *  packs name things: bookFlip1, doorClose_2, footstep07, metalPot3 →
+ *  book, door, footstep, metal. Not a manifest anybody maintains — a pack
+ *  that names things some other way just groups differently. */
+const categoryOf = (file) => (file.match(/^[a-z]+/) || [file])[0];
+
+const chips = {}; // sound name → its chip in the row header
+const touchers = {}; // sound name → the row's "this changed" callback
+let browsingFor = null;
+
+const sampleName = (path) => (path ? path.split("/").pop() : "no sample");
+
+function refreshChip(name) {
+  const chip = chips[name];
+  if (!chip) return;
+  const s = SOUNDS[name].sample;
+  chip.textContent = `🎧 ${sampleName(s)}`;
+  chip.classList.toggle("set", !!s);
+  chip.title = s || "browse the sample packs for a recording to match against this sound";
+}
+
+function renderBrowser() {
+  const list = document.getElementById("browserlist");
+  const q = document.getElementById("browsersearch").value.trim().toLowerCase();
+  list.innerHTML = "";
+  const chosen = browsingFor ? SOUNDS[browsingFor].sample : null;
+  let shown = 0;
+  for (const pack of PACKS) {
+    const groups = {};
+    for (const file of pack.files) {
+      if (q && !file.toLowerCase().includes(q)) continue;
+      (groups[categoryOf(file)] ??= []).push(file);
+    }
+    for (const cat of Object.keys(groups).sort()) {
+      const h = document.createElement("div");
+      h.className = "cat";
+      // the pack only earns a mention once there is more than one of them
+      h.textContent = PACKS.length > 1 ? `${pack.id} · ${cat}` : cat;
+      list.appendChild(h);
+      for (const file of groups[cat]) {
+        const url = `/samples/${pack.id}/${file}`;
+        const b = document.createElement("button");
+        b.className = "file" + (url === chosen ? " on" : "");
+        b.textContent = file;
+        // one click does both: you are here to hear it, and picking it is
+        // cheap — nothing is written until Save, and the chip says what is set
+        b.onclick = () => {
+          audition(url);
+          if (!browsingFor) return;
+          SOUNDS[browsingFor].sample = url;
+          touchers[browsingFor]?.();
+          refreshChip(browsingFor);
+          renderBrowser();
+        };
+        list.appendChild(b);
+        shown++;
+      }
+    }
+  }
+  if (!shown) {
+    const none = document.createElement("div");
+    none.className = "none";
+    none.textContent = PACKS.length
+      ? "nothing matches that"
+      : "no packs — drop a folder of audio into client/public/samples/";
+    list.appendChild(none);
+  }
+}
+
+function openBrowser(name) {
+  browsingFor = name;
+  document.getElementById("browser").classList.add("open");
+  document.body.classList.add("browsing");
+  document.getElementById("browserfor").textContent = `matching against: ${name} — ${SOUNDS[name].desc}`;
+  renderBrowser();
+}
+
+function closeBrowser() {
+  browsingFor = null;
+  document.getElementById("browser").classList.remove("open");
+  document.body.classList.remove("browsing");
+}
+
+document.getElementById("browserclose").onclick = closeBrowser;
+document.getElementById("browsersearch").oninput = renderBrowser;
+document.getElementById("browsercompare").onclick = () => browsingFor && play(browsingFor);
+document.getElementById("browserclear").onclick = () => {
+  if (!browsingFor) return;
+  delete SOUNDS[browsingFor].sample;
+  touchers[browsingFor]?.();
+  refreshChip(browsingFor);
+  renderBrowser();
+};
+
 function build() {
   const root = document.getElementById("sounds");
   for (const s of root.querySelectorAll(".lstrip")) scrollAt[s.dataset.sound] = s.scrollLeft;
@@ -166,6 +333,16 @@ function build() {
       dirty.add(name);
       card.querySelector(".savebtn")?.classList.add("dirty");
     };
+    touchers[name] = touched;
+    // which recording this sound is being matched against, and the way into
+    // the browser. In the header rather than down with the buttons: it is what
+    // the sound IS at the moment, like the description beside it.
+    const chip = document.createElement("button");
+    chip.className = "samplechip";
+    chip.onclick = () => openBrowser(name);
+    card.querySelector(".shead").appendChild(chip);
+    chips[name] = chip;
+    refreshChip(name);
     def.layers.forEach((layer, li) => {
       const ld = document.createElement("div");
       ld.className = "layer";
@@ -308,8 +485,9 @@ function build() {
   }
 }
 
-// nothing to draw until sounds.json has landed
-SFX.ready.then(build);
+// nothing to draw until sounds.json has landed — and the chips cannot say what
+// is set until the pack list has too, so the first paint waits for both
+Promise.all([SFX.ready, packsReady]).then(build);
 </script>
 </body>
 </html>

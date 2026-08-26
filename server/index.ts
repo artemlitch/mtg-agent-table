@@ -10,6 +10,7 @@ import { saveKey, deleteKey, configuredKeys, setCliVerified, loadProvider, saveP
 import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
 import { WakeScheduler, wakePlanFor } from "./wake";
+import { readdirSync } from "node:fs";
 
 import { STATE_FILE, GAMES_DIR } from "./datadir";
 
@@ -23,6 +24,10 @@ const WEB_DIR = new URL("../web/", import.meta.url).pathname;
 // by the stale source it was built from.
 const SOUNDS_SRC = new URL("../client/public/sounds.json", import.meta.url).pathname;
 const SOUNDS_WEB = WEB_DIR + "sounds.json";
+// Sample packs, one directory each — dropped in by hand, listed for the lab to
+// browse. The SOURCE copy is the canonical one for the same reason sounds.json
+// is: web/ is a build output, and a pack added since the last build is real.
+const SAMPLES_SRC = new URL("../client/public/samples/", import.meta.url).pathname;
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
@@ -102,6 +107,11 @@ function validateSounds(v: any): string | null {
     const def = v[name];
     if (!def || typeof def !== "object") return `${name}: not an object`;
     if (typeof def.desc !== "string") return `${name}: desc must be a string`;
+    // a sample the lab has picked out. Nothing plays it yet — it is a note of
+    // which file this sound is being matched against
+    if (def.sample !== undefined && def.sample !== null && typeof def.sample !== "string") {
+      return `${name}: sample must be a string`;
+    }
     if (!Array.isArray(def.layers)) return `${name}: layers must be an array`;
     for (const [i, l] of def.layers.entries()) {
       if (!l || typeof l !== "object") return `${name} layer ${i + 1}: not an object`;
@@ -482,6 +492,28 @@ const server = Bun.serve({
     // Read, replace one key, write back — so saving `draw` cannot touch a
     // `block` you were half-way through, and two lab tabs cannot overwrite
     // each other with a whole-file snapshot each took minutes ago.
+    // What the lab can audition: every pack under client/public/samples, with
+    // its files. A flat list per pack — the lab does the grouping, because how
+    // a filename breaks into a category is a question about how one pack
+    // happens to name things, not something the server should decide for all
+    // of them.
+    if (path === "/api/samples") {
+      try {
+        const packs = readdirSync(SAMPLES_SRC, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => ({
+            id: d.name,
+            files: readdirSync(SAMPLES_SRC + d.name)
+              .filter((f) => /\.(ogg|mp3|wav|m4a|flac)$/i.test(f))
+              .sort(),
+          }))
+          .filter((p) => p.files.length);
+        return json({ packs });
+      } catch {
+        return json({ packs: [] }); // no samples directory yet is not an error
+      }
+    }
+
     if (path === "/api/sounds" && req.method === "POST") {
       let body: any;
       try {
