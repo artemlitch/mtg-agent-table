@@ -28,6 +28,15 @@
   50% { transform: translateY(-6px); }
 }
 .card.blocking { outline: 2px solid var(--blue); outline-offset: 1px; }
+/* A card mid-declaration wears BOTH marks at once: `attacking`/`blocking`,
+   because declaredAttacking counts a pending declaration as attacking, and
+   `declaring` for the lift. Their outlines land on different elements —
+   the first on the outer .card, which stays put, the second on .cardface,
+   which the bob raises — so the card floated up out of a second ring left
+   behind on the felt. One state, drawn twice, in two places.
+   The lifted one is the card, so the one on the spot goes. Last of the three
+   rules on purpose: all three are (0,2,0), so order is what settles it. */
+.card.declaring { outline: none; }
 .card.tuck-source { outline: 2px dashed var(--accent); }
 
 .card .badges { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
