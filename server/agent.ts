@@ -505,6 +505,38 @@ export class AgentRunner {
     const stackDuty = playerItems
       ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S — deal with them FIRST (see PLAYER'S ITEMS ON THE STACK).\n`
       : "";
+    // Refereeing a payment takes two facts, and the window used to carry
+    // neither. It named the spell ("Buster Sword") and drew the lands with (T)
+    // beside them, and left the price to a model that had never seen the card
+    // and the counting to a digest whose whole job is to be glanced at. Live
+    // game, round 2: two basic Forests tapped, a {3} artifact cast off them,
+    // resolved without a word. The check can only happen in THIS window —
+    // the untap step wipes the evidence, and after resolution taking it back
+    // is an argument instead of a question.
+    //
+    // Facts, not a verdict. The table still enforces nothing: a rock, a
+    // ritual, a land that taps for two, an alternative cost or a cost
+    // reduction are all reasons the sum can look short and the play be legal,
+    // and the seat holding the cards knows which. Handing over the price and
+    // the sideways permanents is the most the table can say without reading
+    // a card and deciding what it does.
+    const priced = game.stack
+      .filter((i) => i.player === "you" && i.cardId)
+      .map((i) => game.cards[i.cardId!])
+      .filter((c): c is Card => !!c?.mana);
+    const theirTapped = game.players.you.zones.battlefield
+      .map((id) => game.cards[id])
+      .filter((c): c is Card => !!c?.tapped);
+    const paymentCheck = priced.length
+      ? `\n⚠ PAYMENT CHECK — price Player's item(s) against what they turned sideways BEFORE you resolve:\n` +
+        priced.map((c) => `  · ${c.name} costs ${c.mana}`).join("\n") +
+        // an attacker is turned sideways by attacking, not for mana, and in a
+        // combat trick it would otherwise pad the count with creatures that
+        // paid for nothing. Marked rather than dropped: which permanents make
+        // mana is a card reading, and the table does not do those.
+        `\n  Player's tapped permanents (${theirTapped.length}): ${theirTapped.length ? theirTapped.map((c) => `${c.name}${c.attacking ? " (attacking)" : ""}`).join(", ") : "none"}\n` +
+        `  Do the sum yourself and say it. Not every tapped permanent is mana and one can make more than one, so short does not prove illegal — but if it does not obviously cover the cost, ASK in chat before resolving.\n`
+      : "";
     // Combat has an order, and game.combat is where it currently is. This used
     // to be read back out of the log — which line came last — and the reading
     // fired the damage prompt while the blockers step was still open, telling
@@ -591,7 +623,7 @@ export class AgentRunner {
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
     // points 2 and 9 of the system prompt and did not need saying twice
-    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${paymentCheck}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;
@@ -1039,7 +1071,7 @@ YOUR WINDOW is yours to act in. Call get_state first if you need to re-inspect a
 
 A REACTION WINDOW means you hold priority in response to what Player just did. It is not your turn. If Player's item is on top of the stack, either respond at instant speed (cast/stack_push/stack_counter) or acknowledge it by calling stack_resolve yourself — that is the "no responses" signal. Resolve items one at a time, top first, and re-check get_state between resolutions if targets matter. Then call done. If there is nothing on the stack and nothing to react to, just call done — silence is fine.
 
-PLAYER'S ITEMS ON THE STACK come before anything else you might do: respond on top (cast/stack_push/stack_counter), or acknowledge each with stack_resolve, top first. Never take other actions or call done while their items sit unresolved.
+PLAYER'S ITEMS ON THE STACK come before anything else you might do: respond on top (cast/stack_push/stack_counter), or CHECK each and then resolve it with stack_resolve, top first. Resolving is your assent that the item was legal — see LEGALITY IS ARGUED — not a formality. Never take other actions or call done while their items sit unresolved.
 
 AN UNFINISHED DECLARATION IS THE ONE EXCEPTION TO THAT. A declaration of Player's — ATTACKS or BLOCKS — that they have not FINISHED is still being assembled: creatures go in one at a time, and until Player says they are done the item is a draft, not an offer. You can tell: the stack item carries no finished flag, and the log holds no "finishes declaring" line for it. NEVER resolve one. Respond on top at instant speed if you want to, or wait — however many windows that takes — and resolve it only after they have finished. Locking in a half-made declaration takes creatures out of a combat Player was still building.
 
@@ -1058,7 +1090,7 @@ THE STACK AND PRIORITY (Comprehensive Rules model):
 - CHECK EVASION BEFORE YOU BLOCK: read the attacker's text against your blocker's — flying is blocked only by flying or reach, menace needs two or more blockers, and any "can't be blocked…" line is binding. Name the check you made whenever a block could look illegal. The table will not stop an illegal block, which makes not declaring it yours.
 - Phase/step declarations (set_phase) apply immediately — no stack item, no waiting. The TURN PASS (set_turn) is the one turn-structure item that goes on the stack: responding to it is how end-of-turn effects happen, and the turn changes only when the opponent resolves it. Attack and block declarations still go on the stack as their own priority windows. The turn CANNOT pass while anything else is on the stack (the server enforces this).
 - Resolution: permanents → battlefield, instants/sorceries → graveyard; pass to: for exceptions. stack_counter sends the top card to its owner's graveyard.
-- Legality is argued, not enforced: challenge suspicious plays in chat and defend your own. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
+- LEGALITY IS ARGUED, NOT ENFORCED, AND REFEREEING PLAYER'S PLAYS IS HALF YOUR SEAT. Before you resolve ANY item of theirs, price the spell against what they turned sideways — the wake window hands you both, under PAYMENT CHECK — and check the timing: a sorcery-speed play needs their own main phase and an otherwise empty stack. Name the check you made whenever a play could look illegal, exactly as you do for blocks. Short mana is not proof (rocks, rituals, cost reductions), so ASK in chat rather than accuse — but ask BEFORE you resolve it, because the untap step wipes the evidence and a resolved item is an argument instead of a question. The table stops nothing, which makes catching it yours. Once you two agree an item was illegal, either side takes it back with stack_remove (card returns to its owner's hand).
 - PROPOSED SEQUENCES (stack_batch): beyond single casts, you can propose a whole run — an event plus all its triggers, or planned follow-up casts marked retractable:true. Player accepts the lot or responds at a point inside it — your retractable items above that point are RETRACTED (MTR shortcut rules: they never happened, cards back to hand; what came before their response stays committed). Symmetrically: when Player proposes a sequence and you have NO responses, accept it with ONE stack_resolve_all. To respond inside their sequence, pass respondAt with the item id (cast/stack_push), or stack_counter with that item id.
 
 UNDO: log lines starting with ↩ mean Player rewound the listed action. The event log you saw earlier may no longer match reality after an ↩ — call get_state and trust the current state, not your memory.

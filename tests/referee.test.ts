@@ -1,0 +1,153 @@
+// What the agent is given to referee WITH.
+//
+// Live game, round 2: Player tapped two basic Forests and cast a {3} artifact.
+// The agent locked it in without a word. The table does not enforce costs on
+// purpose — the opponent is the referee — so the only question worth asking is
+// whether the referee was handed the two numbers it needed: what the spell
+// cost, and what was tapped to pay for it.
+import { describe, test, expect, beforeEach } from "vitest";
+
+process.env.ANTHROPIC_KEY_FILE = "/tmp/mtg-agent-test-absent-anthropic-key";
+process.env.DEEPSEEK_KEY_FILE = "/tmp/mtg-agent-test-absent-deepseek-key";
+process.env.PROVIDER_FILE = "/tmp/mtg-agent-test-absent-provider.json";
+process.env.CLAUDE_CLI_MARKER = "/tmp/mtg-agent-test-absent-cli-marker";
+
+const { AgentRunner } = await import("../server/agent");
+const { resetGameState, makeCard, game, applyAction } = await import("../server/game");
+
+/** The live seq 28-33 line, rebuilt: two Forests down, both tapped, a {3}
+ *  Equipment cast off them. Returns the agent's reaction window. */
+function busterSword() {
+  resetGameState();
+  const lands = ["f1", "f2"].map((id) =>
+    makeCard({ id, name: "Forest", owner: "you", controller: "you", zone: "battlefield", typeLine: "Basic Land — Forest" })
+  );
+  for (const c of lands) {
+    game.cards[c.id] = c;
+    game.players.you.zones.battlefield.push(c.id);
+  }
+  const sword = makeCard({
+    id: "bs",
+    name: "Buster Sword",
+    owner: "you",
+    controller: "you",
+    zone: "hand",
+    mana: "{3}",
+    typeLine: "Legendary Artifact — Equipment",
+  });
+  game.cards[sword.id] = sword;
+  game.players.you.zones.hand.push(sword.id);
+
+  applyAction("you", "set_phase", { phase: "main1" });
+  applyAction("you", "tap", { cards: ["f1"] });
+  applyAction("you", "tap", { cards: ["f2"] });
+  applyAction("you", "cast", { card: "bs" });
+
+  const a = new AgentRunner();
+  a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+  return { agent: a, prompt: a.composeWakePrompt("react") };
+}
+
+describe("refereeing a spell on the stack", () => {
+  beforeEach(() => resetGameState());
+
+  test("the wake shows the spell and the tapped lands", () => {
+    const { prompt } = busterSword();
+    // this much already works: the item is named and the board is current
+    expect(prompt).toContain("Buster Sword");
+    expect(prompt).toContain("Forest (T) · Forest (T)");
+  });
+
+  test("the wake names what the spell costs", () => {
+    // Without the cost, "Buster Sword" is a name the agent has to price from
+    // memory — and this one was printed in 2025. Refereeing a payment it
+    // cannot see the price of is guesswork.
+    const { prompt } = busterSword();
+    expect(prompt).toContain("{3}");
+  });
+
+  test("the wake counts what Player turned sideways to pay for it", () => {
+    // Two Forests. The agent used to be shown two permanents with (T) beside
+    // them in a digest whose whole job is to be glanced at, and left to do the
+    // counting itself. The table counts permanents, not mana — one can make
+    // two and a tapped creature makes none — so the sum stays the agent's.
+    const { prompt } = busterSword();
+    expect(prompt).toContain("Player's tapped permanents (2): Forest, Forest");
+  });
+
+  test("the wake asks for the check while the spell is still on the stack", () => {
+    // The referee duty is one line of the system prompt, hundreds of lines
+    // back. The moment it matters is this window and no other: the untap step
+    // wipes the evidence, and once the item resolves taking it back is an
+    // argument instead of a question.
+    const { prompt } = busterSword();
+    expect(prompt).toContain("PAYMENT CHECK");
+    expect(prompt).toMatch(/ASK in chat before resolving/);
+  });
+
+  test("nothing of Player's on the stack, nothing to price", () => {
+    // The check rides only the windows it is about — it is not another
+    // standing paragraph in every wake.
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).not.toContain("PAYMENT CHECK");
+  });
+
+  test("the agent's own items are not its to referee", () => {
+    resetGameState();
+    const rock = makeCard({ id: "sr", name: "Sol Ring", owner: "agent", controller: "agent", zone: "hand", mana: "{1}", typeLine: "Artifact" });
+    game.cards[rock.id] = rock;
+    game.players.agent.zones.hand.push(rock.id);
+    (game.agentSeen ??= {})[rock.id] = true;
+    applyAction("agent", "cast", { card: "sr" });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("window")).not.toContain("PAYMENT CHECK");
+  });
+
+  test("an attacker is sideways from attacking, and says so", () => {
+    // In a combat trick every attacker is tapped, and an unmarked count reads
+    // as mana that paid for the trick. Marked, not dropped: which permanents
+    // make mana is a card reading, and the table does not do those.
+    resetGameState();
+    const bear = makeCard({ id: "bear", name: "Bear", owner: "you", controller: "you", zone: "battlefield", power: "2", toughness: "2" });
+    const land = makeCard({ id: "f3", name: "Forest", owner: "you", controller: "you", zone: "battlefield", typeLine: "Basic Land — Forest" });
+    const trick = makeCard({ id: "gg", name: "Giant Growth", owner: "you", controller: "you", zone: "hand", mana: "{G}", typeLine: "Instant" });
+    for (const c of [bear, land]) {
+      game.cards[c.id] = c;
+      game.players.you.zones.battlefield.push(c.id);
+    }
+    game.cards[trick.id] = trick;
+    game.players.you.zones.hand.push(trick.id);
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+    applyAction("you", "finish_attacks", {});
+    applyAction("agent", "stack_resolve", {});
+    applyAction("you", "tap", { cards: [bear.id, "f3"] });
+    applyAction("you", "cast", { card: "gg" });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const prompt = a.composeWakePrompt("react");
+    expect(prompt).toContain("Giant Growth costs {G}");
+    expect(prompt).toContain("Bear (attacking), Forest");
+  });
+
+  test("the duty in the system prompt has the shape the evasion check has", () => {
+    // The evasion line works and this one did not, and they were not written
+    // alike: "check X before you Y", the inputs named, an observable output
+    // ("name the check"), and whose failure it is. The referee line said
+    // "challenge suspicious plays" — no moment, no inputs, no output, no
+    // owner — and sat mid-list under stack mechanics.
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/Before you resolve ANY item of theirs, price the spell/);
+    expect(a.systemPrompt).toMatch(/Name the check you made/);
+    expect(a.systemPrompt).toMatch(/The table stops nothing, which makes catching it yours/);
+    // and resolving is assent, not a formality
+    expect(a.systemPrompt).toMatch(/Resolving is your assent that the item was legal/);
+  });
+});
