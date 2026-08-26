@@ -580,7 +580,15 @@ const server = Bun.serve({
     // and an extension allow-list on top: this hands out files from a
     // directory nobody reviews, so it hands out audio and nothing else.
     if (path.startsWith("/sample-lib/")) {
-      const rel = decodeURIComponent(path.slice("/sample-lib/".length));
+      // These names are a commercial library's, not ours: spaces, dashes and
+      // the odd curly apostrophe. A lone % in one would throw out of the
+      // decode, so a name that will not decode is simply a name we do not have.
+      let rel: string;
+      try {
+        rel = decodeURIComponent(path.slice("/sample-lib/".length));
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
       if (/^[^/][^\0]*$/.test(rel) && !rel.split("/").includes("..") && /\.(ogg|mp3|wav|m4a|flac)$/i.test(rel)) {
         const f = Bun.file(`${SAMPLE_LIB_DIR}/${rel}`);
         if (await f.exists()) return new Response(f, { headers: { "Cache-Control": "no-cache" } });

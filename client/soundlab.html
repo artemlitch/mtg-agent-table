@@ -87,8 +87,10 @@
     border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer;
   }
   .samplechip.set { color: var(--accent); border-color: var(--accent); }
+  /* wide enough for a commercial library's folder names, which are the vendor
+     and the pack: "Jake Fielding - Haunted Metal Vol.1 - Cinematic Hits" */
   #browser {
-    position: fixed; top: 0; right: 0; bottom: 0; width: 340px; z-index: 50;
+    position: fixed; top: 0; right: 0; bottom: 0; width: 420px; z-index: 50;
     display: none; flex-direction: column;
     background: var(--panel); border-left: 1px solid var(--line);
     box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
@@ -243,8 +245,11 @@ async function saveSound(name, btn, msg) {
 // sound and NOTHING ELSE: the engine still synthesises every sound it plays,
 // and this is a note of which recording a sound is being matched against.
 let PACKS = [];
-// how many matching files a pack may draw before it asks you to narrow first
-const BIG_PACK = 400;
+// How many matching files a pack may draw before it asks you to narrow first.
+// Set above a whole GDC bundle on purpose — 600 rows is a long scroll but a
+// usable one, and the guard is here for a library of tens of thousands, where
+// drawing a button each locks the page for seconds.
+const BIG_PACK = 2000;
 const loadPacks = (fresh) =>
   fetch(`/api/samples${fresh ? "?fresh=1" : ""}`)
     .then((r) => r.json())
