@@ -2,7 +2,7 @@
 // data and handed to THE menu — the board, the hand, the command zone and the
 // browsers all open this same list.
 import { act } from "../../api";
-import { destItem } from "../../game/dest";
+import { canSendHome, destItem } from "../../game/dest";
 import { incomingAttackers, isSpellCard, nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
@@ -136,6 +136,11 @@ export function cardMenu(c: Card, e: Anchor) {
     items.push({ label: "Cast → field", keys: ["E"], fn: () => void playCard({ card: c.id }) });
     items.push({ label: isSpellCard(c) ? "Cast → with targets…" : "Cast → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
   }
+
+  // A commander that ended up somewhere else — discarded, milled, exiled,
+  // bounced, shuffled away — goes home from wherever it is. See canSendHome
+  // for which zones those are and why the battlefield is not one of them.
+  if (canSendHome(c)) items.push({ ...destItem("command", c), sep: true });
 
   if (!c.hidden) {
     // token copy of any visible card (clone effects, Scarab God eternalize, …)

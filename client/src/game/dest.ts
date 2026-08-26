@@ -12,7 +12,7 @@
 import { act, type ActionResult } from "../api";
 import { playCard } from "../features/nextaction/steps";
 import type { MenuItem } from "../store/ui";
-import type { Card, MoveParams } from "../types";
+import type { Card, MoveParams, Zone } from "../types";
 
 type Dest = (c: Card) => [label: string, params: MoveParams];
 
@@ -38,6 +38,28 @@ export const DEST: Record<string, Dest> = {
 };
 
 export type DestKey = keyof typeof DEST;
+
+/** The zones a commander can be stranded in.
+ *
+ *  Command-zone replacement is a choice its owner makes as the card leaves,
+ *  and nothing at this table is in a position to ask: a commander that dies,
+ *  is exiled, is bounced to hand or shuffled away just lands there like any
+ *  other card. So the choice is made afterwards, from wherever it ended up,
+ *  and every surface that can show one of these zones offers the row.
+ *
+ *  The battlefield is not here on purpose — it has its own Command zone row,
+ *  up among the other places a permanent can be sent. Neither is the stack: a
+ *  commander waiting there has not gone anywhere yet, and taking it back is
+ *  what stack_remove is for. */
+const STRANDED_IN = new Set<Zone>(["hand", "graveyard", "exile", "library"]);
+
+/** Is this a commander that could be sent home from where it is?
+ *
+ *  `hidden` is checked because isCommander is a PUBLIC field even on a card
+ *  whose face you are not allowed to see (see serializeCard) — offering this
+ *  row on a face-down card would point at it and say "that one is the
+ *  commander", which is exactly what hiding it was for. */
+export const canSendHome = (c: Card) => !!c.isCommander && !c.hidden && STRANDED_IN.has(c.zone);
 
 /** Is this destination a PLAY rather than a filing?
  *

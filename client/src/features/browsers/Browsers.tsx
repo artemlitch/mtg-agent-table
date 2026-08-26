@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { act, refresh } from "../../api";
 import { ModalFrame } from "../../components/Modal";
-import { destButton, runDest } from "../../game/dest";
+import { canSendHome, destButton, runDest } from "../../game/dest";
 import { cardById, pileChainBelow, useGame } from "../../store/game";
 import { cardMenu } from "../menus/cardMenu";
 import { ui } from "../../store/ui";
@@ -54,6 +54,9 @@ function ZoneBrowser({ p, zone }: { p: PlayerId; zone: "graveyard" | "exile" }) 
     // the moment you send it somewhere.
     const move = (params: MoveParams) => void runDest(c, params).then(refresh);
     return [
+      // a commander leads with home: it is the usual thing to do with one in a
+      // pile, and the row exists nowhere else for a card sitting in this zone
+      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("myBattlefield", c, (params) => void runDest(c, { ...params, note: `played from ${zone}` }).then(refresh)),
       destButton("putBattlefield", c, (params) => void runDest(c, { ...params, note: `put onto the battlefield from ${zone}` }).then(refresh)),
       destButton("hand", c, move),
@@ -113,6 +116,7 @@ function SearchBrowser({ p, initial }: { p: PlayerId; initial: Card[] }) {
     // is a theft effect, and taking the card is the point
     const found = (params: MoveParams) => move({ ...params, note: "from library search" });
     return [
+      ...(canSendHome(c) ? [destButton("command", c, move)] : []),
       destButton("hand", c, move),
       destButton("myBattlefield", c, move),
       destButton("putBattlefield", c, move),
