@@ -118,6 +118,17 @@ let previewEl: Element | null = null;
  *  moves it, the agent exiles it, a pile swallows it — the element stops
  *  existing, and an element that stops existing never fires mouseleave. So
  *  ask the page instead: is that thing still the thing under the cursor? */
+/** Is this element part of the menu that is up?
+ *
+ *  A menu up means the table behind it raises no previews — you are reading
+ *  the menu, not the board. But the menu NAMES cards itself: the row it was
+ *  raised on is a card name, and so is "Block Servo". Those go through <Text>
+ *  like every other line of game text and come out as links, and a link that
+ *  refuses to preview is worse than no link. They are the menu's own content,
+ *  not the board showing through, so the rule is about where the pointer IS
+ *  rather than whether a menu exists at all. */
+const inMenu = (el: Element | null) => !!el?.closest("#menu");
+
 export function previewLost(): boolean {
   const p = useUI.getState().preview;
   if (!p) return false;
@@ -150,7 +161,12 @@ export const useUI = create<UIStore>((set, get) => ({
     set({ menu: { kind: "panel", render, x: at.clientX, y: at.clientY }, preview: null });
   },
   closeMenu() {
-    if (get().menu) set({ menu: null });
+    if (!get().menu) return;
+    // a preview raised from a menu row goes with the row: the element is about
+    // to stop existing, and one that stops existing never fires mouseleave
+    const fromMenu = inMenu(previewEl);
+    if (fromMenu) previewEl = null;
+    set(fromMenu ? { menu: null, preview: null } : { menu: null });
   },
   openModal(m) {
     set({ modal: m, menu: null });
@@ -162,13 +178,13 @@ export const useUI = create<UIStore>((set, get) => ({
     m.onClose?.();
   },
   showPreview(card, at, el) {
-    if (get().menu) return; // a menu is up: hovering behind it raises nothing
+    if (get().menu && !inMenu(el ?? null)) return; // hovering BEHIND a menu raises nothing
     previewEl = el ?? null;
     set({ preview: { card, x: at.clientX, y: at.clientY } });
   },
   movePreview(at) {
     const p = get().preview;
-    if (!p || get().menu) return;
+    if (!p || (get().menu && !inMenu(previewEl))) return;
     set({ preview: { ...p, x: at.clientX, y: at.clientY } });
   },
   hidePreview() {

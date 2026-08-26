@@ -10,7 +10,10 @@
 import { describe, test, expect, beforeEach } from "vitest";
 import type { Card, GameView } from "../client/src/types";
 
+globalThis.localStorage ??= { getItem: () => null, setItem: () => {} } as unknown as Storage;
+
 const { previewCard, previewable, useGame } = await import("../client/src/store/game");
+const { useUI } = await import("../client/src/store/ui");
 
 const ZONES = ["library", "hand", "battlefield", "graveyard", "exile", "command", "stack"] as const;
 
@@ -84,5 +87,61 @@ describe("when there is nothing to draw, nothing is drawn", () => {
 
   test("and a card known only by its faces", () => {
     expect(previewable(card({ name: undefined, faces: [{ name: "Delver of Secrets" }] as any }))).toBe(true);
+  });
+});
+
+describe("a menu naming a card previews that card", () => {
+  // The rows a menu is built from go through <Text> like every other line of
+  // game text, so "Block Servo" comes out with Servo as a link. The guard that
+  // stops the BOARD raising previews from behind an open menu was written as
+  // "a menu is up: raise nothing", which swallowed the menu's own links too —
+  // a link that refuses to preview is worse than no link.
+  const el = (inside: boolean) =>
+    ({ closest: (sel: string) => (inside && sel === "#menu" ? ({} as Element) : null) }) as unknown as Element;
+  const at = { clientX: 10, clientY: 20 } as MouseEvent;
+  const servo = card({ id: "t1", name: "Servo", isToken: true });
+
+  beforeEach(() => {
+    useUI.setState({ menu: null, preview: null });
+  });
+
+  test("with no menu up, any hover raises one", () => {
+    useUI.getState().showPreview(servo, at, el(false));
+    expect(useUI.getState().preview?.card.name).toBe("Servo");
+  });
+
+  test("a menu row's own card name raises one", () => {
+    useUI.setState({ menu: { kind: "list", items: [], x: 0, y: 0 } as never });
+    useUI.getState().showPreview(servo, at, el(true));
+    expect(useUI.getState().preview?.card.name).toBe("Servo");
+  });
+
+  test("the board behind the menu still raises nothing", () => {
+    useUI.setState({ menu: { kind: "list", items: [], x: 0, y: 0 } as never });
+    useUI.getState().showPreview(servo, at, el(false));
+    expect(useUI.getState().preview).toBe(null);
+  });
+
+  test("and it follows the cursor along the row", () => {
+    useUI.setState({ menu: { kind: "list", items: [], x: 0, y: 0 } as never });
+    useUI.getState().showPreview(servo, at, el(true));
+    useUI.getState().movePreview({ clientX: 44, clientY: 55 } as MouseEvent);
+    expect(useUI.getState().preview?.x).toBe(44);
+  });
+
+  test("closing the menu takes the preview with it", () => {
+    // the row is about to stop existing, and an element that stops existing
+    // never fires mouseleave
+    useUI.setState({ menu: { kind: "list", items: [], x: 0, y: 0 } as never });
+    useUI.getState().showPreview(servo, at, el(true));
+    useUI.getState().closeMenu();
+    expect(useUI.getState().preview).toBe(null);
+  });
+
+  test("but a preview raised elsewhere survives a menu closing", () => {
+    useUI.getState().showPreview(servo, at, el(false));
+    useUI.setState({ menu: { kind: "list", items: [], x: 0, y: 0 } as never });
+    useUI.getState().closeMenu();
+    expect(useUI.getState().preview?.card.name).toBe("Servo");
   });
 });
