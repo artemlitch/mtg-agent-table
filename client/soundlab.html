@@ -115,9 +115,14 @@
     letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 6px 2px;
     position: sticky; top: 0; background: var(--panel);
   }
+  /* A button's label is not selectable by default, and these names are the
+     thing you most want off the screen — to paste somewhere, to say which take
+     you meant. Selecting one must not also press it; see the drag guard in
+     rowClick(). */
   #browserlist .file {
     display: block; width: 100%; text-align: left; font-size: 12px;
     padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--text);
+    user-select: text; -webkit-user-select: text; cursor: text;
   }
   #browserlist .file:hover { background: var(--panel2); }
   #browserlist .file.on { color: var(--accent); border-color: var(--accent); }
@@ -150,10 +155,16 @@
      min-width: 0 is the whole fix — a flex item refuses to shrink below its
      content by default, so a long name did not truncate, it grew the row and
      pushed the button past the edge of the drawer. */
+  /* The shortlist wraps rather than truncating. It used to middle-truncate to
+     keep the ✕ reachable, but min-width: 0 is what actually does that — and a
+     truncated name copies with an ellipsis through the middle of it, which is
+     the one thing this list exists to hand you. Five picks over two lines each
+     is a small price. */
   #browserpicked .pickname {
     flex: 1; min-width: 0; text-align: left; font-size: 12px; color: var(--accent);
     background: none; border: none; padding: 3px 6px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: normal; overflow-wrap: anywhere;
+    user-select: text; -webkit-user-select: text; cursor: text;
   }
   #browserpicked .pick > button + button { flex: none; }
   #browserpicked .pickname:hover { background: var(--panel2); border-radius: 6px; }
@@ -356,10 +367,31 @@ function renderPackFilter() {
 }
 
 const sampleName = (path) => path.split("/").pop();
-/** Library names run to sixty characters and differ at the END — _texture_003
- *  against _texture_004 — so lopping the tail off hides the only part that
- *  tells two picks apart, and you cannot tell which ✕ removes which. Keep both
- *  ends and lose the middle. */
+
+/** A click that is really a text selection is not a click.
+ *
+ *  These rows are both a name you may want to copy and a button that plays and
+ *  picks. Dragging across the label to select it ends in a click on the same
+ *  element, so without this, highlighting a filename also auditioned it and
+ *  put it on the shortlist. A drag of more than a few pixels, or a selection
+ *  left behind inside this row, means you were reading, not pressing. */
+function rowClick(el, fn) {
+  let at = null;
+  el.onpointerdown = (e) => (at = [e.clientX, e.clientY]);
+  el.onclick = (e) => {
+    const moved = at && Math.hypot(e.clientX - at[0], e.clientY - at[1]) > 4;
+    const sel = window.getSelection();
+    const selecting = sel && !sel.isCollapsed && el.contains(sel.anchorNode);
+    at = null;
+    if (moved || selecting) return;
+    fn();
+  };
+}
+/** For the row header's chip alone, which has to stay on one line next to the
+ *  description. Truncated in the MIDDLE because library names differ at the end
+ *  — _texture_003 against _texture_004 — so lopping the tail off hides the only
+ *  part that identifies the take. The shortlist in the drawer shows names in
+ *  full: a name you might select and copy must not have an ellipsis in it. */
 const shortName = (n) => (n.length <= 42 ? n : `${n.slice(0, 16)}…${n.slice(-24)}`);
 /** The shortlist for a sound. Read without creating it: a sound nobody has
  *  picked for should not grow an empty array in the file. */
@@ -416,10 +448,11 @@ function renderPicked() {
     row.className = "pick";
     const play = document.createElement("button");
     play.className = "pickname";
-    play.textContent = shortName(sampleName(url));
+    // the whole name, so what you select is what you get
+    play.textContent = sampleName(url);
     play.title = url;
     play.onpointerenter = () => decode(url);
-    play.onclick = () => audition(url);
+    rowClick(play, () => audition(url));
     const rm = document.createElement("button");
     rm.textContent = "✕";
     rm.title = "take it off the list";
@@ -478,10 +511,10 @@ function renderBrowser() {
         // one click does both: you are here to hear it, and picking it is
         // cheap — nothing is written until Save, and the chip says what is on
         // the list. Clicking a picked file again takes it back off.
-        b.onclick = () => {
+        rowClick(b, () => {
           audition(url);
           toggleSample(url);
-        };
+        });
         list.appendChild(b);
         shown++;
       }
