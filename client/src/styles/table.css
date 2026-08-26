@@ -330,7 +330,7 @@ body.dragging .handrow.fan { border-radius: 10px; }
    more — 38px for a seven-card hand, measured. Sitting at the row's edge put
    the label across the card faces. */
 #hand-mulligan {
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 46px;
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: var(--mull-gap);
   z-index: 60;
   opacity: 0.8;
   padding: 3px 12px; border-radius: 10px;
@@ -345,10 +345,27 @@ body.dragging .handrow.fan { border-radius: 10px; }
    The row moves, not the cards: their own fan transform is left alone, so the
    arc does not have to be rebuilt to slide the hand. */
 #hand-you.fan {
+  /* how far the offer floats above the row — read twice, so the gap it leaves
+     and the bridge across that gap cannot drift apart */
+  --mull-gap: 46px;
   transform: translateY(calc(var(--hand-card-h) * 0.5));
   transition: transform 0.18s ease;
 }
 #hand-you.fan:hover { transform: translateY(0); }
+/* The offer floats out of flow, so between it and the top of the row is a
+   band that is neither. Crossing it dropped the hover, the row slid back
+   down, and the cursor landed on a card again — a hover loop you could watch
+   shivering. The offer and the hand it is offering to replace are one thing
+   to reach for, so they get one hit area: the button is already a descendant
+   and keeps the row up on its own, and this bridges the gap between them.
+   Only while there IS an offer — otherwise it would be 46px of invisible
+   hand hanging over the board. Behind everything in the row, so the top
+   third of a card, which climbs out of the row's box on its -30px margin,
+   still belongs to the card. */
+#hand-you.fan:has(#hand-mulligan)::before {
+  content: ""; position: absolute; z-index: -1;
+  left: 0; right: 0; bottom: 100%; height: var(--mull-gap);
+}
 /* A card in the air must not have the hand drop out from under it — picking
    one up takes the pointer off the row, and the drop target it is aiming at
    is this row's own rect (data-drop, snapshotted at pointerdown). */
