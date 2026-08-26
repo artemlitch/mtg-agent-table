@@ -18,8 +18,15 @@
 export const WAKE_DELAY_MS = 3000;
 
 /** A sent message is a finished thought — you pressed enter. The only thing
- *  left to wait out is a second message arriving right behind the first. */
-export const TYPING_DELAY_MS = 300;
+ *  left to wait out is a second message arriving right behind the first.
+ *
+ *  300 was too tight for that one job: the gap between two lines of the same
+ *  thought is a person reaching for the next sentence, not a person waiting,
+ *  and the agent kept opening a window inside it. Still a fraction of the
+ *  table's wait — pressing enter means you ARE finished, and the whole point
+ *  of this being short is that an answer arrives while you are still looking
+ *  at what you sent. */
+export const TYPING_DELAY_MS = 500;
 
 /** How long each thing you can do buys before the agent thinks. Absent from
  *  the table means the full wait: at the table you are usually mid-sequence. */

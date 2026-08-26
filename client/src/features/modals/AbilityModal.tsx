@@ -6,6 +6,7 @@ import { ModalFrame } from "../../components/Modal";
 import { Text } from "../../components/Text";
 import { isSpellCard } from "../../game/rules";
 import { cardAnchor, placeRect } from "../../game/table";
+import { sendTyping } from "../../api";
 import { announceOnStack } from "../../game/announce";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -22,6 +23,10 @@ import type { Card, PlayerId } from "../../types";
  *  instant or a sorcery is the third case: it is played the same way, but it
  *  resolves rather than arrives, so nothing here says "enters". */
 export function openAbilityModal(c: Card) {
+  // opening the box is already proof you are mid-move: there is a pause here
+  // where you read the card before typing a word, and a countdown that ran out
+  // in it would wake the agent onto a play you are halfway through making
+  sendTyping();
   const input = createRef<HTMLTextAreaElement>();
   ui().openModal({
     compact: true,
@@ -75,7 +80,15 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
                   : "What does the ability do? (targets, numbers…)"
             }
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              // the same promise the chat composer makes: a half-written line
+              // is proof you are not finished, so the agent's countdown waits
+              // for you (see sendTyping). This box is the slower of the two to
+              // fill in — it is a trigger being worded, with targets picked off
+              // the board beside it — and it was the one that did not ask.
+              sendTyping();
+            }}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;
               e.preventDefault();
