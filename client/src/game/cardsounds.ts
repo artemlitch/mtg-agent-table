@@ -39,7 +39,15 @@ interface Seen {
   blocking: boolean;
   declaredAttack: boolean; // named in a declaration still on the stack
   declaredBlock: boolean;
+  tapped: boolean;
 }
+
+/** Moves that only count on the way IN. Attacking stops being true when combat
+ *  clears, and that is combat ending rather than the creature doing anything. */
+const RISING = ["attacking", "blocking", "declaredAttack", "declaredBlock"] as const;
+/** Moves that count in BOTH directions. Tapping and untapping are two things
+ *  the card did, not one thing and its absence. */
+const EITHER = ["tapped"] as const;
 
 // What the battlefield looked like last time. null means we have not looked
 // yet, and the first look is where we START — otherwise every card already on
@@ -82,6 +90,7 @@ export function processCardSounds(view: GameView) {
       blocking: !!c.blocking,
       declaredAttack: attackers.has(c.id),
       declaredBlock: blockers.has(c.id),
+      tapped: !!c.tapped,
     });
   }
 
@@ -93,10 +102,9 @@ export function processCardSounds(view: GameView) {
     // Every one of these is a CHANGE, never a state. "Is attacking" stays true
     // for the whole combat, so a sound hung on the state fires again on every
     // refresh until combat clears.
-    const MOVES = ["attacking", "blocking", "declaredAttack", "declaredBlock"] as const;
     for (const [id, is] of now) {
       const was = before.get(id);
-      if (!was || MOVES.some((m) => is[m] && !was[m])) ring(is.name);
+      if (!was || RISING.some((m) => is[m] && !was[m]) || EITHER.some((m) => is[m] !== was[m])) ring(is.name);
     }
     // and gone: the name comes from what we remembered, since the card is not
     // in this view to be asked
