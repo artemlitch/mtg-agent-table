@@ -99,6 +99,29 @@ export function cardById(id: string): Card | null {
   return null;
 }
 
+/** The card a hover preview should draw, given the snapshot the pointer
+ *  arrived on.
+ *
+ *  Normally the LIVE card wins: hovering snapshots a Card object, and one that
+ *  changes while you are looking at it — turned over with its flip button,
+ *  given a counter, tapped — would otherwise go on showing the side it had a
+ *  moment ago.
+ *
+ *  But a live copy can be FACELESS. Every zone is serialized into the view,
+ *  including the libraries, and a library card is always hidden (see
+ *  cardVisibleTo) — id, zone and owner, no name and no art. A search window's
+ *  cards are exactly those: view_zone earned the look and handed over the only
+ *  copy with a face on it, and preferring the table's stub over it drew a card
+ *  with nothing in it. A stub is not a fresher version of the snapshot, so it
+ *  never wins.
+ *
+ *  Falls back to the snapshot for previewable things that are not on the table
+ *  at all, which is why the lookup missing entirely is the same answer. */
+export function previewCard(snapshot: Card): Card {
+  const live = cardById(snapshot.id);
+  return live && !live.hidden ? live : snapshot;
+}
+
 /** The card tucked directly beneath `id` — piles may span controllers, so
  *  both battlefields are searched. */
 export function cardBeneathOf(id: string): Card | null {
