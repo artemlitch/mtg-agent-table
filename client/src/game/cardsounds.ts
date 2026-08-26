@@ -42,6 +42,23 @@ let before: Map<string, Seen> | null = null;
 const battlefield = (view: GameView): Card[] =>
   PLAYERS.flatMap((p) => view.players[p].zones.battlefield ?? []);
 
+/** Who is DECLARED as attacking or blocking, which is not the same as who is
+ *  marked. Tapping a creature with E puts a declaration on the stack; the flag
+ *  on the card is only set when that declaration resolves, which is the
+ *  defender's move and can be a minute later. Waiting for the flag meant Blor
+ *  swung in silence and then made its noise long after, during someone else's
+ *  press. Read from the view's own stack rather than the store, so this
+ *  function answers for the view it was handed. */
+function declared(view: GameView) {
+  const attackers = new Set<string>();
+  const blockers = new Set<string>();
+  for (const item of view.stack ?? []) {
+    for (const pair of item.attackPairs ?? []) attackers.add(pair.attacker);
+    for (const pair of item.blockPairs ?? []) blockers.add(pair.blocker);
+  }
+  return { attackers, blockers };
+}
+
 export function processCardSounds(view: GameView) {
   if (typeof SFX === "undefined") return;
   // every sound that names a card, and the name it wants
@@ -49,9 +66,14 @@ export function processCardSounds(view: GameView) {
     .map(([sound, def]) => [sound, (def as { card?: string }).card] as const)
     .filter((e): e is readonly [string, string] => !!e[1]);
 
+  const { attackers, blockers } = declared(view);
   const now = new Map<string, Seen>();
   for (const c of battlefield(view)) {
-    now.set(c.id, { name: c.name ?? "", attacking: !!c.attacking, blocking: !!c.blocking });
+    now.set(c.id, {
+      name: c.name ?? "",
+      attacking: !!c.attacking || attackers.has(c.id),
+      blocking: !!c.blocking || blockers.has(c.id),
+    });
   }
 
   if (before && watched.length) {
