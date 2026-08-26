@@ -1914,10 +1914,20 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (isLandPlay) {
       placeCard(card, "battlefield", ctx.actor);
       card.faceDown = false;
-      // "enters tapped" written in the note is prose the board never reads —
-      // only this param actually turns the land sideways, and the log says
-      // "tapped" off the param so the sentence can't outrun the board state
-      const entersTapped = p.tapped === true;
+      // The param turns the land sideways, and the log says "tapped" off the
+      // same fact, so the sentence cannot outrun the board state.
+      //
+      // The note counts too, which is a deliberate deviation from "the table
+      // parses no card text". The note is the CALLER'S OWN DECLARATION, not
+      // oracle text: the principle protects against the table reading a card
+      // and deciding what it does, and holding a seat to what it just said
+      // about its own play is the opposite of that. It had to: the param
+      // landed and the agent kept writing the intent in prose instead —
+      // Burnwillow Clearing, logged "enters tapped", entered untapped, at seq
+      // 645 after the fix. A seat that SAYS its land enters tapped gets taken
+      // at its word, because the alternative is a log that lies about the
+      // board.
+      const entersTapped = p.tapped === true || /enters?\s+tapped/i.test(String(p.note ?? ""));
       if (entersTapped) card.tapped = true;
       game.players[ctx.actor].turnDone.lands += 1;
       addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${entersTapped ? " tapped" : ""}${p.note ? ` (${p.note})` : ""} — land drop, special action, no stack`, "land_played");

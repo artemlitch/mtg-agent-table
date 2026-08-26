@@ -1941,15 +1941,33 @@ describe("a land that enters tapped", () => {
   const seedLand = () => seedCard("Sunken Hollow", "you", "hand", { typeLine: "Land" });
 
   test("tapped:true actually turns the land sideways, and the log says so", () => {
-    const land = seedLand();
-    applyAction("you", "cast", { card: land.id, note: "enters tapped" });
-    expect(land.tapped).toBe(false);
-
     const other = seedLand();
     applyAction("you", "cast", { card: other.id, tapped: true });
     expect(other.tapped).toBe(true);
     expect(game.log.at(-1)!.text).toContain("played Sunken Hollow tapped");
     expect(game.log.at(-1)!.text).toContain("land drop");
+  });
+
+  // The note counts as well, which reverses what this file used to pin. The
+  // param shipped and the agent went on writing the intent in prose instead —
+  // Burnwillow Clearing, logged "enters tapped", entered untapped, at seq 645
+  // after the fix. A note is the caller's OWN declaration, not oracle text,
+  // and a seat that says its land enters tapped is held to it: the
+  // alternative is a log that lies about the board.
+  test("a seat that says its land enters tapped is taken at its word", () => {
+    const land = seedLand();
+    applyAction("you", "cast", { card: land.id, note: "enters tapped" });
+    expect(land.tapped).toBe(true);
+    expect(game.log.at(-1)!.text).toContain("played Sunken Hollow tapped");
+
+    // and the note still rides the line, so the reason is not lost
+    expect(game.log.at(-1)!.text).toContain("(enters tapped)");
+  });
+
+  test("...but only what it actually says — untapped is not tapped", () => {
+    const land = seedLand();
+    applyAction("you", "cast", { card: land.id, note: "enters untapped, two other lands out" });
+    expect(land.tapped).toBe(false);
   });
 
   test("without the param the land arrives untapped", () => {
