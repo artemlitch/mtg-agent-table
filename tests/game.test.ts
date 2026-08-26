@@ -2399,6 +2399,94 @@ describe("the turn knows what has already happened in it", () => {
   });
 });
 
+describe("a card is never reported by name alone", () => {
+  // The rule, as a test rather than a convention: if a log line SAYS a card,
+  // the entry CARRIES that card. There is one way to write a name into the log
+  // (named(), and its visibility-aware form publicDesc) and taking it registers
+  // the id — so the client can raise a preview and the agent can be handed the
+  // oracle it would otherwise reconstruct from memory.
+  //
+  // The check is deliberately dumb: it scans the finished sentence for names.
+  // Scraping prose is exactly what production must never do, and exactly what a
+  // test SHOULD do — it is the independent reading that catches a call site
+  // building a name out of `card.name` and dropping the card.
+  const namesIn = (text: string) =>
+    Object.values(game.cards).filter((c) => c.name && text.includes(c.name));
+
+  function everyNamedCardIsCarried() {
+    for (const e of game.log) {
+      for (const c of namesIn(e.text)) {
+        expect(e.cards ?? [], `"${e.text}" names ${c.name} and does not carry it`).toContain(c.id);
+      }
+    }
+  }
+
+  test("casting, playing, resolving, countering, taking back", () => {
+    const forest = seedCard("Forest", "you", "hand", { typeLine: "Basic Land — Forest" });
+    const bear = seedCard("Grizzly Bears", "you", "hand");
+    const bolt = seedCard("Lightning Bolt", "agent", "hand", { typeLine: "Instant" });
+    applyAction("you", "cast", { card: forest.id });
+    applyAction("you", "cast", { card: bear.id });
+    applyAction("agent", "stack_resolve", {});
+    applyAction("agent", "cast", { card: bolt.id });
+    applyAction("agent", "stack_remove", { index: 0 });
+    everyNamedCardIsCarried();
+  });
+
+  test("combat: declaring, blocking, damage and dying", () => {
+    const mine = seedCard("Serra Angel", "you", "battlefield", { power: "4", toughness: "4" });
+    const theirs = seedCard("Wall of Omens", "agent", "battlefield", { power: "0", toughness: "4" });
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: mine.id, target: "agent" }] });
+    applyAction("you", "finish_attacks", {});
+    applyAction("agent", "stack_resolve", {});
+    applyAction("agent", "block", { pairs: [{ blocker: theirs.id, attacker: mine.id }] });
+    applyAction("you", "stack_resolve", {});
+    applyAction("you", "damage", { hits: [{ source: mine.id, target: theirs.id, amount: 4 }], dies: [theirs.id] });
+    applyAction("agent", "stack_resolve", {});
+    everyNamedCardIsCarried();
+  });
+
+  test("the table's smaller sentences: tapping, counters, P/T, piles, reveals", () => {
+    const a = seedCard("Llanowar Elves", "you", "battlefield", { power: "1", toughness: "1" });
+    const b = seedCard("Birds of Paradise", "you", "battlefield", { power: "0", toughness: "1" });
+    const c = seedCard("Ancestral Recall", "you", "hand");
+    applyAction("you", "tap", { cards: [a.id, b.id] });
+    applyAction("you", "counters", { cards: [a.id], kind: "+1/+1", delta: 2 });
+    applyAction("you", "set_pt", { card: b.id, power: 3, toughness: 3 });
+    applyAction("you", "tuck", { card: b.id, under: a.id });
+    applyAction("you", "reveal", { cards: [c.id], to: "all" });
+    everyNamedCardIsCarried();
+  });
+
+  test("a hidden card is registered but redacted for the seat that may not look", () => {
+    // registering it is what lets the OWNER still raise a preview; the
+    // redaction in renderLogFor is what stops the other seat doing the same
+    const secret = seedCard("Black Lotus", "you", "hand");
+    // exiled face-down — a cast would put it on the stack, where it is public
+    applyAction("you", "move", { card: secret.id, toZone: "exile", faceDown: true, revealTo: "you" });
+    const entry = game.log.at(-1)!;
+    expect(entry.text).not.toContain("Black Lotus");
+    expect(entry.cards).toContain(secret.id);
+    expect(renderLogFor(entry, "agent").cards ?? []).not.toContain(secret.id);
+    expect(renderLogFor(entry, "you").cards ?? []).toContain(secret.id);
+  });
+
+  test("a name written for a refusal never lands on the next line", () => {
+    // publicDesc runs inside error messages too — the tapped-blocker refusal
+    // names the creature — and that name must not turn up on whatever gets
+    // logged next
+    const tapped = seedCard("Gilded Drake", "agent", "battlefield", { tapped: true, power: "3", toughness: "3" });
+    const attacker = seedCard("Serra Angel", "you", "battlefield", { power: "4", toughness: "4" });
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: attacker.id, target: "agent" }] });
+    expect(() => applyAction("agent", "block", { pairs: [{ blocker: tapped.id, attacker: attacker.id }] })).toThrow(/tapped/);
+
+    applyAction("you", "life", { player: "you", delta: -1 });
+    expect(game.log.at(-1)!.cards ?? []).not.toContain(tapped.id);
+  });
+});
+
 describe("what a log entry's event tag is allowed to be", () => {
   // Live game, seq 135: `Player turned a card face-down` went out tagged
   // `[object Object]`. addLog takes (actor, text, event, private) and

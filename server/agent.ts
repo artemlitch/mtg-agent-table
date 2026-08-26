@@ -27,7 +27,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { cardVisibleTo, effectivePT, game, renderLogFor, transcript, triggerLines, type Card, type PlayerId } from "./game";
+import { cardVisibleTo, effectivePT, game, markSeenByAgent, renderLogFor, transcript, triggerLines, type Card, type PlayerId } from "./game";
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadKey, isCliVerified, loadProvider } from "./keystore";
 import { DEFAULT_MODEL, PROVIDERS, modelSpec, type ProviderId } from "./models";
@@ -484,14 +484,21 @@ export class AgentRunner {
     this.busy = false;
   }
 
+  /** Events since the agent last saw the table, as the agent may see them. */
+  newEvents(): ReturnType<typeof renderLogFor>[] {
+    return transcript()
+      .filter((e) => e.seq > this.lastSeenSeq)
+      .map((e) => renderLogFor(e, "agent"));
+  }
+
   /** Events since the agent last saw the table, rendered from its viewpoint. */
   newEventsText(): string {
-    const events = transcript().filter((e) => e.seq > this.lastSeenSeq);
-    return events.map((e) => `[${e.seq}] ${renderLogFor(e, "agent").text}`).join("\n");
+    return this.newEvents().map((e) => `[${e.seq}] ${e.text}`).join("\n");
   }
 
   composeWakePrompt(reason: "window" | "react" = "window"): string {
-    const events = this.newEventsText();
+    const entries = this.newEvents();
+    const events = entries.map((e) => `[${e.seq}] ${e.text}`).join("\n");
     this.lastSeenSeq = game.seq;
     const header = this.messages.length || this.sessionId
       ? "New events at the table since your last window:"
@@ -559,6 +566,31 @@ export class AgentRunner {
         // mana is a card reading, and the table does not do those.
         `\n  Player's tapped permanents (${theirTapped.length}): ${theirTapped.length ? theirTapped.map((c) => `${c.name}${c.attacking ? " (attacking)" : ""}`).join(", ") : "none"}\n` +
         `  Do the sum yourself and say it. Not every tapped permanent is mana and one can make more than one, so short does not prove illegal — but if it does not obviously cover the cost, ASK in chat before resolving.\n`
+      : "";
+    // Every card the events just NAMED, whose text the agent has not been shown
+    // this game — delivered once, here, and marked seen.
+    //
+    // This is the general form of the stack block above, and the reason naming
+    // a card in the log registers it (see named() in game.ts). A name on its
+    // own is not knowing: the agent reconstructed Archdruid's Charm's three
+    // modes from memory rather than look. The table already refuses to let it
+    // cast a card whose text never reached it — READ FIRST — so this is that
+    // same guarantee pointed at the cards the OTHER seat plays.
+    //
+    // Once, not every window: agentSeen is the same ledger READ FIRST keeps, so
+    // a card delivered here never arrives twice, and the ones on the stack are
+    // skipped because the block above prints them in full for as long as they
+    // sit there.
+    const onStack = new Set(theirs.map((c) => c.id));
+    const fresh = [...new Set(entries.flatMap((e) => e.cards ?? []))]
+      .filter((id) => !onStack.has(id) && !(game.agentSeen ?? {})[id])
+      .map((id) => game.cards[id])
+      .filter((c): c is Card => !!c?.oracle);
+    markSeenByAgent(fresh.map((c) => c.id));
+    const cardText = fresh.length
+      ? `\nCARDS NAMED ABOVE (their full text, so you never have to remember one):\n` +
+        fresh.map((c) => `  · ${c.name}${c.mana ? ` — ${c.mana}` : ""}${oracleFor(c)}`).join("\n") +
+        "\n"
       : "";
     // Combat has an order, and game.combat is where it currently is. This used
     // to be read back out of the log — which line came last — and the reading
@@ -646,7 +678,7 @@ export class AgentRunner {
       : "";
     // the narration and say-vs-text rules used to close every wake; they are
     // points 2 and 9 of the system prompt and did not need saying twice
-    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${paymentCheck}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
+    return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${paymentCheck}${cardText}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
   private preempted = false;

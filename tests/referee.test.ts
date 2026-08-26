@@ -196,7 +196,97 @@ describe("refereeing a spell on the stack", () => {
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     expect(a.composeWakePrompt("react")).not.toContain("Nobody's business");
   });
+});
 
+describe("a card the events named, delivered once", () => {
+  // The general form of the block above, and what naming a card in the log
+  // registers the id FOR. A card that never touches the stack — a creature
+  // reanimated straight onto the battlefield, a land with text on it — was
+  // named and nothing else, and the agent had to remember or go looking.
+  const reanimate = () => {
+    resetGameState();
+    const c = makeCard({
+      id: "gd",
+      name: "Gilded Drake",
+      owner: "you",
+      controller: "you",
+      zone: "graveyard",
+      mana: "{1}{U}",
+      typeLine: "Creature — Drake",
+      oracle: "Flying\nWhen Gilded Drake enters, exchange control of it and up to one target creature an opponent controls.",
+    });
+    game.cards[c.id] = c;
+    game.players.you.zones.graveyard.push(c.id);
+    applyAction("you", "move", { card: c.id, toZone: "battlefield", note: "reanimated" });
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    return a;
+  };
+
+  test("arrives with its full text the window it is named in", () => {
+    const a = reanimate();
+    const prompt = a.composeWakePrompt("react");
+    expect(prompt).toContain("CARDS NAMED ABOVE");
+    expect(prompt).toContain("Gilded Drake — {1}{U}");
+    expect(prompt).toContain("exchange control of it");
+  });
+
+  test("...and never a second time", () => {
+    // agentSeen is the ledger READ FIRST already keeps; a card whose text has
+    // reached the agent's context has reached it, and repeating it every window
+    // is the bloat that made the board digest deliberately textless
+    const a = reanimate();
+    a.composeWakePrompt("react");
+    applyAction("you", "tap", { cards: ["gd"] });
+    expect(a.composeWakePrompt("react")).not.toContain("CARDS NAMED ABOVE");
+  });
+
+  test("a card the agent may not see is not described to it", () => {
+    resetGameState();
+    const c = makeCard({
+      id: "sk",
+      name: "Skulking Ghost",
+      owner: "you",
+      controller: "you",
+      zone: "hand",
+      mana: "{2}{B}",
+      typeLine: "Creature — Spirit",
+      oracle: "Flying\nWhen Skulking Ghost becomes the target of a spell, sacrifice it.",
+    });
+    game.cards[c.id] = c;
+    game.players.you.zones.hand.push(c.id);
+    applyAction("you", "move", { card: c.id, toZone: "exile", faceDown: true, revealTo: "you" });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    const prompt = a.composeWakePrompt("react");
+    expect(prompt).not.toContain("Skulking Ghost");
+    expect(prompt).not.toContain("sacrifice it");
+  });
+
+  test("the stack block keeps its own copy — an item you must adjudicate is not said once", () => {
+    // deliberately not deduped against CARDS NAMED ABOVE from the other side:
+    // an item sits on the stack across several windows, and the whole reason
+    // the board digest exists is that the agent plays off its own older prose
+    resetGameState();
+    const c = makeCard({
+      id: "ct", name: "Counterspell", owner: "you", controller: "you", zone: "hand",
+      mana: "{U}{U}", typeLine: "Instant", oracle: "Counter target spell.",
+    });
+    game.cards[c.id] = c;
+    game.players.you.zones.hand.push(c.id);
+    applyAction("you", "cast", { card: c.id });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.composeWakePrompt("react")).toContain("Counter target spell.");
+    // still there a window later, while it is still Player's to resolve
+    applyAction("you", "chat", { text: "anything?" });
+    expect(a.composeWakePrompt("react")).toContain("Counter target spell.");
+  });
+});
+
+describe("refereeing, continued", () => {
   test("the duty in the system prompt has the shape the evasion check has", () => {
     // The evasion line works and this one did not, and they were not written
     // alike: "check X before you Y", the inputs named, an observable output

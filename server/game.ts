@@ -421,12 +421,46 @@ let said: LogEntry[] = [];
 /** The event comes BEFORE the private rendering: naming what happened is the
  *  common case and the private text is the rare one, and a fourth positional
  *  argument would have every tagged line carrying an `undefined` past it. */
+/** Cards named in the line currently being built — see named()/publicDesc().
+ *  Drained onto the entry by addLog and cleared per action by applyAction, so
+ *  a line that threw before it was logged cannot contaminate the next one. */
+let namedInLine: string[] = [];
+
+/**
+ * Name a card in a log line, and register the card ON that line.
+ *
+ * A card named in the log is a card the reader may need to KNOW, and a bare
+ * name is not knowing. The agent, asked to resolve "Archdruid's Charm", spent
+ * a whole window reconstructing three modes from memory — "Create a 3/3 green
+ * Beast token? No. Put a +1/+1 counter…? Hmm." — while the oracle sat on the
+ * server the entire time. Nothing was broken; the name simply arrived alone,
+ * because every log line built its sentence out of `card.name` and dropped the
+ * card.
+ *
+ * So there is one way to write a card's name into the log, and taking it
+ * registers the id. addLog hangs the ids on the entry; renderLogFor redacts
+ * them per viewer; the client turns them into hover previews and the agent's
+ * window turns the ones it has not been shown into text. No renderer scrapes a
+ * sentence for names, and no call site has to remember to pass anything.
+ */
+export function named(card: Card): string {
+  namedInLine.push(card.id);
+  return card.name;
+}
+
+/** Drop anything named but never logged — see applyAction. */
+export function clearNamedCards() {
+  namedInLine = [];
+}
+
 export function addLog(
   actor: LogEntry["actor"],
   text: string,
   event?: GameEvent,
   priv?: LogEntry["private"]
 ): LogEntry {
+  const cards = namedInLine.length ? [...new Set(namedInLine)] : null;
+  namedInLine = [];
   const entry: LogEntry = {
     seq: ++game.seq,
     ts: Date.now(),
@@ -434,6 +468,7 @@ export function addLog(
     text,
     ...(event ? { event } : {}),
     ...(priv ? { private: priv } : {}),
+    ...(cards ? { cards } : {}),
   };
   game.log.push(entry);
   return entry;
@@ -799,10 +834,12 @@ export function applyFace(card: Card, face: number) {
   card.name = card.faces[face].name ?? card.name;
 }
 
-/** Public description of a card for the log: name if publicly visible, else "a face-down card". */
+/** The visibility-aware form of named(): the name if BOTH seats can see the
+ *  card, else "a hidden card". Registers either way — renderLogFor redacts the
+ *  ids per viewer, so the seat that may look still can. */
 function publicDesc(card: Card): string {
-  const publiclyVisible = PLAYERS.every((p) => cardVisibleTo(card, p));
-  return publiclyVisible ? card.name : "a hidden card";
+  const name = named(card);
+  return PLAYERS.every((p) => cardVisibleTo(card, p)) ? name : "a hidden card";
 }
 
 /** A block declaration as one line per ATTACKER — "Llanowar Elves, Plant →
@@ -920,7 +957,7 @@ function fizzleItem(ctx: ActionCtx, item: StackItem): ActionResult {
   if (item.cardId) {
     const card = getCard(item.cardId);
     placeCard(card, "graveyard", card.owner);
-    addLog(ctx.actor, `${card.name} was countered — fizzles → ${who(card.owner)}'s graveyard`, "countered");
+    addLog(ctx.actor, `${named(card)} was countered — fizzles → ${who(card.owner)}'s graveyard`, "countered");
   } else {
     // the same event either way. Only the card branch used to make a noise —
     // the regex that caught it wanted a card name and an arrow, so a countered
@@ -1075,7 +1112,7 @@ function resolveStackItem(ctx: ActionCtx, item: StackItem, p: any): ActionResult
   // the destination is the only thing that separates them.
   addLog(
     ctx.actor,
-    `${card.name} resolved → ${who(toPlayer)}'s ${toZone}`,
+    `${named(card)} resolved → ${who(toPlayer)}'s ${toZone}`,
     toZone === "battlefield" ? "permanent_resolved" : "spell_resolved"
   );
   const enterWatchers = toZone === "battlefield" ? zoneChangeWatchers("enters") : [];
@@ -1213,8 +1250,9 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       movedIds.push(card.id);
 
       const postVis = { you: cardVisibleTo(card, "you"), agent: cardVisibleTo(card, "agent") };
-      for (const v of PLAYERS) names[v].push(preVis[v] || postVis[v] ? card.name : "a hidden card");
-      names.public.push(postVis.you && postVis.agent ? card.name : "a hidden card");
+      const shownName = named(card);
+      for (const v of PLAYERS) names[v].push(preVis[v] || postVis[v] ? shownName : "a hidden card");
+      names.public.push(postVis.you && postVis.agent ? shownName : "a hidden card");
     }
 
     const n = cards.length;
@@ -1373,7 +1411,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
         delete c.basePower;
         delete c.baseToughness;
       }
-      addLog(ctx.actor, `${who(ctx.actor)} reset ${c.name} to printed P/T (${c.power ?? "?"}/${c.toughness ?? "?"})`);
+      addLog(ctx.actor, `${who(ctx.actor)} reset ${named(c)} to printed P/T (${c.power ?? "?"}/${c.toughness ?? "?"})`);
     } else {
       if (c.basePower === undefined) {
         c.basePower = c.power ?? "?";
@@ -1381,7 +1419,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       }
       c.power = String(p.power);
       c.toughness = String(p.toughness ?? p.power);
-      addLog(ctx.actor, `${who(ctx.actor)} set ${c.name} to ${c.power}/${c.toughness} (printed ${c.basePower}/${c.baseToughness})`);
+      addLog(ctx.actor, `${who(ctx.actor)} set ${named(c)} to ${c.power}/${c.toughness} (printed ${c.basePower}/${c.baseToughness})`);
     }
     return { ok: true, power: c.power, toughness: c.toughness };
   },
@@ -1485,18 +1523,18 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const c = getCard(id);
       const grant = to === "all" ? [...PLAYERS] : [to];
       for (const g of grant) if (!c.visibleTo.includes(g)) c.visibleTo.push(g);
-      names.push(c.name);
+      names.push(named(c));
     }
-    const entry =
-      to === "all"
-        ? addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`)
-        : addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, undefined, {
-            [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
-            [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
-          });
-    // the cards themselves, for the client to open in a browser — the log line
-    // says which cards, this says which CARDS
-    entry.cards = [...ids];
+    // the ids ride out with the line because naming a card registers it (see
+    // named()) — this used to be the ONE place that hung them on by hand
+    if (to === "all") {
+      addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`);
+    } else {
+      addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, undefined, {
+        [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
+        [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
+      });
+    }
     return { ok: true, names };
   },
 
@@ -1960,7 +1998,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       const entersTapped = p.tapped === true || /enters?\s+tapped/i.test(String(note ?? ""));
       if (entersTapped) card.tapped = true;
       game.players[ctx.actor].turnDone.lands += 1;
-      addLog(ctx.actor, `${who(ctx.actor)} played ${card.name}${entersTapped ? " tapped" : ""}${note ? ` (${note})` : ""} — land drop, special action, no stack`, "land_played");
+      addLog(ctx.actor, `${who(ctx.actor)} played ${named(card)}${entersTapped ? " tapped" : ""}${note ? ` (${note})` : ""} — land drop, special action, no stack`, "land_played");
       const landTrig = triggerLines(card);
       const landWatchers = zoneChangeWatchers("enters");
       return {
@@ -2006,7 +2044,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       ...(p.resolveToPlayer ? { resolveToPlayer: asPlayer(p.resolveToPlayer, "resolveToPlayer") } : {}),
     });
     const verb = /\bland\b/i.test(effType) ? "played" : "cast";
-    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${card.name}${note ? ` (${note})` : ""}${targetText} → on the stack`, "cast");
+    addLog(ctx.actor, `${who(ctx.actor)} ${verb} ${named(card)}${note ? ` (${note})` : ""}${targetText} → on the stack`, "cast");
     const trig = triggerLines(card);
     return {
       ok: true,
@@ -2155,7 +2193,7 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     if (item.cardId) {
       const card = getCard(item.cardId);
       placeCard(card, "hand", card.owner);
-      addLog(ctx.actor, `${who(ctx.actor)} took ${card.name} back off the stack → ${who(card.owner)}'s hand`);
+      addLog(ctx.actor, `${who(ctx.actor)} took ${named(card)} back off the stack → ${who(card.owner)}'s hand`);
     } else {
       addLog(ctx.actor, `${who(ctx.actor)} removed from the stack: ${item.text}`);
     }
@@ -2343,6 +2381,9 @@ const PLAY_ACTIONS = new Set(["cast", "tap", "untap", "untap_all", "move", "crea
 export function applyAction(actor: PlayerId, type: string, params: any): ActionResult {
   const fn = actions[type];
   if (!fn) throw new Error(`unknown action ${type}`);
+  // A card named while building a line that then threw — publicDesc runs in
+  // refusal messages too — must not turn up on the next action's log entry.
+  clearNamedCards();
   const res = fn({ actor }, params ?? {});
   if (PLAY_ACTIONS.has(type)) game.players[actor].turnDone.acted = true;
   return res;
