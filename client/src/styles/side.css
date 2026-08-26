@@ -11,7 +11,9 @@
    alignment with the bar is the whole point. */
 /* one line high and never two, the same rule the topbar keeps — they are the
    same band across the top of the window */
-#tabs { display: flex; position: relative; height: var(--bar-h); flex: none; white-space: nowrap; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
+/* ...and the same line under both, flat, so it crosses the window unbroken
+   rather than fading out at each end of this half — see the note on #topbar. */
+#tabs { display: flex; position: relative; height: var(--bar-h); flex: none; white-space: nowrap; border-bottom: 1px solid var(--line); }
 
 /* the tab row heads the panel, so it is set at the panel's reading size and
    not at the chrome's — see --fs-read, which #pane-chat also rebases on */

@@ -7,9 +7,16 @@
    "End turn → Agent" broke onto a second line and took the whole bar with it.
    Clipping is the correct failure here — a control that has run out of room is
    gone, not folded. */
+/* The line under the bar is the SAME line as the one under the side panel's
+   tab row (see #tabs) — they sit shoulder to shoulder across the top of the
+   window at the same --bar-h, so what runs under them has to read as one rule
+   crossing the whole window, not as two sections that happen to be adjacent.
+   Both take --line flat. A gradient cannot do that: this one lit to #f8e7a0 at
+   its middle while the tabs' faded to transparent at both ends, so the single
+   line the eye expects arrived as a bright swell that dimmed out and stopped. */
 #topbar {
   display: flex; align-items: center; gap: 14px; height: var(--bar-h); padding: 0 10px; background: var(--panel);
-  border-bottom: 1px solid; border-image: linear-gradient(90deg, #4a350f, #d8a03d, #f8e7a0, #d8a03d, #4a350f) 1;
+  border-bottom: 1px solid var(--line);
 }
 /* never wrap the topbar: the banner is the one flexible item and truncates
    away; the bar clips as a backstop so it can't paint over the side panel.
