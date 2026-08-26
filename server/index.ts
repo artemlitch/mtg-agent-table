@@ -75,6 +75,8 @@ async function backupAndArchive(): Promise<string | null> {
       agent.legacyPrompt = "";
     }
     console.log(`restored game from ${STATE_FILE} (turn ${game.turnNumber}, seq ${game.seq})`);
+    // a restart eats whatever countdown was pending — see rearmAfterRestore
+    wakes.rearmAfterRestore(game);
   }
 }
 

@@ -189,6 +189,38 @@ describe("wake debounce", () => {
     expect(s.wakeAt).toBeNull();
   });
 
+  // A pending countdown lives in this object and nowhere else, so a restart
+  // eats it. Live: Player resolved combat damage (reactive, countdown armed),
+  // the server restarted seconds later, and the table came back on the AGENT's
+  // turn with an empty stack, the window on Player and nothing scheduled —
+  // neither seat had a move that would wake anything. Ten minutes on the
+  // manual Pass button.
+  test("a restart does not eat the wake the agent's own turn owes", () => {
+    s.rearmAfterRestore({ started: true, turn: "agent" });
+    expect(s.wakeAt).toBe(Date.now() + WAKE_DELAY_MS);
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual(["window"]);
+  });
+
+  // Every other shape is waiting on PLAYER, whose next action arms a countdown
+  // the ordinary way. Arming one here would wake the agent into a table where
+  // nothing had happened since its last window.
+  test("...and does not conjure one where Player is the seat to move", () => {
+    s.rearmAfterRestore({ started: true, turn: "you" });
+    expect(s.wakeAt).toBeNull();
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    expect(fired).toEqual([]);
+  });
+
+  // nothing has been dealt yet: the wake that starts a game is the deal's, and
+  // a restore of an unstarted table must not fire one into an empty board
+  test("...nor before the game has started at all", () => {
+    s.rearmAfterRestore({ started: false, turn: "agent" });
+    expect(s.wakeAt).toBeNull();
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    expect(fired).toEqual([]);
+  });
+
   test("a sent message answers almost at once", () => {
     s.schedule("window", TYPING_DELAY_MS);
     vi.advanceTimersByTime(TYPING_DELAY_MS);

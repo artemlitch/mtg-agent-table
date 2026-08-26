@@ -106,6 +106,23 @@ export class WakeScheduler {
     if (this.timer) this.arm(delay);
   }
 
+  /** The table has just been restored from disk. Give the agent back a window
+   *  if the state it came back to is one it owes motion in.
+   *
+   *  A pending countdown lives only in this object, so a restart eats it — and
+   *  with it the promise it was making. Live: Player resolved combat damage
+   *  (reactive, so a countdown armed), the server restarted seconds later, and
+   *  the table came back on the AGENT's turn with an empty stack, the window
+   *  on Player, and nothing scheduled. Neither seat had a move that would wake
+   *  anything; it sat on the manual Pass button for ten minutes.
+   *
+   *  The agent's own turn is the deadlocked shape, because it is the only one
+   *  where nobody else is expected to act. Every other shape is waiting on
+   *  Player, whose next action arms a countdown the ordinary way. */
+  rearmAfterRestore(restored: { started: boolean; turn: string }) {
+    if (restored.started && restored.turn === "agent") this.schedule("window");
+  }
+
   cancel() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
