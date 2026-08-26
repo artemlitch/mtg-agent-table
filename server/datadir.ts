@@ -20,3 +20,11 @@ mkdirSync(DATA_DIR, { recursive: true });
 export const STATE_FILE = process.env.STATE_FILE ?? join(DATA_DIR, "state.json");
 export const GAMES_DIR = process.env.GAMES_DIR ?? join(DATA_DIR, "games");
 mkdirSync(GAMES_DIR, { recursive: true });
+
+/** Sound libraries to audition against, unpacked here rather than in the
+ *  checkout. A commercial library is tens of gigabytes and tens of thousands
+ *  of files; none of that belongs in git, and none of it should be copied into
+ *  web/ by every build. The sounds that survive an audition get copied into
+ *  client/public/assets/sounds, which is the part worth keeping. */
+export const SAMPLE_LIB_DIR = process.env.SAMPLE_LIB_DIR ?? join(DATA_DIR, "sample-libraries");
+mkdirSync(SAMPLE_LIB_DIR, { recursive: true });

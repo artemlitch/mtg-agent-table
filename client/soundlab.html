@@ -153,7 +153,7 @@
 <body class="lab">
 <h1>Sound Lab</h1>
 <div class="hint">Tweak, hit Play, repeat. Each row saves itself into public/sounds.json — the file the table reads. (Click anywhere once to arm audio.)<br>
-The 🎧 chip opens the sample packs in client/public/samples. Click a file to hear it and put it on that sound's shortlist — click it again to take it off. Saving records the filenames; nothing plays them yet.</div>
+The 🎧 chip browses the sounds we have kept (client/public/assets/sounds) and any library unpacked into the sample-libraries folder beside the game state. Click a file to hear it and put it on that sound's shortlist — click it again to take it off. Saving records the filenames; nothing plays them yet.</div>
 <div class="sounds" id="sounds">loading sounds.json…</div>
 
 <aside id="browser">
@@ -163,6 +163,7 @@ The 🎧 chip opens the sample packs in client/public/samples. Click a file to h
     <div class="hrow">
       <button class="playbtn" id="browsercompare">▶ Compare</button>
       <button id="browserclear">✕ Clear</button>
+      <button id="browserrescan" title="Look for libraries added since the page loaded">⟳</button>
       <button id="browserclose">Close</button>
     </div>
     <input type="search" id="browsersearch" placeholder="filter by name…" autocomplete="off">
@@ -242,10 +243,14 @@ async function saveSound(name, btn, msg) {
 // sound and NOTHING ELSE: the engine still synthesises every sound it plays,
 // and this is a note of which recording a sound is being matched against.
 let PACKS = [];
-const packsReady = fetch("/api/samples")
-  .then((r) => r.json())
-  .then((d) => (PACKS = d.packs ?? []))
-  .catch(() => (PACKS = []));
+// how many matching files a pack may draw before it asks you to narrow first
+const BIG_PACK = 400;
+const loadPacks = (fresh) =>
+  fetch(`/api/samples${fresh ? "?fresh=1" : ""}`)
+    .then((r) => r.json())
+    .then((d) => (PACKS = d.packs ?? []))
+    .catch(() => (PACKS = []));
+const packsReady = loadPacks();
 
 // Auditioning went through an <audio> element, and that put a delay between
 // the click and the sound every single time. Assigning .src runs the whole
@@ -411,6 +416,18 @@ function renderBrowser() {
       if (q && !file.toLowerCase().includes(q)) continue;
       (groups[categoryOf(file)] ??= []).push(file);
     }
+    // A commercial library is tens of thousands of files. Drawing a button for
+    // each one locks the page for seconds and gives you a list nobody can read
+    // anyway, so a big pack stays folded until the search narrows it.
+    const matched = Object.values(groups).reduce((n, g) => n + g.length, 0);
+    if (matched > BIG_PACK) {
+      const h = document.createElement("div");
+      h.className = "none";
+      h.textContent = `${pack.id}: ${matched.toLocaleString()} files — type to filter`;
+      list.appendChild(h);
+      shown++;
+      continue;
+    }
     for (const cat of Object.keys(groups).sort()) {
       const h = document.createElement("div");
       h.className = "cat";
@@ -418,7 +435,7 @@ function renderBrowser() {
       h.textContent = PACKS.length > 1 && !packFilter ? `${pack.id} · ${cat}` : cat;
       list.appendChild(h);
       for (const file of groups[cat]) {
-        const url = `/samples/${pack.id}/${file}`;
+        const url = `${pack.base}/${file}`;
         const b = document.createElement("button");
         b.className = "file" + (chosen.includes(url) ? " on" : "");
         b.dataset.url = url; // so a pick can light this row without a rebuild
@@ -444,7 +461,7 @@ function renderBrowser() {
     none.className = "none";
     none.textContent = PACKS.length
       ? "nothing matches that"
-      : "no packs — drop a folder of audio into client/public/samples/";
+      : "nothing to browse — unpack a sound library into the sample-libraries folder beside the game state";
     list.appendChild(none);
   }
 }
@@ -465,6 +482,16 @@ function closeBrowser() {
 }
 
 document.getElementById("browserclose").onclick = closeBrowser;
+// a library unpacked while the page was open is not something the page can
+// notice on its own
+document.getElementById("browserrescan").onclick = async (e) => {
+  const b = e.currentTarget;
+  b.disabled = true;
+  await loadPacks(true);
+  b.disabled = false;
+  renderPackFilter();
+  renderBrowser();
+};
 document.getElementById("browsersearch").oninput = renderBrowser;
 document.getElementById("browsercompare").onclick = () => browsingFor && play(browsingFor);
 document.getElementById("browserclear").onclick = () => {

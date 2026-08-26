@@ -1,0 +1,16 @@
+Sounds kept for the table.
+
+Everything in here survived an audition in the sound lab and is checked in on
+purpose. Libraries to audition AGAINST are not checked in — they are unpacked
+into the sample-libraries directory beside the game state, outside the repo.
+
+	sword-unsheathe*.wav       RPG Sound Pack, by artisticdude
+	                           https://opengameart.org/content/rpg-sound-pack
+	                           CC0 — public domain, no attribution required
+
+	bookFlip3.ogg              RPG Audio, by Kenney Vleugels (kenney.nl)
+	                           https://kenney.nl/assets/rpg-audio
+	                           CC0 — public domain, no attribution required
+
+Anything added here needs its source and its licence written down beside it.
+A file whose licence nobody recorded is a file nobody can ship.

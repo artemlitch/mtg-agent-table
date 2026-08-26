@@ -81,6 +81,13 @@
         "verb": 0,
         "atk": 0.001
       }
+    ],
+    "samples": [
+      "/assets/sounds/sword-unsheathe.wav",
+      "/assets/sounds/sword-unsheathe2.wav",
+      "/assets/sounds/sword-unsheathe3.wav",
+      "/assets/sounds/sword-unsheathe4.wav",
+      "/assets/sounds/sword-unsheathe5.wav"
     ]
   },
   "glimmer": {
@@ -204,6 +211,9 @@
         "slide": 0,
         "verb": 0.25
       }
+    ],
+    "samples": [
+      "/assets/sounds/bookFlip3.ogg"
     ]
   },
   "tap": {

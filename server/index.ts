@@ -12,7 +12,7 @@ import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./mo
 import { WakeScheduler, wakePlanFor } from "./wake";
 import { readdirSync } from "node:fs";
 
-import { STATE_FILE, GAMES_DIR } from "./datadir";
+import { STATE_FILE, GAMES_DIR, SAMPLE_LIB_DIR } from "./datadir";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
@@ -24,10 +24,9 @@ const WEB_DIR = new URL("../web/", import.meta.url).pathname;
 // by the stale source it was built from.
 const SOUNDS_SRC = new URL("../client/public/sounds.json", import.meta.url).pathname;
 const SOUNDS_WEB = WEB_DIR + "sounds.json";
-// Sample packs, one directory each — dropped in by hand, listed for the lab to
-// browse. The SOURCE copy is the canonical one for the same reason sounds.json
-// is: web/ is a build output, and a pack added since the last build is real.
-const SAMPLES_SRC = new URL("../client/public/samples/", import.meta.url).pathname;
+// The sounds that survived an audition, checked in. The SOURCE copy is the
+// canonical one for the same reason sounds.json's is: web/ is a build output.
+const KEPT_SOUNDS_SRC = new URL("../client/public/assets/sounds/", import.meta.url).pathname;
 const wakeAgent = (reason: "window" | "react" = "window") => {
   if (!AGENT_DISABLED) agent.wake(reason);
 };
@@ -124,6 +123,49 @@ function validateSounds(v: any): string | null {
     }
   }
   return null;
+}
+
+/** Every audio file under a directory, as paths relative to it. A pack that
+ *  ships battle/ and inventory/ has already said how it wants to be grouped,
+ *  and that beats anything read off a filename — so the subdirectory stays in
+ *  the path and the lab groups on it. */
+function walkAudio(dir: string, prefix = ""): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+    d.isDirectory()
+      ? walkAudio(`${dir}/${d.name}`, `${prefix}${d.name}/`)
+      : /\.(ogg|mp3|wav|m4a|flac)$/i.test(d.name)
+        ? [prefix + d.name]
+        : []
+  );
+}
+
+// A commercial library is tens of thousands of files across a deep tree, and
+// walking it takes long enough to feel. Nothing in it changes while you are
+// auditioning, so the scan is held briefly rather than repeated per keystroke.
+let packCache: { at: number; value: { packs: any[] } } | null = null;
+const PACK_CACHE_MS = 30_000;
+
+/** What the lab can audition: the sounds we have kept, plus every library
+ *  unpacked into SAMPLE_LIB_DIR. Two roots because they are different kinds
+ *  of thing — one is checked in and small, the other is gigabytes that must
+ *  never enter git or the build. Each pack carries the url its files are
+ *  served under, so the lab never has to know which root it came from. */
+function samplePacks(fresh = false) {
+  if (!fresh && packCache && Date.now() - packCache.at < PACK_CACHE_MS) return packCache.value;
+  const packs: { id: string; base: string; files: string[] }[] = [];
+  try {
+    const kept = walkAudio(KEPT_SOUNDS_SRC).sort();
+    if (kept.length) packs.push({ id: "kept", base: "/assets/sounds", files: kept });
+  } catch {}
+  try {
+    for (const d of readdirSync(SAMPLE_LIB_DIR, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const files = walkAudio(`${SAMPLE_LIB_DIR}/${d.name}`).sort();
+      if (files.length) packs.push({ id: d.name, base: `/sample-lib/${d.name}`, files });
+    }
+  } catch {}
+  packCache = { at: Date.now(), value: { packs } };
+  return packCache.value;
 }
 
 const server = Bun.serve({
@@ -499,29 +541,8 @@ const server = Bun.serve({
     // a filename breaks into a category is a question about how one pack
     // happens to name things, not something the server should decide for all
     // of them.
-    if (path === "/api/samples") {
-      // Paths are pack-relative, subdirectories and all: a pack that ships
-      // battle/ and inventory/ has already said how it wants to be grouped,
-      // and that beats anything read off a filename.
-      const walk = (dir: string, prefix = ""): string[] =>
-        readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
-          d.isDirectory()
-            ? walk(`${dir}/${d.name}`, `${prefix}${d.name}/`)
-            : /\.(ogg|mp3|wav|m4a|flac)$/i.test(d.name)
-              ? [prefix + d.name]
-              : []
-        );
-      try {
-        const packs = readdirSync(SAMPLES_SRC, { withFileTypes: true })
-          .filter((d) => d.isDirectory())
-          .map((d) => ({ id: d.name, files: walk(SAMPLES_SRC + d.name).sort() }))
-          .filter((p) => p.files.length)
-          .sort((a, b) => a.id.localeCompare(b.id));
-        return json({ packs });
-      } catch {
-        return json({ packs: [] }); // no samples directory yet is not an error
-      }
-    }
+    // ?fresh=1 skips the cache, for when you have just unpacked something
+    if (path === "/api/samples") return json(samplePacks(url.searchParams.has("fresh")));
 
     if (path === "/api/sounds" && req.method === "POST") {
       let body: any;
@@ -552,6 +573,19 @@ const server = Bun.serve({
       } catch (e: any) {
         return json({ ok: false, error: e.message }, 500);
       }
+    }
+
+    // Audio out of the library directory, which lives beside the game state
+    // rather than in the checkout. Same path rules as the static route below,
+    // and an extension allow-list on top: this hands out files from a
+    // directory nobody reviews, so it hands out audio and nothing else.
+    if (path.startsWith("/sample-lib/")) {
+      const rel = decodeURIComponent(path.slice("/sample-lib/".length));
+      if (/^[^/][^\0]*$/.test(rel) && !rel.split("/").includes("..") && /\.(ogg|mp3|wav|m4a|flac)$/i.test(rel)) {
+        const f = Bun.file(`${SAMPLE_LIB_DIR}/${rel}`);
+        if (await f.exists()) return new Response(f, { headers: { "Cache-Control": "no-cache" } });
+      }
+      return new Response("not found", { status: 404 });
     }
 
     // static frontend
