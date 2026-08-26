@@ -125,12 +125,22 @@
     background: var(--panel2); border: 1px solid var(--line); color: var(--dim);
   }
   #browser .packs button.on { color: var(--accent); border-color: var(--accent); }
+  /* the shortlist, pinned under the header: picks come from all over, and one
+     spread across four packs is not something you can see by scrolling for
+     highlighted rows */
+  #browserpicked:not(:empty) { border-bottom: 1px solid var(--line); padding: 6px 8px; }
+  #browserpicked .pick { display: flex; gap: 4px; align-items: center; }
+  #browserpicked .pickname {
+    flex: 1; text-align: left; font-size: 12px; color: var(--accent);
+    background: none; border: none; padding: 3px 6px;
+  }
+  #browserpicked .pickname:hover { background: var(--panel2); border-radius: 6px; }
 </style>
 </head>
 <body class="lab">
 <h1>Sound Lab</h1>
 <div class="hint">Tweak, hit Play, repeat. Each row saves itself into public/sounds.json — the file the table reads. (Click anywhere once to arm audio.)<br>
-The 🎧 chip opens the sample packs in client/public/samples. Picking one only records the filename against that sound; nothing plays it yet.</div>
+The 🎧 chip opens the sample packs in client/public/samples. Click a file to hear it and put it on that sound's shortlist — click it again to take it off. Saving records the filenames; nothing plays them yet.</div>
 <div class="sounds" id="sounds">loading sounds.json…</div>
 
 <aside id="browser">
@@ -145,6 +155,7 @@ The 🎧 chip opens the sample packs in client/public/samples. Picking one only 
     <input type="search" id="browsersearch" placeholder="filter by name…" autocomplete="off">
     <div class="packs" id="browserpacks"></div>
   </header>
+  <div id="browserpicked"></div>
   <div id="browserlist"></div>
 </aside>
 
@@ -270,22 +281,68 @@ function renderPackFilter() {
   for (const p of PACKS) chip(p.id, p.id.replace(/^(kenney|oga)-/, ""));
 }
 
-const sampleName = (path) => (path ? path.split("/").pop() : "no sample");
+const sampleName = (path) => path.split("/").pop();
+/** The shortlist for a sound. Read without creating it: a sound nobody has
+ *  picked for should not grow an empty array in the file. */
+const samplesOf = (name) => SOUNDS[name].samples ?? [];
 
 function refreshChip(name) {
   const chip = chips[name];
   if (!chip) return;
-  const s = SOUNDS[name].sample;
-  chip.textContent = `🎧 ${sampleName(s)}`;
-  chip.classList.toggle("set", !!s);
-  chip.title = s || "browse the sample packs for a recording to match against this sound";
+  const list = samplesOf(name);
+  chip.textContent = `🎧 ${list.length === 0 ? "no samples" : list.length === 1 ? sampleName(list[0]) : `${list.length} samples`}`;
+  chip.classList.toggle("set", list.length > 0);
+  chip.title = list.length ? list.join("\n") : "browse the sample packs for recordings to match against this sound";
+}
+
+/** In or out of this sound's shortlist. The whole point of the list is
+ *  variants, so picking is a toggle and picking a second file does not
+ *  replace the first. */
+function toggleSample(url) {
+  if (!browsingFor) return;
+  const def = SOUNDS[browsingFor];
+  const list = [...samplesOf(browsingFor)];
+  const at = list.indexOf(url);
+  if (at >= 0) list.splice(at, 1);
+  else list.push(url);
+  if (list.length) def.samples = list;
+  else delete def.samples; // back to a sound with no shortlist, not an empty one
+  touchers[browsingFor]?.();
+  refreshChip(browsingFor);
+  renderBrowser();
+}
+
+/** What is on the shortlist right now, pinned above the packs — picks come
+ *  from all over, and a list spread across four packs and six categories is
+ *  not something you can see by scrolling for the highlighted rows. */
+function renderPicked() {
+  const box = document.getElementById("browserpicked");
+  const list = browsingFor ? samplesOf(browsingFor) : [];
+  box.innerHTML = "";
+  if (!list.length) return;
+  for (const url of list) {
+    const row = document.createElement("div");
+    row.className = "pick";
+    const play = document.createElement("button");
+    play.className = "pickname";
+    play.textContent = sampleName(url);
+    play.title = url;
+    play.onclick = () => audition(url);
+    const rm = document.createElement("button");
+    rm.textContent = "✕";
+    rm.title = "take it off the list";
+    rm.onclick = () => toggleSample(url);
+    row.append(play, rm);
+    box.appendChild(row);
+  }
 }
 
 function renderBrowser() {
+  renderPicked();
   const list = document.getElementById("browserlist");
   const q = document.getElementById("browsersearch").value.trim().toLowerCase();
   list.innerHTML = "";
-  const chosen = browsingFor ? SOUNDS[browsingFor].sample : null;
+  const chosen = browsingFor ? samplesOf(browsingFor) : [];
   let shown = 0;
   for (const pack of PACKS) {
     if (packFilter && pack.id !== packFilter) continue;
@@ -303,18 +360,15 @@ function renderBrowser() {
       for (const file of groups[cat]) {
         const url = `/samples/${pack.id}/${file}`;
         const b = document.createElement("button");
-        b.className = "file" + (url === chosen ? " on" : "");
+        b.className = "file" + (chosen.includes(url) ? " on" : "");
         // the heading already carries the directory, so the row is the name
         b.textContent = file.slice(file.lastIndexOf("/") + 1);
         // one click does both: you are here to hear it, and picking it is
-        // cheap — nothing is written until Save, and the chip says what is set
+        // cheap — nothing is written until Save, and the chip says what is on
+        // the list. Clicking a picked file again takes it back off.
         b.onclick = () => {
           audition(url);
-          if (!browsingFor) return;
-          SOUNDS[browsingFor].sample = url;
-          touchers[browsingFor]?.();
-          refreshChip(browsingFor);
-          renderBrowser();
+          toggleSample(url);
         };
         list.appendChild(b);
         shown++;
@@ -351,7 +405,7 @@ document.getElementById("browsersearch").oninput = renderBrowser;
 document.getElementById("browsercompare").onclick = () => browsingFor && play(browsingFor);
 document.getElementById("browserclear").onclick = () => {
   if (!browsingFor) return;
-  delete SOUNDS[browsingFor].sample;
+  delete SOUNDS[browsingFor].samples;
   touchers[browsingFor]?.();
   refreshChip(browsingFor);
   renderBrowser();

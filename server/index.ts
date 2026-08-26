@@ -107,10 +107,12 @@ function validateSounds(v: any): string | null {
     const def = v[name];
     if (!def || typeof def !== "object") return `${name}: not an object`;
     if (typeof def.desc !== "string") return `${name}: desc must be a string`;
-    // a sample the lab has picked out. Nothing plays it yet — it is a note of
-    // which file this sound is being matched against
-    if (def.sample !== undefined && def.sample !== null && typeof def.sample !== "string") {
-      return `${name}: sample must be a string`;
+    // The recordings the lab has picked out for this sound. Nothing plays them
+    // yet. A list rather than one file because a sound the table makes over and
+    // over wants variants — five sword clashes, not the same clash all game.
+    if (def.samples !== undefined) {
+      if (!Array.isArray(def.samples)) return `${name}: samples must be an array`;
+      for (const s of def.samples) if (typeof s !== "string") return `${name}: every sample must be a string`;
     }
     if (!Array.isArray(def.layers)) return `${name}: layers must be an array`;
     for (const [i, l] of def.layers.entries()) {
