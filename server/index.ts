@@ -75,8 +75,11 @@ async function backupAndArchive(): Promise<string | null> {
       agent.legacyPrompt = "";
     }
     console.log(`restored game from ${STATE_FILE} (turn ${game.turnNumber}, seq ${game.seq})`);
-    // a restart eats whatever countdown was pending — see rearmAfterRestore
-    wakes.rearmAfterRestore(game);
+    // A restart eats whatever countdown was pending — see rearmAfterRestore.
+    // Deferred a tick: arming broadcasts over the websocket, and this runs
+    // during startup, before Bun.serve has bound `server` — calling it inline
+    // crashed the boot (TDZ on the binding the broadcast publishes through).
+    setTimeout(() => wakes.rearmAfterRestore(game), 0);
   }
 }
 
