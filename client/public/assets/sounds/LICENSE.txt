@@ -4,13 +4,39 @@ Everything in here survived an audition in the sound lab and is checked in on
 purpose. Libraries to audition AGAINST are not checked in — they are unpacked
 into the sample-libraries directory beside the game state, outside the repo.
 
-	sword-unsheathe*.wav       RPG Sound Pack, by artisticdude
-	                           https://opengameart.org/content/rpg-sound-pack
-	                           CC0 — public domain, no attribution required
+	sword-unsheathe*.wav    RPG Sound Pack, by artisticdude
+	                        https://opengameart.org/content/rpg-sound-pack
+	                        CC0 — public domain, no attribution required
 
-	bookFlip3.ogg              RPG Audio, by Kenney Vleugels (kenney.nl)
-	                           https://kenney.nl/assets/rpg-audio
-	                           CC0 — public domain, no attribution required
+	bookFlip3.ogg           RPG Audio, by Kenney Vleugels (kenney.nl)
+	                        https://kenney.nl/assets/rpg-audio
+	                        CC0 — public domain, no attribution required
+
+	blor-1..6.wav           Recorded by the owner of this repo on a phone and
+	                        cut into six hits. Nobody else's to license.
+
+	hit_1..5.wav            Cut from "Long Two-Handed Axe Flesh Hit"
+	block_01..05.wav        Cut from "Metal Shield Block Hits"
+	                        both: Justsoundeffects, Melee Weapons, in the
+	                        Sonniss GDC 2024 Game Audio Bundle
+	                        https://sonniss.com/gameaudiogdc
+	                        https://sonniss.com/gdc-bundle-license/
+
+	                        NOT public domain. Royalty-free and commercially
+	                        usable, no attribution required, unlimited
+	                        projects — but the licence turns on the difference
+	                        between a project and a sound library. It permits
+	                        selling them "as incorporated into licensee
+	                        project" and forbids selling "any of the sound
+	                        effects as they come".
+	                        Inside this game they are incorporated. A public
+	                        repository of loose .wav files is closer to
+	                        handing them out as they come, so if this
+	                        checkout is ever published, these two sets are the
+	                        files to think about first — everything else here
+	                        is CC0 or the owner's own.
+	                        The licence also forbids using them to train
+	                        machine-learning models.
 
 Anything added here needs its source and its licence written down beside it.
 A file whose licence nobody recorded is a file nobody can ship.

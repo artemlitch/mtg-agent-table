@@ -81,13 +81,6 @@
         "verb": 0,
         "atk": 0.001
       }
-    ],
-    "samples": [
-      "/assets/sounds/sword-unsheathe.wav",
-      "/assets/sounds/sword-unsheathe2.wav",
-      "/assets/sounds/sword-unsheathe3.wav",
-      "/assets/sounds/sword-unsheathe4.wav",
-      "/assets/sounds/sword-unsheathe5.wav"
     ]
   },
   "glimmer": {
@@ -165,11 +158,11 @@
       }
     ],
     "samples": [
-      "/sample-lib/hits/hit_1.wav",
-      "/sample-lib/hits/hit_2.wav",
-      "/sample-lib/hits/hit_3.wav",
-      "/sample-lib/hits/hit_4.wav",
-      "/sample-lib/hits/hit_5.wav"
+      "/assets/sounds/hit_1.wav",
+      "/assets/sounds/hit_2.wav",
+      "/assets/sounds/hit_3.wav",
+      "/assets/sounds/hit_4.wav",
+      "/assets/sounds/hit_5.wav"
     ]
   },
   "draw": {
@@ -458,11 +451,11 @@
       }
     ],
     "samples": [
-      "/sample-lib/blocks/block_01.wav",
-      "/sample-lib/blocks/block_02.wav",
-      "/sample-lib/blocks/block_03.wav",
-      "/sample-lib/blocks/block_04.wav",
-      "/sample-lib/blocks/block_05.wav"
+      "/assets/sounds/block_01.wav",
+      "/assets/sounds/block_02.wav",
+      "/assets/sounds/block_03.wav",
+      "/assets/sounds/block_04.wav",
+      "/assets/sounds/block_05.wav"
     ]
   },
   "phase": {
@@ -640,12 +633,12 @@
     "card": "Blor",
     "layers": [],
     "samples": [
-      "/sample-lib/blor/blor-1.wav",
-      "/sample-lib/blor/blor-2.wav",
-      "/sample-lib/blor/blor-3.wav",
-      "/sample-lib/blor/blor-4.wav",
-      "/sample-lib/blor/blor-5.wav",
-      "/sample-lib/blor/blor-6.wav"
+      "/assets/sounds/blor-1.wav",
+      "/assets/sounds/blor-2.wav",
+      "/assets/sounds/blor-3.wav",
+      "/assets/sounds/blor-4.wav",
+      "/assets/sounds/blor-5.wav",
+      "/assets/sounds/blor-6.wav"
     ]
   }
 }
