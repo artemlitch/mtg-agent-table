@@ -438,9 +438,13 @@ function renderBrowser() {
   let shown = 0;
   for (const pack of PACKS) {
     if (packFilter && pack.id !== packFilter) continue;
+    // The pack's own name counts as matching text. Searching "recording-34"
+    // and getting nothing, because its files happen to be called hit_01, is
+    // how a pack you know is there stays invisible.
+    const packMatches = !q || pack.id.toLowerCase().includes(q);
     const groups = {};
     for (const file of pack.files) {
-      if (q && !file.toLowerCase().includes(q)) continue;
+      if (q && !packMatches && !file.toLowerCase().includes(q)) continue;
       (groups[categoryOf(file)] ??= []).push(file);
     }
     // A commercial library is tens of thousands of files. Drawing a button for
