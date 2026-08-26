@@ -146,10 +146,16 @@
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5); padding: 6px 8px;
   }
   #browserpicked .pick { display: flex; gap: 4px; align-items: center; }
+  /* A library filename is sixty characters and the ✕ has to stay reachable.
+     min-width: 0 is the whole fix — a flex item refuses to shrink below its
+     content by default, so a long name did not truncate, it grew the row and
+     pushed the button past the edge of the drawer. */
   #browserpicked .pickname {
-    flex: 1; text-align: left; font-size: 12px; color: var(--accent);
+    flex: 1; min-width: 0; text-align: left; font-size: 12px; color: var(--accent);
     background: none; border: none; padding: 3px 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  #browserpicked .pick > button + button { flex: none; }
   #browserpicked .pickname:hover { background: var(--panel2); border-radius: 6px; }
 </style>
 </head>
@@ -350,6 +356,11 @@ function renderPackFilter() {
 }
 
 const sampleName = (path) => path.split("/").pop();
+/** Library names run to sixty characters and differ at the END — _texture_003
+ *  against _texture_004 — so lopping the tail off hides the only part that
+ *  tells two picks apart, and you cannot tell which ✕ removes which. Keep both
+ *  ends and lose the middle. */
+const shortName = (n) => (n.length <= 42 ? n : `${n.slice(0, 16)}…${n.slice(-24)}`);
 /** The shortlist for a sound. Read without creating it: a sound nobody has
  *  picked for should not grow an empty array in the file. */
 const samplesOf = (name) => SOUNDS[name].samples ?? [];
@@ -358,7 +369,9 @@ function refreshChip(name) {
   const chip = chips[name];
   if (!chip) return;
   const list = samplesOf(name);
-  chip.textContent = `🎧 ${list.length === 0 ? "no samples" : list.length === 1 ? sampleName(list[0]) : `${list.length} samples`}`;
+  // the chip sits in a row header that wraps, so a full library name in it
+  // pushes the description onto its own line
+  chip.textContent = `🎧 ${list.length === 0 ? "no samples" : list.length === 1 ? shortName(sampleName(list[0])) : `${list.length} samples`}`;
   chip.classList.toggle("set", list.length > 0);
   chip.title = list.length ? list.join("\n") : "browse the sample packs for recordings to match against this sound";
   // Otherwise the sliders below are a trap: a sound with recordings plays one
@@ -403,7 +416,7 @@ function renderPicked() {
     row.className = "pick";
     const play = document.createElement("button");
     play.className = "pickname";
-    play.textContent = sampleName(url);
+    play.textContent = shortName(sampleName(url));
     play.title = url;
     play.onpointerenter = () => decode(url);
     play.onclick = () => audition(url);
