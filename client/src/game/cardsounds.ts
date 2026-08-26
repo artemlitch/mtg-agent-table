@@ -28,10 +28,17 @@ const claims = (cardName: string, want: string) => {
   return n === w || (n.startsWith(w) && !/[a-z0-9]/.test(n[w.length] ?? " "));
 };
 
+// Declaring and locking in are two things the card did, a beat apart, and both
+// earn a sound: you swing, and then the swing lands. So the declaration and
+// the flag are tracked SEPARATELY rather than or-ed into one "is it attacking"
+// — or-ing them makes the second moment invisible, since the answer was
+// already true.
 interface Seen {
   name: string;
-  attacking: boolean;
+  attacking: boolean; // the flag, set when the declaration resolves
   blocking: boolean;
+  declaredAttack: boolean; // named in a declaration still on the stack
+  declaredBlock: boolean;
 }
 
 // What the battlefield looked like last time. null means we have not looked
@@ -71,8 +78,10 @@ export function processCardSounds(view: GameView) {
   for (const c of battlefield(view)) {
     now.set(c.id, {
       name: c.name ?? "",
-      attacking: !!c.attacking || attackers.has(c.id),
-      blocking: !!c.blocking || blockers.has(c.id),
+      attacking: !!c.attacking,
+      blocking: !!c.blocking,
+      declaredAttack: attackers.has(c.id),
+      declaredBlock: blockers.has(c.id),
     });
   }
 
@@ -81,12 +90,13 @@ export function processCardSounds(view: GameView) {
     const ring = (name: string) => {
       for (const [sound, want] of watched) if (claims(name, want)) fired.add(sound);
     };
+    // Every one of these is a CHANGE, never a state. "Is attacking" stays true
+    // for the whole combat, so a sound hung on the state fires again on every
+    // refresh until combat clears.
+    const MOVES = ["attacking", "blocking", "declaredAttack", "declaredBlock"] as const;
     for (const [id, is] of now) {
       const was = before.get(id);
-      // arrived, or started doing something it was not doing. Not "is
-      // attacking" — that stays true for the whole combat, and a sound on a
-      // STATE rather than a change fires on every refresh until it clears.
-      if (!was || (is.attacking && !was.attacking) || (is.blocking && !was.blocking)) ring(is.name);
+      if (!was || MOVES.some((m) => is[m] && !was[m])) ring(is.name);
     }
     // and gone: the name comes from what we remembered, since the card is not
     // in this view to be asked
