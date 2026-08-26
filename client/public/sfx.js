@@ -177,7 +177,11 @@
   // the other at the same gain is a jump of twenty-odd dB. Crude next to a
   // loudness measurement, but it is two lines and it stops a recording
   // arriving at ten times the volume of the sound it replaced.
-  const TARGET_PEAK = 0.4;
+  // 0.4 was where a recording sat level with the synthesised layers; 0.36 is
+  // that a tenth quieter, which is where they were asked to sit. One number:
+  // every recording the table plays is scaled to hit this peak, so moving it
+  // moves all of them together and none of them relative to each other.
+  const TARGET_PEAK = 0.36;
   function normalise(buf) {
     let peak = 0;
     for (let ch = 0; ch < buf.numberOfChannels; ch++) {
