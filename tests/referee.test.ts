@@ -310,12 +310,24 @@ describe("refereeing, continued", () => {
   // more, told Player to put their printed P/T back, and only in the fourth
   // window found that it had counted six Forests on a board that had five and
   // been wrong about the total the entire time.
-  test("the duty stops at plays, and does not reach Player's bookkeeping", () => {
+  //
+  // The line to draw is NOT plays-versus-bookkeeping. Bookkeeping is exactly
+  // what wants a second pair of eyes — nothing at this table adds up on its
+  // own. It is totals versus forms.
+  test("bookkeeping IS the agent's to check", () => {
     resetGameState();
     const a = new AgentRunner();
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
-    expect(a.systemPrompt).toMatch(/WHAT THIS COVERS IS PLAYS/);
-    expect(a.systemPrompt).toMatch(/It does NOT cover Player's bookkeeping/);
+    expect(a.systemPrompt).toMatch(/Player's BOOKKEEPING is yours to check as much as their plays are/);
+    expect(a.systemPrompt).toMatch(/catching a slip is a favour rather than an accusation/);
+  });
+
+  test("...but the total is the subject, never the way it was written down", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    expect(a.systemPrompt).toMatch(/Compare TOTALS, never the way a total was written down/);
+    expect(a.systemPrompt).toMatch(/"those should not be counters" is not a correction/);
     // said once, and dropped when answered
     expect(a.systemPrompt).toMatch(/say a correction ONCE/);
     expect(a.systemPrompt).toMatch(/a seat's call about their own table is final/);
@@ -324,12 +336,14 @@ describe("refereeing, continued", () => {
   test("...because the table cannot hold a continuous effect at all", () => {
     // printed + counters is the whole model (see effectivePT). An Equipment's
     // +X/+X has nowhere to live, so every way of recording it is a workaround
-    // and none of them is the canonical one the agent invented.
+    // and none of them is the canonical one the agent invented. A creature of
+    // the WRONG SIZE is still a real catch.
     resetGameState();
     const a = new AgentRunner();
     a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
     expect(a.systemPrompt).toMatch(/THE TABLE HAS NO FIELD FOR A CONTINUOUS EFFECT/);
     expect(a.systemPrompt).toMatch(/All three are correct and none is more correct/);
+    expect(a.systemPrompt).toMatch(/if the creature is not the size it should be, say so/);
   });
 
   test("and it has to check its own arithmetic first", () => {
