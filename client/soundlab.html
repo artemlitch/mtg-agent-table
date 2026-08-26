@@ -103,6 +103,9 @@
     width: 100%; margin-top: 8px; padding: 4px 8px; font-size: 12px;
     background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
   }
+  /* min-height:0 or a flex child refuses to shrink below its content and the
+     list scrolls the whole drawer instead of itself */
+  #browserbody { position: relative; flex: 1; min-height: 0; display: flex; }
   #browserlist { overflow-y: auto; flex: 1; padding: 6px 8px 20px; scrollbar-color: var(--line) transparent; }
   #browserlist .cat {
     font: 700 10px/2.2 var(--font-fantasy); color: var(--dim);
@@ -125,10 +128,20 @@
     background: var(--panel2); border: 1px solid var(--line); color: var(--dim);
   }
   #browser .packs button.on { color: var(--accent); border-color: var(--accent); }
-  /* the shortlist, pinned under the header: picks come from all over, and one
-     spread across four packs is not something you can see by scrolling for
-     highlighted rows */
-  #browserpicked:not(:empty) { border-bottom: 1px solid var(--line); padding: 6px 8px; }
+  /* The shortlist floats OVER the list rather than sitting above it in the
+     flow. In the flow it was pushing the list down by a row every time you
+     picked something, which moves the next file you were about to click out
+     from under the cursor — the one place the layout must not move is the
+     list you are working down. */
+  #browserpicked {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+    pointer-events: none; /* an empty shortlist must not eat clicks on row one */
+  }
+  #browserpicked:not(:empty) {
+    pointer-events: auto;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5); padding: 6px 8px;
+  }
   #browserpicked .pick { display: flex; gap: 4px; align-items: center; }
   #browserpicked .pickname {
     flex: 1; text-align: left; font-size: 12px; color: var(--accent);
@@ -155,8 +168,10 @@ The 🎧 chip opens the sample packs in client/public/samples. Click a file to h
     <input type="search" id="browsersearch" placeholder="filter by name…" autocomplete="off">
     <div class="packs" id="browserpacks"></div>
   </header>
-  <div id="browserpicked"></div>
-  <div id="browserlist"></div>
+  <div id="browserbody">
+    <div id="browserlist"></div>
+    <div id="browserpicked"></div>
+  </div>
 </aside>
 
 <script src="/sfx.js"></script>
@@ -309,7 +324,13 @@ function toggleSample(url) {
   else delete def.samples; // back to a sound with no shortlist, not an empty one
   touchers[browsingFor]?.();
   refreshChip(browsingFor);
-  renderBrowser();
+  renderPicked();
+  // ONLY the row that changed. Re-rendering the list would rebuild every
+  // button and throw the scroll back to the top — which, when you are three
+  // hundred files down auditioning variants, loses the place you are working.
+  document
+    .querySelector(`#browserlist .file[data-url="${CSS.escape(url)}"]`)
+    ?.classList.toggle("on", list.includes(url));
 }
 
 /** What is on the shortlist right now, pinned above the packs — picks come
@@ -361,6 +382,7 @@ function renderBrowser() {
         const url = `/samples/${pack.id}/${file}`;
         const b = document.createElement("button");
         b.className = "file" + (chosen.includes(url) ? " on" : "");
+        b.dataset.url = url; // so a pick can light this row without a rebuild
         // the heading already carries the directory, so the row is the name
         b.textContent = file.slice(file.lastIndexOf("/") + 1);
         // one click does both: you are here to hear it, and picking it is
@@ -408,7 +430,9 @@ document.getElementById("browserclear").onclick = () => {
   delete SOUNDS[browsingFor].samples;
   touchers[browsingFor]?.();
   refreshChip(browsingFor);
-  renderBrowser();
+  renderPicked();
+  // same reason as a single pick: unlighting the rows beats rebuilding them
+  for (const el of document.querySelectorAll("#browserlist .file.on")) el.classList.remove("on");
 };
 
 function build() {
