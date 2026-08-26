@@ -1086,6 +1086,56 @@ describe("the view says where combat is", () => {
       expect(() => applyAction("you", "finish_blocks", {})).toThrow(/no block declaration to finish/i);
       expect(game.waitingOn).toBe("you");
     });
+
+    // CR 509.1a. Live: the agent declared its TAPPED Gilded Drake as a
+    // blocker, the table took it without a word, and Player had to catch it in
+    // chat and argue the rule.
+    test("a tapped creature cannot be declared as a blocker", () => {
+      const { rat, a } = swungAt();
+      applyAction("you", "tap", { cards: [a.id] });
+      expect(() => applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] })).toThrow(
+        /Carrion Feeder is tapped/
+      );
+      // and nothing reached the stack on the way to the refusal
+      expect(game.stack.filter((i) => i.apply?.type === "block")).toHaveLength(0);
+    });
+
+    // ...but the rule has real exceptions (Masako the Humorless), and a table
+    // that cannot be overruled is worse than one that never objected. The
+    // refusal names the way through.
+    test("allowTapped is the way through, and the refusal says so", () => {
+      const { rat, a } = swungAt();
+      applyAction("you", "tap", { cards: [a.id] });
+      expect(() => applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] })).toThrow(
+        /allowTapped: true/
+      );
+
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }], allowTapped: true });
+      applyAction("you", "finish_blocks", {});
+      applyAction("agent", "stack_resolve", {});
+      expect(a.blocking).toBe(rat.id);
+    });
+
+    // the gate is on the NEW pairs of an amendment too — a declaration already
+    // open is not a way past it
+    test("amending a declaration with a tapped blocker is refused the same way", () => {
+      const { rat, rat2, a, b } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      applyAction("you", "tap", { cards: [b.id] });
+      expect(() => applyAction("you", "block", { pairs: [{ blocker: b.id, attacker: rat2.id }] })).toThrow(/is tapped/);
+      // the declaration already made is untouched by the refusal
+      const decl = game.stack.find((i) => i.apply?.type === "block")!;
+      expect(decl.apply).toEqual({ type: "block", pairs: [{ blocker: a.id, attacker: rat.id }] });
+    });
+
+    test("an untapped blocker is unaffected, and declaring none never asks", () => {
+      const { rat, a } = swungAt();
+      applyAction("you", "block", { pairs: [{ blocker: a.id, attacker: rat.id }] });
+      expect(game.stack.filter((i) => i.apply?.type === "block")).toHaveLength(1);
+      // an empty declaration names no creature, so there is nothing to check
+      resetGameState();
+      expect(() => applyAction("you", "block", { pairs: [], allowTapped: false })).not.toThrow();
+    });
   });
 
   // Whether damage is COMBAT damage is settled where it is ANNOUNCED. A ping

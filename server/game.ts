@@ -1747,8 +1747,22 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     const open = openBlockDeclaration(ctx.actor);
     const pairs = open?.apply?.type === "block" ? [...open.apply.pairs] : [];
     for (const pair of p.pairs) {
-      getCard(pair.blocker); // both resolve, so a bad id fails before anything changes
+      const blocker = getCard(pair.blocker); // both resolve, so a bad id fails before anything changes
       getCard(pair.attacker);
+      // CR 509.1a: a tapped creature cannot be declared as a blocker. The
+      // table accepted one silently — the agent blocked with a Gilded Drake it
+      // had tapped for mana that turn, and Player had to catch it in chat and
+      // argue the rule. Refusing beats noticing.
+      //
+      // With an escape, because the rule has real exceptions (Masako the
+      // Humorless) and a table that cannot be overruled is worse than one that
+      // never objected. Named in the refusal, so the seat that hits it learns
+      // the way through in the same breath — the shape the damage gate uses.
+      if (blocker.tapped && p.allowTapped !== true) {
+        throw new Error(
+          `${publicDesc(blocker)} is tapped — a tapped creature cannot block. If an effect lets it block as though untapped (e.g. Masako), pass allowTapped: true.`
+        );
+      }
       // re-declaring a creature already in it moves it to the new attacker,
       // rather than blocking twice with the same body
       const at = pairs.findIndex((x) => x.blocker === pair.blocker);
