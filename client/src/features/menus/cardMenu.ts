@@ -133,14 +133,12 @@ export function cardMenu(c: Card, e: Anchor) {
     // hand: the same rows in the same order as the hand branch above, minus
     // the two library destinations — it is already there. No [E] hints: the
     // hotkey answers the hovered hand and command zone, not the deck pile.
-    // The note says where the play came from, the way a command-zone cast
-    // announces itself.
+    // No note either: where a cast came from is the server's to say (see
+    // cast in server/game.ts), so every path off the top reads the same.
     if ((c.faceCount ?? 1) > 1 && c.faces) {
-      c.faces.forEach((f, i) =>
-        items.push({ label: `Play ${f.name}`, fn: () => void playCard({ card: c.id, face: i, note: "from the top of the library" }) })
-      );
+      c.faces.forEach((f, i) => items.push({ label: `Play ${f.name}`, fn: () => void playCard({ card: c.id, face: i }) }));
     } else {
-      items.push({ label: "Play → field", fn: () => void playCard({ card: c.id, note: "from the top of the library" }) });
+      items.push({ label: "Play → field", fn: () => void playCard({ card: c.id }) });
     }
     items.push({ label: isSpellCard(c) ? "Play → with targets…" : "Play → ETB trigger…", fn: () => openAbilityModal(c) });
     items.push(destItem("graveyard", c, { note: "mill" }));

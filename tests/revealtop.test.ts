@@ -55,6 +55,24 @@ describe("reveal_top", () => {
     expect(line).not.toMatch(/Sensei/);
   });
 
+  test("a cast off the top says so in the log", () => {
+    const c = makeCard({ id: newCardId(), name: "Sol Ring", owner: "you", controller: "you", zone: "library", typeLine: "Artifact" });
+    game.cards[c.id] = c;
+    game.players.you.zones.library.push(c.id);
+    applyAction("you", "cast", { card: c.id });
+    expect(game.log.map((l) => l.text).join("\n")).toMatch(/from the top of the library/);
+  });
+
+  test("a batch casts the top card with its trigger — the ability-box path", () => {
+    stock("you", ["Aetherflux Reservoir"]);
+    const id = game.players.you.zones.library[0];
+    game.cards[id].typeLine = "Artifact";
+    applyAction("you", "stack_batch", { items: [{ card: id }, { text: "Aetherflux Reservoir enters the battlefield: gains ride the storm", source: id }] });
+    // the card left the library onto the stack, trigger riding above it
+    expect(game.players.you.zones.library).not.toContain(id);
+    expect(game.stack.length).toBe(2);
+  });
+
   test("your own reveal never marks the agent seat", () => {
     stock("agent", ["Mountain"]);
     applyAction("you", "reveal_top", {});

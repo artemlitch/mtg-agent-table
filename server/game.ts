@@ -2005,7 +2005,12 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     // box and the agent all send the same commander out of the same zone, and
     // the log should say so whichever one reached for it. Read before
     // placeCard moves it, and never over a note the caller wrote themselves.
-    const note = p.note ?? (card.zone === "command" ? "from command zone" : undefined);
+    // A library cast is the same fact one zone over — top of the deck (Elsha,
+    // the revealed top) or out of a search — and the transcript should say
+    // which, because "cast from the library" is exactly the play an opponent
+    // wants to be able to check later.
+    const fromLibrary = card.zone === "library" ? (game.players[card.controller].zones.library[0] === card.id ? "from the top of the library" : "from the library") : undefined;
+    const note = p.note ?? (card.zone === "command" ? "from command zone" : fromLibrary);
     if (p.face !== undefined) applyFace(card, Number(p.face));
     // the effective type is the ACTIVE face's for DFCs: the explicit face
     // param, else whatever face the card is already flipped to (a card turned

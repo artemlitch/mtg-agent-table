@@ -26,8 +26,13 @@ export function announcementText(card: Card, what: string): string {
   return `${name}${arriving && !isSpellCard(card) ? " enters the battlefield" : ""}: ${what}`;
 }
 
-/** The two zones a card of yours waits in to be played. */
-export const isArriving = (c: Card) => c.zone === "hand" || c.zone === "command";
+/** The zones a card of yours waits in to be played: hand, the command zone,
+ *  and — with the top of your library revealed (reveal_top) — the top of your
+ *  own library, which plays like a card in hand. Without the library case the
+ *  ability box treated the revealed card as a PERMANENT: it offered Tap +
+ *  Stack on a card not in play, and submit pushed a bare text line instead of
+ *  casting the card with its trigger. */
+export const isArriving = (c: Card) => c.zone === "hand" || c.zone === "command" || (c.zone === "library" && c.controller === "you");
 
 /**
  * Announce `what` onto the stack for `card`, playing the card in the same

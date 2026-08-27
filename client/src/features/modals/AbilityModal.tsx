@@ -7,7 +7,7 @@ import { Text } from "../../components/Text";
 import { isSpellCard } from "../../game/rules";
 import { cardAnchor, placeRect } from "../../game/table";
 import { sendTyping } from "../../api";
-import { announceOnStack } from "../../game/announce";
+import { announceOnStack, isArriving } from "../../game/announce";
 import { useGame } from "../../store/game";
 import { ui } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
@@ -38,9 +38,11 @@ export function openAbilityModal(c: Card) {
 function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<HTMLTextAreaElement | null> }) {
   const [text, setText] = useState("");
   // not on the table yet: this box is its arrival trigger, and the play is
-  // part of submitting. A commander waiting in the command zone is in exactly
-  // the same position as a card in your hand.
-  const arriving = c.zone === "hand" || c.zone === "command";
+  // part of submitting. A commander waiting in the command zone — or the
+  // revealed top of your library — is in exactly the same position as a card
+  // in your hand. One definition (announce.ts), because this flag and the
+  // submit path have to agree on what "arriving" means.
+  const arriving = isArriving(c);
   // ...unless it is an instant or a sorcery, which resolves and goes to the
   // graveyard. It is still played on submit, and the box is still what it
   // does — but a spell never enters the battlefield, and saying it does put
