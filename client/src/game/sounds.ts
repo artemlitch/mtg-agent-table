@@ -55,6 +55,8 @@ export const EVENT_SOUND: Record<GameEvent, SoundId> = {
   blocks_finished: "lockin",
   drew: "draw",
   tapped: "tap",
+  // cards being shown across the table: the same shimmer a round opening has
+  revealed: "glimmer",
 };
 
 /** Events only YOUR seat sounds for. Which seat did it is on the entry, so

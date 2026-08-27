@@ -128,6 +128,11 @@ export const GAME_EVENTS = [
   "blocks_finished",
   "drew",
   "tapped",
+  // a deliberate reveal — the ONLY lines whose cards the client auto-opens as
+  // a browser. Since named() started registering ids on every line that
+  // speaks a card's name, "has ids" stopped meaning "is a reveal": a plain
+  // tap carried ids and popped the Revealed browser mid-game.
+  "revealed",
 ] as const;
 
 export type GameEvent = (typeof GAME_EVENTS)[number];
@@ -1538,11 +1543,13 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
       names.push(named(c));
     }
     // the ids ride out with the line because naming a card registers it (see
-    // named()) — this used to be the ONE place that hung them on by hand
+    // named()) — this used to be the ONE place that hung them on by hand.
+    // The event is what makes the client OPEN them: ids alone stopped meaning
+    // "reveal" the day named() started hanging them on every line.
     if (to === "all") {
-      addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`);
+      addLog(ctx.actor, `${who(ctx.actor)} revealed: ${names.join(", ")}`, "revealed");
     } else {
-      addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, undefined, {
+      addLog(ctx.actor, `${who(ctx.actor)} revealed ${ids.length} card(s) to ${who(to)}`, "revealed", {
         [to]: `${who(ctx.actor)} revealed to you: ${names.join(", ")}`,
         [ctx.actor]: `You revealed to ${who(to)}: ${names.join(", ")}`,
       });

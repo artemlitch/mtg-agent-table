@@ -92,6 +92,8 @@ export const GAME_EVENTS = [
   "blocks_finished",
   "drew",
   "tapped",
+  // a deliberate reveal — the only lines whose cards auto-open as a browser
+  "revealed",
 ] as const;
 
 export type GameEvent = (typeof GAME_EVENTS)[number];

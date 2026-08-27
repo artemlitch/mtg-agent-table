@@ -28,7 +28,10 @@ export function processReveals(log: LogEntry[]) {
     lastRevealSeq = maxSeq; // no barrage of history on page load
     return;
   }
-  const fresh = log.filter((e) => e.seq > lastRevealSeq! && e.cards?.length);
+  // the event says "this is a reveal"; ids alone stopped meaning that when
+  // named() began registering them on every line that speaks a card's name —
+  // a plain tap carried ids and popped this browser mid-game
+  const fresh = log.filter((e) => e.seq > lastRevealSeq! && e.event === "revealed" && e.cards?.length);
   lastRevealSeq = maxSeq;
   // Only the newest, and only into an empty screen. openModal is single-slot
   // and replaces without asking, so auto-opening over a search you are in the
