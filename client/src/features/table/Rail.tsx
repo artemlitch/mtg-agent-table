@@ -11,6 +11,7 @@ import { useGame } from "../../store/game";
 import { menuOpen, previewProps, ui, useUI, type Anchor } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
 import { openZoneBrowser } from "../browsers/Browsers";
+import { cardMenu } from "../menus/cardMenu";
 import { openLibraryPanel } from "../menus/LibraryPanel";
 import { CommandZone } from "./CommandZone";
 
@@ -152,20 +153,48 @@ function lifeFit(life: number): React.CSSProperties {
 }
 
 /** The library as a physical face-down pile, count on top; your deck carries a
- *  Draw 1 button on its bottom edge. Either mouse button opens the panel. */
+ *  Draw 1 button on its bottom edge. Either mouse button opens the panel.
+ *
+ *  With the standing self-reveal on (reveal_top), the pile wears the top
+ *  card's face instead of the card back, and the click means the CARD: it
+ *  opens the card menu, exactly as it would anywhere else the face shows.
+ *  The library menu does not go away — it moves to a burger in the pile's
+ *  top-right corner, because a pile you can see the top of is two things
+ *  under one cursor and each needs its own handle. */
 function DeckPile({ p }: { p: PlayerId }) {
   const count = useGame((s) => s.view!.players[p].counts.library);
+  const top = useGame((s) => {
+    const ps = s.view!.players[p];
+    const c = ps.topRevealed ? ps.zones.library[0] : undefined;
+    return c && !c.hidden ? c : undefined;
+  });
   const open = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (menuOpen()) return ui().closeMenu();
     openLibraryPanel(p, e);
   };
+  const openCard = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ui().hidePreview();
+    if (menuOpen()) return ui().closeMenu();
+    cardMenu(top!, e);
+  };
   return (
-    <div className="deckpile" data-tip="Library" onClick={open} onContextMenu={open}>
+    <div className="deckpile" data-tip={top ? undefined : "Library"} onClick={top ? openCard : open} onContextMenu={top ? openCard : open}>
       <div className="deckstack">
-        <img className="cardback" src="/card-back.jpg" alt="library" />
+        {top ? (
+          <img className="cardback" src={top.image} alt={top.name} {...(top.image ? artFallback(top.name) : {})} {...previewProps(top)} />
+        ) : (
+          <img className="cardback" src="/card-back.jpg" alt="library" />
+        )}
         <div className="deckcount">{count}</div>
+        {top && (
+          <button className="libmenubtn" data-tip="Library" onClick={open} onContextMenu={open}>
+            <Icon name="burger" />
+          </button>
+        )}
         {p === "you" && (
           <button
             /* End turn's gold, filled: black ink needs a lit plate under it,

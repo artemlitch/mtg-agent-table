@@ -132,6 +132,10 @@ export interface PlayerView {
   /** what this seat has already done this turn — see PlayerState in
    *  server/game.ts. The prompt reads these instead of scanning the log */
   turnDone: { untap: boolean; draw: boolean; lands: number; acted: boolean };
+  /** this seat plays with its library's top card revealed — to itself only.
+   *  The flag is public; the face rides in zones.library[0] of the owner's
+   *  own view and stays `hidden` in the other seat's. */
+  topRevealed?: boolean;
   counts: Record<Zone, number>;
   zones: Record<Zone, Card[]>;
 }

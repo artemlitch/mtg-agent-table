@@ -90,6 +90,10 @@ export interface PlayerState {
   // anything been played"). lands is bookkeeping like commanderTax: both
   // seats read it, either corrects it.
   turnDone: { untap: boolean; draw: boolean; lands: number; acted: boolean };
+  // playing with the top card of the OWN library revealed — to this seat only
+  // (Sensei's Top, Elsha, Future Sight). The flag is public; the card is not:
+  // viewFor turns it into a face only in the owner's own view.
+  topRevealed?: boolean;
 }
 
 /** What HAPPENED, named. The table knows this for certain at the moment it
@@ -668,9 +672,17 @@ export function viewFor(viewer: PlayerId, logTail = 40) {
       commanderTax: ps.commanderTax ?? 0,
       deckName: ps.deckName,
       turnDone: ps.turnDone,
+      topRevealed: !!ps.topRevealed,
       counts: Object.fromEntries(ZONES.map((z) => [z, ps.zones[z].length])),
       zones: Object.fromEntries(
-        ZONES.map((z) => [z, ps.zones[z].map((id) => serializeCard(game.cards[id], viewer))])
+        ZONES.map((z) => [
+          z,
+          ps.zones[z].map((id, i) =>
+            // the standing self-reveal: the top of your own library arrives as
+            // a face in YOUR view and stays a card back in every other one
+            serializeCard(game.cards[id], viewer, { reveal: z === "library" && i === 0 && !!ps.topRevealed && viewer === p })
+          ),
+        ])
       ),
     };
   }
@@ -1598,6 +1610,25 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     shuffleZone(player);
     addLog(ctx.actor, `${who(player)}'s library was shuffled`);
     return { ok: true };
+  },
+
+  /** Play with the top card of your OWN library revealed — to you alone
+   * (Sensei's Top, Elsha, Future Sight). A standing view grant, not a peek:
+   * whatever is on top right now is the card you see, through draws, mills
+   * and shuffles, until turned off. The log line names the fact, never the
+   * card — the reveal is private and the transcript must not leak it. */
+  reveal_top(ctx, p) {
+    const ps = game.players[ctx.actor];
+    const on = p.on === undefined ? !ps.topRevealed : !!p.on;
+    if (!!ps.topRevealed === on) return { ok: true, on };
+    ps.topRevealed = on;
+    addLog(
+      ctx.actor,
+      on
+        ? `${who(ctx.actor)} plays with the top card of their library revealed (to themselves)`
+        : `${who(ctx.actor)} no longer plays with the top card of their library revealed`
+    );
+    return { ok: true, on };
   },
 
   /** Take the hand back and deal a fresh one.

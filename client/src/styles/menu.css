@@ -83,6 +83,12 @@
 #menu .a-reveal { --c: #f0e6cd; }  /* white — shown to everyone */
 #menu .a-mulligan { --c: #d4823f; }
 #menu .a-neutral { --c: #8a8496; }
+/* the standing self-reveal toggle: a look-ahead in blue, its off state quiet */
+#menu .a-faceup { --c: #5ea8dd; }
+#menu .a-facedown { --c: #8a8496; }
+/* the top card into play: cast wears the spell swirl, put the plain table */
+#menu .a-cast { --c: #d4823f; }
+#menu .a-battlefield { --c: #63b878; }
 /* housekeeping, not a play: no colour at all */
 #menu .a-search,
 #menu .a-shuffle { --c: #8a8496; opacity: 0.78; }

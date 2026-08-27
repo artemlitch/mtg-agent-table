@@ -23,7 +23,7 @@ const NAMES = [
   "book-pile", "cancel", "card-burn", "card-discard", "card-draw", "card-exchange", "card-pickup",
   "card-random", "castle", "chat-bubble", "check-mark", "checklist", "chess-king",
   "circle", "crossed-swords", "crown", "dragon-head", "empty-chessboard",
-  "fast-forward-button", "gears", "gemini", "gems", "hidden", "hood", "hourglass", "invisible",
+  "fast-forward-button", "gears", "gemini", "gems", "hamburger-menu", "hidden", "hood", "hourglass", "invisible",
   "magic-portal", "magic-swirl", "magnifying-glass", "moon", "mountains", "pencil", "plain-arrow", "plain-circle",
   "play-button", "player-next", "recycle", "return-arrow", "ringing-bell", "scroll-unfurled", "shaking-hands",
   "semi-closed-eye", "shield", "shield-disabled", "sight-disabled", "snatch", "sparkles", "spectacles", "stack", "sword-break",

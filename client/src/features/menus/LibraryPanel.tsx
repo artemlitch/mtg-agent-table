@@ -73,6 +73,17 @@ function LibraryPanel({ p }: { p: PlayerId }) {
         })}
       />
 
+      {/* the standing self-reveal (Top, Elsha, Future Sight): the pile wears
+          the top card's face — for your eyes only — until turned off */}
+      {mine && (
+        <LibButton
+          cls="lp-wide"
+          label={view?.players.you.topRevealed ? "Hide top card" : "Reveal top to you"}
+          icon={view?.players.you.topRevealed ? "facedown" : "faceup"}
+          onRun={run(() => act("reveal_top", {}))}
+        />
+      )}
+
       {/* draw leads the tiles, paired with reveal — counters and all */}
       <div className="lp-grid">
         {mine && <LibButton cls="lp-tile" label="Draw" icon="draw" counted onRun={(n) => run(() => act("draw", { n }))()} />}

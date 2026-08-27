@@ -78,6 +78,16 @@
 .deckstack .drawbtn,
 .deckstack .drawbtn:hover { color: #000; text-shadow: none; }
 /* the pile itself does not light up — the Draw button on it is the control */
+/* With the top card revealed the face takes the pile's click, so the library
+   menu gets its own handle: a burger riding the top-right corner. A dark
+   plate under a light glyph, because it sits over card art of any colour. */
+.deckstack .libmenubtn {
+  position: absolute; z-index: 2; top: 5px; right: 5px; padding: 3px 5px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 8, 6, 0.72); border: 1px solid rgba(226, 179, 85, 0.35);
+  border-radius: 6px; color: var(--gold-hi); font-size: var(--fs-micro);
+}
+.deckstack .libmenubtn:hover { background: rgba(10, 8, 6, 0.9); border-color: var(--gold-hi); }
 
 /* ── graveyard / exile piles ── */
 /* The piles are furniture, not controls: --panel2, flat. No gradient, no inset

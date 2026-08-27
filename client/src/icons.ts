@@ -58,6 +58,9 @@ export const ICONS: Record<string, string> = {
   top: "gi-up-card",
   bottom: "gi-up-card gi-rot180",
   library: "gi-book-pile",
+  /* the library menu's handle on a pile whose top card is revealed — the face
+     takes the click, so the menu needs its own corner button */
+  burger: "gi-hamburger-menu",
   secret: "gi-hood",
   block: "gi-shield",
   setpt: "gi-pencil",
