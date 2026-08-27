@@ -127,7 +127,9 @@ export function applyOption(cards: StudioCard[], p: Proposal, optionName: string
       if (c.qty > 1) out.push({ ...c, qty: c.qty - 1 });
       continue;
     }
-    out.push(c);
+    // copies, not references — the arriving-card qty bump below must never
+    // reach back into the live studio.cards state
+    out.push({ ...c });
   }
   if (!removed) throw new Error(`"${leaving}" is not in the deck`);
   const existing = out.find((c) => c.name.toLowerCase() === arriving.name.toLowerCase());
