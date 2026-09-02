@@ -13,25 +13,24 @@ Scryfall.
 
 A desktop app, if you would rather not keep a terminal open:
 
+- **Windows (x64)** —
+  [MTG-Battlefield-win-x64-Setup.exe](https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64-Setup.exe)
 - **macOS (Apple silicon)** —
   [MTG-Battlefield-mac-arm64.zip](https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-mac-arm64.zip)
-- **Windows (x64)** —
-  [MTG-Battlefield-win-x64.zip](https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64.zip)
 
 The server is compiled into the app, so nothing has to be installed to open it —
 no Bun, no checkout. The brain is still your choice on first run, and a Claude
 brain still wants the `claude` CLI logged in on the machine.
 
-Neither build is code-signed, so each OS objects once. On macOS, unzip, drag
-`MTG Battlefield.app` to Applications, and clear the quarantine flag the
-download put on it:
+Neither build is code-signed, so each OS objects once. The Windows installer
+puts the app under your own user account, so there is no admin prompt on top of
+SmartScreen's unknown-publisher warning — **More info → Run anyway**. On macOS,
+unzip, drag `MTG Battlefield.app` to Applications, and clear the quarantine flag
+the download put on it:
 
 ```
 xattr -dr com.apple.quarantine "/Applications/MTG Battlefield.app"
 ```
-
-On Windows, unzip anywhere and run `MTG Battlefield.exe`; SmartScreen warns
-about an unknown publisher, and **More info → Run anyway** gets past it.
 
 The app and the checkout share one data directory, so a game started in either
 is waiting in the other.
@@ -168,8 +167,8 @@ Layout:
 ### Packaging the desktop app
 
 ```
-cd electron && npm install    # once: electron + electron-packager
-cd .. && bun run app          # this machine's platform, zipped, into electron/dist/
+cd electron && npm install    # once: electron + electron-builder
+cd .. && bun run app          # this machine's platform, into electron/dist/
 ```
 
 `electron/build.mjs` fuses three things: the Vite output, the server compiled to
@@ -182,14 +181,17 @@ which world it is in: from a checkout it resolves `web/` and the CLI's working
 directory against the repo, and from a binary against the executable and the
 data dir.
 
-Other platforms are `--target=mac-x64 | win-x64 | linux-x64` passed to
-`build.mjs`. The Windows app is the one exception to cross-building: the server
-half compiles for Windows from anywhere, but stamping the `.exe` with its icon
-needs rcedit, which needs Windows or wine — so the build refuses rather than
-quietly shipping an app wearing Electron's default icon. Push a `v*` tag and
-`.github/workflows/release.yml` builds both on native runners and attaches them
-to a GitHub Release, which is also the only place they fit: each zip is ~120MB
-and GitHub rejects any file over 100MB on push.
+Any target builds from any machine — `--target=mac-arm64 | mac-x64 | win-x64 |
+linux-x64`. Both halves cross-compile: bun emits a Windows server binary on a
+Mac, and electron-builder writes the `.exe`'s icon and version resources itself
+rather than shelling out to a Windows tool. What comes out is set by
+`electron-builder.yml`: an NSIS installer for Windows, a zipped `.app` for
+macOS, a tarball for Linux. The build runs under bun rather than node, because
+electron-builder 26 wants node 20.19+ and bun does not care.
+
+Push a `v*` tag and `.github/workflows/release.yml` builds macOS and Windows on
+their own runners and attaches both to a GitHub Release — also the only place
+they fit, since each is over the 100MB limit on anything pushed to git.
 
 Artwork lives in `electron/icon.icns`; `npm run icons` regenerates the `.ico`
 and `.png` beside it.

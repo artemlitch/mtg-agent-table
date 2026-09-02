@@ -1,18 +1,19 @@
-# Builds the desktop app for macOS and Windows and attaches both zips to a
-# GitHub Release.
+# Builds the desktop app for macOS and Windows and attaches both to a GitHub
+# Release.
 #
 #   git tag v1.0.0 && git push origin v1.0.0
 #
-# Each platform is built on its own runner rather than cross-compiled. The Bun
-# server half cross-compiles fine; the Electron half does not — stamping a
-# Windows .exe with its icon and version strings needs Windows (or wine).
+# Both targets could be built on one runner — bun cross-compiles the server,
+# and electron-builder writes Windows icon and version resources itself — but
+# each is built on its own OS anyway, because that is the machine it will run
+# on and the cross-build is one fewer thing to have been wrong about.
 #
-# The release is also why the zips are not in git: they are ~120MB each, and
-# GitHub rejects any file over 100MB on push. Release assets have no such
-# limit, and their download URL is stable:
+# The artifacts are not in git: the installer is ~104MB and the mac zip ~118MB,
+# against a 100MB per-file limit on anything pushed. Release assets have no
+# such limit, and their download URL is stable:
 #
 #   https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-mac-arm64.zip
-#   https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64.zip
+#   https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64-Setup.exe
 name: release
 
 on:
@@ -32,16 +33,19 @@ jobs:
         include:
           - os: macos-14
             target: mac-arm64
+            asset: MTG-Battlefield-mac-arm64.zip
           - os: windows-latest
             target: win-x64
+            asset: MTG-Battlefield-win-x64-Setup.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
+      # bun runs the whole build: it compiles the server, and it is what
+      # electron-builder itself runs under (see the note in build.mjs)
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      # electron-packager runs under node, and vite's build wants a modern one
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -53,34 +57,37 @@ jobs:
         working-directory: electron
 
       - name: Build
-        run: node electron/build.mjs --target=${{ matrix.target }} --zip
+        run: bun electron/build.mjs --target=${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MTG-Battlefield-${{ matrix.target }}
-          path: electron/dist/MTG-Battlefield-${{ matrix.target }}.zip
+          name: ${{ matrix.asset }}
+          path: electron/dist/${{ matrix.asset }}
           if-no-files-found: error
 
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: electron/dist/MTG-Battlefield-${{ matrix.target }}.zip
-          # unsigned builds, and the download is quarantined on macOS — say so
-          # where people will read it rather than in a file they have to open
+          files: electron/dist/${{ matrix.asset }}
+          # neither build is signed, and each OS objects in its own way — say
+          # so where people will read it rather than in a file they must open
           body: |
-            Download the app for your machine below.
+            Download the one for your machine below.
 
-            **macOS** — unsigned, so Gatekeeper quarantines the download. Unzip it,
-            drag `MTG Battlefield.app` to Applications, then once:
+            **Windows** — run `MTG-Battlefield-win-x64-Setup.exe`. It installs for
+            your user only, so there is no admin prompt, and adds a desktop and
+            Start Menu shortcut. SmartScreen will warn about an unknown publisher:
+            More info → Run anyway.
+
+            **macOS (Apple silicon)** — unzip, drag `MTG Battlefield.app` to
+            Applications, then once, because the download is quarantined:
 
             ```
             xattr -dr com.apple.quarantine "/Applications/MTG Battlefield.app"
             ```
 
-            **Windows** — unzip anywhere and run `MTG Battlefield.exe`. SmartScreen
-            will warn about an unknown publisher: More info → Run anyway.
-
-            Nothing else needs installing. To have Claude play the other seat you
-            also want the `claude` CLI logged in; otherwise paste a DeepSeek key
-            into the Chat tab on first run.
+            Nothing else needs installing — the server is compiled into the app.
+            To have Claude play the other seat you also want the `claude` CLI
+            logged in; otherwise paste a DeepSeek key into the Chat tab on first
+            run.

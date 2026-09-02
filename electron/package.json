@@ -8,14 +8,14 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "node build.mjs --zip",
-    "dist:mac": "node build.mjs --target=mac-arm64 --zip",
-    "dist:win": "node build.mjs --target=win-x64 --zip",
-    "dist:linux": "node build.mjs --target=linux-x64 --zip",
+    "dist": "bun ./build.mjs",
+    "dist:mac": "bun ./build.mjs --target=mac-arm64",
+    "dist:win": "bun ./build.mjs --target=win-x64",
+    "dist:linux": "bun ./build.mjs --target=linux-x64",
     "icons": "node make-icons.mjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-packager": "^17.1.2"
+    "electron-builder": "^26.15.3"
   }
 }

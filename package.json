@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "bun run typecheck && bun --bun vite build",
-    "app": "node electron/build.mjs --zip",
+    "app": "bun electron/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.bun.json --noEmit",
     "preview": "vite preview",
     "server": "bun run server/index.ts",

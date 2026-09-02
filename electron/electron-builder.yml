@@ -1,0 +1,63 @@
+# How the app is assembled. build.mjs drives this — it puts the compiled
+# server in build/resources first, because that binary is the one part that
+# differs per target and cannot be named here.
+appId: net.artemlitch.mtg-battlefield
+productName: MTG Battlefield
+copyright: MIT — unofficial fan project, not affiliated with Wizards of the Coast
+
+directories:
+  output: dist
+  buildResources: .
+
+# The shell is four files. Everything else the app needs is a resource, not
+# part of the bundle — listed rather than filtered so a stray build artifact
+# can never ride along.
+files:
+  - main.js
+  - package.json
+  - icon.png
+
+extraResources:
+  # the compiled server, staged here per-target by build.mjs
+  - from: build/resources
+    to: .
+  # the UI, from `vite build`. It lands beside the server binary because that
+  # is where the server looks for it — see server/packaged.ts.
+  - from: ../web
+    to: web
+
+mac:
+  category: public.app-category.games
+  icon: icon.icns
+  # unsigned: there is no Developer ID here. arm64 still gets an ad-hoc
+  # signature, without which the app will not launch at all.
+  identity: null
+  target:
+    - target: zip
+      arch: [arm64]
+  artifactName: MTG-Battlefield-mac-${arch}.${ext}
+
+win:
+  icon: icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  # one double-click installs and launches it, no wizard to click through
+  oneClick: true
+  # per-user, under %LOCALAPPDATA% — so no admin prompt on top of the
+  # unknown-publisher warning an unsigned installer already earns
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: MTG Battlefield
+  artifactName: MTG-Battlefield-win-${arch}-Setup.${ext}
+
+linux:
+  category: Game
+  icon: icon.png
+  target:
+    - target: tar.gz
+      arch: [x64]
+  artifactName: MTG-Battlefield-linux-${arch}.${ext}
