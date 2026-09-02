@@ -11,12 +11,18 @@ import { resolveClaudeBin, transportChoice } from "./agent";
 import { MODELS, PROVIDERS, isProviderId, probeUrl, type ProviderId } from "./models";
 import { WakeScheduler, wakePlanFor } from "./wake";
 import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 import { STATE_FILE, GAMES_DIR, SAMPLE_LIB_DIR } from "./datadir";
+import { COMPILED, RESOURCE_DIR } from "./packaged";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
-const WEB_DIR = new URL("../web/", import.meta.url).pathname;
+// A checkout serves the vite output at ../web/; a packaged binary serves the
+// copy shipped beside it. WEB_DIR overrides both.
+const WEB_DIR =
+  process.env.WEB_DIR?.replace(/\/?$/, "/") ??
+  (COMPILED ? join(RESOURCE_DIR, "web") + "/" : new URL("../web/", import.meta.url).pathname);
 // The sound definitions the lab edits. Two paths for one file: client/public
 // is the copy in git — the one a rebuild copies FROM — and web/ is the one
 // being served right now. Saving writes both, so a tuned sound is live on the

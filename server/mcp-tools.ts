@@ -372,9 +372,10 @@ async function handle(msg: any) {
   if (id !== undefined) replyError(id, `unknown method ${method}`);
 }
 
-// the stdio loop only runs when this file IS the MCP server process — the
-// in-process agent transport imports TOOLS/callTable without touching stdin
-if (import.meta.main) {
+/** Read JSON-RPC lines off stdin until it closes. Only the process that IS
+ * the MCP server calls this — the in-process agent transport imports
+ * TOOLS/callTable and never touches stdin. */
+export function runStdioServer() {
   let buf = "";
   process.stdin.on("data", (chunk: Buffer) => {
     buf += chunk.toString();
@@ -391,3 +392,8 @@ if (import.meta.main) {
     }
   });
 }
+
+// `bun run server/mcp-tools.ts` is still a valid way to be the MCP server;
+// the packaged app instead reaches it through `mtg-server mcp` (see main.ts),
+// because a shipped app has no checkout and no bun to run this file with.
+if (import.meta.main) runStdioServer();

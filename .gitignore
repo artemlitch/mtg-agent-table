@@ -15,9 +15,12 @@ games/
 # one MCP config per port, written by hand when running a second table
 mcp-[0-9]*.json
 
-# build output
+# build output. electron/dist holds the packaged apps — ~250MB each, and the
+# zip alone is over GitHub's 100MB per-file limit, so they ship as Release
+# assets (.github/workflows/release.yml), never as commits.
 web/
 electron/dist/
+electron/build/
 
 # scratch: saved boards, exported pages, anything dropped here to look at
 proposals/

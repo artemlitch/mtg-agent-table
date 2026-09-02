@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "bun run typecheck && vite build",
+    "build": "bun run typecheck && bun --bun vite build",
+    "app": "node electron/build.mjs --zip",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.bun.json --noEmit",
     "preview": "vite preview",
     "server": "bun run server/index.ts",

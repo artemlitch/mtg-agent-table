@@ -1,12 +1,18 @@
 {
   "name": "mtg-battlefield-app",
   "productName": "MTG Battlefield",
+  "description": "A local 1v1 Commander tabletop where an agent plays the other seat",
+  "author": "Artem Litchmanov",
   "version": "1.0.0",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-packager . 'MTG Battlefield' --platform=darwin --arch=arm64 --icon=icon.icns --overwrite --out=dist --ignore='^/dist$'"
+    "dist": "node build.mjs --zip",
+    "dist:mac": "node build.mjs --target=mac-arm64 --zip",
+    "dist:win": "node build.mjs --target=win-x64 --zip",
+    "dist:linux": "node build.mjs --target=linux-x64 --zip",
+    "icons": "node make-icons.mjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",

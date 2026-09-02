@@ -1,0 +1,86 @@
+# Builds the desktop app for macOS and Windows and attaches both zips to a
+# GitHub Release.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# Each platform is built on its own runner rather than cross-compiled. The Bun
+# server half cross-compiles fine; the Electron half does not — stamping a
+# Windows .exe with its icon and version strings needs Windows (or wine).
+#
+# The release is also why the zips are not in git: they are ~120MB each, and
+# GitHub rejects any file over 100MB on push. Release assets have no such
+# limit, and their download URL is stable:
+#
+#   https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-mac-arm64.zip
+#   https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64.zip
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  # build the apps without cutting a release — they land as run artifacts
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: mac-arm64
+          - os: windows-latest
+            target: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # electron-packager runs under node, and vite's build wants a modern one
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install (table)
+        run: bun install --frozen-lockfile
+      - name: Install (shell)
+        run: npm ci
+        working-directory: electron
+
+      - name: Build
+        run: node electron/build.mjs --target=${{ matrix.target }} --zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MTG-Battlefield-${{ matrix.target }}
+          path: electron/dist/MTG-Battlefield-${{ matrix.target }}.zip
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: electron/dist/MTG-Battlefield-${{ matrix.target }}.zip
+          # unsigned builds, and the download is quarantined on macOS — say so
+          # where people will read it rather than in a file they have to open
+          body: |
+            Download the app for your machine below.
+
+            **macOS** — unsigned, so Gatekeeper quarantines the download. Unzip it,
+            drag `MTG Battlefield.app` to Applications, then once:
+
+            ```
+            xattr -dr com.apple.quarantine "/Applications/MTG Battlefield.app"
+            ```
+
+            **Windows** — unzip anywhere and run `MTG Battlefield.exe`. SmartScreen
+            will warn about an unknown publisher: More info → Run anyway.
+
+            Nothing else needs installing. To have Claude play the other seat you
+            also want the `claude` CLI logged in; otherwise paste a DeepSeek key
+            into the Chat tab on first run.

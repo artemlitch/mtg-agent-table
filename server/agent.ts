@@ -31,10 +31,16 @@ import { cardVisibleTo, effectivePT, game, markSeenByAgent, renderLogFor, transc
 import { TOOLS, callTable } from "./mcp-tools";
 import { loadKey, isCliVerified, loadProvider } from "./keystore";
 import { DEFAULT_MODEL, PROVIDERS, modelSpec, type ProviderId } from "./models";
+import { COMPILED } from "./packaged";
+import { DATA_DIR } from "./datadir";
 
 const MAX_LOOP = 60; // API tool-loop iterations per window — runaway backstop
 
-const PROJECT_DIR = new URL("..", import.meta.url).pathname;
+// Where the CLI child runs and where its per-port MCP config is written. From
+// a checkout that is the repo; a packaged app has no repo, so both move to the
+// data dir — the one place a shipped binary can always write. Trailing
+// separator either way: callers concatenate a filename onto it.
+const PROJECT_DIR = COMPILED ? join(DATA_DIR, "/") : new URL("..", import.meta.url).pathname;
 
 /** The claude binary, wherever this machine keeps it — Finder-launched apps
  * have a bare PATH, so the well-known install locations are checked too. */
@@ -42,12 +48,21 @@ export function resolveClaudeBin(): string | null {
   if (process.env.CLAUDE_BIN) return existsSync(process.env.CLAUDE_BIN) ? process.env.CLAUDE_BIN : null;
   const found = Bun.which("claude");
   if (found) return found;
-  for (const p of [
-    join(homedir(), ".local/bin/claude"),
-    "/opt/homebrew/bin/claude",
-    "/usr/local/bin/claude",
-    join(homedir(), ".claude/local/claude"),
-  ]) {
+  const candidates =
+    process.platform === "win32"
+      ? [
+          // npm's global shim, and the native installer's own directory
+          join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "npm", "claude.cmd"),
+          join(homedir(), ".local", "bin", "claude.exe"),
+          join(homedir(), ".claude", "local", "claude.exe"),
+        ]
+      : [
+          join(homedir(), ".local/bin/claude"),
+          "/opt/homebrew/bin/claude",
+          "/usr/local/bin/claude",
+          join(homedir(), ".claude/local/claude"),
+        ];
+  for (const p of candidates) {
     if (existsSync(p)) return p;
   }
   return null;
@@ -950,14 +965,13 @@ export class AgentRunner {
     // per-instance MCP config so the tools hit THIS server, not a hardcoded port
     const port = new URL(this.tableUrl).port || "80";
     const mcpConfigPath = PROJECT_DIR + `mcp-${port}.json`;
-    writeFileSync(
-      mcpConfigPath,
-      JSON.stringify({
-        mcpServers: {
-          table: { command: "bun", args: ["run", "server/mcp-tools.ts"], env: { TABLE_URL: this.tableUrl } },
-        },
-      })
-    );
+    // How the CLI reaches the table. From a checkout that is bun running the
+    // MCP file; a packaged app ships no bun and no file, so the server binary
+    // spawns a second copy of itself in MCP mode (see server/main.ts).
+    const table = COMPILED
+      ? { command: process.execPath, args: ["mcp"], env: { TABLE_URL: this.tableUrl } }
+      : { command: "bun", args: ["run", "server/mcp-tools.ts"], env: { TABLE_URL: this.tableUrl } };
+    writeFileSync(mcpConfigPath, JSON.stringify({ mcpServers: { table } }));
     const args = [
       "-p",
       "--input-format", "stream-json",

@@ -9,7 +9,36 @@ theft exiles are explicit visibility grants, exactly like paper.
 Unofficial fan project. Not affiliated with Wizards of the Coast, Archidekt or
 Scryfall.
 
+## Download
+
+A desktop app, if you would rather not keep a terminal open:
+
+- **macOS (Apple silicon)** —
+  [MTG-Battlefield-mac-arm64.zip](https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-mac-arm64.zip)
+- **Windows (x64)** —
+  [MTG-Battlefield-win-x64.zip](https://github.com/artemlitch/mtg-agent-table/releases/latest/download/MTG-Battlefield-win-x64.zip)
+
+The server is compiled into the app, so nothing has to be installed to open it —
+no Bun, no checkout. The brain is still your choice on first run, and a Claude
+brain still wants the `claude` CLI logged in on the machine.
+
+Neither build is code-signed, so each OS objects once. On macOS, unzip, drag
+`MTG Battlefield.app` to Applications, and clear the quarantine flag the
+download put on it:
+
+```
+xattr -dr com.apple.quarantine "/Applications/MTG Battlefield.app"
+```
+
+On Windows, unzip anywhere and run `MTG Battlefield.exe`; SmartScreen warns
+about an unknown publisher, and **More info → Run anyway** gets past it.
+
+The app and the checkout share one data directory, so a game started in either
+is waiting in the other.
+
 ## Requirements
+
+Only for running from source — the download above needs none of this.
 
 - [Bun](https://bun.sh) — runs the server and the test suite
 - A brain for the other seat, either:
@@ -132,8 +161,38 @@ Layout:
 - `server/mcp-tools.ts` — stdio MCP server for the table (zero-dep JSON-RPC)
 - `server/wake.ts` — when the agent gets a window
 - `server/index.ts` — Bun HTTP + WebSocket server
+- `server/main.ts` — the entrypoint the shipped binary compiles from
 - `client/` — the React UI; `bun run build` compiles it into `web/`
-- `electron/` — optional desktop shell around the same server
+- `electron/` — the desktop shell, and the script that packages it
+
+### Packaging the desktop app
+
+```
+cd electron && npm install    # once: electron + electron-packager
+cd .. && bun run app          # this machine's platform, zipped, into electron/dist/
+```
+
+`electron/build.mjs` fuses three things: the Vite output, the server compiled to
+a single native executable by `bun build --compile`, and Electron. That compiled
+server is what makes the app self-contained — and it is one binary doing two
+jobs, because a packaged app has no `bun` to start a second script with. Run
+bare it is the table; run as `mtg-server mcp` it is the stdio MCP server the
+Claude CLI spawns to reach the table. `server/packaged.ts` is how the code tells
+which world it is in: from a checkout it resolves `web/` and the CLI's working
+directory against the repo, and from a binary against the executable and the
+data dir.
+
+Other platforms are `--target=mac-x64 | win-x64 | linux-x64` passed to
+`build.mjs`. The Windows app is the one exception to cross-building: the server
+half compiles for Windows from anywhere, but stamping the `.exe` with its icon
+needs rcedit, which needs Windows or wine — so the build refuses rather than
+quietly shipping an app wearing Electron's default icon. Push a `v*` tag and
+`.github/workflows/release.yml` builds both on native runners and attaches them
+to a GitHub Release, which is also the only place they fit: each zip is ~120MB
+and GitHub rejects any file over 100MB on push.
+
+Artwork lives in `electron/icon.icns`; `npm run icons` regenerates the `.ico`
+and `.png` beside it.
 
 `tools/token-cost.ts` and `tools/effort-test.ts` measure what a game costs on a
 metered brain: they replay a saved game against the real API and print predicted
