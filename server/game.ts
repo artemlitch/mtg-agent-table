@@ -1,5 +1,6 @@
 // Game state, actions, and per-viewer redaction. No rules engine — this is a
 // shared tabletop with enforced information hiding.
+import { formatRoll, formatSpec, parseDice, rollDice } from "./dice";
 
 export type PlayerId = "you" | "agent";
 export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "exile" | "command" | "stack";
@@ -128,6 +129,10 @@ export const GAME_EVENTS = [
   "blocks_finished",
   "drew",
   "tapped",
+  // dice hitting the table. Named because the number is the whole point of the
+  // line — the client draws it as its own thing rather than another dim
+  // play-by-play row, and it is the one log line you go looking for.
+  "rolled",
   // a deliberate reveal — the ONLY lines whose cards the client auto-opens as
   // a browser. Since named() started registering ids on every line that
   // speaks a card's name, "has ids" stopped meaning "is a reveal": a plain
@@ -2318,11 +2323,51 @@ export const actions: Record<string, (ctx: ActionCtx, p: any) => ActionResult> =
     return { ok: true, placed: moved.length };
   },
 
+  /** Dice, in the notation a card asks for them: `1d20`, `2d6`, `1d20+3`.
+   *  The count is always written, one included — see server/dice.ts.
+   *
+   *  The SERVER rolls. Both seats ask for a number the same way and both read
+   *  the answer off the same log line — a seat that rolled its own dice could
+   *  quietly roll again, and this is the one number at the table nobody can
+   *  check afterwards.
+   *
+   *  Logged rather than said, so the roll carries an event the client can
+   *  sound and style. It is left out of the undo history in server/index.ts
+   *  instead: a die that has landed is not a play you take back. */
   roll(ctx, p) {
-    const sides = p.sides ?? 20;
-    const result = 1 + Math.floor(Math.random() * sides);
-    addLog(ctx.actor, `${who(ctx.actor)} rolled a d${sides}: ${result}`);
-    return { ok: true, result };
+    // Notation is the way in. The loose numbers are the older shape of this
+    // action and still work, so nothing that already called it has to change —
+    // they are turned back into notation and parsed, rather than trusted, so
+    // there is exactly one place that decides what a legal roll is.
+    const written = p.notation ?? p.dice ?? p.roll;
+    // A MISSING number takes the default; a number that arrived and made no
+    // sense is an error. `?? 20` followed by `|| 20` collapses those two into
+    // one, which is how sides:0 and sides:"x" both quietly became a d20.
+    const whole = (v: unknown, fallback: number, field: string) => {
+      if (v === undefined || v === null) return fallback;
+      const n = Number(v);
+      if (!Number.isFinite(n)) throw new Error(`${field} must be a number, not ${JSON.stringify(v)}`);
+      return Math.trunc(n);
+    };
+    const spec = {
+      count: whole(p.count ?? p.n, 1, "count"),
+      sides: whole(p.sides, 20, "sides"),
+      modifier: whole(p.modifier ?? p.plus, 0, "modifier"),
+    };
+    const checked = parseDice(written === undefined ? formatSpec(spec) : String(written));
+    if (typeof checked === "string") throw new Error(checked);
+
+    const result = rollDice(checked);
+    const note = String(p.note ?? p.reason ?? "").trim();
+    addLog(ctx.actor, `${who(ctx.actor)} rolled ${formatRoll(result)}${note ? ` — ${note}` : ""}`, "rolled");
+    return {
+      ok: true,
+      notation: formatSpec(checked),
+      rolls: result.rolls,
+      total: result.total,
+      // what this action has always returned, and what a single die means
+      result: result.total,
+    };
   },
 
   flip(ctx, _p) {

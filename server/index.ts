@@ -43,8 +43,11 @@ agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
 
-/** Actions that never become an undo step — see the note where it is used. */
-const NOT_UNDOABLE = new Set(["place", "chat", "done", "mulligan"]);
+/** Actions that never become an undo step — see the note where it is used.
+ *  roll and flip are here for a different reason than the rest: they are not
+ *  bookkeeping, they are irreversible. A die has landed and both seats read
+ *  the number; offering to take it back offers to re-roll it. */
+const NOT_UNDOABLE = new Set(["place", "chat", "done", "mulligan", "roll", "flip"]);
 
 // Everything persisted beside the game itself. A backup carries the table as
 // it stands; the live state file adds the undo history.

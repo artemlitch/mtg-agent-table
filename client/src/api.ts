@@ -9,15 +9,24 @@ export interface ActionResult {
 }
 
 /** Run a table action as the player. Anything the agent can do to your cards
- *  you can do to its cards — same endpoint, same vocabulary. */
-export async function act(type: string, params: Record<string, any> = {}): Promise<ActionResult> {
+ *  you can do to its cards — same endpoint, same vocabulary.
+ *
+ *  `quiet` suppresses the alert and hands the refusal back instead, for the
+ *  callers that have somewhere better to put it. A typo in a typed command is
+ *  the case it exists for: "2d" is a slip mid-sentence, and a modal dialog is
+ *  a strange thing to answer a slip with. */
+export async function act(
+  type: string,
+  params: Record<string, any> = {},
+  opts: { quiet?: boolean } = {}
+): Promise<ActionResult> {
   const res = await fetch("/api/action", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor: "you", type, params }),
   });
   const data = (await res.json()) as ActionResult;
-  if (!data.ok) alert(`Action failed: ${data.error}`);
+  if (!data.ok && !opts.quiet) alert(`Action failed: ${data.error}`);
   return data;
 }
 

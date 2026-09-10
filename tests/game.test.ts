@@ -1459,6 +1459,53 @@ describe("chat robustness", () => {
   });
 });
 
+describe("rolling dice", () => {
+  test("takes notation and logs the result where both seats can read it", () => {
+    const res = applyAction("you", "roll", { notation: "2d6" });
+    expect(res.notation).toBe("2d6");
+    expect(res.rolls).toHaveLength(2);
+    expect(res.total).toBe(res.rolls.reduce((a: number, b: number) => a + b, 0));
+    const line = game.log.at(-1)!;
+    expect(line.event).toBe("rolled");
+    expect(line.text).toContain("2d6");
+    // public: no per-viewer text, so neither seat gets a different number
+    expect(line.private).toBeUndefined();
+  });
+
+  test("still answers the older shape of the call", () => {
+    const res = applyAction("agent", "roll", { sides: 6 });
+    expect(res.notation).toBe("1d6");
+    expect(res.result).toBe(res.total);
+  });
+
+  test("a modifier lands on the total once, not on each die", () => {
+    const res = applyAction("you", "roll", { notation: "3d6+10" });
+    expect(res.total).toBe(res.rolls.reduce((a: number, b: number) => a + b, 0) + 10);
+  });
+
+  test("says what the roll was for when told", () => {
+    applyAction("you", "roll", { notation: "1d20", note: "Ancient Copper Dragon" });
+    expect(game.log.at(-1)!.text).toContain("Ancient Copper Dragon");
+  });
+
+  test("refuses dice it cannot roll instead of inventing a number", () => {
+    // the old action multiplied by whatever arrived: sides:0 gave a 1 every
+    // time and sides:"x" gave NaN, both silently
+    for (const bad of [{ notation: "2x6" }, { notation: "d6" }, { notation: "1d0" }, { sides: 0 }, { sides: "x" }, { notation: "999d6" }])
+      expect(() => applyAction("you", "roll", bad), JSON.stringify(bad)).toThrow();
+  });
+
+  test("stays inside the faces of the die, over many rolls", () => {
+    for (let i = 0; i < 300; i++) {
+      const { rolls, total } = applyAction("you", "roll", { notation: "2d6" });
+      for (const face of rolls) expect(face).toBeGreaterThanOrEqual(1);
+      for (const face of rolls) expect(face).toBeLessThanOrEqual(6);
+      expect(total).toBeGreaterThanOrEqual(2);
+      expect(total).toBeLessThanOrEqual(12);
+    }
+  });
+});
+
 describe("agent-friendly param aliases", () => {
   test("draw accepts count alias", () => {
     seedLibrary("agent", ["A", "B"]);

@@ -43,4 +43,12 @@ describe("tool argument validation", () => {
     // cast's description tells the model to pass `face`; the schema must agree
     expect(Object.keys(TOOLS.cast.schema.properties)).toContain("face");
   });
+
+  test("roll takes the notation its description tells the agent to write", () => {
+    // validateArgs rejects unknown keys, so the action growing a parameter the
+    // schema does not list means the agent simply cannot reach it
+    expect(validateArgs("roll", { notation: "2d6", note: "Ancient Copper Dragon" })).toBeNull();
+    expect(validateArgs("roll", { sides: 6, count: 2, modifier: 1 })).toBeNull();
+    expect(validateArgs("roll", { dice: "2d6" })).toContain('"dice"');
+  });
 });

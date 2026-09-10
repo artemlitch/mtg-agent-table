@@ -1,13 +1,15 @@
 // The side panel: the stack, the chat, the agent's brain and the raw log,
 // with one composer under them that feeds whichever is open.
+import type React from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { act, deleteKey, refresh, saveKey, sendTyping, testClaudeCli } from "../../api";
 import { Icon } from "../../components/Icon";
 import { Text } from "../../components/Text";
 import { openRevealBrowser } from "../browsers/Browsers";
+import { DICE_PRESETS, parseCommand } from "../../game/commands";
 import { revealedCards } from "../../game/reveals";
 import { useGame } from "../../store/game";
-import { useUI, type TabName } from "../../store/ui";
+import { CURSOR_GAP, menuOpen, ui, useUI, type TabName } from "../../store/ui";
 import type { LogEntry } from "../../types";
 import { StackItemEl } from "../stack/StackItem";
 import { usePeek } from "./peek";
@@ -254,6 +256,15 @@ function ChatLine({ e, onOpenStack }: { e: LogEntry; onOpenStack: () => void }) 
       </div>
     );
   if (e.actor === "system") return <Text as="div" className="msg sys">{e.text}</Text>;
+  // a roll is read, not skimmed: the number is why the line exists, and a dim
+  // grey row is where you lose it among the taps and the draws
+  if (e.event === "rolled")
+    return (
+      <div className={`msg rollmsg ${e.actor === "you" ? "you" : "agent"}`}>
+        <Icon name="dice" />
+        <Text>{e.text.replace(/^(You|Agent|Player) rolled /, "")}</Text>
+      </div>
+    );
   // a reveal names its cards in the line and CARRIES them on the entry — the
   // line is the way back into them, for one that arrived while something else
   // was open, or one you have scrolled back to
@@ -381,34 +392,95 @@ function LogPane() {
 function Composer() {
   const tab = useUI((s) => s.activeTab);
   const [text, setText] = useState("");
+  /** The composer answering you rather than the table: /help's list, or why a
+   *  command did not run. Cleared by the next keystroke, so it never becomes
+   *  something to dismiss. */
+  const [notice, setNotice] = useState("");
+  const input = useRef<HTMLInputElement>(null);
   // on the Stack tab the composer feeds the stack instead of the chat — that's
   // how you announce a random trigger/ability as a text item
   const stackMode = tab === "stack";
+
   const send = () => {
     const t = text.trim();
     if (!t) return;
+    // The stack composer takes text and only text: a slash there is part of
+    // the trigger you are announcing, not a command.
+    if (stackMode) {
+      setText("");
+      void act("stack_push", { text: t });
+      return;
+    }
+    const out = parseCommand(t);
+    // a command that did not run keeps what you typed, so the fix is an edit
+    if (out.kind === "notice") return setNotice(out.message);
     setText("");
-    void act(stackMode ? "stack_push" : "chat", { text: t });
+    setNotice("");
+    if (out.kind === "chat") return void act("chat", { text: out.text });
+    // A refusal belongs under the input that caused it, not in a modal — and
+    // it puts the line back, because "1d6, not d6" is an edit of what you
+    // typed and there is nothing to edit if sending threw it away.
+    void act(out.type, out.params, { quiet: true }).then((r) => {
+      if (r.ok) return;
+      setText((now) => (now === "" ? t : now));
+      setNotice(r.error ?? "That did not work.");
+    });
   };
+
+  /** The dice menu: every row prefills the composer rather than rolling, so a
+   *  preset is a starting point you can still edit — "/roll 2d6", then a note
+   *  saying what it is for. */
+  const openDice = (e: React.MouseEvent) => {
+    e.stopPropagation(); // MenuLayer closes on any document click
+    if (menuOpen()) return ui().closeMenu();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    ui().openMenu(
+      [
+        { label: "Roll", title: true },
+        ...DICE_PRESETS.map((p) => ({
+          label: p.label,
+          icon: "dice",
+          fn: () => {
+            setText(p.command + " ");
+            setNotice("");
+            input.current?.focus();
+          },
+        })),
+      ],
+      { clientX: r.left - CURSOR_GAP.x, clientY: r.top - CURSOR_GAP.y },
+      { plain: true }
+    );
+  };
+
   return (
-    <div id="composer">
-      <input
-        id="chat-input"
-        placeholder={stackMode ? "Announce a trigger/ability onto the stack…" : "Say something to the agent…"}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          // a half-written line is proof you are not finished, so the agent's
-          // countdown waits for you — see sendTyping. Sending is what makes it
-          // short again: enter means you ARE finished.
-          sendTyping();
-        }}
-        onKeyDown={(e) => e.key === "Enter" && send()}
-      />
-      <button id="btn-send" onClick={send}>
-        {stackMode ? <><Icon name="ability" /> Stack</> : "Send"}
-      </button>
-    </div>
+    <>
+      {notice && <div id="composer-notice">{notice}</div>}
+      <div id="composer">
+        {!stackMode && (
+          <button id="btn-dice" className="ghost" title="Roll dice" aria-label="Roll dice" onClick={openDice}>
+            <Icon name="dice" />
+          </button>
+        )}
+        <input
+          id="chat-input"
+          ref={input}
+          placeholder={stackMode ? "Announce a trigger/ability onto the stack…" : "Say something, or /roll 2d6…"}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (notice) setNotice("");
+            // a half-written line is proof you are not finished, so the agent's
+            // countdown waits for you — see sendTyping. Sending is what makes it
+            // short again: enter means you ARE finished.
+            sendTyping();
+          }}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+        />
+        <button id="btn-send" onClick={send}>
+          {stackMode ? <><Icon name="ability" /> Stack</> : "Send"}
+        </button>
+      </div>
+    </>
   );
 }
 

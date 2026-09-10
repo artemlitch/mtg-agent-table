@@ -92,6 +92,9 @@ export const GAME_EVENTS = [
   "blocks_finished",
   "drew",
   "tapped",
+  // dice on the table — the number is the point of the line, so it gets drawn
+  // as its own thing rather than another dim play-by-play row
+  "rolled",
   // a deliberate reveal — the only lines whose cards auto-open as a browser
   "revealed",
 ] as const;

@@ -250,8 +250,19 @@ export const TOOLS: Record<string, ToolDef> = {
       "Clear all attack/block annotations — post-damage cleanup (combat stays done), or cancelling a combat in progress (reopens declare-attackers).",
     schema: obj({}),
   },
-  roll: { description: "Roll a die.", schema: obj({ sides: num("sides, default 20") }) },
-  flip: { description: "Flip a coin.", schema: obj({}) },
+  roll: {
+    description:
+      "Roll dice. The server rolls and logs the result where both seats can read it — you cannot roll privately and you cannot re-roll. " +
+      "Write what the card asks for as notation, ALWAYS with the number of dice: '1d20', '2d6', '1d20+3'. A bare 'd20' is refused. Say what it is for in note, so the log line explains itself.",
+    schema: obj({
+      notation: str("dice, with the count included: 1d20, 2d6, 1d20+3 — 'd20' is not accepted"),
+      sides: num("older form: sides of one die, default 20"),
+      count: num("older form: how many dice, default 1"),
+      modifier: num("older form: added to the total once"),
+      note: str("what the roll is for — the card or ability asking for it"),
+    }),
+  },
+  flip: { description: "Flip a coin. The server flips; the result is logged for both seats.", schema: obj({}) },
   say: {
     description:
       "Say something to Player in the chat (announcements, responses, banter). " +

@@ -55,6 +55,9 @@ export const EVENT_SOUND: Record<GameEvent, SoundId> = {
   blocks_finished: "lockin",
   drew: "draw",
   tapped: "tap",
+  // dice land the way a card lands — a small physical knock on the table. It
+  // borrows the permanent's thump rather than earning an asset of its own.
+  rolled: "thump",
   // cards being shown across the table: the same shimmer a round opening has
   revealed: "glimmer",
 };

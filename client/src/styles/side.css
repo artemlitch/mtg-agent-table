@@ -71,6 +71,18 @@
 .msg.stackmsg .mwho { color: var(--accent); }
 .msg.stackmsg:hover { background: linear-gradient(#332a12, #332a12) padding-box, var(--chrome) border-box; }
 
+/* A roll is the one play-by-play line you go looking for: the number is the
+   whole content, and it decides what happens next. So it sits at the seat that
+   rolled it like a message does, rather than dimming into the run of taps and
+   draws, and the die face marks it at a glance. */
+.msg.rollmsg {
+  display: flex; align-items: center; gap: 7px;
+  font: var(--fw-label) var(--fs-body)/1.5 var(--font-action); letter-spacing: 0.03em;
+  color: var(--gold-hi);
+  background: linear-gradient(#2b2410, #2b2410) padding-box, var(--chrome-dim) border-box;
+}
+.msg.rollmsg .gi { color: var(--accent); font-size: 1.15em; }
+
 /* a reveal keeps the dim actline weight — it is still play-by-play, not a
    message — and earns only a cursor and a count chip saying there is
    something behind it */
@@ -139,6 +151,22 @@
 
 #composer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1; }
 #composer input { flex: 1; padding: 11px 10px; font-size: var(--fs-body); }
+/* the dice button is a glyph and nothing else — it opens the presets, it does
+   not compete with Send for the eye */
+#btn-dice { flex: none; padding: 0 10px; font-size: var(--fs-read); color: var(--dim); }
+#btn-dice:hover { color: var(--gold-hi); }
+
+/* The composer answering you: /help's list, or why a command did not run. It
+   sits above the input, inside the composer's own border, so it reads as the
+   input talking back rather than as a line of the game's log. */
+#composer-notice {
+  padding: 7px 10px 0; white-space: pre-wrap;
+  font-size: var(--fs-note); line-height: 1.5; color: var(--dim);
+  border-top: 1px solid; border-image: linear-gradient(90deg, transparent, #8a6420, transparent) 1;
+}
+/* one rule above the composer, never two — the notice takes over the line the
+   input would have drawn for itself */
+#composer-notice + #composer { border-top: none; }
 
 /* API-key setup takes the chat pane's place until a key is stored */
 #keysetup { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }

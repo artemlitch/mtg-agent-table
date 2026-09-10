@@ -38,6 +38,7 @@ export const ICONS: Record<string, string> = {
   bullet: "gi-plain-circle",
   search: "gi-magnifying-glass",
   scry: "gi-spectacles",
+  dice: "gi-rolling-dices",
   surveil: "gi-binoculars",
   mill: "gi-card-discard",
   exile: "gi-card-burn",
