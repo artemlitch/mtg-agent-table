@@ -58,7 +58,9 @@ Open the page so Artem watches proposals land: http://localhost:4781/swap
    counts are the "deck metadata" he cares about; your proposals are judged by
    how they move them.
 3. Research before proposing. Follow the `archidekt` skill's **Card research**
-   section, but through these tools instead of raw curl: `otag:` searches over
+   section, but through these tools instead of raw curl. For a big upgrade or
+   a new direction for the deck, start its deep web research agent first
+   (step 1); for a few targeted swaps, EDHREC is usually enough. Then `otag:` searches over
    regex (pick tag names from the archidekt skill's
    `references/oracle-tags.md` rather than guessing — a wrong slug silently
    returns 0), an amplifier search for the commander's trigger class, EDHREC

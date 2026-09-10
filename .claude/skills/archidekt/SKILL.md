@@ -1,6 +1,6 @@
 ---
 name: archidekt
-description: Read and edit Magic decks on archidekt.com via its (unofficial) REST API. Use when asked to fetch, analyze, or modify an Archidekt deck — adding/removing/recategorizing cards, checking deck contents, or resolving card printings. Logs in as the artemlitch account with ARCHIDEKT_USER / ARCHIDEKT_PASS from the mtg-agent-table repo's .env.
+description: Read and edit Magic decks on archidekt.com via its (unofficial) REST API, and research cards for Commander decks. Use when asked to fetch, analyze, or modify an Archidekt deck — adding/removing/recategorizing cards, checking deck contents, or resolving card printings — and whenever brainstorming, building, or upgrading a deck around a commander, theme, or mechanic (its Card research section is the method). Logs in as the artemlitch account with ARCHIDEKT_USER / ARCHIDEKT_PASS from the mtg-agent-table repo's .env.
 ---
 
 # Archidekt API
@@ -154,7 +154,35 @@ URLs), or list them via the login response, which includes `user.decks[]` with
 Hard-learned rules from real deck builds. Recall-built decks reliably miss
 cards; search-built decks don't. When building or upgrading a deck:
 
-### 1. Scryfall oracle tags beat regex — always start here
+### 1. Start a deep web research agent first (it runs while you search)
+
+Scryfall only finds cards whose wording or tag you already thought to search
+for, and EDHREC only shows what people already play under an existing
+commander. Neither finds *ideas*: combos, rules interactions that make a card
+better than it reads, odd commanders built for the theme, the archetype's
+known weak spots. People writing about the game do. One card list on Draftsim
+turned up Amy Pond and Sensational Spider-Man for a suspend and stun-counter deck; no
+planned oracle search would have.
+
+For a new deck, a new theme or mechanic, a commander hunt, or a big upgrade,
+launch a background `general-purpose` agent before your own Scryfall work,
+with the brief in `references/web-research-brief.md` filled in. It covers
+strategy articles, primers and public decklists, Reddit and forum threads,
+MTG wiki mechanic pages and deck-tech videos. For a broad theme, split it
+across two or three agents by source type. Skip it for a few targeted swaps,
+where EDHREC consensus (step 7) is enough.
+
+When it reports back:
+- Merge its cards with your search results. Several independent sources
+  naming a card means consensus; a card named once is a hidden gem worth a
+  closer look, not an automatic include.
+- Everything in it is a lead. Articles go stale, list Alchemy cards, and get
+  rules wrong: verify every name (step 8) and re-check every rules claim
+  before it reaches a deck page.
+- Mine it for search terms. The articles' vocabulary (mechanic names, cycle
+  names, rules phrases) becomes new `otag:` and `o:` searches.
+
+### 2. Scryfall oracle tags beat regex — start your own searches here
 
 Human-curated function tags immune to wording differences:
 
@@ -179,7 +207,7 @@ names like `tribal-elf` resolve too) or browse Scryfall's public list at
 https://scryfall.com/docs/tagger-tags; regenerate the TSV with
 `scripts/refresh_oracle_tags.py` when new sets land.
 
-### 2. Filter traps (these produced real wrong answers)
+### 3. Filter traps (these produced real wrong answers)
 
 - `is:commander` WITHOUT `legal:commander` returns Mystery Booster playtest
   cards (Kuroki, Thief of Talents; The Madcap Jester) — always add
@@ -197,13 +225,13 @@ https://scryfall.com/docs/tagger-tags; regenerate the TSV with
   retry, never as 0 (two test runs logged a whole batch of real tags as
   "0 results" this way).
 
-### 3. Re-scope searches when the job changes
+### 4. Re-scope searches when the job changes
 
 A commander search (`is:commander cmc<=4 otag:theft`) is NOT a 99 search.
 Re-run the same tags UNFILTERED when filling the deck — the 7-mana non-legend
 engine cards (e.g. Brainstealer Dragon) live outside the commander filter.
 
-### 4. Always run an amplifier search for the commander's trigger class
+### 5. Always run an amplifier search for the commander's trigger class
 
 No theme-worded search finds cards that DOUBLE the theme. If the commander's
 value is a triggered ability, separately search for its multipliers:
@@ -214,7 +242,7 @@ value is a triggered ability, separately search for its multipliers:
 Felix Five-Boots (doubles all combat-damage triggers) will never appear in any
 theft search; it was the single biggest miss in a real build.
 
-### 5. Fill card-type slots by query, not memory
+### 6. Fill card-type slots by query, not memory
 
 Memory skews pre-2022 and misses Universes Beyond staples (Brotherhood
 Regalia, Silver Shroud Costume, Psychic Paper are all UB sets). For
@@ -224,7 +252,7 @@ equipment/aura/land slots:
 
 and review the top ~30 by EDHREC rank.
 
-### 6. Finish with an EDHREC consensus check
+### 7. Finish with an EDHREC consensus check
 
 Before calling a list done, pull the commander's page:
 
@@ -234,7 +262,7 @@ Before calling a list done, pull the commander's page:
 inclusion + `synergy` score. Anything with high synergy you didn't consider is
 a probable miss. This catches in 30 seconds what recall never will.
 
-### 7. Batch verification via /cards/collection
+### 8. Batch verification via /cards/collection
 
 Verify a whole decklist in 1-2 calls (75 identifiers max each):
 
