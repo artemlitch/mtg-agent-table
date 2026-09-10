@@ -2,7 +2,7 @@
 
 Verified 2026-09-10. Counts are Commander-legal cards returned by
 `otag:<tag> legal:commander` on Scryfall that day. Every tag (4530
-primary tags plus 847 aliases) is in `oracle-tags-all.tsv` next
+primary tags plus 850 aliases) is in `oracle-tags-all.tsv` next
 to this file; grep it before probing a tag name by hand. Scryfall's own
 browsable list is https://scryfall.com/docs/tagger-tags.
 
