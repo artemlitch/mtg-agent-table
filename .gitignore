@@ -24,3 +24,10 @@ electron/build/
 
 # scratch: saved boards, exported pages, anything dropped here to look at
 proposals/
+
+# python bytecode (project skills ship helper scripts)
+__pycache__/
+*.pyc
+
+# personal deck brainstorm pages, not app code
+decks/
