@@ -107,3 +107,5 @@ Rules:
 - Server code: `server/deckstudio.ts`, `server/cardsearch.ts`,
   `server/studio-server.ts`, `server/studio-mcp-tools.ts` (tool docs are in
   the MCP descriptions too).
+
+For building a deck from an idea, or any plan/engine/package that will be presented to Artem, follow the deck-builder skill.

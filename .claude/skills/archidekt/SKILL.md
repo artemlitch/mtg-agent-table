@@ -285,3 +285,5 @@ For double-faced cards pass the front-face name.
   trigger per event; "whenever a creature deals combat damage" triggers per
   creature. Read which one it is before claiming scaling.
 - Double strike = two combat-damage events = two triggers.
+
+For building a deck from an idea, or any plan/engine/package that will be presented to Artem, follow the deck-builder skill.
