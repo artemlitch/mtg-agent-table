@@ -4,7 +4,7 @@ so any number of agents can run it at once.
 
 The database lives in decks/scryfall/ (gitignored) and is built by
 `scryfall_local.py --refresh` from Scryfall's bulk-data downloads:
-commander-cards.json (every Commander-legal paper card, slimmed),
+commander-cards.json (every Commander-legal card, slimmed),
 oracle-tags.json (every oracle tag with its cards, parents and aliases) and
 rulings.json (rulings by card name). Refresh it when a new set lands.
 
@@ -43,7 +43,9 @@ def refresh():
         return c.get(k) or ' // '.join(f.get(k, '') for f in c.get('card_faces', []))
     cards, ids = [], {}
     for c in rows('oracle_cards'):
-        if c.get('legalities', {}).get('commander') != 'legal' or 'paper' not in c.get('games', []):
+        # Commander legality alone: the oracle file holds one printing per card, and for some
+        # cards that printing is digital-only (Glacial Chasm's is), so a paper filter drops real cards.
+        if c.get('legalities', {}).get('commander') != 'legal':
             continue
         cards.append({'name': c['name'], 'oracle_id': c.get('oracle_id'), 'ci': ''.join(c.get('color_identity', [])), 'cost': faces(c, 'mana_cost'), 'cmc': c.get('cmc'), 'type': c.get('type_line', ''), 'pt': (f"{c.get('power')}/{c.get('toughness')}" if c.get('power') is not None else ''), 'text': faces(c, 'oracle_text'), 'keywords': c.get('keywords', []), 'gc': c.get('game_changer', False), 'rank': c.get('edhrec_rank'), 'set': c.get('set'), 'released': c.get('released_at')})
         ids[c.get('oracle_id')] = c['name']
