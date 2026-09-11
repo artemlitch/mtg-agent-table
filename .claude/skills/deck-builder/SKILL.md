@@ -56,8 +56,16 @@ get the effect. Two sources, run together:
   numbers.
 - The archidekt skill's deep web-research agent (its
   `references/web-research-brief.md`), started first so it runs while you
-  search. It must not call Scryfall: parallel calls from one IP get rate
-  limited.
+  search.
+
+**Subagents search the local Scryfall database, never the API.** Parallel
+API calls from one IP get rate limited, and the first fix for that (telling
+agents not to search at all) blinded the reviewers. `scripts/scryfall_local.py`
+searches a local copy of every Commander-legal card, oracle tag and ruling
+(`decks/scryfall/`, built by `--refresh` from Scryfall's bulk downloads;
+refresh when a set lands). Any number of agents can run it at once. Give
+every research or review agent the script path and tell it to search as
+much as it wants.
 
 Write the survey up as families with counts, pros and cons, and only then
 move to ranking.
@@ -161,6 +169,8 @@ short and let the page carry the volume.
   card texts and the Comprehensive Rules.
 - `references/pages.md`: the page spec format, the builder, and what every
   card entry shows.
+- `scripts/scryfall_local.py`: offline search over every Commander-legal
+  card, oracle tag and ruling; the tool every agent uses instead of the API.
 - `scripts/odds.py`: hypergeometric draw odds.
 - `scripts/build_page.py`: JSON spec to brainstorm page, with a Scryfall
   collection fetch and a local card cache.

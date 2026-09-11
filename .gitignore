@@ -31,3 +31,6 @@ __pycache__/
 
 # personal deck brainstorm pages, not app code
 decks/
+
+# local Scryfall bulk database (rebuild with deck-builder/scripts/scryfall_local.py --refresh)
+decks/scryfall/
