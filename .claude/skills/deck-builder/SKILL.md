@@ -116,7 +116,18 @@ one per draw step). `scripts/odds.py k --table` prints n = 7, 10 and 14 in
 one line, which is what a block summary needs. Use the numbers rather than
 "likely" or "usually"; "4 pieces, 47% by turn 4" is something he can weigh.
 
-### 6. Red-team every block before he sees it
+### 6. Sweep every role in the block, then red-team it
+
+A red team can only judge what it is handed. In the counter-lock session the
+five reviewers were given 116 card texts and told not to search, so they
+checked the plan's soundness and could not see that Journey to Eternity,
+Phyrexian Reclamation, Conduit of Worlds and Bear Umbra were missing from
+it; Artem found that gap by asking. So before the adversaries run, name
+every role in the block (for a counter engine: strip, return, fuel, untap,
+sink, closer) and run one systematic Scryfall search per role in the deck's
+colors, ordered by EDHREC rank, and put the whole result in the bundle the
+reviewers get. The survey finds what is missing; the red team finds what is
+wrong. Neither does the other's job.
 
 Spawn adversarial subagents on every block and every ranking before
 presenting: one per component (each engine, the payoff package, the
