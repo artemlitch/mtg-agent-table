@@ -63,7 +63,7 @@ API calls from one IP get rate limited, and the first fix for that (telling
 agents not to search at all) blinded the reviewers. `scripts/scryfall_local.py`
 searches a local copy of every Commander-legal card, oracle tag and ruling
 (`decks/scryfall/`, built by `--refresh` from Scryfall's bulk downloads;
-refresh when a set lands). Any number of agents can run it at once. Give
+refresh when a set lands). Any number of agents can run it at once. It is Scryfall's own data, not a sample: on 2026-09-12 ten payoff searches (stun, -1/-1, blight, cumulative upkeep, impending, finality, persist, undying, ice, doesn't untap) returned the same cards live and locally, and for -1/-1 the local copy found more, because its text includes reminder text that Scryfall's `o:` search skips. Give
 every research or review agent the script path and tell it to search as
 much as it wants.
 
