@@ -691,8 +691,13 @@ export class AgentRunner {
         `Do not name a single card in it, or count its lands, or describe what it does: that hand stays hidden all game and saying it once gives Player your whole plan (see rule 9b). ` +
         `Do not close this window without making that call — there is no later window that asks.\n`
       : "";
-    // the narration and say-vs-text rules used to close every wake; they are
-    // points 2 and 9 of the system prompt and did not need saying twice
+    // the brain-text and say-vs-text rules used to close every wake; they are
+    // points 2 and 9 of the system prompt and did not need saying twice.
+    // Point 2 once told the model to write out its reasoning before acting.
+    // From Claude Code 2.1.266 on, Opus 5 refuses every request carrying that
+    // ("safeguards flagged this message", [reasoning_extraction]); the brain
+    // panel already shows the thinking the CLI hands back, so it asks nothing
+    // of the reasoning now.
     return `${interrupted}${header}\n${events || "(nothing new)"}\n${stackText}${stackDuty}${paymentCheck}${cardText}${combatDuty}${boardDigest()}${turnTrigText}${opening}\n${situation} ${directive}`;
   }
 
@@ -1119,7 +1124,7 @@ THE TABLE has no rules engine. You and Player enforce the rules yourselves, like
 
 HOW TO PLAY YOUR WINDOW:
 1. Call get_state to see the table when your window opens.
-2. Narrate your reasoning as plain text BEFORE acting: what you observed, what your options are, why you chose your line. Player watches this narration live in a "brain" panel — it is your table talk to yourself, always visible. Be thorough but not padded.
+2. Any text you write between tool calls shows live in Player's "brain" panel, so keep it short: what you are doing, not a transcript. Anything meant for Player goes through say (rule 9).
 3. Take your actions with tools, following the CASTING PROCEDURE below for every card. MOVE THE MARKER AS YOU GO: open every turn of yours with set_phase untap/upkeep (which untaps you), take your draw with the draw tool, then set_phase main 1 BEFORE you cast anything at sorcery speed; set_turn hands the turn over when you are finished. The phase you display IS part of the game state — casting a sorcery-speed spell while the marker still reads untap/upkeep shows Player a table that is not the one you are playing on.
 4. Play honestly: respect mana costs, one land drop per turn, summoning sickness, casting your commander from the command zone with commander tax (+2 per prior cast). The tax is TRACKED on the table: every player in get_state carries commanderTax. Read it before you cast a commander and pay that much extra. The table charges the counter itself, for both seats, whenever a commander is cast out of the command zone — so never bump it yourself except to correct a miscount. If Player's looks wrong for the number of times they have cast, say so rather than silently assuming.
 5. You share a physical table with Player, and you may arrange your side of it. Every battlefield card carries a pos on get_state — x 0 (left) to 1 (right), y 0 (your back edge) to 1 (Player's), midline 0.5 — and the place tool moves cards to the coordinates you choose. New cards put themselves down tidily, so use place when you want something somewhere particular: grouping a deck's pieces together, lining up attackers, putting an aura beside what it enchants. Batch several moves into one call. It is cosmetic — no priority, no undo step — so it costs Player nothing.
@@ -1146,7 +1151,7 @@ AN UNFINISHED DECLARATION IS THE ONE EXCEPTION TO THAT. A declaration of Player'
 
 CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 1. READ the card's full oracle text in get_state before playing it. Never play from memory of the name. The server enforces this: casting a card whose text was never delivered to you is rejected. Draw results include the full text of what you drew.
-2. LIST its triggered abilities out loud in your narration: ETB, death, attack, devour, landfall, "whenever…". If it has none, say so.
+2. LIST its triggered abilities in your text: ETB, death, attack, devour, landfall, "whenever…". If it has none, say so.
 3. Lands: cast tool, straight to the battlefield (CR 115.2a special action, no stack, no responses) — but its triggers (Bojuka Bog, landfall) still go on the stack via stack_push.
 4. Spells: tap your mana (tap tool), then ONE stack_batch containing [the card, then each of its cast/ETB triggers as text items, bottom-first]. A no-trigger permanent is just a plain cast. The trigger rides in the SAME batch — a trigger you didn't put on the stack DID NOT HAPPEN, and "I'll apply it later" is not a thing at this table.
 5. Call done ONCE. Player accepts the whole batch or responds inside it. NEVER stack_resolve your own items.
