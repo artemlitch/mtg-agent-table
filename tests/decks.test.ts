@@ -1,7 +1,7 @@
 // Deck loading: Archidekt is the card source (offline fixture tests of the
 // mapping); Scryfall network tests (token lookups) gated behind RUN_NET=1.
 import { describe, test, expect } from "vitest";
-import { buildCardInfo, cdnImg, pickTokenFace } from "../server/decks";
+import { archidektArt, buildCardInfo, cdnImg, pickTokenFace } from "../server/decks";
 
 // fixtures modeled on real archidekt.com/api/decks/<id>/ payloads
 const marchesaSpec = {
@@ -69,7 +69,7 @@ describe("buildCardInfo (archidekt → card)", () => {
     const c = buildCardInfo(marchesaSpec as any);
     expect(c.name).toBe("Marchesa, the Black Rose");
     expect(c.image).toBe(
-      "https://cards.scryfall.io/normal/front/c/a/ca6cf5ba-0bad-4f7d-83b9-c092c2586131.jpg?1783935881"
+      "https://card-images.archidekt.com/grid/front/c/a/ca6cf5ba-0bad-4f7d-83b9-c092c2586131.webp?1783935881"
     );
     expect(c.typeLine).toBe("Legendary Creature — Human Wizard");
     expect(c.mana).toBe("{1}{U}{B}{R}");
@@ -115,9 +115,24 @@ describe("buildCardInfo (archidekt → card)", () => {
 });
 
 describe("cdnImg", () => {
-  test("constructs the scryfall CDN path from uid shards", () => {
-    expect(cdnImg("ab12", "99", "back")).toBe("https://cards.scryfall.io/normal/back/a/b/ab12.jpg?99");
+  test("constructs Archidekt's CDN path from uid shards", () => {
+    expect(cdnImg("ab12", "99", "back")).toBe("https://card-images.archidekt.com/grid/back/a/b/ab12.webp?99");
     expect(cdnImg(null, "99")).toBeUndefined();
+  });
+});
+
+describe("archidektArt", () => {
+  const uid = "ca6cf5ba-0bad-4f7d-83b9-c092c2586131";
+  test("rewrites a Scryfall CDN url to the same printing and face on Archidekt", () => {
+    expect(archidektArt(`https://cards.scryfall.io/normal/back/c/a/${uid}.jpg?1783935881`)).toBe(
+      `https://card-images.archidekt.com/grid/back/c/a/${uid}.webp?1783935881`
+    );
+    expect(archidektArt(`https://cards.scryfall.io/large/front/c/a/${uid}.jpg`)).toBe(
+      `https://card-images.archidekt.com/grid/front/c/a/${uid}.webp`
+    );
+  });
+  test("leaves every other url alone", () => {
+    for (const u of ["data:image/png;base64,xx", "https://example.com/custom.png", undefined]) expect(archidektArt(u)).toBe(u);
   });
 });
 

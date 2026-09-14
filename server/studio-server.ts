@@ -36,6 +36,8 @@ function saveSoon() {
     }
   }
   if (snap?.studio) studio.restoreStudio(snap.studio);
+  // in the background: boards saved before fallback art existed get it now
+  studio.backfillArt().then((changed) => changed && saveSoon()).catch(() => {});
 }
 
 // CORS is open so the table page (a different origin) can probe /swap to

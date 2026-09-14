@@ -3,6 +3,7 @@
 
 import { game, getNextCardId, setNextCardId, normalizePhase } from "./game";
 import type { AgentSnapshot } from "./agent";
+import { archidektArt } from "./decks";
 
 /** Everything saved alongside the game that is NOT the game. The undo history
  *  was always here; the conversation belongs here for the same reason — a
@@ -79,6 +80,9 @@ export function restoreState(snap: any): PersistedExtra {
   if (legacyTalk.length) snap.said = [...legacyTalk, ...(snap.said ?? [])].sort((a, b) => a.seq - b.seq);
   // DFC names follow the active face now — rewrite composite names in place
   for (const c of Object.values(game.cards) as any[]) {
+    // art moved off Scryfall's CDN (see cdnImg); saved urls follow it
+    c.image = archidektArt(c.image);
+    for (const f of c.faces ?? []) f.image = archidektArt(f.image);
     if (c.faces) c.name = c.faces[c.face ?? 0]?.name ?? c.name;
     // attach became board piles: rename the pointer
     if (c.under === undefined) c.under = c.attachedTo ?? null;

@@ -281,4 +281,11 @@ describe("parsePrinting", () => {
     expect(p.oracle).toContain("Valakut Stoneforge: T: add R");
     expect(p.mv).toBe(3);
   });
+
+  test("builds Archidekt's own image url as the fallback when set code and uid are known", () => {
+    const base = { id: 8, oracleCard: { name: "Sol Ring", cmc: 1, colorIdentity: [], legalities: { commander: "legal" } } };
+    const p = parsePrinting({ ...base, uid: "5bef0790-aa1b-4144-8391-338e59e86115", edition: { editioncode: "msc" } });
+    expect(p.imageAlt).toBe("https://storage.googleapis.com/archidekt-card-images/msc/5bef0790-aa1b-4144-8391-338e59e86115_normal.jpg");
+    expect(parsePrinting(base).imageAlt).toBeUndefined();
+  });
 });

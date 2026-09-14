@@ -92,6 +92,24 @@ describe("state serialization", () => {
     expect(cards[shield].under).toBe(sword);
   });
 
+  test("saved Scryfall CDN art restores pointing at Archidekt's CDN", () => {
+    applyAction("you", "create_token", { name: "Bearer", n: 1 });
+    const [id] = [...game.players.you.zones.battlefield];
+    const snap = serializeState({ agent: null, lastDecks: null });
+    const uid = "ca6cf5ba-0bad-4f7d-83b9-c092c2586131";
+    const card = snap.game.cards[id];
+    card.image = `https://cards.scryfall.io/normal/front/c/a/${uid}.jpg?17`;
+    card.faces = [
+      { name: "Bearer", image: card.image },
+      { name: "Back", image: `https://cards.scryfall.io/normal/back/c/a/${uid}.jpg?17` },
+    ];
+    resetGameState();
+    restoreState(snap);
+    const c = game.cards[id] as any;
+    expect(c.image).toBe(`https://card-images.archidekt.com/grid/front/c/a/${uid}.webp?17`);
+    expect(c.faces[1].image).toBe(`https://card-images.archidekt.com/grid/back/c/a/${uid}.webp?17`);
+  });
+
   test("agent runner state round-trips", () => {
     const a = new AgentRunner();
     a.promptArgs = { agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" };

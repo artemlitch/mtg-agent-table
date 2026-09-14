@@ -13,6 +13,7 @@ export interface StudioCard {
   qty: number;
   category: string;
   image?: string;
+  imageAlt?: string; // fallback art when the Scryfall CDN is unreachable
   mana?: string;
   mv: number;
   typeLine?: string;
@@ -158,6 +159,7 @@ function fromPrinting(p: ArchidektPrinting, base: Partial<StudioCard>): StudioCa
     qty: base.qty ?? 1,
     category: base.category ?? "",
     image: p.image,
+    imageAlt: p.imageAlt,
     mana: p.mana,
     mv: p.mv,
     typeLine: p.typeLine,
@@ -432,7 +434,7 @@ export function studioView(lean = false) {
     deckName: studio.deckName,
     lastError: studio.lastError,
     metadata: deckMetadata(studio.cards),
-    cards: lean ? studio.cards.map(({ image, oracle, deckRelationId, printingId, ...c }) => c) : studio.cards,
+    cards: lean ? studio.cards.map(({ image, imageAlt, oracle, deckRelationId, printingId, ...c }) => c) : studio.cards,
     proposals: studio.proposals.map((p) => proposalView(p, lean)),
   };
 }
@@ -451,4 +453,19 @@ export function restoreStudio(snap: any) {
   studio.proposals = snap.proposals ?? [];
   studio.lastError = snap.lastError;
   nextProposalId = snap.nextProposalId ?? studio.proposals.length + 1;
+}
+
+/** Proposals saved before cards carried imageAlt have no fallback art; look
+ * their printings up again (cached) so the board survives a Scryfall outage. */
+export async function backfillArt() {
+  const cards = studio.proposals.flatMap((p) => [p.card, ...p.options.map((o) => o.card)]).filter((c): c is StudioCard => !!c && !c.imageAlt);
+  const found = await Promise.all(cards.map((c) => resolvePrinting(c.name).catch(() => null)));
+  let changed = false;
+  cards.forEach((c, i) => {
+    if (found[i]?.imageAlt) {
+      c.imageAlt = found[i]!.imageAlt;
+      changed = true;
+    }
+  });
+  return changed;
 }

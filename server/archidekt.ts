@@ -15,6 +15,7 @@ export interface ArchidektPrinting {
   printingId: number;
   name: string; // oracle name; "A // B" for double-faced cards
   image?: string; // Scryfall CDN url for THIS printing (built from uid + hash)
+  imageAlt?: string; // Archidekt's own copy of the same art, for when Scryfall's CDN is down
   mv: number;
   mana?: string;
   typeLine?: string;
@@ -177,6 +178,12 @@ export function toArchidektAction(a: CardAction) {
 export const imageUrl = (name: string) =>
   `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name.split(" // ")[0])}&format=image&version=normal`;
 
+/** Archidekt mirrors every printing's art on its own bucket, keyed by set code
+ * and Scryfall uid. Not name-keyed, so it can go stale like any uid url — it is
+ * only the fallback for when Scryfall itself is unreachable. */
+export const archidektImageUrl = (c: any) =>
+  c?.uid && c?.edition?.editioncode ? `https://storage.googleapis.com/archidekt-card-images/${c.edition.editioncode}/${c.uid}_normal.jpg` : undefined;
+
 const typeLineOf = (oc: any) =>
   [oc.superTypes, oc.types].flat().filter(Boolean).join(" ") + (oc.subTypes?.length ? ` — ${oc.subTypes.join(" ")}` : "");
 
@@ -188,6 +195,7 @@ export function parsePrinting(c: any): ArchidektPrinting {
     printingId: c.id,
     name: oc.name,
     image: oc.name ? imageUrl(oc.name) : undefined,
+    imageAlt: archidektImageUrl(c),
     mv: Number(oc.cmc ?? 0),
     mana: oc.manaCost || faces[0]?.manaCost || undefined,
     typeLine: faces.length ? faces.map((f) => typeLineOf(f)).filter(Boolean).join(" // ") || typeLineOf(oc) : typeLineOf(oc),

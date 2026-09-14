@@ -29,10 +29,21 @@ export interface LoadedDeck {
   cards: DeckCardSpec[];
 }
 
-/** The chosen printing's image straight off the Scryfall CDN — no API. */
+/** The chosen printing's image off Archidekt's own image CDN — the one its
+ * site uses. Same Scryfall uid sharding as cards.scryfall.io, but it does not
+ * go down when Scryfall does (it was offline for maintenance, taking every
+ * card on the table with it). */
 export function cdnImg(uid: string | null, hash: string | null, side: "front" | "back" = "front"): string | undefined {
   if (!uid) return undefined;
-  return `https://cards.scryfall.io/normal/${side}/${uid[0]}/${uid[1]}/${uid}.jpg${hash ? `?${hash}` : ""}`;
+  return `https://card-images.archidekt.com/grid/${side}/${uid[0]}/${uid[1]}/${uid}.webp${hash ? `?${hash}` : ""}`;
+}
+
+/** A cards.scryfall.io url rewritten to the same printing on Archidekt's CDN;
+ * anything else comes back untouched. For art saved before cdnImg moved, and
+ * token art Scryfall hands us. */
+export function archidektArt(url: string | undefined): string | undefined {
+  const m = url?.match(/^https:\/\/cards\.scryfall\.io\/[a-z_]+\/(front|back)\/\w\/\w\/([0-9a-f-]{36})\.jpg(?:\?(\w+))?$/);
+  return m ? cdnImg(m[2], m[3] ?? null, m[1] as "front" | "back") : url;
 }
 
 /** "Legendary Creature — God" from Archidekt's type arrays. */
@@ -153,7 +164,7 @@ interface ScryCard extends ScryFace {
 function scryFace(src: any, fb: any = {}): ScryFace {
   return {
     name: src.name ?? fb.name,
-    image: src.image_uris?.normal ?? fb.image_uris?.normal,
+    image: archidektArt(src.image_uris?.normal ?? fb.image_uris?.normal),
     oracle: src.oracle_text ?? fb.oracle_text,
     mana: src.mana_cost ?? fb.mana_cost,
     typeLine: src.type_line ?? fb.type_line,

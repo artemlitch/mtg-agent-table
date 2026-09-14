@@ -159,6 +159,25 @@ function signinEl() {
   return el;
 }
 
+// Card art with a second source: Scryfall's image CDN goes down now and then,
+// and Archidekt keeps its own copy of every printing. The error listener below
+// swaps to it once.
+function art(card, name = card?.name, extra = "") {
+  const alt = card?.imageAlt ? ` data-alt="${esc(card.imageAlt)}"` : "";
+  return `<img src="${esc(card?.image)}" alt="${esc(name)}"${alt} ${extra}>`;
+}
+
+document.addEventListener(
+  "error",
+  (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.dataset.alt || img.dataset.triedAlt) return;
+    img.dataset.triedAlt = "1";
+    img.src = img.dataset.alt;
+  },
+  true
+);
+
 function cardMeta(c) {
   return `${esc(c.mana ?? "")} · ${esc(c.typeLine ?? "")}`.replace(/^ · /, "");
 }
@@ -174,8 +193,8 @@ function proposalEl(p) {
     el.innerHTML =
       `<div class="receipt"><span class="band ${p.status}">${p.status}</span>` +
       (p.status === "applied"
-        ? `<img src="${esc(leaving.image)}" alt="${esc(leaving.name)}"><b>${esc(leaving.name)}</b> → <img src="${esc(arriving.image)}" alt="${esc(arriving.name)}"><b>${esc(arriving.name)}</b>`
-        : `<img src="${esc(p.card.image)}" alt="${esc(p.card.name)}"><b>${esc(p.card.name)}</b> <span>${p.kind === "cut" ? "stays" : "not added"}</span>`) +
+        ? `${art(leaving)}<b>${esc(leaving.name)}</b> → ${art(arriving)}<b>${esc(arriving.name)}</b>`
+        : `${art(p.card)}<b>${esc(p.card.name)}</b> <span>${p.kind === "cut" ? "stays" : "not added"}</span>`) +
       `</div>`;
     bindPreviews(el, p);
     return el;
@@ -189,7 +208,7 @@ function proposalEl(p) {
   el.innerHTML = `
     <div class="subject">
       <span class="band ${p.kind}">${subjectBand}</span>
-      <img src="${esc(p.card.image)}" alt="${esc(p.card.name)}" data-card="subject">
+      ${art(p.card, p.card.name, `data-card="subject"`)}
       <div class="meta">${cardMeta(p.card)} · <b>${esc(p.kind === "cut" ? p.card.category : p.subjectCategory)}</b></div>
       <div class="why">${esc(p.why)}</div>
     </div>
@@ -199,7 +218,7 @@ function proposalEl(p) {
       <div class="optlist">${p.options
         .map(
           (o) => `<div class="opt ${o.name === sel.name ? "sel" : ""} ${o.error ? "broken" : ""}" data-opt="${esc(o.name)}" title="${esc(o.error ?? "")}">
-            <img src="${esc(o.card?.image)}" alt="${esc(o.name)}">
+            ${art(o.card, o.name)}
             ${o.primary ? `<span class="rec">Recommended</span>` : ""}
             <div class="name">${esc(o.name)}</div>
             <span class="cat">${esc(o.category)}</span>

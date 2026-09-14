@@ -19,6 +19,25 @@ export const namedArt = (name: string, back = false) =>
     back ? "&face=back" : ""
   }`;
 
+/** A cards.scryfall.io url as the same printing on Archidekt's image CDN, or
+ *  null. Mirrors archidektArt in server/decks.ts: art saved (or put back by
+ *  undo) from before the table moved off Scryfall's CDN still points there,
+ *  and Scryfall goes down for maintenance. */
+export function archidektArt(url: string): string | null {
+  const m = url.match(/^https:\/\/cards\.scryfall\.io\/[a-z_]+\/(front|back)\/\w\/\w\/([0-9a-f-]{36})\.jpg(?:\?(\w+))?$/);
+  return m ? `https://card-images.archidekt.com/grid/${m[1]}/${m[2][0]}/${m[2][1]}/${m[2]}.webp${m[3] ? `?${m[3]}` : ""}` : null;
+}
+
+/** Try the Archidekt copy of a failed Scryfall url once; true if it did. */
+function retryOnArchidekt(img: HTMLImageElement): boolean {
+  if (img.dataset.archidektArt) return false;
+  const alt = archidektArt(img.src);
+  if (!alt) return false;
+  img.dataset.archidektArt = "1";
+  img.src = alt;
+  return true;
+}
+
 /** Spread onto an <img> whose art cannot be replaced — a token's, where
  *  `cards/named` would answer with the real card of that name rather than the
  *  token. The frame around it already carries the name, type, rules text and
@@ -26,6 +45,7 @@ export const namedArt = (name: string, back = false) =>
  *  frame stand, instead of leaving a broken-image glyph in the middle of it. */
 export const hideOnError = {
   onError: (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (retryOnArchidekt(e.currentTarget)) return;
     e.currentTarget.style.display = "none";
   },
 };
@@ -37,6 +57,7 @@ export function artFallback(name?: string | null, back = false) {
   return {
     onError: (e: React.SyntheticEvent<HTMLImageElement>) => {
       const img = e.currentTarget;
+      if (retryOnArchidekt(img)) return;
       // one shot. If the by-name art fails too there is nothing left to try,
       // and re-pointing src at a url that just failed spins forever.
       if (img.dataset.namedArt) return;
