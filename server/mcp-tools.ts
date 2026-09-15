@@ -69,7 +69,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   cast: {
     description:
-      "Cast a spell (goes on the stack; declare targets with the targets param — they render on the stack item — then call done so Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses — pass tapped:true for a land that enters tapped. For a double-faced card pass face (0 front / 1 back) to say which face you are playing. A permanent arrives stacked in the default corner with everything else — follow up with place to put it where you want it on the board.",
+      "Cast a spell (goes on the stack; declare targets with the targets param — they render on the stack item — then call done so Player resolves or responds) OR play a land: lands are special actions per CR 115.2a and this tool routes them STRAIGHT to the battlefield, no stack, no responses — pass tapped:true for a land that enters tapped. For a double-faced card pass face (0 front / 1 back) to say which face you are playing. A permanent files itself by type when it lands — lands on your back edge, creatures on your front rank, artifacts and enchantments in the side column — so leave it there unless its position means something (an aura beside what it enchants).",
     schema: obj({
       card: str("card id"),
       targets: arr(str("card id, or 'you'/'agent' for a player"), "declared targets — ALWAYS pass them for targeted spells; they are shown on the stack item and in the log"),
@@ -157,12 +157,12 @@ export const TOOLS: Record<string, ToolDef> = {
   life: { description: "Change a player's life: delta (+/-) or set (absolute).", schema: obj({ player: PLAYER, delta: num("life change"), set: num("absolute value") }, ["player"]) },
   place: {
     description:
-      "Slide cards around the shared table surface. ONE coordinate system covers both halves: x 0 = far left, 1 = far right; y 0 = YOUR back edge (top of the table), 1 = Player's back edge (bottom), so the midline is 0.5 and your own half is roughly y 0 to 0.5. Every battlefield card carries its pos on get_state, so you can read the board's layout and tidy it. New cards put themselves down tidily — use this when you want a card somewhere particular. Purely cosmetic: no log entry, no undo step, and it does not pass priority.",
+      "Move a card that needs to be somewhere particular — an aura or equipment beside what it is attached to, a token beside its maker, or a card Player asked you to move. NOT for tidying: cards already arrive filed by type (lands on the back edge, creatures on the front rank, artifacts and enchantments in the side column beside them), and rearranging that fills Player's view with moves that changed nothing. ONE coordinate system covers both halves: x 0 = far left, 1 = far right; y 0 = YOUR back edge (top of the table), 1 = Player's back edge (bottom), so the midline is 0.5 and your own half is roughly y 0 to 0.5. Every battlefield card carries its pos on get_state. Purely cosmetic: no log entry, no undo step, and it does not pass priority.",
     schema: obj(
       {
         positions: arr(
           obj({ card: str("card id"), x: num("0 (left) to 1 (right)"), y: num("0 (your back edge) to 1 (Player's back edge)") }, ["card", "x", "y"]),
-          "one entry per card — batch a whole board tidy into a single call"
+          "one entry per card — batch into a single call when a play really does need several cards moved"
         ),
       },
       ["positions"]
