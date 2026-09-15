@@ -9,7 +9,7 @@ import { cardAnchor, placeRect } from "../../game/table";
 import { sendTyping } from "../../api";
 import { announceOnStack, isArriving } from "../../game/announce";
 import { useGame } from "../../store/game";
-import { ui } from "../../store/ui";
+import { previewProps, ui } from "../../store/ui";
 import type { Card, PlayerId } from "../../types";
 
 /** Announce what a card is doing onto the stack: the card and its oracle text
@@ -31,8 +31,25 @@ export function openAbilityModal(c: Card) {
   ui().openModal({
     compact: true,
     body: <AbilityModal card={c} inputRef={input} />,
-    side: <TargetPanel inputRef={input} />,
+    side: (
+      <div className="targetside">
+        <TargetPanel inputRef={input} />
+        <PileStrips inputRef={input} />
+      </div>
+    ),
   });
+}
+
+/** Drop `[name]` into the box at the caret. Shared by the board and the pile
+ *  strips: one way of naming a target, wherever the card sits. */
+function insertName(inputRef: RefObject<HTMLTextAreaElement | null>, name: string) {
+  const el = inputRef.current;
+  if (!el) return;
+  const s = el.selectionStart ?? el.value.length;
+  const e = el.selectionEnd ?? s;
+  el.setRangeText(`[${name}]`, s, e, "end");
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.focus();
 }
 
 function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<HTMLTextAreaElement | null> }) {
@@ -145,15 +162,7 @@ function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | n
     return () => ro.disconnect();
   }, []);
 
-  const insert = (name: string) => {
-    const el = inputRef.current;
-    if (!el) return;
-    const s = el.selectionStart ?? el.value.length;
-    const e = el.selectionEnd ?? s;
-    el.setRangeText(`[${name}]`, s, e, "end");
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.focus();
-  };
+  const insert = (name: string) => insertName(inputRef, name);
 
   const board = placeRect();
   if (!view || !fit || !board) return null;
@@ -193,6 +202,53 @@ function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | n
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** The four piles, under the board: your graveyard and exile, the agent's
+ *  graveyard and exile. A trigger names cards in a graveyard as often as on
+ *  the battlefield — "return target creature card", "exile target card from a
+ *  graveyard" — and those are the cards the board above cannot show. Each pile
+ *  is one row that scrolls sideways, newest card first as the pile browsers
+ *  read it, and clicking a card puts its name in the box the way the board
+ *  does. Live, like the board: a card that leaves the pile leaves the row. */
+const PILES: { p: PlayerId; zone: "graveyard" | "exile" }[] = [
+  { p: "you", zone: "graveyard" },
+  { p: "you", zone: "exile" },
+  { p: "agent", zone: "graveyard" },
+  { p: "agent", zone: "exile" },
+];
+
+function PileStrips({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | null> }) {
+  const view = useGame((s) => s.view);
+  if (!view) return null;
+  return (
+    <div className="pilestrips">
+      {PILES.map(({ p, zone }) => {
+        const cards = [...view.players[p].zones[zone]].reverse();
+        return (
+          <div className="pilestrip" key={`${p}-${zone}`}>
+            <div className="pslabel">
+              {p === "you" ? "Your" : "Agent's"} {zone} ({cards.length})
+            </div>
+            <div className="psrow">
+              {!cards.length && <span className="psempty">(empty)</span>}
+              {cards.map((c) =>
+                c.hidden || !c.name ? (
+                  <img key={c.id} className="pscard cardback" src="/card-back.jpg" alt="face-down card" />
+                ) : c.image ? (
+                  <img key={c.id} className="pscard" src={c.image} alt="" {...artFallback(c.name)} {...previewProps(c)} onClick={() => insertName(inputRef, c.name!)} />
+                ) : (
+                  <div key={c.id} className="pscard pstext" {...previewProps(c)} onClick={() => insertName(inputRef, c.name!)}>
+                    <Text>{c.name}</Text>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

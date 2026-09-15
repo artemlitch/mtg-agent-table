@@ -179,3 +179,28 @@
 .tokencustom { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
 .tokencustom .tclabel { width: 100%; color: var(--accent); font: var(--fw-label) var(--fs-note)/1.5 var(--font-fantasy); letter-spacing: 0.08em; }
 .tokencustom input { width: 170px; }
+
+/* The board and the four piles stand in one column beside the box. The panel
+   keeps matching the box's height; the piles hang under it at the same width. */
+.targetside { display: flex; flex-direction: column; align-items: stretch; flex: none; }
+.pilestrips {
+  margin-left: 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px; border-radius: 10px; border: 1px solid transparent;
+  background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome-dim) border-box;
+}
+.pilestrip { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pslabel { color: var(--accent); font: var(--fw-label) var(--fs-tiny)/1.4 var(--font-fantasy); letter-spacing: 0.08em; }
+/* one row, never wrapping: the pile reads left to right and scrolls sideways.
+   A little vertical padding so a hovered card's outline isn't clipped. */
+.psrow { display: flex; gap: 5px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 4px; min-height: 30px; align-items: center; }
+.pscard {
+  flex: none; height: 72px; width: auto; border-radius: 4px; cursor: pointer;
+  outline: 1.5px solid transparent; outline-offset: 1px; transition: var(--hover-transition);
+}
+.pscard:not(.cardback):hover { outline-color: var(--accent); box-shadow: 0 0 10px rgba(216, 160, 61, 0.3); }
+.pscard.cardback { cursor: default; }
+.pscard.pstext {
+  width: 52px; padding: 3px; overflow: hidden; font-size: var(--fs-micro); line-height: 1.2; color: var(--text);
+  background: var(--panel2); border: 1px solid var(--chrome-dim);
+}
+.psempty { color: var(--dim); font-size: var(--fs-micro); }
