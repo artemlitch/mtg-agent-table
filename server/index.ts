@@ -15,6 +15,7 @@ import { join } from "node:path";
 
 import { STATE_FILE, GAMES_DIR, SAMPLE_LIB_DIR } from "./datadir";
 import { COMPILED, RESOURCE_DIR } from "./packaged";
+import { handleMcpHttp } from "./mcp-http";
 
 const PORT = Number(process.env.PORT ?? 4780);
 const AGENT_DISABLED = process.env.AGENT_DISABLED === "1";
@@ -200,6 +201,11 @@ const server = Bun.serve({
   async fetch(req, srv) {
     const url = new URL(req.url);
     const path = url.pathname;
+
+    // The MCP endpoint: an agent CLI reaches the table over this port instead
+    // of launching a server process, so its config needs no path on disk.
+    const mcp = await handleMcpHttp(req, { address: srv.requestIP(req)?.address });
+    if (mcp) return mcp;
 
     if (path === "/ws") {
       if (srv.upgrade(req)) return undefined as any;

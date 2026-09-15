@@ -336,37 +336,41 @@ export async function callTable(tool: string, args: any, tableUrl: string = TABL
   }
 }
 
-function reply(id: any, result: any) {
-  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
+export interface RpcResponse {
+  jsonrpc: "2.0";
+  id: any;
+  result?: any;
+  error?: { code: number; message: string };
 }
-function replyError(id: any, message: string) {
-  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32000, message } }) + "\n");
-}
+const ok = (id: any, result: any): RpcResponse => ({ jsonrpc: "2.0", id, result });
+const err = (id: any, message: string, code = -32000): RpcResponse => ({ jsonrpc: "2.0", id, error: { code, message } });
 
-async function handle(msg: any) {
-  const { id, method, params } = msg;
+/** One JSON-RPC message in, one response out — or null for a notification,
+ * which by definition gets no reply. Transport-free on purpose: the stdio
+ * server writes the result as a line, the HTTP endpoint sends it as a body. */
+export async function handleMessage(msg: any): Promise<RpcResponse | null> {
+  const { id, method, params } = msg ?? {};
   if (method === "initialize") {
-    reply(id, {
+    return ok(id, {
       protocolVersion: params?.protocolVersion ?? "2024-11-05",
       capabilities: { tools: {} },
       serverInfo: { name: "table", version: "1.0.0" },
     });
-    return;
   }
-  if (method === "notifications/initialized" || String(method).startsWith("notifications/")) return;
+  if (String(method).startsWith("notifications/")) return null;
+  if (method === "ping") return ok(id, {});
   if (method === "tools/list") {
-    reply(id, {
+    return ok(id, {
       tools: Object.entries(TOOLS).map(([name, def]) => ({
         name,
         description: def.description,
         inputSchema: def.schema,
       })),
     });
-    return;
   }
   if (method === "tools/call") {
-    const name = params.name as string;
-    if (!TOOLS[name]) return replyError(id, `unknown tool ${name}`);
+    const name = params?.name as string;
+    if (!TOOLS[name]) return err(id, `unknown tool ${name}`);
     try {
       const text = await callTable(name, params.arguments);
       let isError = false;
@@ -374,13 +378,14 @@ async function handle(msg: any) {
         const parsed = JSON.parse(text);
         isError = parsed?.ok === false || !!parsed?.error;
       } catch {}
-      reply(id, { content: [{ type: "text", text }], isError });
+      return ok(id, { content: [{ type: "text", text }], isError });
     } catch (e: any) {
-      reply(id, { content: [{ type: "text", text: `table server error: ${e.message}` }], isError: true });
+      return ok(id, { content: [{ type: "text", text: `table server error: ${e.message}` }], isError: true });
     }
-    return;
   }
-  if (id !== undefined) replyError(id, `unknown method ${method}`);
+  // a response to something we never asked for, or a method we don't have
+  if (id === undefined) return null;
+  return err(id, `unknown method ${method}`, -32601);
 }
 
 /** Read JSON-RPC lines off stdin until it closes. Only the process that IS
@@ -388,6 +393,9 @@ async function handle(msg: any) {
  * TOOLS/callTable and never touches stdin. */
 export function runStdioServer() {
   let buf = "";
+  // one message at a time: a tool call that awaits the table must not let the
+  // next line's reply overtake it on stdout
+  let queue: Promise<void> = Promise.resolve();
   process.stdin.on("data", (chunk: Buffer) => {
     buf += chunk.toString();
     let nl;
@@ -395,11 +403,16 @@ export function runStdioServer() {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
+      let msg: any;
       try {
-        handle(JSON.parse(line));
-      } catch (e) {
-        // ignore malformed lines
+        msg = JSON.parse(line);
+      } catch {
+        continue; // ignore malformed lines
       }
+      queue = queue.then(async () => {
+        const res = await handleMessage(msg);
+        if (res) process.stdout.write(JSON.stringify(res) + "\n");
+      });
     }
   });
 }

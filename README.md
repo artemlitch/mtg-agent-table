@@ -143,6 +143,22 @@ spawns:
 claude --mcp-config mcp.json
 ```
 
+The table's entry is a URL, not a program:
+
+```json
+{ "mcpServers": { "table": { "type": "http", "url": "http://localhost:4780/mcp" } } }
+```
+
+The running table serves MCP on its own port, so that config works on any
+machine and needs nothing installed — no bun, no checkout, no path into an app
+bundle. Start the app (or `bun run server/index.ts`) and point any MCP client at
+the URL. The endpoint answers only this machine and validates `Origin`, since
+the table itself binds every interface so you can open it from a phone.
+
+The stdio transport still exists for anyone who wants it: `mtg-server mcp` from
+the packaged binary, or `bun run server/mcp-tools.ts` from a checkout. Both
+transports share one dispatch, so the tools behave identically.
+
 ## Development
 
 ```
@@ -157,7 +173,10 @@ Layout:
 - `server/decks.ts` — Archidekt + Scryfall deck loading
 - `server/agent.ts` — the agent harness: Messages-API tool loop + Claude CLI
 - `server/models.ts` — the brain catalog: which models exist, and where
-- `server/mcp-tools.ts` — stdio MCP server for the table (zero-dep JSON-RPC)
+- `server/mcp-tools.ts` — the table's MCP tools and JSON-RPC dispatch, plus the
+  stdio transport (zero-dep)
+- `server/mcp-http.ts` — the same tools over HTTP at `/mcp` (Streamable HTTP),
+  so a client needs a URL instead of a path on disk
 - `server/wake.ts` — when the agent gets a window
 - `server/index.ts` — Bun HTTP + WebSocket server
 - `server/main.ts` — the entrypoint the shipped binary compiles from
@@ -175,8 +194,9 @@ cd .. && bun run app          # this machine's platform, into electron/dist/
 a single native executable by `bun build --compile`, and Electron. That compiled
 server is what makes the app self-contained — and it is one binary doing two
 jobs, because a packaged app has no `bun` to start a second script with. Run
-bare it is the table; run as `mtg-server mcp` it is the stdio MCP server the
-Claude CLI spawns to reach the table. `server/packaged.ts` is how the code tells
+bare it is the table, which also serves MCP at `/mcp` — the transport an outside
+agent should use, since it needs no path to this binary. Run as `mtg-server mcp`
+it is the same MCP server over stdio, for clients that launch a process. `server/packaged.ts` is how the code tells
 which world it is in: from a checkout it resolves `web/` and the CLI's working
 directory against the repo, and from a binary against the executable and the
 data dir.
