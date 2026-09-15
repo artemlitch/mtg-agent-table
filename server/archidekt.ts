@@ -6,6 +6,7 @@
 // studio page. Nothing in this repo ever holds a password.
 
 import { loadArchidekt, type ArchidektLogin } from "./keystore";
+import { categoryInDeck } from "./deckcategories";
 
 const BASE = "https://archidekt.com/api";
 const UA = "mtg-agent-table/1.0";
@@ -209,7 +210,7 @@ export function parsePrinting(c: any): ArchidektPrinting {
 
 export function parseDeck(d: any): ArchidektDeck {
   const categories = (d.categories ?? []).map((c: any) => ({ name: c.name, includedInDeck: c.includedInDeck !== false }));
-  const included = new Map(categories.map((c: any) => [c.name, c.includedInDeck]));
+  const included = new Map<string, boolean>(categories.map((c: any) => [c.name, c.includedInDeck] as [string, boolean]));
   const cards: ArchidektCard[] = (d.cards ?? []).map((e: any) => {
     const cats: string[] = e.categories ?? [];
     const primary = cats[0] ?? "";
@@ -219,7 +220,7 @@ export function parseDeck(d: any): ArchidektDeck {
       quantity: e.quantity ?? 1,
       category: primary,
       categories: cats,
-      inDeck: primary ? included.get(primary) !== false : true,
+      inDeck: categoryInDeck(primary, included),
     };
   });
   return { id: d.id, name: d.name, categories, cards };

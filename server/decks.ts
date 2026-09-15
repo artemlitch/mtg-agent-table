@@ -5,6 +5,7 @@
 // create_token lookups.
 
 import { game, newCardId, makeCard, shuffleZone, addLog, type PlayerId } from "./game";
+import { categoryInDeck } from "./deckcategories";
 
 const SCRYFALL_HEADERS = {
   "User-Agent": "mtg-agent-table/1.0",
@@ -97,7 +98,7 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
   const cards: DeckCardSpec[] = [];
   for (const entry of d.cards) {
     const primary = (entry.categories ?? [])[0];
-    if (primary && included.has(primary) && !included.get(primary)) continue; // maybeboard etc.
+    if (!categoryInDeck(primary, included)) continue; // maybeboard, sideboard, anything toggled off
     cards.push({
       name: entry.card.oracleCard.name,
       quantity: entry.quantity,
@@ -126,7 +127,7 @@ export async function fetchArchidektDeck(deckId: number): Promise<LoadedDeck> {
   });
   for (const entry of d.customCards ?? []) {
     const primary = (entry.categories ?? [])[0];
-    if (primary && included.has(primary) && !included.get(primary)) continue;
+    if (!categoryInDeck(primary, included)) continue;
     const c = entry.card ?? {};
     const front = customSide(c, "front");
     const faces = c.hasBack ? [front, customSide(c, "back")] : undefined;
