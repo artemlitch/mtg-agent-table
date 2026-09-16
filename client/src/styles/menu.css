@@ -77,6 +77,7 @@
    library panel and the card menus. */
 #menu .a-draw { --c: #63b878; }    /* green — cards into hand */
 #menu .a-exile { --c: #d4553f; }   /* red — burn it out of the game */
+#menu .a-exileDown { --c: #d4553f; } /* the same red: it is still exile */
 #menu .a-mill { --c: #9c8fa8; }    /* black — smoky grey-violet */
 #menu .a-scry { --c: #5ea8dd; }    /* blue — looking ahead */
 #menu .a-surveil { --c: #a17ccc; } /* dimir violet, blue's darker cousin */
@@ -129,6 +130,8 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
   transition: var(--hover-transition);
 }
+/* the exile-face-down switch, lit while it is on: the hover look, held */
+#menu.libpanel button.on { color: var(--c); background: color-mix(in srgb, var(--c) 18%, #171220); }
 #menu.libpanel button:hover {
   color: var(--c);
   background:

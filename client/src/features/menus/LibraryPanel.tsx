@@ -15,7 +15,7 @@ import { act } from "../../api";
 import { Dial } from "../../components/Dial";
 import { Icon } from "../../components/Icon";
 import { gameView } from "../../store/game";
-import { ui, type Anchor } from "../../store/ui";
+import { ui, useUI, type Anchor } from "../../store/ui";
 import type { PlayerId } from "../../types";
 import { openPeekBrowser, openSearchBrowser } from "../browsers/Browsers";
 
@@ -26,6 +26,8 @@ export function openLibraryPanel(p: PlayerId, at: Anchor) {
 function LibraryPanel({ p }: { p: PlayerId }) {
   const view = gameView();
   const mine = p === "you";
+  // subscribed, not read once: the switch below flips it while the panel is open
+  const exileDown = useUI((s) => s.exileFaceDown);
   const run = (fn: () => unknown) => async () => {
     ui().closeMenu();
     await fn();
@@ -112,9 +114,21 @@ function LibraryPanel({ p }: { p: PlayerId }) {
       <div className="lp-grid">
         <LibButton cls="lp-tile" label="Scry" icon="scry" counted onRun={(n) => run(() => peekN(n))()} />
         <LibButton cls="lp-tile" label="Mill" icon="mill" counted onRun={(n) => run(() => repeat(n, millOne))()} />
-        <LibButton cls="lp-tile" label="Exile" icon="exile" counted onRun={(n) => run(() => repeat(n, exileOne))()} />
+        <LibButton cls="lp-tile" label={mine && exileDown ? "Exile ↓" : "Exile"} icon="exile" counted onRun={(n) => run(() => repeat(n, exileOne))()} />
         <LibButton cls="lp-tile" label="Surveil" icon="surveil" counted onRun={(n) => run(() => peekN(n))()} />
       </div>
+
+      {/* the same switch the card menu carries (see exileToggle): on, the
+          Exile tile above and every Exile row elsewhere go face-down, for
+          your eyes. Stays lit here so a Saga's three chapters read it once. */}
+      {mine && (
+        <button className={`lp-wide a-exileDown${exileDown ? " on" : ""}`} onClick={() => ui().setExileFaceDown(!exileDown)}>
+          <span className="lp-head">
+            <Icon name="exileDown" />
+            <span className="lp-label">Exile face-down: {exileDown ? "on" : "off"}</span>
+          </span>
+        </button>
+      )}
 
       <LibButton cls="lp-wide" label="Shuffle" icon="shuffle" onRun={run(() => act("shuffle", { player: p }))} />
     </>
