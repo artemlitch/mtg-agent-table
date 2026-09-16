@@ -58,6 +58,25 @@ Key structure:
   category having `includedInDeck: false` (Maybeboard, Sideboard) excludes it
   from the deck count.
 
+## Searching public decks by commander (meta corpora)
+
+```
+GET https://archidekt.com/api/decks/v3/?commanderName=<urlencoded name>&formats=3&orderBy=-viewCount&pageSize=50&page=N
+```
+
+No auth needed. Rows carry `id`, `name`, `owner.username`, `updatedAt`,
+`viewCount`, `edhBracket` (declared bracket, or null), `size`, `theorycrafted`,
+`private`. Two traps, both hit on 2026-09-16 while building the Zur corpus:
+- `/api/decks/cards/` (the older route) now answers "Unknown API route".
+- The filter parameter is `commanderName`. Archidekt **silently ignores
+  unknown parameters** and returns HTTP 200 with a page of unrelated decks,
+  so a scraper must fetch one probe deck and abort if its commander is wrong
+  (`decks/zur/scrape_archidekt.py` `check_filter()` is the reference).
+
+Fetch each deck with the read endpoint above, about one request a second,
+and keep a fetch log so a re-run resumes. Corpus schema: any deck file in
+`decks/narci/corpus/archidekt/`.
+
 ## Finding a printing id for a card name
 
 ```
