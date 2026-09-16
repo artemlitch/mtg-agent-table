@@ -33,9 +33,17 @@ function LibraryPanel({ p }: { p: PlayerId }) {
   const topRef = `top:${p}`;
   const millOne = () => act("move", { card: topRef, toZone: "graveyard", toPlayer: p, note: "mill" });
   // taking cards off the agent's library is a theft effect: face-down, yours to see
+  // ...and the exile-face-down preference (see exileToggle) reaches the top
+  // of your own library too: a chapter that exiles face-down does it from here
   const exileOne = () =>
     mine
-      ? act("move", { card: topRef, toZone: "exile", toPlayer: p, note: "exiled from library" })
+      ? act("move", {
+          card: topRef,
+          toZone: "exile",
+          toPlayer: p,
+          ...(ui().exileFaceDown ? { faceDown: true, revealTo: "you" } : {}),
+          note: "exiled from library",
+        })
       : act("move", { card: topRef, toZone: "exile", toPlayer: "agent", faceDown: true, revealTo: "you", note: "theft effect" });
   const peekN = async (n: number) => {
     const r = await act("peek", { player: p, n });
