@@ -129,7 +129,7 @@ function LibraryPanel({ p }: { p: PlayerId }) {
               <span
                 role="button"
                 aria-pressed={exileDown}
-                title="Exile face down"
+                data-tip="Exile face down"
                 className={`lp-aside${exileDown ? " on" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
