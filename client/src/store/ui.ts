@@ -60,10 +60,6 @@ interface UIStore {
   narrow: boolean;
   /** narrow only: is the drawer out? Remembered, so dismissing it sticks. */
   sideOpen: boolean;
-  /** every Exile row sends the card face-down (visible to you) while this is
-   *  on — a remembered preference, because a search-and-exile effect like a
-   *  Saga's chapter I exiles face-down every time it is used */
-  exileFaceDown: boolean;
   /** the newest log entry the panel was showing when it was last visible.
    *  Anything past it while the drawer is shut is what the tab's dot means. */
   sideSeenSeq: number;
@@ -81,7 +77,6 @@ interface UIStore {
   setCardsPerRow(n: number): void;
   setNarrow(n: boolean): void;
   setSideOpen(open: boolean): void;
-  setExileFaceDown(on: boolean): void;
   setSideSeen(seq: number): void;
 }
 
@@ -109,7 +104,6 @@ export const NARROW_AT = 1180;
 export const isNarrow = () => typeof window !== "undefined" && window.matchMedia(`(max-width: ${NARROW_AT}px)`).matches;
 
 const SIDE_OPEN_KEY = "sideOpen";
-const EXILE_DOWN_KEY = "exileFaceDown";
 
 // everything that hangs off the cursor — the hover preview, both menus —
 // sits the same distance from it
@@ -158,7 +152,6 @@ export const useUI = create<UIStore>((set, get) => ({
   // put away, but starting it away would hide the agent talking from someone
   // who never asked for that
   sideOpen: localStorage.getItem(SIDE_OPEN_KEY) !== "0",
-  exileFaceDown: localStorage.getItem(EXILE_DOWN_KEY) === "1",
   sideSeenSeq: 0,
 
   openMenu(items, at, opts) {
@@ -214,10 +207,6 @@ export const useUI = create<UIStore>((set, get) => ({
   setSideOpen(sideOpen) {
     localStorage.setItem(SIDE_OPEN_KEY, sideOpen ? "1" : "0");
     set({ sideOpen });
-  },
-  setExileFaceDown(exileFaceDown) {
-    localStorage.setItem(EXILE_DOWN_KEY, exileFaceDown ? "1" : "0");
-    set({ exileFaceDown });
   },
   setSideSeen(sideSeenSeq) {
     if (get().sideSeenSeq !== sideSeenSeq) set({ sideSeenSeq });

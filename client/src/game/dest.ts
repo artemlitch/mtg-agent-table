@@ -11,21 +11,18 @@
 //     being PUT there by an effect that has already resolved — see isPlay.
 import { act, type ActionResult } from "../api";
 import { playCard } from "../features/nextaction/steps";
-import { ui, type MenuItem } from "../store/ui";
+import type { MenuItem } from "../store/ui";
 import type { Card, MoveParams, Zone } from "../types";
 
 type Dest = (c: Card) => [label: string, params: MoveParams];
 
-const exileDown = (c: Card): [string, MoveParams] => ["Exile face-down", { toZone: "exile", toPlayer: c.owner, faceDown: true, revealTo: "you" }];
-
 export const DEST: Record<string, Dest> = {
   hand: () => ["To hand", { toZone: "hand", toPlayer: "you" }],
   graveyard: (c) => ["Graveyard", { toZone: "graveyard", toPlayer: c.owner }],
-  // one row, two behaviours: the face-down preference (see exileToggle) turns
-  // EVERY exile into a face-down one, so a Saga that exiles face-down three
-  // turns running is set once, not three times
-  exile: (c) => (ui().exileFaceDown ? exileDown(c) : ["Exile", { toZone: "exile", toPlayer: c.owner }]),
-  exileDown,
+  exile: (c) => ["Exile", { toZone: "exile", toPlayer: c.owner }],
+  // face-down and for your eyes: a Saga's "exile a card face down", a theft
+  // effect, anything the opponent is not meant to read
+  exileDown: (c) => ["Exile face-down", { toZone: "exile", toPlayer: c.owner, faceDown: true, revealTo: "you" }],
   top: (c) => ["Top of library", { toZone: "library", toPlayer: c.owner, position: "top" }],
   bottom: (c) => ["Bottom of library", { toZone: "library", toPlayer: c.owner, position: "bottom" }],
   command: (c) => ["Command zone", { toZone: "command", toPlayer: c.owner }],
@@ -98,14 +95,6 @@ export function runDest(c: Card, params: MoveParams): Promise<ActionResult> {
 export function destItem(key: DestKey, c: Card, extra?: Partial<MoveParams>): MenuItem {
   const [label, params] = DEST[key](c);
   return { label, fn: () => void runDest(c, { ...params, ...extra }) };
-}
-
-/** The switch under every Exile row: on, and the Exile row above it is the
- *  face-down one. A menu is built when it opens, so flipping this and opening
- *  the menu again shows the row relabelled. */
-export function exileToggle(): MenuItem {
-  const on = ui().exileFaceDown;
-  return { label: "Exile face-down", on, icon: "exileDown", fn: () => ui().setExileFaceDown(!on) };
 }
 
 /** The same row for a card browser, where the caller runs it and does its own

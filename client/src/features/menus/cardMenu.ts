@@ -2,7 +2,7 @@
 // data and handed to THE menu — the board, the hand, the command zone and the
 // browsers all open this same list.
 import { act } from "../../api";
-import { canSendHome, destItem, exileToggle } from "../../game/dest";
+import { canSendHome, destItem } from "../../game/dest";
 import { incomingAttackers, isSpellCard, nextUnblockedAttacker, pendingAttackOf, removeAttacker, typeCat } from "../../game/rules";
 import { gameView } from "../../store/game";
 import { ui, type Anchor, type MenuItem } from "../../store/ui";
@@ -34,7 +34,7 @@ export function cardMenu(c: Card, e: Anchor) {
     // the thing an instant or a sorcery actually needs saying: its targets
     items.push({ label: isSpellCard(c) ? "Play → with targets…" : "Play → ETB trigger…", keys: ["⇧", "E"], fn: () => openAbilityModal(c) });
     items.push(destItem("graveyard", c, { note: "discard" }));
-    items.push(destItem("exile", c), exileToggle());
+    items.push(destItem("exile", c), destItem("exileDown", c));
     items.push({ label: "Reveal to agent", fn: () => void act("reveal", { cards: [c.id], to: "agent" }) });
     items.push({ label: "Reveal to all", fn: () => void act("reveal", { cards: [c.id], to: "all" }) });
     items.push(destItem("top", c), destItem("bottom", c));
@@ -120,7 +120,7 @@ export function cardMenu(c: Card, e: Anchor) {
       items.push({ ...destItem("graveyard", c, { note: "token removed" }), label: "Delete token", sep: true });
     } else {
       items.push({ ...destItem("graveyard", c), sep: true });
-      items.push(destItem("exile", c), exileToggle(), destItem("hand", c), destItem("top", c));
+      items.push(destItem("exile", c), destItem("exileDown", c), destItem("hand", c), destItem("top", c));
     }
     if (c.isCommander) items.push(destItem("command", c));
     if (c.controller === "agent") items.push(destItem("steal", c));
@@ -142,7 +142,7 @@ export function cardMenu(c: Card, e: Anchor) {
     }
     items.push({ label: isSpellCard(c) ? "Play → with targets…" : "Play → ETB trigger…", fn: () => openAbilityModal(c) });
     items.push(destItem("graveyard", c, { note: "mill" }));
-    items.push(destItem("exile", c), exileToggle());
+    items.push(destItem("exile", c), destItem("exileDown", c));
     items.push({ label: "Reveal to agent", fn: () => void act("reveal", { cards: [c.id], to: "agent" }) });
     items.push({ label: "Reveal to all", fn: () => void act("reveal", { cards: [c.id], to: "all" }) });
   }

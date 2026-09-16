@@ -152,7 +152,7 @@
 /* tiles stack: icon and label on one line, the dial under them */
 #menu.libpanel .lp-tile { flex-direction: column; gap: 7px; padding: 8px; }
 #menu.libpanel .lp-tile { position: relative; }
-/* a control pinned to a tile's corner (the exile-face-down switch): absolute,
+/* a second trigger pinned to a tile's corner (exile face-down): absolute,
    so the dial in the middle does not move over to make room for it */
 #menu.libpanel .lp-aside {
   position: absolute; right: 6px; bottom: 6px; width: 22px; height: 22px;
@@ -161,7 +161,6 @@
 }
 #menu.libpanel .lp-aside .ico { color: inherit; font-size: var(--fs-body); }
 #menu.libpanel .lp-aside:hover { color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
-#menu.libpanel .lp-aside.on { color: var(--c); background: color-mix(in srgb, var(--c) 22%, #171220); border-color: var(--c); }
 
 /* the dial the counted tiles wear is components/Dial.tsx — see dial.css. It
    picks up each tile's --c on its own, so nothing is repeated here. */

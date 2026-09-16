@@ -15,7 +15,7 @@ import { act } from "../../api";
 import { Dial } from "../../components/Dial";
 import { Icon } from "../../components/Icon";
 import { gameView } from "../../store/game";
-import { ui, useUI, type Anchor } from "../../store/ui";
+import { ui, type Anchor } from "../../store/ui";
 import type { PlayerId } from "../../types";
 import { openPeekBrowser, openSearchBrowser } from "../browsers/Browsers";
 
@@ -26,8 +26,6 @@ export function openLibraryPanel(p: PlayerId, at: Anchor) {
 function LibraryPanel({ p }: { p: PlayerId }) {
   const view = gameView();
   const mine = p === "you";
-  // subscribed, not read once: the switch below flips it while the panel is open
-  const exileDown = useUI((s) => s.exileFaceDown);
   const run = (fn: () => unknown) => async () => {
     ui().closeMenu();
     await fn();
@@ -35,18 +33,13 @@ function LibraryPanel({ p }: { p: PlayerId }) {
   const topRef = `top:${p}`;
   const millOne = () => act("move", { card: topRef, toZone: "graveyard", toPlayer: p, note: "mill" });
   // taking cards off the agent's library is a theft effect: face-down, yours to see
-  // ...and the exile-face-down preference (see exileToggle) reaches the top
-  // of your own library too: a chapter that exiles face-down does it from here
   const exileOne = () =>
     mine
-      ? act("move", {
-          card: topRef,
-          toZone: "exile",
-          toPlayer: p,
-          ...(ui().exileFaceDown ? { faceDown: true, revealTo: "you" } : {}),
-          note: "exiled from library",
-        })
+      ? act("move", { card: topRef, toZone: "exile", toPlayer: p, note: "exiled from library" })
       : act("move", { card: topRef, toZone: "exile", toPlayer: "agent", faceDown: true, revealTo: "you", note: "theft effect" });
+  // ...and your own top card face-down, for your eyes: a Saga's "exile a card
+  // face down", or anything the agent is not meant to read yet
+  const exileDownOne = () => act("move", { card: topRef, toZone: "exile", toPlayer: p, faceDown: true, revealTo: "you", note: "exiled face-down from library" });
   const peekN = async (n: number) => {
     const r = await act("peek", { player: p, n });
     if (r.ok) openPeekBrowser(p, r.cards);
@@ -120,25 +113,24 @@ function LibraryPanel({ p }: { p: PlayerId }) {
           icon="exile"
           counted
           onRun={(n) => run(() => repeat(n, exileOne))()}
-          // the same switch the card menu carries (see exileToggle), tucked
-          // into the tile's corner so the dial keeps the middle: lit while
-          // on, and every exile — this tile, the menus, the browsers — goes
-          // face-down for your eyes until it is clicked off
+          // a second trigger in the tile's corner, out of the dial's way: the
+          // same count, exiled face-down instead. One click, done.
           aside={
-            mine ? (
-              <span
-                role="button"
-                aria-pressed={exileDown}
-                data-tip="Exile face down"
-                className={`lp-aside${exileDown ? " on" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  ui().setExileFaceDown(!exileDown);
-                }}
-              >
-                <Icon name="facedown" />
-              </span>
-            ) : undefined
+            mine
+              ? (n) => (
+                  <span
+                    role="button"
+                    data-tip="Exile face down"
+                    className="lp-aside"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      run(() => repeat(n, exileDownOne))();
+                    }}
+                  >
+                    <Icon name="facedown" />
+                  </span>
+                )
+              : undefined
           }
         />
         <LibButton cls="lp-tile" label="Surveil" icon="surveil" counted onRun={(n) => run(() => peekN(n))()} />
@@ -151,8 +143,8 @@ function LibraryPanel({ p }: { p: PlayerId }) {
 
 /** A button with an icon, a label, and optionally an inline counter that
  *  doubles as a +/− stepper. `icon` doubles as the colour class. `aside` is
- *  a small control pinned to the tile's corner, outside the flow, so the dial
- *  stays centred whether or not the tile has one. */
+ *  a second trigger pinned to the tile's corner, outside the flow, so the
+ *  dial stays centred; it gets the same count the tile would fire with. */
 function LibButton({
   cls,
   label,
@@ -166,7 +158,7 @@ function LibButton({
   icon: string;
   counted?: boolean;
   onRun: (n: number) => void;
-  aside?: ReactNode;
+  aside?: (n: number) => ReactNode;
 }) {
   const [n, setN] = useState(1);
   const [onDial, setOnDial] = useState(false);
@@ -186,7 +178,7 @@ function LibButton({
           <Dial value={n} onChange={setN} min={1} />
         </span>
       )}
-      {aside}
+      {aside?.(n)}
     </button>
   );
 }
