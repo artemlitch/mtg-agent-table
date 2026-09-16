@@ -89,7 +89,16 @@ Filter `results[]`:
 - skip `collectorNumber` starting with `A-` (Alchemy rebalances — different
   oracle text, first result is often one of these!)
 
-Any surviving printing works; pick deterministically (e.g. oldest release).
+Then pick the **cheapest printing, ties to the oldest** (Artem's standing
+rule, 2026-09-16: "pick the cheapest printing for every single card; tie
+breaker goes to oldest printing"). `archidekt_api.Archidekt.search_printing`
+does this by default: it walks every page of the search (60 per page),
+skips `editiontype == "memorabilia"` (gold-bordered World Championship
+decks: Archidekt marks them commander-legal because legality is per oracle
+card, but they are not real cards), ranks by `prices.tcg` (TCGplayer nonfoil
+market), then printings with only a Card Kingdom price, then only a
+Cardmarket price, then unpriced (0 means "not listed", never free), and
+breaks ties on `releasedAt`. Pass `choose="oldest"` only if asked.
 
 ## Editing a deck (the important part)
 

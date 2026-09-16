@@ -14,6 +14,7 @@ Or from the shell:
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -95,27 +96,57 @@ class Archidekt:
         assert st == 200, d
         return d
 
-    def search_printing(self, name):
-        """Commander-legal, non-Alchemy printing id for an exact card name."""
-        st, res = self._req("/api/cards/v2/?name=" + urllib.parse.quote(name))
-        if st != 200:
-            return None, f"search HTTP {st}"
-        cands = []
-        for p in res.get("results", []):
-            oc = p.get("oracleCard", {})
-            full = oc.get("name") or ""
-            front = full.split(" // ")[0]
-            if full.lower() != name.lower() and front.lower() != name.lower():
-                continue
-            if oc.get("legalities", {}).get("commander") != "legal":
-                continue
-            if p.get("collectorNumber", "").startswith("A-"):
-                continue
-            cands.append(p)
+    @staticmethod
+    def printing_price(p):
+        """(tier, price) for ranking a printing's nonfoil price: tier 0 = TCGplayer market (USD), 1 = Card Kingdom (USD),
+        2 = Cardmarket (EUR, only when nothing in USD lists it), 3 = unpriced. A zero means 'not listed', not free.
+        Tiers keep a Secret Lair that only Cardmarket lists at 0.99 from beating a 1.38 TCG printing."""
+        pr = p.get("prices") or {}
+        for tier, k in enumerate(("tcg", "ck", "cm")):
+            v = pr.get(k)
+            if v:
+                return tier, float(v)
+        return 3, 0.0
+
+    def search_printing(self, name, choose="cheapest"):
+        """Commander-legal, non-Alchemy printing id for an exact card name.
+        choose='cheapest' (default): lowest nonfoil price, ties to the OLDEST printing; unpriced printings last.
+        choose='oldest': earliest release. Walks every page of the search so late printings are seen."""
+        cands, full, count, page = [], "", 0, "/api/cards/v2/?name=" + urllib.parse.quote(name)
+        while page:
+            st, res = self._req(page)
+            if st != 200:
+                return None, f"search HTTP {st}"
+            count = res.get("count", count)
+            for p in res.get("results", []):
+                oc = p.get("oracleCard", {})
+                fname = oc.get("name") or ""
+                front = fname.split(" // ")[0]
+                if fname.lower() != name.lower() and front.lower() != name.lower():
+                    continue
+                if oc.get("legalities", {}).get("commander") != "legal":
+                    continue
+                if p.get("collectorNumber", "").startswith("A-"):
+                    continue
+                # gold-bordered World Championship decks and similar are not tournament-legal cards,
+                # but Archidekt's legality is per oracle card, so the edition type is the only tell
+                if (p.get("edition") or {}).get("editiontype") == "memorabilia":
+                    continue
+                full = fname
+                cands.append(p)
+            nxt = res.get("next")
+            page = nxt.split("archidekt.com", 1)[1] if nxt else None
+            if page:
+                time.sleep(1.0)
         if not cands:
-            return None, f"no commander-legal printing among {res.get('count')} results"
-        p = sorted(cands, key=lambda x: x.get("releasedAt") or "9999")[0]
-        return p["id"], f"{p['edition']['editioncode']} #{p['collectorNumber']} ({full})"
+            return None, f"no commander-legal printing among {count} results"
+        if choose == "oldest":
+            p = sorted(cands, key=lambda x: x.get("releasedAt") or "9999")[0]
+        else:
+            p = sorted(cands, key=lambda x: (*self.printing_price(x), x.get("releasedAt") or "9999"))[0]
+        tier, price = self.printing_price(p)
+        tag = ["$", "CK $", "€", "unpriced "][tier]
+        return p["id"], f"{p['edition']['editioncode']} #{p['collectorNumber']} ({full}) {tag}{price:.2f}"
 
     # -- action builders ----------------------------------------------------
     @staticmethod
