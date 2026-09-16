@@ -182,19 +182,30 @@
 
 /* The board and the four piles stand in one column beside the box. The panel
    keeps matching the box's height; the piles hang under it at the same width. */
-.targetside { display: flex; flex-direction: column; align-items: stretch; flex: none; }
+/* The column starts 18vh down (the veil's 8vh plus the box's 10vh) and may not
+   run off the bottom: the board keeps its height, and the piles take what is
+   left, scrolling inside themselves when four rows don't fit. */
+.targetside { display: flex; flex-direction: column; align-items: flex-start; flex: none; min-width: 0; max-height: calc(82vh - 16px); }
+.targetside .targetpanel { flex: none; }
+/* the width is set inline to the board's; min-width: 0 on every level down to
+   the row is what lets the row scroll instead of stretching its parents */
 .pilestrips {
-  margin-left: 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;
+  margin-left: 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%;
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin;
   padding: 8px 10px; border-radius: 10px; border: 1px solid transparent;
   background: linear-gradient(var(--panel), var(--panel)) padding-box, var(--chrome-dim) border-box;
 }
-.pilestrip { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pilestrip { display: flex; flex-direction: column; gap: 3px; min-width: 0; width: 100%; flex: none; }
 .pslabel { color: var(--accent); font: var(--fw-label) var(--fs-tiny)/1.4 var(--font-fantasy); letter-spacing: 0.08em; }
 /* one row, never wrapping: the pile reads left to right and scrolls sideways.
    A little vertical padding so a hovered card's outline isn't clipped. */
-.psrow { display: flex; gap: 5px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 4px; min-height: 30px; align-items: center; }
+.psrow {
+  display: flex; gap: 5px; align-items: center; min-height: 30px; padding: 2px 2px 4px;
+  width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
 .pscard {
-  flex: none; height: 72px; width: auto; border-radius: 4px; cursor: pointer;
+  flex: none; height: 60px; width: auto; border-radius: 4px; cursor: pointer;
   outline: 1.5px solid transparent; outline-offset: 1px; transition: var(--hover-transition);
 }
 .pscard:not(.cardback):hover { outline-color: var(--accent); box-shadow: 0 0 10px rgba(216, 160, 61, 0.3); }

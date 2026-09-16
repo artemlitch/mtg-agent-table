@@ -145,22 +145,28 @@ function AbilityModal({ card: c, inputRef }: { card: Card; inputRef: RefObject<H
  *  pile, and an attacker's badge an attacker's badge without this file
  *  knowing what any of those look like. Laying the cards out again at a
  *  smaller size would be a second board to keep in step with the first. */
-function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | null> }) {
-  const view = useGame((s) => s.view);
-  // as tall and as wide as the box it stands beside, whatever size that box's
-  // own content settled at
+/** The box's outer size, live: the board beside it is as tall and as wide as
+ *  the box, whatever size the box's own content settled at, and the piles
+ *  under the board are exactly as wide as the board. Offset, not client: the
+ *  box's own border is part of how tall it stands, and these are meant to
+ *  line up edge to edge. */
+function useBoxFit() {
   const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
   useLayoutEffect(() => {
     const el = document.getElementById("modal-box");
     if (!el) return;
-    // offset, not client: the box's own border is part of how tall it stands,
-    // and these two are meant to line up edge to edge
     const read = () => setFit({ w: el.offsetWidth, h: el.offsetHeight });
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  return fit;
+}
+
+function TargetPanel({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | null> }) {
+  const view = useGame((s) => s.view);
+  const fit = useBoxFit();
 
   const insert = (name: string) => insertName(inputRef, name);
 
@@ -222,9 +228,12 @@ const PILES: { p: PlayerId; zone: "graveyard" | "exile" }[] = [
 
 function PileStrips({ inputRef }: { inputRef: RefObject<HTMLTextAreaElement | null> }) {
   const view = useGame((s) => s.view);
-  if (!view) return null;
+  // the board's width, set outright: a row of cards would otherwise widen the
+  // column to fit every card at once, which is the opposite of scrolling
+  const fit = useBoxFit();
+  if (!view || !fit) return null;
   return (
-    <div className="pilestrips">
+    <div className="pilestrips" style={{ width: fit.w }}>
       {PILES.map(({ p, zone }) => {
         const cards = [...view.players[p].zones[zone]].reverse();
         return (
