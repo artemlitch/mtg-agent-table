@@ -10,7 +10,7 @@
 // The tile body runs the action with the number shown. The number is also the
 // stepper: hovering its top half arms a + above, the bottom half a − below,
 // and clicking there changes the count instead of firing.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { act } from "../../api";
 import { Dial } from "../../components/Dial";
 import { Icon } from "../../components/Icon";
@@ -114,21 +114,35 @@ function LibraryPanel({ p }: { p: PlayerId }) {
       <div className="lp-grid">
         <LibButton cls="lp-tile" label="Scry" icon="scry" counted onRun={(n) => run(() => peekN(n))()} />
         <LibButton cls="lp-tile" label="Mill" icon="mill" counted onRun={(n) => run(() => repeat(n, millOne))()} />
-        <LibButton cls="lp-tile" label={mine && exileDown ? "Exile ↓" : "Exile"} icon="exile" counted onRun={(n) => run(() => repeat(n, exileOne))()} />
+        <LibButton
+          cls="lp-tile"
+          label="Exile"
+          icon="exile"
+          counted
+          onRun={(n) => run(() => repeat(n, exileOne))()}
+          // the same switch the card menu carries (see exileToggle), tucked
+          // into the tile's corner so the dial keeps the middle: lit while
+          // on, and every exile — this tile, the menus, the browsers — goes
+          // face-down for your eyes until it is clicked off
+          aside={
+            mine ? (
+              <span
+                role="button"
+                aria-pressed={exileDown}
+                title="Exile face down"
+                className={`lp-aside${exileDown ? " on" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ui().setExileFaceDown(!exileDown);
+                }}
+              >
+                <Icon name="facedown" />
+              </span>
+            ) : undefined
+          }
+        />
         <LibButton cls="lp-tile" label="Surveil" icon="surveil" counted onRun={(n) => run(() => peekN(n))()} />
       </div>
-
-      {/* the same switch the card menu carries (see exileToggle): on, the
-          Exile tile above and every Exile row elsewhere go face-down, for
-          your eyes. Stays lit here so a Saga's three chapters read it once. */}
-      {mine && (
-        <button className={`lp-wide a-exileDown${exileDown ? " on" : ""}`} onClick={() => ui().setExileFaceDown(!exileDown)}>
-          <span className="lp-head">
-            <Icon name="exileDown" />
-            <span className="lp-label">Exile face-down: {exileDown ? "on" : "off"}</span>
-          </span>
-        </button>
-      )}
 
       <LibButton cls="lp-wide" label="Shuffle" icon="shuffle" onRun={run(() => act("shuffle", { player: p }))} />
     </>
@@ -136,19 +150,23 @@ function LibraryPanel({ p }: { p: PlayerId }) {
 }
 
 /** A button with an icon, a label, and optionally an inline counter that
- *  doubles as a +/− stepper. `icon` doubles as the colour class. */
+ *  doubles as a +/− stepper. `icon` doubles as the colour class. `aside` is
+ *  a small control pinned to the tile's corner, outside the flow, so the dial
+ *  stays centred whether or not the tile has one. */
 function LibButton({
   cls,
   label,
   icon,
   counted,
   onRun,
+  aside,
 }: {
   cls: string;
   label: string;
   icon: string;
   counted?: boolean;
   onRun: (n: number) => void;
+  aside?: ReactNode;
 }) {
   const [n, setN] = useState(1);
   const [onDial, setOnDial] = useState(false);
@@ -168,6 +186,7 @@ function LibButton({
           <Dial value={n} onChange={setN} min={1} />
         </span>
       )}
+      {aside}
     </button>
   );
 }
