@@ -9,7 +9,7 @@ import type { Card, GameView, LogEntry, StackItem } from "../client/src/types";
 // tests run in node — the steps only need it to exist, never to remember
 globalThis.localStorage ??= { getItem: () => null, setItem: () => {} } as unknown as Storage;
 
-const { NEXT_ACTION_STEPS, nextActionContext } = await import("../client/src/features/nextaction/steps");
+const { NEXT_ACTION_STEPS, nextActionContext, canHurryAgent } = await import("../client/src/features/nextaction/steps");
 const { canMulligan } = await import("../client/src/game/rules");
 const { useGame } = await import("../client/src/store/game");
 
@@ -172,6 +172,42 @@ describe("priority handed back during the agent's turn", () => {
     const { action } = prompt(theirTurn("agent"));
     expect(action?.hint).toMatch(/waiting/i);
     expect(action?.fn).toBeUndefined();
+  });
+
+  // SPACE on the hint: "I am done, stop waiting for me". It only shortens a
+  // countdown that is running — pressing it with nothing armed, or while the
+  // agent is already thinking, has nothing to hurry.
+  describe("SPACE hurries the countdown", () => {
+    const armed = () => {
+      const v = theirTurn("you");
+      (v as any).wakeAt = Date.now() + 3000;
+      return v;
+    };
+
+    it("when the prompt is a waiting hint with a countdown behind it", () => {
+      useGame.setState({ view: armed() });
+      expect(canHurryAgent(armed())).toBe(true);
+    });
+
+    it("but not when the prompt is a real button — that press is the action", () => {
+      const v = theirTurn("you");
+      useGame.setState({ view: v });
+      expect(canHurryAgent(v)).toBe(false);
+    });
+
+    it("nor while the agent is already mid-window", () => {
+      const v = armed();
+      useGame.setState({ view: v, agentBusy: true });
+      const r = canHurryAgent(v);
+      useGame.setState({ agentBusy: false });
+      expect(r).toBe(false);
+    });
+
+    it("nor with nothing armed — a hurry never summons a window", () => {
+      const v = theirTurn("agent");
+      useGame.setState({ view: v });
+      expect(canHurryAgent(v)).toBe(false);
+    });
   });
 });
 

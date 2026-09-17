@@ -221,6 +221,25 @@ describe("wake debounce", () => {
     expect(fired).toEqual([]);
   });
 
+  // SPACE on a "waiting for the agent" prompt: you are done, skip the wait
+  test("fireNow skips the rest of a countdown and fires the reason it was armed with", () => {
+    s.schedule("window");
+    vi.advanceTimersByTime(500);
+    expect(s.fireNow()).toBe(true);
+    expect(fired).toEqual(["window"]);
+    expect(s.wakeAt).toBeNull();
+    // fired once — the old timer must not go off again at its own deadline
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    expect(fired).toEqual(["window"]);
+  });
+
+  test("fireNow with nothing pending wakes nothing — it hurries, it never summons", () => {
+    expect(s.fireNow()).toBe(false);
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    expect(fired).toEqual([]);
+    expect(s.wakeAt).toBeNull();
+  });
+
   test("a sent message answers almost at once", () => {
     s.schedule("window", TYPING_DELAY_MS);
     vi.advanceTimersByTime(TYPING_DELAY_MS);

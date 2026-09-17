@@ -130,6 +130,18 @@ export class WakeScheduler {
     if (restored.started && restored.turn === "agent") this.schedule("window");
   }
 
+  /** You are finished, and said so: skip the rest of the wait. The countdown
+   *  exists to guess when you have stopped moving, and a press that says
+   *  "now" is a better answer than any guess. Only a countdown already
+   *  running can be hurried — with nothing pending there is no window owed,
+   *  and conjuring one here would be the same mistake defer() refuses. */
+  fireNow(): boolean {
+    if (!this.timer) return false;
+    clearTimeout(this.timer);
+    this.fire();
+    return true;
+  }
+
   cancel() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;

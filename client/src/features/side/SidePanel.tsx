@@ -194,7 +194,7 @@ function WakeBar() {
   const left = wakeAt - Date.now();
   if (left <= 0) return null;
   return (
-    <div id="wakebar" title="the agent thinks when you stop — anything you do resets this">
+    <div id="wakebar" title="the agent thinks when you stop — anything you do resets this; SPACE on the waiting prompt skips it">
       <div key={wakeAt} className="wakefill" style={{ animationDuration: `${left}ms` }} />
     </div>
   );

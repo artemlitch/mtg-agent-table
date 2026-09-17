@@ -46,6 +46,12 @@ export function sendTyping(): void {
   void fetch("/api/typing", { method: "POST" }).catch(() => {});
 }
 
+/** The opposite hint: you are done, wake the agent now instead of at the end
+ *  of the countdown. Only shortens a wait already running — see /api/wake_now. */
+export function wakeAgentNow(): void {
+  void fetch("/api/wake_now", { method: "POST" }).catch(() => {});
+}
+
 export async function refresh(): Promise<void> {
   const res = await fetch("/api/state?viewer=you");
   useGame.getState().applyView((await res.json()) as GameView);

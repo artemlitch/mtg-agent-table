@@ -7,7 +7,7 @@
 // whose when() is true wins. Return either { label, fn } for a real action or
 // { hint } for a nudge at something the table can't do in one click.
 //   icon: a key into ICONS, drawn before the label.
-import { act, type ActionResult } from "../../api";
+import { act, wakeAgentNow, type ActionResult } from "../../api";
 import { stackItemCard, stackSubText } from "../../game/rules";
 import { gameView, useGame } from "../../store/game";
 import { ui } from "../../store/ui";
@@ -432,5 +432,20 @@ export function fireNextAction(shift: boolean) {
   // to check the prompt before trusting — the whole value of one is that it
   // works without looking.
   if (shift) return void passTurnToAgent();
-  a.fn?.();
+  if (a.fn) return a.fn();
+  // A hint with a countdown behind it is the table waiting for you to stop
+  // moving. SPACE there says you already have: skip the rest of the wait.
+  // Not while the agent is mid-window — there is nothing left to hurry, and
+  // wakeAt is already null then anyway.
+  if (canHurryAgent()) wakeAgentNow();
+}
+
+/** Is SPACE, right now, a "wake the agent already"? True only on a prompt
+ *  with no action of its own while a countdown is armed and no window is
+ *  open. Exported for the keycap hint and the tests. */
+export function canHurryAgent(view: GameView | null = gameView()): boolean {
+  const cur = currentStep(view);
+  if (!cur) return false;
+  const a = cur.rule.step(cur.ctx);
+  return !!a && !a.fn && !!cur.ctx.view.wakeAt && !cur.ctx.agentBusy;
 }

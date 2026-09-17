@@ -463,6 +463,13 @@ const server = Bun.serve({
       return json({ ok: true, wakeAt: wakes.wakeAt });
     }
 
+    // The opposite hint: you are finished and would rather not watch the bar
+    // drain. SPACE on a "waiting for the agent" prompt sends this. Like typing
+    // it never creates a window — it only shortens one already owed.
+    if (path === "/api/wake_now" && req.method === "POST") {
+      return json({ ok: true, fired: wakes.fireNow() });
+    }
+
     if (path === "/api/undo" && req.method === "POST") {
       const undone = undoLast();
       if (undone === null) return json({ ok: false, error: "nothing to undo" }, 400);
