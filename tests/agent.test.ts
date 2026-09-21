@@ -345,6 +345,53 @@ describe("agent transport", () => {
     expect(a.composeWakePrompt("react")).not.toContain("PLAYER IS STILL DECLARING");
   });
 
+  // Live, round 9: Player was mid attack declaration when their Rest in Peace
+  // resolved and they pushed its enter trigger on top. The prompt said "3 of
+  // the stack items are PLAYER'S — deal with them FIRST" and, three lines
+  // later, "PLAYER IS STILL DECLARING … Do NOT resolve it" about the whole
+  // stack. The agent obeyed the louder line and passed three windows running
+  // on a ripe trigger, until Player typed "you need to actually resolve".
+  // The draft is ONE item; whatever Player put on top of it is theirs, finished,
+  // and the agent's to deal with — the declaration waits underneath.
+  test("an unfinished declaration does not shield the finished items Player stacked on top of it", () => {
+    resetGameState();
+    const bear = makeCard({ id: "k3", name: "Bear", owner: "you", controller: "you", zone: "battlefield", power: "2", toughness: "2" });
+    game.cards[bear.id] = bear;
+    game.players.you.zones.battlefield.push(bear.id);
+    applyAction("you", "set_phase", { phase: "combat" });
+    applyAction("you", "attack", { pairs: [{ attacker: bear.id, target: "agent" }] });
+    applyAction("you", "stack_push", { text: "Rest in Peace enters — exile all graveyards" });
+
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchasa" });
+    const prompt = a.composeWakePrompt("react");
+    expect(prompt).toMatch(/PLAYER IS STILL DECLARING — their ATTACKS item/);
+    // the ripe item is named and handed over, above the draft
+    expect(prompt).toMatch(/1 of their item\(s\) ABOVE it .*Rest in Peace/);
+    expect(prompt).toMatch(/resolve or respond to (those|it) now/i);
+    // and the blanket order is gone: only the draft is off limits
+    expect(prompt).not.toContain("Do NOT resolve it.");
+    // the count at the top agrees: one finished item, not two
+    expect(prompt).toContain("1 of the stack item(s) are PLAYER'S");
+  });
+
+  // A wake that arrives while the agent is working normally cuts the window
+  // and restarts it. Bookkeeping says not to: the agent keeps its window, and
+  // the change reaches it inside its next tool result (or the follow-up wake
+  // endTurn owes when nothing delivered it).
+  test("a non-preempting wake leaves a busy window alone and only queues a follow-up", () => {
+    resetGameState();
+    const a = new AgentRunner();
+    a.reset({ agentDeck: "Gonti", decklist: ["Sol Ring"], userDeck: "Marchesa" });
+    a.busy = true;
+    a.wake("window", { preempt: false });
+    expect(a.busy).toBe(true);
+    expect(a.pendingWake).toBe(true);
+    expect(a.pendingReason).toBe("window");
+    expect(a.brain.at(-1)?.text ?? "").not.toContain("Interrupted");
+    a.busy = false;
+  });
+
   // The other half of the rewind fix: undo calls this on a window that is
   // already open. A cancelled countdown was never enough — a turn in flight
   // kept calling tools onto the board the rewind had just restored.

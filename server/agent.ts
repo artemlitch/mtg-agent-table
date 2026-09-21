@@ -523,7 +523,16 @@ export class AgentRunner {
       : "";
     // regardless of wake reason: Player's items on the stack are the agent's to
     // acknowledge — without this, window wakes routinely leave them sitting
-    const playerItems = game.stack.filter((i) => i.player === "you").length;
+    //
+    // A declaration Player has not finished is not one of them: it is a draft,
+    // and counting it here once told the agent "3 of the stack items are
+    // PLAYER'S — deal with them FIRST" three lines above "Do NOT resolve it"
+    // (see combatDuty below). The draft is combatDuty's to explain.
+    const draftIdx = game.stack.findIndex(
+      (i) => i.player === "you" && (i.apply?.type === "block" || i.apply?.type === "attack") && !i.finished
+    );
+    const declaring = draftIdx >= 0 ? game.stack[draftIdx] : undefined;
+    const playerItems = game.stack.filter((i) => i.player === "you" && i !== declaring).length;
     const stackDuty = playerItems
       ? `\n⚠ ${playerItems} of the stack item(s) are PLAYER'S — deal with them FIRST (see PLAYER'S ITEMS ON THE STACK).\n`
       : "";
@@ -634,13 +643,22 @@ export class AgentRunner {
     // creature in it while Player was still hovering the second (live, round
     // 10). The gate is conduct rather than a refusal, exactly as it is for
     // attacks, so the wake has to say which state the table is in.
-    const declaring = game.stack.find(
-      (i) => i.player === "you" && (i.apply?.type === "block" || i.apply?.type === "attack") && !i.finished
-    );
+    //
+    // And the draft is ONE item, not the whole stack. Live, round 9: Player
+    // was mid attack declaration when their Rest in Peace resolved and they
+    // put its enter trigger on top. The wake said "Do NOT resolve it" about
+    // the declaration and the agent read it as the stack, passing three
+    // windows running on a ripe trigger until Player typed "you need to
+    // actually resolve". Whatever Player stacks ABOVE the draft is theirs,
+    // finished, and the agent's to deal with; the draft waits underneath.
+    const ripeAbove = draftIdx >= 0 ? game.stack.slice(draftIdx + 1).filter((i) => i.player === "you") : [];
     const damageAnnounced = game.stack.some((i) => i.apply?.type === "damage" && i.apply.combatDamage);
     const blocksDeclared = game.stack.some((i) => i.apply?.type === "block" && i.player === "agent");
+    const draftName = declaring?.apply?.type === "block" ? "BLOCKS" : "ATTACKS";
     const combatDuty = declaring
-      ? `\n⚠ PLAYER IS STILL DECLARING — their ${declaring.apply?.type === "block" ? "BLOCKS" : "ATTACKS"} item on the stack is NOT FINISHED and they are still adding to it. Do NOT resolve it. Respond on top at instant speed if you want to, or wait — however many windows that takes; it becomes yours to resolve only once the log says they have finished declaring.\n`
+      ? ripeAbove.length
+        ? `\n⚠ PLAYER IS STILL DECLARING — their ${draftName} item on the stack is NOT FINISHED and they are still adding to it. Do NOT resolve THAT item; it becomes yours only once the log says they have finished declaring. But ${ripeAbove.length} of their item(s) ABOVE it (${ripeAbove.map((i) => i.text).join(" · ")}) ${ripeAbove.length === 1 ? "is" : "are"} finished and ripe: resolve or respond to ${ripeAbove.length === 1 ? "it" : "those"} now, top first — the declaration waits underneath.\n`
+        : `\n⚠ PLAYER IS STILL DECLARING — their ${draftName} item on the stack is NOT FINISHED and they are still adding to it. Do NOT resolve it. Respond on top at instant speed if you want to, or wait — however many windows that takes; it becomes yours to resolve only once the log says they have finished declaring.\n`
       : game.combat === "blockers" && blocksDeclared
         ? `\nYour blocks declaration is on the stack — waiting for Player to lock it in. Nothing more is owed in this step; do not declare blocks again.\n`
         : game.combat === "blockers"
@@ -708,13 +726,19 @@ export class AgentRunner {
   private interruptWatchdog: ReturnType<typeof setTimeout> | null = null;
   private stderrTail = "";
 
-  async wake(reason: "window" | "react" = "window") {
+  async wake(reason: "window" | "react" = "window", opts: { preempt?: boolean } = {}) {
     if (this.busy) {
+      this.pendingWake = true;
+      if (reason === "window") this.pendingReason = "window";
+      // Bookkeeping of Player's (a life total fixed, a counter nudged, a dead
+      // card tidied) is not worth cutting a turn in flight for: the change
+      // rides back inside the next tool result (index.ts, the mid-window
+      // injection), and endTurn owes a follow-up wake if nothing delivered
+      // it. Only the window survives; the queued wake still stands.
+      if (opts.preempt === false) return;
       // PREEMPT: new information arrived mid-thought — cut the in-flight turn
       // and rewake with the full picture. Completed actions and the
       // transcript stay; only the unfinished thought dies.
-      this.pendingWake = true;
-      if (reason === "window") this.pendingReason = "window";
       this.preempted = true;
       this.interruptNote = true;
       this.push("status", "⟳ Interrupted — restarting with the new information…");
@@ -1147,7 +1171,7 @@ A REACTION WINDOW means you hold priority in response to what Player just did. I
 
 PLAYER'S ITEMS ON THE STACK come before anything else you might do: respond on top (cast/stack_push/stack_counter), or CHECK each and then resolve it with stack_resolve, top first. Resolving is your assent that the item was legal — see LEGALITY IS ARGUED — not a formality. Never take other actions or call done while their items sit unresolved.
 
-AN UNFINISHED DECLARATION IS THE ONE EXCEPTION TO THAT. A declaration of Player's — ATTACKS or BLOCKS — that they have not FINISHED is still being assembled: creatures go in one at a time, and until Player says they are done the item is a draft, not an offer. You can tell: the stack item carries no finished flag, and the log holds no "finishes declaring" line for it. NEVER resolve one. Respond on top at instant speed if you want to, or wait — however many windows that takes — and resolve it only after they have finished. Locking in a half-made declaration takes creatures out of a combat Player was still building.
+AN UNFINISHED DECLARATION IS THE ONE EXCEPTION TO THAT. A declaration of Player's — ATTACKS or BLOCKS — that they have not FINISHED is still being assembled: creatures go in one at a time, and until Player says they are done the item is a draft, not an offer. You can tell: the stack item carries no finished flag, and the log holds no "finishes declaring" line for it. NEVER resolve one. Respond on top at instant speed if you want to, or wait — however many windows that takes — and resolve it only after they have finished. Locking in a half-made declaration takes creatures out of a combat Player was still building. The exception is the DRAFT ONLY: anything Player stacks on top of it (a spell, a trigger) is a finished item of theirs and the ordinary rule applies — deal with it, top first, while the draft waits underneath.
 
 CASTING PROCEDURE — run this checklist for EVERY card you play, no exceptions:
 1. READ the card's full oracle text in get_state before playing it. Never play from memory of the name. The server enforces this: casting a card whose text was never delivered to you is rejected. Draw results include the full text of what you drew.
