@@ -69,9 +69,34 @@ describe("what your action buys the agent", () => {
   });
 
   test("the plan carries the delay too, so the caller asks once", () => {
-    expect(wakePlanFor("chat", false)).toEqual({ reason: "window", delay: TYPING_DELAY_MS });
-    expect(wakePlanFor("cast", false)).toEqual({ reason: "react", delay: WAKE_DELAY_MS });
-    expect(wakePlanFor("attack", false)).toEqual({ reason: null, delay: WAKE_DELAY_MS });
+    expect(wakePlanFor("chat", false)).toEqual({ reason: "window", delay: TYPING_DELAY_MS, preempt: true });
+    expect(wakePlanFor("cast", false)).toEqual({ reason: "react", delay: WAKE_DELAY_MS, preempt: true });
+    expect(wakePlanFor("attack", false)).toEqual({ reason: null, delay: WAKE_DELAY_MS, preempt: true });
+  });
+
+  // Live, twice in one game: the agent asked Player to fix their life total
+  // and went on with its turn; Player clicked the total down four times, and
+  // since anything on the agent's turn is a window, each click cut the turn
+  // in flight and restarted it from the top. Then Player moved a creature the
+  // agent had just killed from graveyard to exile — two clicks, two more cuts.
+  // Bookkeeping still hands the table back to an agent that is WAITING, but it
+  // never interrupts one that is WORKING: what changed rides back inside its
+  // next tool result anyway.
+  test("bookkeeping on the agent's turn still wakes an idle agent, but does not preempt a busy one", () => {
+    for (const a of ["life", "counters", "tap", "untap", "move", "tuck", "set_pt", "commander_damage"]) {
+      expect(wakePlanFor(a, true)).toEqual({ reason: "window", delay: WAKE_DELAY_MS, preempt: false });
+    }
+  });
+
+  test("...while a spell, a stack item, a pass or a word on the agent's turn preempts as before", () => {
+    for (const a of ["cast", "stack_push", "done", "chat", "attack", "block"]) {
+      expect(wakePlanFor(a, true).preempt).toBe(true);
+    }
+  });
+
+  test("...and on your own turn bookkeeping wakes nothing at all, as before", () => {
+    expect(wakePlanFor("life", false).reason).toBeNull();
+    expect(wakePlanFor("move", false).reason).toBeNull();
   });
 });
 
@@ -262,5 +287,93 @@ describe("wake debounce", () => {
     expect(fired).toEqual([]);
     vi.advanceTimersByTime(WAKE_DELAY_MS);
     expect(fired).toEqual(["window"]); // the reason survives, the wait does not
+  });
+});
+
+describe("whether a wake may cut a window in flight", () => {
+  let fired: { reason: string; preempt: boolean }[];
+  let s: WakeScheduler;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fired = [];
+    s = new WakeScheduler((reason, preempt) => fired.push({ reason, preempt }));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  test("a wake preempts unless every action in its burst said not to", () => {
+    s.schedule("window", WAKE_DELAY_MS, false);
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual([{ reason: "window", preempt: false }]);
+  });
+
+  test("one preempting action in the burst makes the whole burst preempt", () => {
+    s.schedule("window", WAKE_DELAY_MS, false); // a life click
+    vi.advanceTimersByTime(1000);
+    s.schedule("react", WAKE_DELAY_MS, true); // then a spell
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual([{ reason: "window", preempt: true }]);
+  });
+
+  test("the choice does not leak into the next burst", () => {
+    s.schedule("window", WAKE_DELAY_MS, false);
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    s.schedule("react");
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired.map((f) => f.preempt)).toEqual([false, true]);
+  });
+});
+
+// Live, three times in one game: a countdown armed by an earlier reaction
+// fired while Player was still tapping attackers one at a time, and the agent
+// woke into a window whose prompt told it to do nothing but wait. Each
+// declaration action only pushed the deadline back three seconds, which is
+// less than a person takes to think between creatures. While a declaration
+// of Player's is open on top of the stack, the countdown waits for the finish
+// press instead of guessing.
+describe("holding the countdown while Player is declaring", () => {
+  let fired: string[];
+  let held: boolean;
+  let s: WakeScheduler;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fired = [];
+    held = false;
+    s = new WakeScheduler((r) => fired.push(r), () => {}, () => held);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  test("a countdown that comes due mid-declaration waits, and fires once the declaration is finished", () => {
+    s.schedule("react");
+    held = true; // Player started declaring inside the countdown
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 4);
+    expect(fired).toEqual([]);
+    expect(s.wakeAt).not.toBeNull(); // still owed, still visible
+    held = false; // finish_attacks
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual(["react"]);
+  });
+
+  test("the reason it was armed with survives the hold", () => {
+    s.schedule("window");
+    held = true;
+    vi.advanceTimersByTime(WAKE_DELAY_MS * 2);
+    held = false;
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual(["window"]);
+  });
+
+  test("SPACE still fires through the hold — a press that says now beats a guess", () => {
+    s.schedule("react");
+    held = true;
+    expect(s.fireNow()).toBe(true);
+    expect(fired).toEqual(["react"]);
+  });
+
+  test("with nothing to hold, the scheduler behaves exactly as before", () => {
+    s.schedule("react");
+    vi.advanceTimersByTime(WAKE_DELAY_MS);
+    expect(fired).toEqual(["react"]);
   });
 });

@@ -34,12 +34,21 @@ const SOUNDS_WEB = WEB_DIR + "sounds.json";
 // The sounds that survived an audition, checked in. The SOURCE copy is the
 // canonical one for the same reason sounds.json's is: web/ is a build output.
 const KEPT_SOUNDS_SRC = new URL("../client/public/assets/sounds/", import.meta.url).pathname;
-const wakeAgent = (reason: "window" | "react" = "window") => {
-  if (!AGENT_DISABLED) agent.wake(reason);
+const wakeAgent = (reason: "window" | "react" = "window", preempt = true) => {
+  if (!AGENT_DISABLED) agent.wake(reason, { preempt });
+};
+/** A declaration of Player's still being made, sitting on TOP of the stack:
+ *  nothing is above it to respond to, and the wake prompt for that state says
+ *  only "wait for the finish press". A countdown that comes due here waits
+ *  too. Anything Player stacks on top of the draft (a spell, a trigger) ends
+ *  the hold — that item is theirs, finished, and the agent's to deal with. */
+const playerIsDeclaring = () => {
+  const top = game.stack[game.stack.length - 1];
+  return !!top && top.player === "you" && !top.finished && (top.apply?.type === "attack" || top.apply?.type === "block");
 };
 // The agent thinks once, when you stop moving — see wake.ts. Declared before
 // broadcast() exists, so the change hook reaches it lazily.
-const wakes = new WakeScheduler(wakeAgent, () => broadcast({ type: "update", seq: game.seq }));
+const wakes = new WakeScheduler(wakeAgent, () => broadcast({ type: "update", seq: game.seq }), playerIsDeclaring);
 agent.tableUrl = `http://localhost:${PORT}`;
 
 let lastDecks: { you: number; agent: number } | null = null;
@@ -421,8 +430,8 @@ const server = Bun.serve({
         // Scheduled BEFORE the broadcast so the update carries the new deadline
         // for the client's countdown.
         if (actor === "you" && game.started && !cosmetic) {
-          const { reason, delay } = wakePlanFor(body.type, game.turn === "agent", heldPriority ?? undefined);
-          if (reason) wakes.schedule(reason, delay);
+          const { reason, delay, preempt } = wakePlanFor(body.type, game.turn === "agent", heldPriority ?? undefined);
+          if (reason) wakes.schedule(reason, delay, preempt);
           else wakes.defer(delay);
         }
         broadcast({ type: "update", seq: game.seq });

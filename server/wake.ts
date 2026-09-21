@@ -69,22 +69,39 @@ const REACTIVE = new Set([
  *  window it is, so the wake policy treats them alike and nothing else has to. */
 const HANDS_OVER = new Set(["done", "finish_attacks", "finish_blocks"]);
 
+/** Things you do to the table that change no one's options: a life total
+ *  corrected, a counter nudged, a card tidied into the graveyard it already
+ *  belonged in. On your own turn these never wake anything. On the AGENT's
+ *  turn they still hand the table back — an agent waiting on you needs its
+ *  turn returned — but they must not cut short an agent that is WORKING.
+ *
+ *  Live, twice in one game: the agent asked Player to fix their life total
+ *  and went on with its turn; Player clicked the total down four times, and
+ *  each click preempted the turn in flight and restarted it from the top
+ *  (637k tokens of context discarded, then re-read). Then Player moved a
+ *  creature the agent had just killed from graveyard to exile: two clicks,
+ *  two more cuts, a 930k restart. Every one of those changes reached the
+ *  agent anyway, inside its next tool result — see the mid-window injection
+ *  in index.ts — so the cut bought nothing. */
+const BOOKKEEPING = new Set(["life", "counters", "tap", "untap", "move", "tuck", "set_pt", "commander_damage", "commander_tax"]);
+
 export function wakePlanFor(
   action: string,
   agentsTurn: boolean,
   /** who held priority BEFORE this action — game.waitingOn as it was */
   heldPriority?: string
-): { reason: WakeReason | null; delay: number } {
+): { reason: WakeReason | null; delay: number; preempt: boolean } {
   const delay = wakeDelayFor(action);
+  const preempt = !(agentsTurn && BOOKKEEPING.has(action));
   // Passing when you have already passed changes nothing, so it must wake
   // nothing. The prompt does not change until the agent answers, which makes a
   // second press look reasonable, and a wake while the agent is mid-thought
   // preempts it and starts it over. Four presses in a row meant four
   // interrupted windows and no progress at all — the fix has to be here rather
   // than in the button, because the button is only one way to send a pass.
-  if (HANDS_OVER.has(action) && heldPriority === "agent") return { reason: null, delay };
-  if (HANDS_OVER.has(action) || action === "chat" || agentsTurn) return { reason: "window", delay };
-  return { reason: REACTIVE.has(action) ? "react" : null, delay };
+  if (HANDS_OVER.has(action) && heldPriority === "agent") return { reason: null, delay, preempt };
+  if (HANDS_OVER.has(action) || action === "chat" || agentsTurn) return { reason: "window", delay, preempt };
+  return { reason: REACTIVE.has(action) ? "react" : null, delay, preempt };
 }
 
 export class WakeScheduler {
@@ -92,18 +109,33 @@ export class WakeScheduler {
   wakeAt: number | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private reason: WakeReason = "react";
+  private preempt = true;
 
   constructor(
-    private onFire: (reason: WakeReason) => void,
+    private onFire: (reason: WakeReason, preempt: boolean) => void,
     private onChange: () => void = () => {},
+    /** true while the table is in a state the agent could only wait in — a
+     *  declaration of Player's open on top of the stack. A countdown that
+     *  comes due then re-arms instead of firing: the finish press is the
+     *  answer to "are you done", and a guess three seconds early bought a
+     *  window whose whole prompt said "wait". Live, three times in one game,
+     *  inside one six-creature attack declaration. */
+    private holdWhile: () => boolean = () => false,
   ) {}
 
-  /** A response-worthy action happened: start or restart the countdown. */
-  schedule(reason: WakeReason, delay = WAKE_DELAY_MS) {
+  /** A response-worthy action happened: start or restart the countdown.
+   *  preempt=false says this action may wake an idle agent but must not cut
+   *  a busy one; a burst preempts if any action in it may. */
+  schedule(reason: WakeReason, delay = WAKE_DELAY_MS, preempt = true) {
     // the burst resolves to one window, so it has to be the more thorough of
     // the reasons raised in it
-    if (!this.timer) this.reason = reason;
-    else if (reason === "window") this.reason = "window";
+    if (!this.timer) {
+      this.reason = reason;
+      this.preempt = preempt;
+    } else {
+      if (reason === "window") this.reason = "window";
+      if (preempt) this.preempt = true;
+    }
     this.arm(delay);
   }
 
@@ -138,6 +170,7 @@ export class WakeScheduler {
   fireNow(): boolean {
     if (!this.timer) return false;
     clearTimeout(this.timer);
+    // through the hold: a press that says "now" outranks the table's guess
     this.fire();
     return true;
   }
@@ -147,6 +180,7 @@ export class WakeScheduler {
     this.timer = null;
     this.wakeAt = null;
     this.reason = "react";
+    this.preempt = true;
     this.onChange();
   }
 
@@ -155,16 +189,28 @@ export class WakeScheduler {
   private arm(delay: number) {
     if (this.timer) clearTimeout(this.timer);
     this.wakeAt = Date.now() + delay;
-    this.timer = setTimeout(() => this.fire(), delay);
+    this.timer = setTimeout(() => this.due(), delay);
     this.onChange();
+  }
+
+  /** The countdown ran out. Fire — unless the table says the agent could only
+   *  wait, in which case the wake stays owed and the countdown runs again. */
+  private due() {
+    if (this.holdWhile()) {
+      this.arm(WAKE_DELAY_MS);
+      return;
+    }
+    this.fire();
   }
 
   private fire() {
     const reason = this.reason;
+    const preempt = this.preempt;
     this.timer = null;
     this.wakeAt = null;
     this.reason = "react";
+    this.preempt = true;
     this.onChange();
-    this.onFire(reason);
+    this.onFire(reason, preempt);
   }
 }
